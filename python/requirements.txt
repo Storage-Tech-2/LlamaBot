@@ -1,0 +1,4 @@
+fastapi==0.115.12
+llama_cpp_python==0.3.9
+outlines==0.2.3
+pydantic==2.11.5

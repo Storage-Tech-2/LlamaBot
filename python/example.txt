@@ -1,0 +1,21 @@
+[1.21+] 2wABt Lazy Box Merger,
+by @Math Dragon
+
+Accepts non-empty boxes of a single item type, and over time merges them, so that only full and empty boxes are produced. Intended for integration with box sorting. The merger is "lazy" in the sense that it is plug-n-play: it does not require any external logic for handling box inputs, nor does it require prefilling inventories, setting timers, or item gating.
+
+Features
+11x8x2 per slice, AB tileable (powered rails <-> activator rails, slime <-> honey),
+1x hopper speed,
+Vaguely built off of floppy's merge slice design,
+at least 5 out of 6 hoppers can be locked (see levers on red concrete); 1 is always locked,
+Precision collection of broken merging box,
+Emptied boxes get discarded to a water stream beneath, while full boxes are stored,
+Underside button to break/swap merging box with unloading one and reset slice; may need to press twice to extract last box,
+only 2 dust per slice: 1 to detect fill level of the merge box, 1 to lock the transfer hopper at the moment of breaking the boxes,
+
+Cons
+one full box is buffered (until the next box's fill level changes),
+can be sluggish (see issues),
+lol,
+
+Latest schematics (including individual slice, AB slices, with and without hopper-locking), issues, and discussion in thread

@@ -5,3 +5,4 @@ coverage
 .config
 config
 secret.json
+__pycache__

@@ -1,0 +1,94 @@
+{
+    "title": "Submission",
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string",
+            "description": "The name of the device."
+        },
+        "game_version": {
+            "type": "string",
+            "description": "The game version of the device.",
+            "enum": [
+                "1.12",
+                "1.12.1",
+                "1.12.2",
+                "1.13",
+                "1.13.1",
+                "1.13.2",
+                "1.14",
+                "1.14.1",
+                "1.14.2",
+                "1.14.3",
+                "1.14.4",
+                "1.15",
+                "1.15.1",
+                "1.15.2",
+                "1.16",
+                "1.16.1",
+                "1.16.2",
+                "1.16.3",
+                "1.16.4",
+                "1.16.5",
+                "1.17",
+                "1.17.1",
+                "1.18",
+                "1.18.1",
+                "1.18.2",
+                "1.19",
+                "1.19.1",
+                "1.19.2",
+                "1.19.3",
+                "1.19.4",
+                "1.20",
+                "1.20.1",
+                "1.20.2",
+                "1.20.3",
+                "1.20.4",
+                "1.20.5",
+                "1.20.6",
+                "1.21",
+                "1.21.1",
+                "1.21.2",
+                "1.21.3",
+                "1.21.4",
+                "1.21.5"
+            ]
+        },
+        "authors": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "A list of authors of the device."
+        },
+        "description": {
+            "type": "string",
+            "description": "A description of the device."
+        },
+        "features": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "A list of features of the device."
+        },
+        "cons": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "A list of cons/downsides of the device."
+        },
+        "notes": {
+            "type": "string",
+            "description": "Any additional notes about the device."
+        }
+    },
+    "required": [
+        "device_name",
+        "game_version",
+        "device_description",
+        "device_features"
+    ]
+}
