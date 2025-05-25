@@ -48,6 +48,6 @@ module.exports = class FinalizeButton {
       content: `<@${interaction.user.id}> Finalized ${interaction.message.url}`
     })
 
-    submission.checkPeerStage(guildHolder)
+    submission.advanceToVotingStage(guildHolder)
   }
 }

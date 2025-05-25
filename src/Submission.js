@@ -88,7 +88,7 @@ module.exports = class Submission {
   }
 
   canJunk () {
-    return !this.llmPromise || this.llmPromiseResolved
+    return (!this.llmPromise || this.llmPromiseResolved) && !this.llmRevisePromise
   }
 
   async useLLMExtract (guildHolder, channel) {
@@ -122,7 +122,7 @@ module.exports = class Submission {
       return
     }
 
-    if (this.submissionData.stage !== SubmissionStage.NOW) {
+    if (this.submissionData.stage !== SubmissionStage.NEW) {
       return
     }
 
@@ -171,10 +171,94 @@ module.exports = class Submission {
     this.updateStarterMessage(guildHolder)
   }
 
-  async checkPeerStage (guildHolder) {
+  async advanceToVotingStage (guildHolder) {
     if (this.submissionData.stage !== SubmissionStage.REVIEW) {
-
+      return
     }
+    // check if everything is set
+    if (!this.submissionData.archiveChannel || !this.submissionData.tags || !this.submissionData.image || !this.submissionData.attachments) {
+      return
+    }
+
+    this.submissionData.stage = SubmissionStage.VOTING
+
+    const currentRevision = await this.getRevision(this.submissionData.currentRevision)
+    if (!currentRevision) {
+      console.error('Current revision not found')
+      return
+    }
+
+    const channel = await guildHolder.guild.channels.fetch(this.forumThreadId)
+    if (!channel) {
+      throw new Error('Channel not found')
+    }
+
+    const archiveChannel = await guildHolder.guild.channels.fetch(this.submissionData.archiveChannel)
+    if (!archiveChannel) {
+      throw new Error('Archive channel not found')
+    }
+
+    const data = {
+      name: currentRevision.data.name || '',
+      archive_channel: {
+        url: archiveChannel.url,
+        id: this.submissionData.archiveChannel,
+        name: archiveChannel.name
+      },
+      discussion_thread: {
+        url: channel.url,
+        id: channel.id,
+        name: channel.name
+      },
+      tags: this.submissionData.tags,
+      game_version: currentRevision.data.game_version,
+      authors: currentRevision.data.authors.map(o => {
+        o = o.trim()
+        const obj = {}
+        // check if pingable
+        if (o.startsWith('<@') && o.endsWith('>')) {
+          const id = o.substring(2, o.length - 1)
+          const user = guildHolder.guild.members.cache.get(id)
+          obj.id = id
+          if (user) {
+            obj.name = user.displayName
+          }
+        } else {
+          obj.name = o
+        }
+        return obj
+      }),
+      description: currentRevision.data.description || '',
+      features: (currentRevision.data.features || []).map(o => o.trim()),
+      cons: (currentRevision.data.cons || []).map(o => o.trim()),
+      notes: (currentRevision.data.notes || '').trim(),
+      image: {
+        name: this.submissionData.image.name,
+        file: Path.basename(this.submissionData.image.processed)
+      },
+      attachments: this.submissionData.attachments.map(o => {
+        const obj = {}
+        obj.name = o.name
+        if (o.key) {
+          obj.file = o.key
+          if (o.contentType === 'litematic') {
+            obj.mc_version = o.version
+            obj.size = o.size
+          }
+        } else {
+          obj.url = o.url
+        }
+        obj.type = o.contentType
+        return obj
+      })
+    }
+
+    this.submissionData.final_data = data
+    this.save()
+  }
+
+  async createPost (submissionData, revisionData) {
+
   }
 
   async processImage () {
@@ -226,6 +310,7 @@ module.exports = class Submission {
           const sizeString = `${size.maxx - size.minx + 1}x${size.maxy - size.miny + 1}x${size.maxz - size.minz + 1}`
           attachment.size = sizeString
           attachment.version = version
+          attachment.contentType = 'litematic'
         } catch (error) {
           console.error('Error processing litematic file:', error)
           attachment.error = 'Error processing litematic file'
