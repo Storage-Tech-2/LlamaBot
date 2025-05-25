@@ -4,5 +4,5 @@ coverage
 .vscode
 .config
 config
-secret.json
+secrets.json
 __pycache__

@@ -25,7 +25,6 @@ from outlines import Template
 # Where your files live
 BASE_DIR = Path(__file__).resolve().parent
 SCHEMA_DIR = BASE_DIR / "schemas"          # ─┐
-PROMPT_TEMPLATE_PATH = BASE_DIR / "prompt.txt"  # ─┘ adjust as needed
 
 MODEL_REPO = "microsoft/Phi-3-mini-4k-instruct-gguf"
 MODEL_FILE = "Phi-3-mini-4k-instruct-q4.gguf"   # placed in ~/.cache/gpt4all or local dir
@@ -41,9 +40,6 @@ SCHEMA_MAP: Dict[str, str] = {
 
 print("⏳ Loading LLM …")
 model = outlines.models.llamacpp(MODEL_REPO, MODEL_FILE)
-
-print("⏳ Loading prompt template …")
-PROMPT_TEMPLATE = Template.from_file(PROMPT_TEMPLATE_PATH)
 
 print("⏳ Compiling schema-specific generators …")
 GENERATORS: Dict[str, outlines.generate] = {}
@@ -85,7 +81,7 @@ def generate(req: GenerateRequest):
                                    f"Choose one of {list(GENERATORS)}.")
 
     # 1️⃣ Build the concrete prompt
-    prompt = PROMPT_TEMPLATE(input=req.input_text)
+    prompt = req.input_text
 
     # 2️⃣ Call the model + constrained decoding
     try:

@@ -10,6 +10,7 @@
             "type": "string",
             "description": "The game version of the device.",
             "enum": [
+                "N/A",
                 "1.12",
                 "1.12.1",
                 "1.12.2",
@@ -86,7 +87,9 @@
         }
     },
     "required": [
-        "device_name",
+        "name",
+        "description",
+        "authors",
         "game_version",
         "device_description",
         "device_features"

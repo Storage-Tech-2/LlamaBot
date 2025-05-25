@@ -1,10 +1,16 @@
 const GuildHolder = require('./GuildHolder.js')
-const { Client, Intents } = require('discord.js')
+const { Client, GatewayIntentBits } = require('discord.js')
 const CommandUtils = require('./util/CommandUtils.js')
-
+const LLMUtils = require('./util/LLMUtils.js')
+const fs = require('fs/promises')
+const path = require('path')
+const Utils = require('./util/Utils.js')
+const GUIUtils = require('./util/GuiUtils.js')
 module.exports = class Bot {
   constructor () {
     this.guilds = new Map()
+    this.llmQueue = []
+    this.llmProcessing = false
   }
 
   async start (secrets) {
@@ -13,11 +19,23 @@ module.exports = class Bot {
       return
     }
 
+    await fs.mkdir(path.join(__dirname, '..', 'config')).catch((e) => {
+
+    })
+
     this.client = new Client({
-      intents: [Intents.FLAGS.GUILDS]
+      intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers
+      ]
     })
 
     this.commands = await CommandUtils.getCommands()
+    this.buttons = await GUIUtils.getButtons()
+    this.menus = await GUIUtils.getMenus()
+    this.modals = await GUIUtils.getModals()
 
     this.setupListeners(secrets)
     this.client.login(secrets.token)
@@ -56,6 +74,70 @@ module.exports = class Bot {
       console.log(`Left guild: ${guild.name} (${guild.id})`)
       this.guilds.delete(guild.id)
     })
+
+    this.client.on('interactionCreate', async (interaction) => {
+      if (!interaction.inGuild()) {
+        return Utils.replyEphemeral(interaction, 'Cannot use outside of guild!')
+      }
+
+      if (interaction.isCommand()) {
+        const command = this.commands.get(interaction.commandName)
+        if (!command) return
+
+        try {
+          await command.execute(interaction, this)
+        } catch (error) {
+          console.error(error)
+          return Utils.replyEphemeral(interaction, 'An error occurred while executing the command.')
+        }
+      } else if (interaction.isButton()) {
+        const customId = interaction.customId.split('|')
+        const button = this.buttons.get(customId[0])
+        if (!button) return
+
+        try {
+          await button.execute(interaction, this, ...customId.slice(1))
+        } catch (error) {
+          console.error(error)
+          return Utils.replyEphemeral(interaction, 'An error occurred while executing the button.')
+        }
+      } else if (interaction.isStringSelectMenu() || interaction.isChannelSelectMenu()) {
+        const customId = interaction.customId.split('|')
+        const menu = this.menus.get(customId[0])
+        if (!menu) return
+
+        try {
+          await menu.execute(interaction, this, ...customId.slice(1))
+        } catch (error) {
+          console.error(error)
+          return Utils.replyEphemeral(interaction, 'An error occurred while executing the menu.')
+        }
+      } else if (interaction.isModalSubmit()) {
+        const customId = interaction.customId.split('|')
+        const modal = this.modals.get(customId[0])
+        if (!modal) return
+
+        try {
+          await modal.execute(interaction, this, ...customId.slice(1))
+        } catch (error) {
+          console.error(error)
+          return Utils.replyEphemeral(interaction, 'An error occurred while executing the modal.')
+        }
+      } else {
+        return Utils.replyEphemeral(interaction, 'Unknown interaction type!')
+      }
+    })
+
+    this.client.on('messageCreate', async (message) => {
+      if (message.author.bot) return
+      if (!message.inGuild()) return
+
+      const guildHolder = this.guilds.get(message.guildId)
+      if (!guildHolder) return
+
+      // Handle message in guild
+      await guildHolder.handleMessage(message)
+    })
   }
 
   async loop () {
@@ -68,6 +150,50 @@ module.exports = class Bot {
       await guildHolder.loop()
     }
 
+    this.processLLMQueue()
+
     setTimeout(() => this.loop(), 1000)
+  }
+
+  async addLLMRequest (prompt) {
+    return new Promise((resolve, reject) => {
+      this.llmQueue.push({ prompt, resolve, reject })
+      this.processLLMQueue()
+    })
+  }
+
+  async processLLMQueue () {
+    if (this.llmProcessing || this.llmQueue.length === 0) {
+      return
+    }
+
+    this.llmProcessing = true
+
+    const { prompt, resolve, reject } = this.llmQueue.shift()
+
+    if (prompt.length === 0) {
+      this.llmProcessing = false
+      reject(new Error('Prompt is empty'))
+      return
+    }
+
+    // Check if the prompt is too long
+    if (prompt.length > 4000) {
+      this.llmProcessing = false
+      reject(new Error(`Prompt is too long (${prompt.length} characters)`))
+      return
+    }
+
+    try {
+      const response = await LLMUtils.getLLMResponse(prompt)
+      resolve(response)
+    } catch (error) {
+      reject(error)
+    }
+
+    this.llmProcessing = false
+    if (this.llmQueue.length > 0) {
+      this.processLLMQueue()
+    }
   }
 }

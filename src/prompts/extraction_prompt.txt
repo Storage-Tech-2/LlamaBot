@@ -1,22 +1,23 @@
-Create a JSON object containing the name, game version, authors, description, and a list of features extracted from a given text.
+Create a JSON object containing the name, game version, authors, description, and a list of features extracted from a given text. If a field is not present in the text, write N/A for that field.
 
 Example:
 
 Input:
-**[1.20.3+] 2wABt Parallel Red MIS**
+**[1.20.3] 2wABt Parallel Red MIS**
 *By @RedGrosso, with help from @Walter and @MoonyResearched, based on design by @InspectorTalon and @RaPsCaLLioN1138*
+
+A simple multi-item-sorter storage system.
 
 Features:
 * Slice is very compact (5x9x2)
 * Can sort one item stack every 24gts (up to 21x hopper speed)
 * Sorts both 64 & 16 stackables
 * Unstackables are sent to their own output
-* Boxes are automatically unloaded
 
 Cons:
 * Noisy
-* Each category is limited to 1x hopper speed. If too many items are sent to one slice they get recycled through the system, potentially preventing other categories from receiving items.
-* Extremely large, continuous input to a single category can cause items to be incorrectly sent to unsorted. This can be mitigated by increasing the inslice buffer.
+* Each category is limited to 1x hopper speed.
+* Extremely large, continuous input to a single category can cause items to be incorrectly sent to unsorted.
 
 Additional Credits:
 * Chest-Minecart Input: @KikuGie & @Philgoodinator
@@ -28,7 +29,7 @@ Output:
   "name": "2wABt Parallel Red MIS",
   "game_version": "1.20.3",
   "authors": ["@RedGrosso", "@Walter", "@MoonyResearched", "@InspectorTalon", "@RaPsCaLLioN1138"],
-  "description": "Slice is very compact (5x9x2). Can sort one item stack every 24gts (up to 21x hopper speed). Sorts both 64 & 16 stackables. Unstackables are sent to their own output. Boxes are automatically unloaded.",
+  "description": "A simple multi-item-sorter storage system.",
   "features": [
     "Slice is very compact (5x9x2)",
     "Can sort one item stack every 24gts (up to 21x hopper speed)",
@@ -38,11 +39,11 @@ Output:
   ],
   "cons": [
     "Noisy",
-    "Each category is limited to 1x hopper speed. If too many items are sent to one slice they get recycled through the system, potentially preventing other categories from receiving items.",
-    "Extremely large, continuous input to a single category can cause items to be incorrectly sent to unsorted. This can be mitigated by increasing the inslice buffer."
+    "Each category is limited to 1x hopper speed.",
+    "Extremely large, continuous input to a single category can cause items to be incorrectly sent to unsorted."
   ],
   "notes": "Chest-Minecart Input: @KikuGie & @Philgoodinator. Shulker box Unloader: @Christone & @javi. Cart Yeeter: @C5, @Inspector Talon, et al."
 }
 
 Now, extract the JSON object from the following text:
-{{ input }}
+{{input}}
