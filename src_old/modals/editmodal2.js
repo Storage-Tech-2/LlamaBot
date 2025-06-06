@@ -1,7 +1,7 @@
 const Utils = require('../util/Utils')
 const { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags } = require('discord.js')
 
-module.exports = class EditModal {
+module.exports = class EditModal2 {
   static async getComponent (revision) {
     const revisionData = revision.data
     const modal = new ModalBuilder()
@@ -53,7 +53,7 @@ module.exports = class EditModal {
   }
 
   static getName () {
-    return 'editmodal'
+    return 'editmodal2'
   }
 
   static async execute (interaction, bot, revisionID) {
