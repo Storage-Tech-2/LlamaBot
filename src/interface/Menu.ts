@@ -14,7 +14,7 @@ export interface Menu {
     /**
      * Returns the menu builder
      */
-    getBuilder(...args: any[]): BaseSelectMenuBuilder<any>
+    getBuilder(...args: any[]): Promise<BaseSelectMenuBuilder<any>>;
 
     /**
      * Executes the menu action.

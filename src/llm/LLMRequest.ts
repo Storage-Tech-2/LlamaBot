@@ -18,7 +18,7 @@ export class LLMRequest {
 
     /**
      * Creates a new LLMRequest instance.
-     * @param priority The priority of the request.
+     * @param priority The priority of the request. Higher numbers indicate higher priority.
      * @param prompt The prompt for the LLM request.
      */
     constructor(priority: number, prompt: Prompt) {

@@ -1,4 +1,4 @@
-import { ModalBuilder } from "discord.js";
+import { ModalBuilder, ModalSubmitInteraction } from "discord.js";
 import { GuildHolder } from "../GuildHolder";
 
 /**
@@ -14,10 +14,10 @@ export interface Modal {
     /**
      * Returns the modal builder
      */
-    getBuilder(...args: any[]): ModalBuilder;
+    getBuilder(...args: any[]): Promise<ModalBuilder>;
 
     /**
      * Executes the modal action.
      */
-    execute(guildHolder: GuildHolder, ...args: any[]): Promise<void>;
+    execute(guildHolder: GuildHolder, interaction: ModalSubmitInteraction, ...args: any[]): Promise<void>;
 }

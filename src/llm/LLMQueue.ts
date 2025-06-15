@@ -1,7 +1,8 @@
 import got from "got";
 import { LLMRequest } from "./LLMRequest";
-import { LLMResponse } from "./LLMResponse";
+import { LLMResponseFuture as LLMResponseFuture } from "./LLMResponseFuture";
 import { LLMRequestAndPromise } from "./LLMRequestAndPromise";
+import { LLMResponse } from "./LLMResponse";
 
 
 const URL = 'http://localhost:8000/generate'
@@ -23,14 +24,14 @@ export class LLMQueue {
      * Adds a new request to the queue and processes it if the queue is empty.
      * @param request The LLMRequest to add to the queue.
      */
-    public async addRequest(request: LLMRequest): Promise<LLMResponse> {
+    public addRequest(request: LLMRequest): LLMResponseFuture {
         // Validate the request's prompt input
         const validation = request.prompt.validateInput();
         if (validation instanceof Error) {
             throw validation;
         }
 
-        return new Promise<LLMResponse>((resolve, reject) => {
+        const promise = new Promise<LLMResponse>((resolve, reject) => {
             const requestAndPromise: LLMRequestAndPromise = {
                 request: request,
                 resolve: resolve,
@@ -45,6 +46,8 @@ export class LLMQueue {
                 return this.processNextRequest();
             }
         });
+
+        return new LLMResponseFuture(promise);
     }
 
     /**
@@ -114,8 +117,8 @@ export class LLMQueue {
                     input_text: prompt
                 },
                 timeout: 30000 // 30 seconds
-            }).json() as LLMResponse;
-            return response;
+            }).json();
+            return response as LLMResponse;
         } catch (error) {
             console.error('Error fetching LLM response:', error)
             throw error

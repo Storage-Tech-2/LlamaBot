@@ -106,4 +106,9 @@ export class SubmissionsManager {
             }
         }
     }
+
+    async saveSubmissions() {
+        const promises = Array.from(this.submissions.values()).map(submission => submission.save());
+        await Promise.all(promises);
+    }
 }

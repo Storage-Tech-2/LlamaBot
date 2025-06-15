@@ -1,14 +1,35 @@
-import { Message, MessageReferenceType, Snowflake } from "discord.js";
+import { Channel, GuildBasedChannel, Message, MessageFlags, MessageReferenceType, Snowflake, TextChannel, TextThreadChannel } from "discord.js";
 import { GuildHolder } from "../GuildHolder";
 import { ConfigManager } from "../config/ConfigManager";
 import Path from "path";
+import { SubmissionConfigs } from "./SubmissionConfigs";
+import { StarterEmbed } from "../embed/StarterEmbed";
+import { LLMResponseFuture } from "../llm/LLMResponseFuture";
+import { LLMResponseStatus } from "../llm/LLMResponseStatus";
+import { LLMRequest } from "../llm/LLMRequest";
+import { ExtractionPrompt } from "../llm/prompts/ExtractionPrompt";
+import { getAllAttachments, processAttachments, processImages } from "../utils/Util";
+import { Attachment } from "./Attachment";
+import { RevisionManager } from "./RevisionManager";
+import { Revision, RevisionType } from "./Revision";
+import { AuthorType } from "./Author";
+import { RevisionEmbed } from "../embed/RevisionEmbed";
+import { ModificationPrompt } from "../llm/prompts/ModificationPrompt";
 
 export class Submission {
     private guildHolder: GuildHolder;
     private id: Snowflake;
     private folderPath: string;
     private config: ConfigManager;
+    private revisions: RevisionManager;
+    private extractionResults?: LLMResponseFuture;
+    private llmReviseResponse?: LLMResponseFuture;
     public lastAccessed: number = Date.now();
+    private cachedAttachments?: Attachment[];
+    public imagesProcessing: boolean = false;
+    public attachmentsProcessing: boolean = false;
+    private reviewLocked: boolean = false;
+
 
     constructor(
         guildHolder: GuildHolder,
@@ -19,23 +40,330 @@ export class Submission {
         this.id = id;
         this.folderPath = folderPath;
         this.config = new ConfigManager(Path.join(folderPath, 'submission.json'));
+        this.revisions = new RevisionManager(this, Path.join(folderPath, 'revisions'));
     }
 
     /**
      * Called when the submission is created from nothing
      */
     public async init() {
+        // Set initial config values
+        const channel = await this.getSubmissionChannel();
+        this.config.setConfig(SubmissionConfigs.SUBMISSION_THREAD_ID, channel.id);
+        this.config.setConfig(SubmissionConfigs.SUBMISSION_THREAD_URL, channel.url);
+        this.config.setConfig(SubmissionConfigs.STATUS, SubmissionConfigs.STATUS.default);
 
-        
+        await this.checkStatusMessage();
+    }
 
+    public async getSubmissionChannel(): Promise<TextThreadChannel> {
+        const channel = await this.guildHolder.getGuild().channels.fetch(this.id);
+        if (!channel) {
+            throw new Error('Channel not found')
+        }
+        return channel as TextThreadChannel;
+    }
 
+    public async checkStatusMessage() {
+        const statusMessageId = this.config.getConfig(SubmissionConfigs.STATUS_MESSAGE_ID);
+        if (!statusMessageId) {
+            // post initial message
+            const starterEmbed = await StarterEmbed.create(this);
+            const channel = await this.getSubmissionChannel();
+            const message = await channel.send({ embeds: [starterEmbed.getEmbed()], components: [starterEmbed.getRow() as any] })
+            message.pin()
+            this.config.setConfig(SubmissionConfigs.STATUS_MESSAGE_ID, message.id);
+        }
+    }
+
+    public async checkLLMExtraction() {
+        const channel = await this.getSubmissionChannel();
+        const message = await channel.fetchStarterMessage();
+        if (!message) {
+            throw new Error('Starter message not found');
+        }
+
+        // If we already have extraction results, no need to check again
+        if (this.extractionResults) {
+            return;
+        }
+
+        // check if revisions exist. no need to extract if revisions are present
+        const revisions = this.getRevisionsManager().getRevisionsList();
+        if (revisions.length > 0) {
+            return;
+        }
+
+        // If no revisions, we can start the extraction process
+        const prompt = new ExtractionPrompt(`**${channel.name}**\n${message.content}`)
+        const request = new LLMRequest(1, prompt);
+        this.extractionResults = this.guildHolder.getBot().llmQueue.addRequest(request);
+
+        try {
+            await this.extractionResults.getResponse();
+        } catch (error) {
+            console.error('Error getting LLM response:', error);
+        }
+
+        this.checkReview();
+    }
+
+    public async checkReview() {
+        const archiveChannelId = this.config.getConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID);
+        const submissionTags = this.config.getConfig(SubmissionConfigs.TAGS);
+        const mainImages = this.config.getConfig(SubmissionConfigs.IMAGES);
+        const attachments = this.config.getConfig(SubmissionConfigs.ATTACHMENTS);
+
+        if (!archiveChannelId || submissionTags == null || mainImages === null || attachments === null) {
+            // If any of the required fields are missing, we cannot proceed
+            return;
+        }
+
+        const revisions = this.getRevisionsManager().getRevisionsList();
+        if (revisions.length > 0) {
+            console.warn('Revisions exist, skipping extraction');
+            return;
+        }
+
+        if (!this.extractionResults || this.extractionResults.getStatus() === LLMResponseStatus.InProgress) {
+            return; // Wait for extraction to complete
+        }
+
+        this.reviewLocked = true; // Lock the review process to prevent multiple submissions
+        try {
+            const initialRevision = await this.getInitialRevision();
+
+            const embed = await RevisionEmbed.create(initialRevision, true, false);
+            const channel = await this.getSubmissionChannel();
+            const message = await channel.send({ embeds: [embed.getEmbed()], components: [embed.getRow() as any] });
+
+            initialRevision.id = message.id; // Set the message ID as the revision ID
+
+            await this.getRevisionsManager().createRevision(initialRevision);
+            this.getRevisionsManager().setCurrentRevision(initialRevision.id);
+        } catch (error) {
+            console.error('Error creating initial revision:', error);
+        }
+        this.reviewLocked = false; // Unlock the review process
+    }
+
+    public async getInitialRevision(): Promise<Revision> {
+
+        if (this.extractionResults && this.extractionResults.getStatus() === LLMResponseStatus.Success) {
+
+            const response = this.extractionResults.getResponseNow();
+            if (!response) {
+                throw new Error('No response from LLM extraction');
+            }
+
+            const revision: Revision = {
+                id: '',
+                type: RevisionType.Initial,
+                parentRevision: null,
+                timestamp: Date.now(),
+                name: response.result.name,
+                minecraftVersion: response.result.game_version,
+                authors: response.result.authors.map(author => {
+                    return {
+                        type: AuthorType.Unknown,
+                        name: author.trim()
+                    }
+                }),
+                description: response.result.description,
+                features: response.result.features,
+                considerations: response.result.cons || [],
+                notes: response.result.notes || ''
+            }
+            return revision;
+        } else {
+            // If extraction results are not available, we create a default revision
+            // get initial message from the submission thread
+            const channel = await this.getSubmissionChannel();
+            const message = await channel.fetchStarterMessage();
+            if (!message) {
+                throw new Error('Starter message not found');
+            }
+
+            const revision: Revision = {
+                id: '',
+                type: RevisionType.Initial,
+                parentRevision: null,
+                timestamp: Date.now(),
+                name: channel.name,
+                minecraftVersion: "N/A",
+                authors: [],
+                description: message.content,
+                features: [],
+                considerations: [],
+                notes: ''
+            }
+            return revision;
+        }
+    }
+
+    public async processImages() {
+        if (this.imagesProcessing) {
+            console.error('Images are already being processed');
+            return;
+        }
+        this.imagesProcessing = true;
+        try {
+            const images = this.config.getConfig(SubmissionConfigs.IMAGES) || [];
+            const processedFolder = this.getProcessedImagesFolder();
+            const downloadFolder = Path.join(this.folderPath, 'downloaded_images');
+            await processImages(images, downloadFolder, processedFolder);
+            this.imagesProcessing = false;
+        } catch (error) {
+            this.imagesProcessing = false;
+            console.error('Error processing images:', error);
+            throw error;
+        }
+    }
+
+    public async processAttachments() {
+        if (this.attachmentsProcessing) {
+            console.error('Attachments are already being processed');
+            return;
+        }
+        this.attachmentsProcessing = true;
+        try {
+            const attachments = this.config.getConfig(SubmissionConfigs.ATTACHMENTS) || [];
+            const attachmentsFolder = this.getAttachmentFolder();
+            await processAttachments(attachments, attachmentsFolder);
+            this.attachmentsProcessing = false;
+        } catch (error) {
+            this.attachmentsProcessing = false;
+            console.error('Error processing attachments:', error);
+            throw error;
+        }
+    }
+
+    public getProcessedImagesFolder(): string {
+        return Path.join(this.folderPath, 'processed_images');
+    }
+
+    public getAttachmentFolder(): string {
+        return Path.join(this.folderPath, 'attachments');
+    }
+
+    public async updateStatusMessage() {
+        const statusMessageId = this.config.getConfig(SubmissionConfigs.STATUS_MESSAGE_ID);
+        if (!statusMessageId) {
+            throw new Error('Status message not sent yet!');
+        }
+
+        const channel = await this.getSubmissionChannel();
+        const message = await channel.messages.fetch(statusMessageId);
+
+        if (!message) {
+            throw new Error('Status message not found');
+        }
+
+        const starterEmbed = await StarterEmbed.create(this);
+        await message.edit({ embeds: [starterEmbed.getEmbed()], components: [starterEmbed.getRow() as any] });
     }
 
     public async handleMessage(message: Message) {
+        this.checkLLMExtraction();
         if (message.reference && message.reference.type === MessageReferenceType.Default) {
             // its a reply
-            
+            await this.handleReplies(message);
         }
+    }
+
+    async handleReplies(message: Message) {
+        // Make sure it isn't bot
+        if (message.author.bot || message.reference?.messageId === undefined) {
+            return
+        }
+
+        // Check if message id is in revisions
+        const revisions = this.getRevisionsManager().getRevisionsList();
+        if (!revisions.some(r => r.id === message.reference?.messageId)) {
+            return;
+        }
+
+        // It's a reply to the bot for a revision
+        const revision = await this.getRevisionsManager().getRevisionById(message.reference.messageId)
+        if (!revision) {
+            console.error('Revision not found', message.reference.messageId)
+            return
+        }
+
+        if (this.llmReviseResponse && this.llmReviseResponse.getStatus() === LLMResponseStatus.InProgress) {
+            console.log('LLM revise promise already in progress')
+            message.reply('Revision already in progress, please wait')
+            return
+        }
+
+        const wmsg = await message.reply('Processing revision, please wait')
+
+        this.llmReviseResponse = this.useLLMRevise(message.content, revision)
+
+        let response
+        try {
+            response = await this.llmReviseResponse.getResponse();
+            await wmsg.delete()
+        } catch (error) {
+            console.error('Error using LLM:', error)
+            await message.reply('Error using LLM, please check the logs')
+            this.llmReviseResponse = undefined;
+            return
+        }
+
+        this.llmReviseResponse = undefined;
+
+        const channel = await this.getSubmissionChannel();
+        const isCurrent = this.getRevisionsManager().isRevisionCurrent(revision.id);
+
+        const newRevisionData: Revision = {
+            id: "",
+            type: RevisionType.LLM,
+            parentRevision: revision.id,
+            timestamp: Date.now(),
+            name: response.result.name,
+            minecraftVersion: response.result.game_version,
+            authors: response.result.authors.map(author => {
+                return {
+                    type: AuthorType.Unknown,
+                    name: author.trim()
+                }
+            }),
+            description: response.result.description,
+            features: response.result.features,
+            considerations: response.result.cons || [],
+            notes: response.result.notes || ""
+        }
+
+        await message.reply({
+            content: `<@${message.author.id}> I've edited the submission${isCurrent ? ' and set it as current' : ''}`
+        })
+
+        const embed = await RevisionEmbed.create(newRevisionData, isCurrent, false);
+        const messageNew = await message.reply({
+            embeds: [embed.getEmbed()],
+            components: [embed.getRow() as any],
+            flags: MessageFlags.SuppressNotifications
+        })
+        newRevisionData.id = messageNew.id;
+        await this.getRevisionsManager().createRevision(newRevisionData);
+        if (isCurrent) {
+            await this.getRevisionsManager().setCurrentRevision(newRevisionData.id, false);
+        }
+        this.updateStatusMessage();
+    }
+
+
+    useLLMRevise(prompt: string, revision: Revision): LLMResponseFuture {
+        // find starter message
+        const revisionMessage = JSON.stringify(revision, null, 2)
+        // request llm response
+        const llmPrompt = new ModificationPrompt(
+            prompt,
+            revision
+        )
+        const request = new LLMRequest(1, llmPrompt);
+        return this.guildHolder.getBot().llmQueue.addRequest(request);
     }
 
 
@@ -49,10 +377,25 @@ export class Submission {
 
     public async save() {
         await this.config.saveConfig();
-
     }
 
     public canJunk(): boolean {
+        if (this.extractionResults && this.extractionResults.getStatus() === LLMResponseStatus.InProgress) {
+            return false; // Cannot junk while LLM response is in progress
+        }
+
+        if (this.llmReviseResponse && this.llmReviseResponse.getStatus() === LLMResponseStatus.InProgress) {
+            return false; // Cannot junk while LLM revise response is in progress
+        }
+
+        if (this.imagesProcessing) {
+            return false; // Cannot junk while images are being processed
+        }
+
+        if (this.attachmentsProcessing) {
+            return false; // Cannot junk while attachments are being processed
+        }
+
         return true;
     }
 
@@ -60,4 +403,26 @@ export class Submission {
         return this.id;
     }
 
+    public getConfigManager(): ConfigManager {
+        return this.config;
+    }
+
+    async getAttachments() {
+        if (this.cachedAttachments) {
+            return this.cachedAttachments
+        }
+        const channel = await this.getSubmissionChannel();
+        const attachments = await getAllAttachments(channel)
+        this.cachedAttachments = attachments
+
+        setTimeout(() => {
+            this.cachedAttachments = undefined;
+        }, 5000)
+
+        return attachments
+    }
+
+    public getRevisionsManager(): RevisionManager {
+        return this.revisions;
+    }
 }

@@ -39,7 +39,7 @@ SCHEMA_MAP: Dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 print("⏳ Loading LLM …")
-model = outlines.models.llamacpp(MODEL_REPO, MODEL_FILE)
+model = outlines.models.llamacpp(MODEL_REPO, MODEL_FILE, n_gpu_layers=-1)
 
 print("⏳ Compiling schema-specific generators …")
 GENERATORS: Dict[str, outlines.generate] = {}
@@ -62,7 +62,7 @@ app = FastAPI(title="LLM JSON-Schema API",
 
 class GenerateRequest(BaseModel):
     mode: str = Field(
-        ..., examples=["extraction", "modification"],
+        ..., examples=["extraction"],
         description="Which schema / task to use.",
     )
     input_text: str = Field(..., description="Raw text fed into the prompt.")

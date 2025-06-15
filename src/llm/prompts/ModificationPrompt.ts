@@ -1,3 +1,5 @@
+import { Revision } from "../../submissions/Revision";
+import { LLMResponse } from "../LLMResponse";
 import { Prompt } from "./Prompt";
 
 export class ModificationPrompt implements Prompt {
@@ -16,9 +18,24 @@ export class ModificationPrompt implements Prompt {
      * @param instruction The instruction for the modification.
      * @param input The input text to modify.
      */
-    constructor(instruction: string, input: string) {
+    constructor(instruction: string, revision: Revision) {
         this._instruction = instruction;
-        this._input = input;
+        this._input = JSON.stringify(this.revisionToSchema(revision), null, 2);
+    }
+
+    revisionToSchema(revision: Revision): LLMResponse {
+        return {
+            result: {
+                name: revision.name,
+                game_version: revision.minecraftVersion,
+                authors: revision.authors.map(author => author.name || ''),
+                description: revision.description,
+                features: revision.features,
+                cons: revision.considerations || [],
+                notes: revision.notes || ""
+            }
+        };
+
     }
 
     /**

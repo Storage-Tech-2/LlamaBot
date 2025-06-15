@@ -37,7 +37,7 @@ export class GuildHolder {
     constructor(bot: Bot, guild: Guild) {
         this.bot = bot;
         this.guild = guild;
-        this.config = new ConfigManager(this.getGuildFolder());
+        this.config = new ConfigManager(Path.join(this.getGuildFolder(), 'config.json'));
         this.submissions = new SubmissionsManager(this, Path.join(this.getGuildFolder(), 'submissions'));
         this.config.loadConfig().then(() => {
             // Set guild name and ID in the config
@@ -60,7 +60,7 @@ export class GuildHolder {
      * @returns The path to the guild's configuration folder.
      */
     public getGuildFolder(): string {
-        return Path.join(__dirname, '..', 'config', this.getGuildId(), 'config.json');
+        return Path.join(__dirname, '..', 'config', this.getGuildId());
     }
 
     public getSubmissionsChannelId(): Snowflake {
@@ -91,5 +91,23 @@ export class GuildHolder {
     public async loop() {
         await this.config.saveConfig();
         await this.submissions.purgeOldSubmissions();
+        await this.submissions.saveSubmissions();
     }
+
+    public getGuild(): Guild {
+        return this.guild;
+    }
+
+    public getBot(): Bot {
+        return this.bot;
+    }
+
+    public getConfigManager(): ConfigManager {
+        return this.config;
+    }
+
+    public getSubmissionsManager(): SubmissionsManager {
+        return this.submissions;
+    }
+
 }

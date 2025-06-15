@@ -1,5 +1,10 @@
+import { Snowflake } from "discord.js";
 import { Config } from "../config/ConfigManager";
+import { Image } from "./Image";
 import { SubmissionStatus } from "./SubmissionStatus";
+import { Tag } from "./Tag";
+import { Revision, RevisionReference } from "./Revision";
+import { Attachment } from "./Attachment";
 
 export const SubmissionConfigs = {
     /**
@@ -8,37 +13,42 @@ export const SubmissionConfigs = {
     STATUS: new Config("status", SubmissionStatus.NEW),
 
     /**
+     * ID of the submission thread.
+     */
+    SUBMISSION_THREAD_ID: new Config<Snowflake>("submission_channel_id", ""),
+
+    /**
+     * URL of the submission thread.
+     */
+    SUBMISSION_THREAD_URL: new Config<string>("submission_thread_url", ""),
+
+    /**
      * ID of the channel where the submission will be archived.
      */
-    ARCHIVE_CHANNEL_ID: new Config("archive_channel_id", ""),
-
+    ARCHIVE_CHANNEL_ID: new Config<Snowflake>("archive_channel_id", ""),
+   
     /**
      * Tags associated with the submission.
      */
-    TAGS: new Config("tags", []),
+    TAGS: new Config<Tag[] | null>("tags", null),
 
     /**
-     * Submission main image
+     * Submission images
      */
-    MAIN_IMAGE: new Config("main_image", null),
+    IMAGES: new Config<Image[] | null>("images", null),
 
     /**
      * Submission attachments
      */
-    ATTACHMENTS: new Config("attachments", []),
+    ATTACHMENTS: new Config<Attachment[] | null>("attachments", null),
 
     /**
      * Submission revisions
      */
-    REVISIONS: new Config("revisions", []),
-
-    /**
-     * Current revision ID
-     */
-    CURRENT_REVISION_ID: new Config("current_revision_id", ""),
+    REVISIONS: new Config<RevisionReference[]>("revisions", []),
 
     /**
      * Status message ID. Used to update the status message in the submission thread.
      */
-    STATUS_MESSAGE_ID: new Config("status_message_id", ""),
+    STATUS_MESSAGE_ID: new Config<Snowflake>("status_message_id", ""),
 }

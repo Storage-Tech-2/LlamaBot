@@ -1,6 +1,7 @@
 import { Prompt } from "./Prompt";
 
-const prompt_template = `Create a JSON object containing the name, game version, authors, description, and a list of features extracted from a given text. If a field is not present in the text, write N/A for that field.
+const prompt_template = `
+Create a JSON object containing the name, game version, authors, description, and a list of features extracted from a given text. Cons and notes are optional but should be included if present.
 
 Example:
 
@@ -10,7 +11,6 @@ Input:
 
 A simple multi-item-sorter storage system.
 
-Features:
 * Slice is very compact (5x9x2)
 * Can sort one item stack every 24gts (up to 21x hopper speed)
 * Sorts both 64 & 16 stackables

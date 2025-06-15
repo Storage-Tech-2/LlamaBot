@@ -7,7 +7,12 @@ import { Command } from "./interface/Command";
 import { Button } from "./interface/Button";
 import { Menu } from "./interface/Menu";
 import { Modal } from "./interface/Modal";
-import { deployCommands, getButtons, getCommands, getMenus, getModals, replyEphemeral } from "./utils/Util";
+import { deployCommands, getItemsFromArray, replyEphemeral } from "./utils/Util";
+import { getButtons } from "./components/buttons";
+import { getCommands } from "./commands";
+import { getMenus } from "./components/menus";
+import { getModals } from "./components/modals";
+import { TempDataStore } from "./utils/TempDataStore";
 
 /**
  * The Secrets type defines the structure for the bot's secrets, including the token and client ID.
@@ -61,6 +66,11 @@ export class Bot {
      */
     ready: boolean = false;
 
+    /**
+     * Temp data store
+     */
+    tempData: TempDataStore;
+
 
     constructor() {
         this.guilds = new Map()
@@ -69,6 +79,7 @@ export class Bot {
         this.buttons = new Map()
         this.menus = new Map()
         this.modals = new Map()
+        this.tempData = new TempDataStore();
 
         this.client = new Client({
             intents: [
@@ -87,10 +98,10 @@ export class Bot {
             throw new Error('Missing token or clientId in secrets.json')
         }
 
-        this.commands = await getCommands()
-        this.buttons = await getButtons();
-        this.menus = await getMenus();
-        this.modals = await getModals();
+        this.commands = getItemsFromArray(getCommands())
+        this.buttons = getItemsFromArray(getButtons())
+        this.menus = getItemsFromArray(getMenus());
+        this.modals = getItemsFromArray(getModals());
 
         this.setupListeners(secrets)
         this.client.login(secrets.token)
@@ -215,5 +226,9 @@ export class Bot {
         }
 
         setTimeout(() => this.loop(), 1000)
+    }
+
+    public getTempDataStore(): TempDataStore {
+        return this.tempData;
     }
 }

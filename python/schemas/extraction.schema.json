@@ -91,7 +91,6 @@
         "description",
         "authors",
         "game_version",
-        "device_description",
-        "device_features"
+        "features"
     ]
 }
