@@ -1,4 +1,4 @@
-import { ActionRowBuilder, BaseSelectMenuBuilder, Channel, ChannelSelectMenuBuilder, ChannelType, Collection, ForumChannel, MessageFlags, Snowflake, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, ThreadChannel } from "discord.js";
+import { ActionRowBuilder, ForumChannel, MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder";
 import { Menu } from "../../interface/Menu";
 import { hasPerms, isOwner, replyEphemeral } from "../../utils/Util";
@@ -44,7 +44,7 @@ export class SetTagsMenu implements Menu {
             )
     }
 
-    async execute(guildHolder: GuildHolder, interaction: StringSelectMenuInteraction, ...args: string[]): Promise<void> {
+    async execute(guildHolder: GuildHolder, interaction: StringSelectMenuInteraction, ..._args: string[]): Promise<void> {
         if (
             !isOwner(interaction) &&
             !hasPerms(interaction)

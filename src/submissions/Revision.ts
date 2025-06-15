@@ -1,5 +1,4 @@
 import { Snowflake } from "discord.js"
-import { Author } from "./Author";
 
 export enum RevisionType {
     /**
