@@ -7,11 +7,6 @@ export const RevisionConfigs = {
     NAME: new Config("name", ""),
 
     /**
-     * Submission game version
-     */
-    GAME_VERSION: new Config("game_version", "N/A"),
-
-    /**
      * Submission authors
      */
     AUTHORS: new Config("authors", []),

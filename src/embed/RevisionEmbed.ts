@@ -3,6 +3,8 @@ import { Submission } from "../submissions/Submission";
 import { Revision } from "../submissions/Revision";
 import { EditSubmissionButton } from "../components/buttons/EditSubmissionButton";
 import { MakeRevisionCurrentButton } from "../components/buttons/MakeRevisionCurrentButton";
+import { SubmissionConfigs } from "../submissions/SubmissionConfigs";
+import { getAuthorsString } from "../utils/Util";
 
 export class RevisionEmbed {
     private embed: EmbedBuilder;
@@ -21,7 +23,7 @@ export class RevisionEmbed {
         return this.row;
     }
 
-    public static async create(revision: Revision, isCurrent = false, finalized = false): Promise<RevisionEmbed> {
+    public static async create(submission: Submission, revision: Revision, isCurrent = false, finalized = false): Promise<RevisionEmbed> {
         // const submissionData = submission.submissionData
         const embed = new EmbedBuilder()
         // const files = []
@@ -35,23 +37,28 @@ export class RevisionEmbed {
         embed.setColor(isCurrent ? '#0099ff' : '#ff9900')
         embed.setTitle(`Submission Draft${isCurrent ? ' (Current)' : ''}`)
         let description = ''
-        description += `## [${revision.minecraftVersion || 'N/A'}] ${revision.name || 'No Name'}\n`
 
-        description += `**Authors:** ${revision.authors.map(o=>o.name).join(', ')}\n`
+        // Check name
+        const channel = await submission.getSubmissionChannel();
+        submission.getConfigManager().setConfig(SubmissionConfigs.NAME, channel.name);
+        description += `## ${submission.getConfigManager().getConfig(SubmissionConfigs.NAME)}\n`;
+
+        const authors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
+        description += `**Authors:** ${getAuthorsString(authors)}\n`
 
         description += `**Description:** ${revision.description}`
 
         if (revision.features.length) {
-            description += '\n\n**Features**\n'
+            description += '\n\n**Features**'
             revision.features.forEach((feature) => {
-                description += `- ${feature}\n`
+                description += `\n- ${feature}`
             })
         }
 
         if (revision.considerations.length) {
-            description += '\n\n**Considerations**\n'
+            description += '\n\n**Considerations**'
             revision.considerations.forEach((con) => {
-                description += `- ${con}\n`
+                description += `\n- ${con}`
             })
         }
 

@@ -12,6 +12,7 @@ import fs from 'fs/promises'
 import got from 'got'
 import sharp from 'sharp'
 import { Litematic } from '@kleppe/litematic-reader'
+import { Author, AuthorType } from '../submissions/Author'
 
 export function getItemsFromArray<T extends (Button | Menu | Modal | Command)>(itemArray: T[]): Map<string, T> {
     const items = new Map()
@@ -393,4 +394,17 @@ export function dataVersionToMinecraftVersion(dataVersion: number): string {
             return 'Unknown'
         }
     }
+}
+
+export function getAuthorsString(authors: Author[] | null): string {
+    if (!authors || authors.length === 0) {
+        return 'No authors';
+    }
+    return authors.map(author => {
+        if (author.type === AuthorType.Discord) {
+            return `<@${author.id}>`;
+        } else {
+            return author.name;
+        }
+    }).join(', ');
 }

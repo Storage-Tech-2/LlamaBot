@@ -2,12 +2,17 @@ import { SetArchiveCategoriesMenu } from "./SetArchiveCategoriesMenu";
 import { SetArchiveCategoryMenu } from "./SetArchiveCategoryMenu";
 import { SetArchiveChannelMenu } from "./SetArchiveChannelMenu";
 import { SetAttachmentsMenu } from "./SetAttachmentsMenu";
+import { SetAuthorsMenu } from "./SetAuthorsMenu";
+import { SetEndorseRolesMenu } from "./SetEndorseRolesMenu";
 import { SetImagesMenu } from "./SetImagesMenu";
 import { SetTagsMenu } from "./SetTagsMenu";
 
 export function getMenus() {
     const Menus = [
         new SetArchiveCategoriesMenu(),
+        new SetEndorseRolesMenu(),
+
+        new SetAuthorsMenu(),
         new SetArchiveCategoryMenu(),
         new SetArchiveChannelMenu(),
         new SetTagsMenu(),

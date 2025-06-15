@@ -40,6 +40,6 @@ export class MakeRevisionCurrentButton implements Button {
         await interaction.reply({
             content: `<@${interaction.user.id}> changed current revision to ${message.url}`
         });
-        submission.updateStatusMessage();
+        submission.statusUpdated();
     }
 }

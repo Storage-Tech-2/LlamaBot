@@ -121,7 +121,7 @@ export class SetAttachmentsMenu implements Menu {
             flags: MessageFlags.SuppressEmbeds
         })
 
-        submission.updateStatusMessage();
+        await submission.statusUpdated();
         submission.checkReview();
     }
 

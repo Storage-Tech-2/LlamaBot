@@ -137,13 +137,13 @@ export class SetImagesMenu implements Menu {
             files
         })
 
-        submission.updateStatusMessage();
+        submission.statusUpdated();
 
         if (isFirstTime) {
             const row = new ActionRowBuilder()
                 .addComponents(await new SetAttachmentsMenu().getBuilder(guildHolder, submission))
             await interaction.followUp({
-                content: `<@${interaction.user.id}> Please select Schematics/WDLS`,
+                content: `<@${interaction.user.id}> Please choose other attachments (Schematics/WDLS) for your submission`,
                 components: [row as any],
                 flags: MessageFlags.Ephemeral
             })

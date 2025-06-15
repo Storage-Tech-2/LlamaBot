@@ -25,9 +25,6 @@ export type Revision = {
     parentRevision: Snowflake | null;
     timestamp: number;
 
-    name: string;
-    minecraftVersion: string;
-    authors: Author[];
     description: string;
     features: string[];
     considerations: string[];

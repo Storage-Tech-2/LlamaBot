@@ -5,8 +5,19 @@ import { SubmissionStatus } from "./SubmissionStatus";
 import { Tag } from "./Tag";
 import { Revision, RevisionReference } from "./Revision";
 import { Attachment } from "./Attachment";
+import { Author } from "./Author";
 
 export const SubmissionConfigs = {
+    /**
+     * Name of the submission
+     */
+    NAME: new Config<string>("name", ""),
+
+    /**
+     * Authors of the submission
+     */
+    AUTHORS: new Config<Author[] | null>("authors", null),
+
     /**
      * Submission status
      */
@@ -51,4 +62,9 @@ export const SubmissionConfigs = {
      * Status message ID. Used to update the status message in the submission thread.
      */
     STATUS_MESSAGE_ID: new Config<Snowflake>("status_message_id", ""),
+
+    /**
+     * Endorers of the submission.
+     */
+    ENDORSERS: new Config<Author[]>("endorsers", []),
 }

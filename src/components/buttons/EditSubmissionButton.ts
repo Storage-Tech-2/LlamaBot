@@ -2,8 +2,7 @@ import { ButtonBuilder, ButtonInteraction, ButtonStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder";
 import { Button } from "../../interface/Button";
 import { hasPerms, isOwner, replyEphemeral } from "../../utils/Util";
-import { EditRevisionModalPart1 } from "../modals/EditRevisionModalPart1";
-
+import { EditRevisionModal } from "../modals/EditRevisionModal";
 export class EditSubmissionButton implements Button {
     getID(): string {
         return "edit-submission-button";
@@ -34,6 +33,6 @@ export class EditSubmissionButton implements Button {
             return
         }
 
-        await interaction.showModal(await new EditRevisionModalPart1().getBuilder(revision))
+        await interaction.showModal(await new EditRevisionModal().getBuilder(revision))
     }
 }

@@ -8,19 +8,9 @@ export enum SubmissionStatus {
     NEW = "new",
 
     /**
-     * Submission is tagged, and is awaiting review. LLM is used to generate machine-readable data.
+     * Submission is waiting for author's confirmation.
      */
-    REVIEW = "review",
-
-    /**
-     * Submission is reviewed, and is awaiting endorsement. At least one expert must endorse the submission.
-     */
-    ENDORSE = "endorse",
-
-    /**
-     * Submission is endorsed, and is being voted on. Votes should not be negative.
-     */
-    VOTE = "vote",
+    WAITING = "waiting",
 
     /**
      * Submission has been accepted, and is now in the database.

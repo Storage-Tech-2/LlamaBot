@@ -176,7 +176,7 @@ export class Bot {
                     console.error(error)
                     return replyEphemeral(interaction, 'An error occurred while executing the button.')
                 }
-            } else if (interaction.isStringSelectMenu() || interaction.isChannelSelectMenu()) {
+            } else if (interaction.isAnySelectMenu()) {
                 const customId = interaction.customId.split('|')
                 const menu = this.menus.get(customId[0])
                 if (!menu) return

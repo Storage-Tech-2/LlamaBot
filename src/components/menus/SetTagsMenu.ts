@@ -2,7 +2,6 @@ import { ActionRowBuilder, BaseSelectMenuBuilder, Channel, ChannelSelectMenuBuil
 import { GuildHolder } from "../../GuildHolder";
 import { Menu } from "../../interface/Menu";
 import { hasPerms, isOwner, replyEphemeral } from "../../utils/Util";
-import { GuildConfigs } from "../../config/GuildConfigs";
 import { Submission } from "../../submissions/Submission";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs";
 import { SetImagesMenu } from "./SetImagesMenu";
@@ -15,6 +14,7 @@ export class SetTagsMenu implements Menu {
     async getBuilder(guildHolder: GuildHolder, isMod: boolean, submission: Submission): Promise<StringSelectMenuBuilder> {
         const archiveChannelId = submission.getConfigManager().getConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID);
         const channel = await guildHolder.getGuild().channels.fetch(archiveChannelId) as ForumChannel;
+        const currentTags = submission.getConfigManager().getConfig(SubmissionConfigs.TAGS) || [];
         const tags = channel.availableTags.filter(tag => {
             return !tag.moderated || isMod || currentTags.some(t => t.id === tag.id);
         })
@@ -26,7 +26,6 @@ export class SetTagsMenu implements Menu {
                 emoji: null
             })
         }
-        const currentTags = submission.getConfigManager().getConfig(SubmissionConfigs.TAGS) || [];
         return new StringSelectMenuBuilder()
             .setCustomId(this.getID())
             .setMinValues(0)
@@ -130,14 +129,14 @@ export class SetTagsMenu implements Menu {
 
         if (str.length) {
             await interaction.reply(`<@${interaction.user.id}> ${str.join(' and ')} to tags`)
-            submission.updateStatusMessage()
+            submission.statusUpdated()
         }
 
-        if (str.length && tagsUnset) {
+        if (tagsUnset) {
             const row = new ActionRowBuilder()
                 .addComponents(await new SetImagesMenu().getBuilder(guildHolder, submission))
             await interaction.followUp({
-                content: `<@${interaction.user.id}> Please set a main image`,
+                content: `<@${interaction.user.id}> Please choose image attachments for your submission`,
                 components: [row as any],
                 flags: MessageFlags.Ephemeral
             })

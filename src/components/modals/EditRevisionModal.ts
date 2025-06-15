@@ -1,14 +1,13 @@
 import { ActionRowBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, Snowflake, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder";
 import { Modal } from "../../interface/Modal";
-import { Revision, RevisionType, TempRevisionData } from "../../submissions/Revision";
+import { Revision, RevisionType } from "../../submissions/Revision";
 import { hasPerms, isOwner, replyEphemeral } from "../../utils/Util";
-import { AuthorType } from "../../submissions/Author";
 import { RevisionEmbed } from "../../embed/RevisionEmbed";
 
-export class EditRevisionModalPart2 implements Modal {
+export class EditRevisionModal implements Modal {
     getID(): string {
-        return "edit-revision-modal-part-2";
+        return "edit-revision-modal";
     }
 
     async getBuilder(revision: Revision): Promise<ModalBuilder> {
@@ -18,28 +17,28 @@ export class EditRevisionModalPart2 implements Modal {
 
         const descriptionInput = new TextInputBuilder()
             .setCustomId('descriptionInput')
-            .setLabel('Name of the device')
+            .setLabel('Description:')
             .setStyle(TextInputStyle.Paragraph)
             .setValue(revision.description)
             .setRequired(true)
 
         const featuresInput = new TextInputBuilder()
             .setCustomId('featuresInput')
-            .setLabel('Features of the device')
+            .setLabel('Features:')
             .setStyle(TextInputStyle.Paragraph)
             .setValue(revision.features.map(o => "- " + o).join('\n'))
             .setRequired(true)
 
         const authorsInput = new TextInputBuilder()
             .setCustomId('consInput')
-            .setLabel('Cons of the device')
+            .setLabel('Cons:')
             .setStyle(TextInputStyle.Paragraph)
             .setValue((revision.considerations || []).map(o => "- " + o).join('\n'))
             .setRequired(false)
 
         const notesInput = new TextInputBuilder()
             .setCustomId('notesInput')
-            .setLabel('Notes about the device')
+            .setLabel('Notes:')
             .setStyle(TextInputStyle.Paragraph)
             .setValue(revision.notes)
             .setRequired(false)
@@ -84,29 +83,11 @@ export class EditRevisionModalPart2 implements Modal {
         const consInput = interaction.fields.getTextInputValue('consInput')
         const notesInput = interaction.fields.getTextInputValue('notesInput')
 
-        const key = `edit-revision-${revisionId}-${interaction.user.id}`;
-        const tempData = guildHolder.getBot().getTempDataStore().getEntry(key);
-        if (!tempData) {
-            replyEphemeral(interaction, 'Temporary data not found. Please try again.');
-            return;
-        }
-        guildHolder.getBot().getTempDataStore().removeEntry(key);
-
-        const tempRevisionData = tempData.data as TempRevisionData;
-
         const newRevisionData: Revision = {
             id: "",
             type: RevisionType.Manual,
             parentRevision: revision.id,
             timestamp: Date.now(),
-            name: tempRevisionData.name,
-            minecraftVersion: tempRevisionData.minecraftVersion,
-            authors: tempRevisionData.authors.map(author => {
-                return {
-                    type: AuthorType.Unknown,
-                    name: author.trim()
-                }
-            }),
             description: descriptionInput,
             features: featuresInput.split('\n').map(o => o.trim().replace(/^- /, '').trim()).filter(o => o.length > 0),
             considerations: consInput.split('\n').map(o => o.trim().replace(/^- /, '').trim()).filter(o => o.length > 0),
@@ -119,7 +100,7 @@ export class EditRevisionModalPart2 implements Modal {
             content: `<@${interaction.user.id}> Manually edited the submission${isCurrent ? ' and set it as current' : ''}`
         })
 
-        const embed = await RevisionEmbed.create(newRevisionData, isCurrent, false);
+        const embed = await RevisionEmbed.create(submission, newRevisionData, isCurrent, false);
         const messageNew = await interaction.followUp({
             embeds: [embed.getEmbed()],
             components: [embed.getRow() as any],
@@ -130,6 +111,6 @@ export class EditRevisionModalPart2 implements Modal {
         if (isCurrent) {
             await submission.getRevisionsManager().setCurrentRevision(newRevisionData.id, false);
         }
-        submission.updateStatusMessage();
+        submission.statusUpdated();
     }
 }

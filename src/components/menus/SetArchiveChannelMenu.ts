@@ -94,7 +94,7 @@ export class SetArchiveChannelMenu implements Menu {
                 await interaction.followUp(`Not all tags were migrated, the following tags were removed because they are not available in the new channel: ${removedTags.map(o => o.name).join(', ')}`)
             }
         }
-        submission.updateStatusMessage();
+        submission.statusUpdated();
 
         if (!currentChannel) {
             const component = await new SetTagsMenu().getBuilder(guildHolder, hasPerms(interaction), submission);

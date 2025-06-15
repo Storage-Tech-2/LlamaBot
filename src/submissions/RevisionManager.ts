@@ -64,7 +64,7 @@ export class RevisionManager {
             if (!revisionData) return;
             const message = await channel.messages.fetch(revisionData.id);
             if (message) {
-                const embed = await RevisionEmbed.create(revisionData, false, false);
+                const embed = await RevisionEmbed.create(this.submission, revisionData, false, false);
                 await message.edit({
                     embeds: [embed.getEmbed()],
                     components: [embed.getRow() as any]
@@ -82,7 +82,7 @@ export class RevisionManager {
             if (!revisionData) return;
             const message = await channel.messages.fetch(revisionData.id);
             if (message) {
-                const embed = await RevisionEmbed.create(revisionData, true, false);
+                const embed = await RevisionEmbed.create(this.submission, revisionData, true, false);
                 await message.edit({
                     embeds: [embed.getEmbed()],
                     components: [embed.getRow() as any]

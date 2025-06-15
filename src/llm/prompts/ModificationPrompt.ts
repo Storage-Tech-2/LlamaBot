@@ -26,9 +26,6 @@ export class ModificationPrompt implements Prompt {
     revisionToSchema(revision: Revision): LLMResponse {
         return {
             result: {
-                name: revision.name,
-                game_version: revision.minecraftVersion,
-                authors: revision.authors.map(author => author.name || ''),
                 description: revision.description,
                 features: revision.features,
                 cons: revision.considerations || [],

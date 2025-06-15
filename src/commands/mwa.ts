@@ -4,6 +4,7 @@ import { Command } from "../interface/Command";
 import { replyEphemeral } from "../utils/Util";
 import { GuildConfigs } from "../config/GuildConfigs";
 import { SetArchiveCategoriesMenu } from "../components/menus/SetArchiveCategoriesMenu";
+import { SetEndorseRolesMenu } from "../components/menus/SetEndorseRolesMenu";
 
 export class Mwa implements Command {
     getID(): string {
@@ -41,6 +42,11 @@ export class Mwa implements Command {
                             .addChannelTypes(ChannelType.GuildForum)
                     )
             )
+             .addSubcommand(subcommand =>
+                subcommand
+                    .setName('setendorseroles')
+                    .setDescription('Setup Llamabot endorse roles')
+            )
             .addSubcommand(subcommand =>
                 subcommand
                     .setName('setarchives')
@@ -63,6 +69,8 @@ export class Mwa implements Command {
             this.setPolls(guildHolder, interaction)
         } else if (interaction.options.getSubcommand() === 'setuparchives') {
             this.setupArchives(guildHolder, interaction)
+        } else if (interaction.options.getSubcommand() === 'setendorseroles') {
+            this.setEndorseRoles(guildHolder, interaction)
         }
     }
 
@@ -85,6 +93,13 @@ export class Mwa implements Command {
             .addComponents(dt);
         // interaction.reply({ content: `Change notification settings of '${name}' in this channel`, components: [row], ephemeral: true })
         await replyEphemeral(interaction, 'Select archive categories', { components: [row] })
+    }
+
+     async setEndorseRoles(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const dt = await (new SetEndorseRolesMenu()).getBuilder(guildHolder);
+        const row = new ActionRowBuilder()
+            .addComponents(dt);
+        await replyEphemeral(interaction, 'Select endorsement roles', { components: [row] })
     }
 
     async setPolls(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {

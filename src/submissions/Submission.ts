@@ -1,4 +1,4 @@
-import { Channel, GuildBasedChannel, Message, MessageFlags, MessageReferenceType, Snowflake, TextChannel, TextThreadChannel } from "discord.js";
+import { ActionRowBuilder, Channel, GuildBasedChannel, Message, MessageFlags, MessageReferenceType, Snowflake, TextChannel, TextThreadChannel } from "discord.js";
 import { GuildHolder } from "../GuildHolder";
 import { ConfigManager } from "../config/ConfigManager";
 import Path from "path";
@@ -12,9 +12,10 @@ import { getAllAttachments, processAttachments, processImages } from "../utils/U
 import { Attachment } from "./Attachment";
 import { RevisionManager } from "./RevisionManager";
 import { Revision, RevisionType } from "./Revision";
-import { AuthorType } from "./Author";
 import { RevisionEmbed } from "../embed/RevisionEmbed";
 import { ModificationPrompt } from "../llm/prompts/ModificationPrompt";
+import { SubmissionStatus } from "./SubmissionStatus";
+import { PublishButton } from "../components/buttons/PublishButton";
 
 export class Submission {
     private guildHolder: GuildHolder;
@@ -49,11 +50,13 @@ export class Submission {
     public async init() {
         // Set initial config values
         const channel = await this.getSubmissionChannel();
+        this.config.setConfig(SubmissionConfigs.NAME, channel.name);
         this.config.setConfig(SubmissionConfigs.SUBMISSION_THREAD_ID, channel.id);
         this.config.setConfig(SubmissionConfigs.SUBMISSION_THREAD_URL, channel.url);
         this.config.setConfig(SubmissionConfigs.STATUS, SubmissionConfigs.STATUS.default);
 
         await this.checkStatusMessage();
+        this.checkLLMExtraction();
     }
 
     public async getSubmissionChannel(): Promise<TextThreadChannel> {
@@ -77,6 +80,17 @@ export class Submission {
     }
 
     public async checkLLMExtraction() {
+        // If we already have extraction results, no need to check again
+        if (this.extractionResults) {
+            return;
+        }
+
+        // check if revisions exist. no need to extract if revisions are present
+        const revisions = this.getRevisionsManager().getRevisionsList();
+        if (revisions.length > 0) {
+            return;
+        }
+
         const channel = await this.getSubmissionChannel();
         const message = await channel.fetchStarterMessage();
         if (!message) {
@@ -89,13 +103,12 @@ export class Submission {
         }
 
         // check if revisions exist. no need to extract if revisions are present
-        const revisions = this.getRevisionsManager().getRevisionsList();
         if (revisions.length > 0) {
             return;
         }
 
         // If no revisions, we can start the extraction process
-        const prompt = new ExtractionPrompt(`**${channel.name}**\n${message.content}`)
+        const prompt = new ExtractionPrompt(message.content)
         const request = new LLMRequest(1, prompt);
         this.extractionResults = this.guildHolder.getBot().llmQueue.addRequest(request);
 
@@ -108,13 +121,42 @@ export class Submission {
         this.checkReview();
     }
 
-    public async checkReview() {
+    public isPublishable(): boolean {
+        const authors = this.config.getConfig(SubmissionConfigs.AUTHORS);
         const archiveChannelId = this.config.getConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID);
         const submissionTags = this.config.getConfig(SubmissionConfigs.TAGS);
         const mainImages = this.config.getConfig(SubmissionConfigs.IMAGES);
         const attachments = this.config.getConfig(SubmissionConfigs.ATTACHMENTS);
 
-        if (!archiveChannelId || submissionTags == null || mainImages === null || attachments === null) {
+        if (authors === null || !archiveChannelId || submissionTags == null || mainImages === null || attachments === null) {
+            // If any of the required fields are missing, we cannot proceed
+            return false;
+        }
+
+        const current = this.getRevisionsManager().getCurrentRevision();
+        if (!current) {
+            // If there is no current revision, we cannot proceed
+            return false;
+        }
+
+        // check endorsers
+        const endorsers = this.config.getConfig(SubmissionConfigs.ENDORSERS);
+        if (endorsers.length === 0) {
+            // If there are no endorsers, we cannot proceed
+            return false;
+        }
+
+        return true; // All conditions met, submission is publishable
+    }
+
+    public async checkReview() {
+        const authors = this.config.getConfig(SubmissionConfigs.AUTHORS);
+        const archiveChannelId = this.config.getConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID);
+        const submissionTags = this.config.getConfig(SubmissionConfigs.TAGS);
+        const mainImages = this.config.getConfig(SubmissionConfigs.IMAGES);
+        const attachments = this.config.getConfig(SubmissionConfigs.ATTACHMENTS);
+
+        if (authors === null || !archiveChannelId || submissionTags == null || mainImages === null || attachments === null) {
             // If any of the required fields are missing, we cannot proceed
             return;
         }
@@ -129,11 +171,15 @@ export class Submission {
             return; // Wait for extraction to complete
         }
 
+        if (this.reviewLocked) {
+            return; // Prevent multiple submissions
+        }
+
         this.reviewLocked = true; // Lock the review process to prevent multiple submissions
         try {
             const initialRevision = await this.getInitialRevision();
 
-            const embed = await RevisionEmbed.create(initialRevision, true, false);
+            const embed = await RevisionEmbed.create(this, initialRevision, true, false);
             const channel = await this.getSubmissionChannel();
             const message = await channel.send({ embeds: [embed.getEmbed()], components: [embed.getRow() as any] });
 
@@ -161,14 +207,6 @@ export class Submission {
                 type: RevisionType.Initial,
                 parentRevision: null,
                 timestamp: Date.now(),
-                name: response.result.name,
-                minecraftVersion: response.result.game_version,
-                authors: response.result.authors.map(author => {
-                    return {
-                        type: AuthorType.Unknown,
-                        name: author.trim()
-                    }
-                }),
                 description: response.result.description,
                 features: response.result.features,
                 considerations: response.result.cons || [],
@@ -189,9 +227,6 @@ export class Submission {
                 type: RevisionType.Initial,
                 parentRevision: null,
                 timestamp: Date.now(),
-                name: channel.name,
-                minecraftVersion: "N/A",
-                authors: [],
                 description: message.content,
                 features: [],
                 considerations: [],
@@ -246,7 +281,7 @@ export class Submission {
         return Path.join(this.folderPath, 'attachments');
     }
 
-    public async updateStatusMessage() {
+    public async statusUpdated() {
         const statusMessageId = this.config.getConfig(SubmissionConfigs.STATUS_MESSAGE_ID);
         if (!statusMessageId) {
             throw new Error('Status message not sent yet!');
@@ -261,6 +296,20 @@ export class Submission {
 
         const starterEmbed = await StarterEmbed.create(this);
         await message.edit({ embeds: [starterEmbed.getEmbed()], components: [starterEmbed.getRow() as any] });
+
+        if (this.isPublishable()) {
+            const status = this.config.getConfig(SubmissionConfigs.STATUS);
+            if (status === SubmissionStatus.NEW) {
+                this.config.setConfig(SubmissionConfigs.STATUS, SubmissionStatus.WAITING);
+              
+                const publishButton = await new PublishButton().getBuilder();
+
+                channel.send({
+                    content: `<@${channel.ownerId}> Congratulations! Your submission is now ready to be published! Click the button below to proceed.`,
+                    components: [ (new ActionRowBuilder().addComponents(publishButton)) as any ]
+                });
+            }
+        }
     }
 
     public async handleMessage(message: Message) {
@@ -321,14 +370,6 @@ export class Submission {
             type: RevisionType.LLM,
             parentRevision: revision.id,
             timestamp: Date.now(),
-            name: response.result.name,
-            minecraftVersion: response.result.game_version,
-            authors: response.result.authors.map(author => {
-                return {
-                    type: AuthorType.Unknown,
-                    name: author.trim()
-                }
-            }),
             description: response.result.description,
             features: response.result.features,
             considerations: response.result.cons || [],
@@ -339,7 +380,7 @@ export class Submission {
             content: `<@${message.author.id}> I've edited the submission${isCurrent ? ' and set it as current' : ''}`
         })
 
-        const embed = await RevisionEmbed.create(newRevisionData, isCurrent, false);
+        const embed = await RevisionEmbed.create(this, newRevisionData, isCurrent, false);
         const messageNew = await message.reply({
             embeds: [embed.getEmbed()],
             components: [embed.getRow() as any],
@@ -350,7 +391,7 @@ export class Submission {
         if (isCurrent) {
             await this.getRevisionsManager().setCurrentRevision(newRevisionData.id, false);
         }
-        this.updateStatusMessage();
+        this.statusUpdated();
     }
 
 

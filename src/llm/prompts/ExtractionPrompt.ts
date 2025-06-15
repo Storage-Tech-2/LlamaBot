@@ -1,12 +1,11 @@
 import { Prompt } from "./Prompt";
 
 const prompt_template = `
-Create a JSON object containing the name, game version, authors, description, and a list of features extracted from a given text. Cons and notes are optional but should be included if present.
+Create a JSON object containing the description and a list of features extracted from a given text. Cons and notes are optional but should be included if present.
 
 Example:
 
 Input:
-**[1.20.3] 2wABt Parallel Red MIS**
 *By @RedGrosso, with help from @Walter and @MoonyResearched, based on design by @InspectorTalon and @RaPsCaLLioN1138*
 
 A simple multi-item-sorter storage system.
@@ -28,9 +27,18 @@ Additional Credits:
 
 Output:
 {
-  "name": "2wABt Parallel Red MIS",
-  "game_version": "1.20.3",
-  "authors": ["@RedGrosso", "@Walter", "@MoonyResearched", "@InspectorTalon", "@RaPsCaLLioN1138"],
+  "authors": [
+    "@RedGrosso",
+    "@Walter",
+    "@MoonyResearched",
+    "@InspectorTalon",
+    "@RaPsCaLLioN1138",
+    "@KikuGie",
+    "@Philgoodinator",
+    "@Christone",
+    "@javi",
+    "@C5"
+  ],
   "description": "A simple multi-item-sorter storage system.",
   "features": [
     "Slice is very compact (5x9x2)",
