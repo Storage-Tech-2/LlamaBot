@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, InteractionContextType, ChannelType, ActionRowBuilder, AnyComponentBuilder, ForumChannel, ForumThreadChannel, GuildForumTag, ForumLayoutType, SortOrderType } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, InteractionContextType, ChannelType, ActionRowBuilder, AnyComponentBuilder, ForumChannel, ForumThreadChannel, GuildForumTag, ForumLayoutType, SortOrderType, Snowflake } from "discord.js";
 import { GuildHolder } from "../GuildHolder";
 import { Command } from "../interface/Command";
 import { replyEphemeral } from "../utils/Util";
@@ -57,6 +57,23 @@ export class Mwa implements Command {
                     .setName('setuparchives')
                     .setDescription('Setup forums for archive channels')
             )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('setrepo')
+                    .setDescription('Set the GitHub repository for the archive')
+                    .addStringOption(option =>
+                        option
+                            .setName('url')
+                            .setDescription('GitHub repository URL')
+                            .setRequired(true)
+                    )
+                    .addStringOption(option =>
+                        option
+                            .setName('token')
+                            .setDescription('GitHub repository token')
+                            .setRequired(true)
+                    )
+            )
         return data;
     }
 
@@ -71,7 +88,26 @@ export class Mwa implements Command {
             this.setupArchives(guildHolder, interaction)
         } else if (interaction.options.getSubcommand() === 'setendorseroles') {
             this.setEndorseRoles(guildHolder, interaction)
+        } else if (interaction.options.getSubcommand() === 'setrepo') {
+            this.setRepo(guildHolder, interaction)
         }
+    }
+
+    async setRepo(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const url = interaction.options.getString('url')
+        const token = interaction.options.getString('token')
+
+        if (!url || !token) {
+            await replyEphemeral(interaction, 'Invalid URL or token')
+            return
+        }
+
+        guildHolder.getConfigManager().setConfig(GuildConfigs.GITHUB_REPO_URL, url)
+        guildHolder.getConfigManager().setConfig(GuildConfigs.GITHUB_REPO_TOKEN, token)
+        await replyEphemeral(interaction, `Successfully set Git repository URL to ${url} and token!`);
+        interaction.followUp({
+            content: `<@${interaction.user.id}> Set the Git repository to ${url}!`,
+        });
     }
 
     async setSubmissions(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
@@ -115,6 +151,11 @@ export class Mwa implements Command {
 
 
     async setupArchives(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        if (!interaction.channel || !interaction.channel.isTextBased() || !interaction.inGuild()) {
+            await replyEphemeral(interaction, 'This command can only be used in a text channel.')
+            return;
+        }
+        
         const currentCategories = guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
         // get all channels in categories
         const allchannels = await guildHolder.getGuild().channels.fetch()
@@ -149,6 +190,7 @@ export class Mwa implements Command {
         // check each channel
 
         await interaction.deferReply()
+        const codeMap = new Map<Snowflake, string>();
         for (const channel of channels.values()) {
             const tags = channel.availableTags.filter(tag => {
                 return !basicTags.some(t => t.name === tag.name)
@@ -161,7 +203,51 @@ export class Mwa implements Command {
             })
             await channel.setDefaultForumLayout(ForumLayoutType.GalleryView)
             await channel.setDefaultSortOrder(SortOrderType.CreationDate)
+
+            // check if topic exists
+            if (channel.topic) {
+                const match = channel.topic.match(/Code: ([a-zA-Z]*)/)
+                if (match && match[1]) {
+                    codeMap.set(channel.id, match[1]);
+                } else {
+                    interaction.editReply(`Error: Channel ${channel.name} does not have a valid code in the topic.`)
+                    return;
+                }
+            } else {
+                interaction.editReply(`Error: Channel ${channel.name} does not have a topic set. Please set the topic to include a code in the format "Code: <code>"`)
+                return;
+            }
         }
-        await interaction.editReply('Tags added to all channels')
+        
+      
+        // Check if codemap has duplicates
+        const codes = Array.from(codeMap.values());
+        const duplicates = codes.filter((code, index) => codes.indexOf(code) !== index);
+        if (duplicates.length > 0) {
+            await interaction.editReply(`Error: The following codes are duplicated across channels: ${duplicates.join(', ')}`);
+            return;
+        }
+
+        // Print each channel and its code
+        let response = 'Channel codes:\n';
+        codeMap.forEach((code, channelId) => {
+            const channel = guildHolder.getGuild().channels.cache.get(channelId);
+            if (channel) {
+                response += `- ${channel.name}: ${code}\n`;
+            } else {
+                response += `- Channel with ID ${channelId} not found.\n`;
+            }
+        });
+        await interaction.channel.send(response);
+
+        try {
+            await guildHolder.getRepositoryManager().setupArchives(channels, codeMap)
+        } catch (error) {
+            console.error('Error setting up archives:', error);
+            await interaction.channel.send('An error occurred while setting up archives. Please check the console for details.');
+            return;
+        }
+
+        await interaction.editReply('Archives setup complete! Please check the channels for the new tags and settings.');
     }
 }

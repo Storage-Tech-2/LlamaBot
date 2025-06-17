@@ -139,6 +139,7 @@ export async function getAllAttachments(channel: TextThreadChannel): Promise<Att
 }
 
 export function escapeString(str: string): string {
+    if (!str) return '';
     return str
         .trim()
         .replace(/ +/g, '_')

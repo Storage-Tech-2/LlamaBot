@@ -20,7 +20,7 @@
     "@kleppe/litematic-reader": "^1.0.11",
     "discord.js": "^14.14.1",
     "got": "^11.8.2",
-    "isomorphic-git": "^1.30.2",
-    "sharp": "^0.34.2"
+    "sharp": "^0.34.2",
+    "simple-git": "^3.28.0"
   }
 }

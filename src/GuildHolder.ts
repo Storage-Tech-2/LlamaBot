@@ -4,6 +4,7 @@ import { ConfigManager } from "./config/ConfigManager";
 import Path from "path";
 import { GuildConfigs } from "./config/GuildConfigs";
 import { SubmissionsManager } from "./submissions/SubmissionsManager";
+import { RepositoryManager } from "./archive/RepositoryManager";
 
 /**
  * GuildHolder is a class that manages guild-related data.
@@ -29,6 +30,8 @@ export class GuildHolder {
      */
     private submissions: SubmissionsManager;
 
+    private repositoryManager: RepositoryManager;
+
     /**
      * Creates a new GuildHolder instance.
      * @param bot The bot instance associated with this guild holder.
@@ -39,10 +42,17 @@ export class GuildHolder {
         this.guild = guild;
         this.config = new ConfigManager(Path.join(this.getGuildFolder(), 'config.json'));
         this.submissions = new SubmissionsManager(this, Path.join(this.getGuildFolder(), 'submissions'));
-        this.config.loadConfig().then(() => {
+        this.repositoryManager = new RepositoryManager(this, Path.join(this.getGuildFolder(), 'archive'));
+        this.config.loadConfig().then(async () => {
             // Set guild name and ID in the config
             this.config.setConfig(GuildConfigs.GUILD_NAME, guild.name);
             this.config.setConfig(GuildConfigs.GUILD_ID, guild.id);
+
+            try {
+                await this.repositoryManager.init()
+            } catch (e) {
+                console.error('Error initializing repository manager:', e);
+            }
             console.log(`GuildHolder initialized for guild: ${guild.name} (${guild.id})`);
         });
     }
@@ -92,6 +102,7 @@ export class GuildHolder {
         await this.config.saveConfig();
         await this.submissions.purgeOldSubmissions();
         await this.submissions.saveSubmissions();
+        await this.repositoryManager.save();
     }
 
     public getGuild(): Guild {
@@ -109,5 +120,10 @@ export class GuildHolder {
     public getSubmissionsManager(): SubmissionsManager {
         return this.submissions;
     }
+
+    public getRepositoryManager(): RepositoryManager {
+        return this.repositoryManager;
+    }
+    
 
 }

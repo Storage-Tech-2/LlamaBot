@@ -17,7 +17,7 @@ export class SetArchiveChannelMenu implements Menu {
         // Filter for category channels
         const categoryChannels = channels.filter(channel => {
             return channel && channel.type === ChannelType.GuildForum && channel.parentId === category
-        }) as unknown as Collection<Snowflake, ThreadChannel>;
+        }) as unknown as Collection<Snowflake, ForumChannel>;
         const currentArchiveChannel = submission.getConfigManager().getConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID);
         return new StringSelectMenuBuilder()
             .setCustomId(this.getID())
@@ -28,6 +28,7 @@ export class SetArchiveChannelMenu implements Menu {
                 Array.from(categoryChannels.values()).map(channel => {
                     return new StringSelectMenuOptionBuilder().setLabel(channel.name)
                         .setValue(channel.id)
+                        .setDescription(channel.topic || 'No description')
                         .setDefault(currentArchiveChannel === channel.id)
                 })
             )
