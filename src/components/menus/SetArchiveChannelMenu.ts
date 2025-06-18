@@ -1,8 +1,7 @@
-import { ActionRowBuilder, BaseSelectMenuBuilder, Channel, ChannelSelectMenuBuilder, ChannelType, Collection, ForumChannel, MessageFlags, Snowflake, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, ThreadChannel } from "discord.js";
+import { ActionRowBuilder, ChannelType, Collection, ForumChannel, MessageFlags, Snowflake, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder";
 import { Menu } from "../../interface/Menu";
-import { hasPerms, isOwner, replyEphemeral } from "../../utils/Util";
-import { GuildConfigs } from "../../config/GuildConfigs";
+import { getCodeAndDescriptionFromTopic, hasPerms, isOwner, replyEphemeral } from "../../utils/Util";
 import { Submission } from "../../submissions/Submission";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs";
 import { SetTagsMenu } from "./SetTagsMenu";
@@ -26,15 +25,16 @@ export class SetArchiveChannelMenu implements Menu {
             .setPlaceholder('Select archive channel')
             .addOptions(
                 Array.from(categoryChannels.values()).map(channel => {
+                    const {description} = getCodeAndDescriptionFromTopic(channel.topic || '');
                     return new StringSelectMenuOptionBuilder().setLabel(channel.name)
                         .setValue(channel.id)
-                        .setDescription(channel.topic || 'No description')
+                        .setDescription(description || 'No description')
                         .setDefault(currentArchiveChannel === channel.id)
                 })
             )
     }
 
-    async execute(guildHolder: GuildHolder, interaction: StringSelectMenuInteraction, ...args: string[]): Promise<void> {
+    async execute(guildHolder: GuildHolder, interaction: StringSelectMenuInteraction): Promise<void> {
         if (
             !isOwner(interaction) &&
             !hasPerms(interaction)

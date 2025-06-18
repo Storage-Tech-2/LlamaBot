@@ -3,7 +3,7 @@ import { Button } from '../interface/Button'
 import { Menu } from '../interface/Menu'
 import { Modal } from '../interface/Modal'
 import { Secrets } from '../Bot'
-import { GuildMember, Interaction, MessageFlags, PermissionFlagsBits, REST, Routes, TextChannel, TextThreadChannel } from 'discord.js'
+import { GuildMember, Interaction, MessageFlags, PermissionFlagsBits, REST, Routes, TextThreadChannel } from 'discord.js'
 import { GuildHolder } from '../GuildHolder'
 import { Attachment } from '../submissions/Attachment'
 import { Image } from '../submissions/Image'
@@ -13,6 +13,7 @@ import got from 'got'
 import sharp from 'sharp'
 import { Litematic } from '@kleppe/litematic-reader'
 import { Author, AuthorType } from '../submissions/Author'
+import { ArchiveEntryData } from '../archive/ArchiveEntry'
 
 export function getItemsFromArray<T extends (Button | Menu | Modal | Command)>(itemArray: T[]): Map<string, T> {
     const items = new Map()
@@ -197,7 +198,7 @@ export async function processImages(images: Image[], download_folder: string, pr
         const downloadPath = Path.join(download_folder, getFileKey(image));
         const imageData = await got(image.url, { responseType: 'buffer' })
         await fs.writeFile(downloadPath, imageData.body);
-        await sharp(downloadPath)
+        const s = await sharp(downloadPath)
             .trim()
             .resize({
                 width: 800,
@@ -206,7 +207,11 @@ export async function processImages(images: Image[], download_folder: string, pr
                 withoutEnlargement: true
             })
             .toFormat('png')
-            .toFile(processedPath)
+            .toFile(processedPath);
+
+        image.width = s.width;
+        image.height = s.height;
+
         await fs.unlink(downloadPath); // Remove the original file after processing
     }));
 
@@ -408,4 +413,109 @@ export function getAuthorsString(authors: Author[] | null): string {
             return author.name;
         }
     }).join(', ');
+}
+
+export function getCodeAndDescriptionFromTopic(topic: string): { code: string | null, description: string } {
+    if (!topic) {
+        return { code: null, description: '' };
+    }
+    // /Code: ([a-zA-Z]*)/
+    // description is everything other than the code
+    const codeMatch = topic.match(/(Code: ([a-zA-Z0-9_]*))/);
+    let code = null;
+    let description = topic;
+    if (codeMatch) {
+        code = codeMatch[2];
+        description = topic.replace(codeMatch[1], '').trim();
+    }
+    return { code, description };
+}
+
+export function deepClone<T>(obj: T): T {
+    return JSON.parse(JSON.stringify(obj)) as T;
+}
+
+export function areObjectsIdentical<T>(obj1: T, obj2: T): boolean {
+    // walk
+    let stack = [[obj1, obj2]];
+    while (stack.length > 0) {
+        const [a, b] = stack.pop() as [any, any];
+
+        if (a === b) continue; // same reference or both null
+
+        if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) {
+            return false; // different types or one is null
+        }
+
+        const keysA = Object.keys(a);
+        const keysB = Object.keys(b);
+
+        if (keysA.length !== keysB.length) {
+            return false; // different number of keys
+        }
+
+        for (const key of keysA) {
+            if (!keysB.includes(key)) {
+                return false; // key mismatch
+            }
+            stack.push([a[key], b[key]]);
+        }
+    }
+    return true; // all keys and values match
+}
+
+
+export function generateCommitMessage(
+    existing: ArchiveEntryData,
+    updated: ArchiveEntryData,
+): string {
+    // --- Diff checks ---------------------------------------------------------
+    const nameChanged = existing.name !== updated.name;
+    const authorsChanged = !areObjectsIdentical(existing.authors, updated.authors);
+    const endorsersChanged = !areObjectsIdentical(existing.endorsers, updated.endorsers);
+    const tagsChanged = !areObjectsIdentical(existing.tags, updated.tags);
+    const descriptionChanged = existing.description !== updated.description;
+    const featuresChanged = !areObjectsIdentical(existing.features, updated.features);
+    const considerationsChanged = !areObjectsIdentical(existing.considerations, updated.considerations);
+    const notesChanged = existing.notes !== updated.notes;
+    const imagesChanged = !areObjectsIdentical(existing.images, updated.images);
+    const attachmentsChanged = !areObjectsIdentical(existing.attachments, updated.attachments);
+    const postChanged = !areObjectsIdentical(existing.post, updated.post);
+
+    // --- Build message fragments --------------------------------------------
+    const fragments: string[] = [];
+
+    if (nameChanged) {
+        fragments.push(`renamed “${existing.name}” to “${updated.name}”`);
+    }
+    if (authorsChanged) fragments.push("updated authors");
+    if (endorsersChanged) fragments.push("updated endorsers");
+    if (tagsChanged) fragments.push("updated tags");
+    if (descriptionChanged) fragments.push("updated description");
+    if (featuresChanged) fragments.push("updated features");
+    if (considerationsChanged) fragments.push("updated considerations");
+    if (notesChanged) fragments.push("updated notes");
+    if (imagesChanged) fragments.push("updated images");
+    if (attachmentsChanged) fragments.push("updated attachments");
+    if (postChanged) fragments.push("updated post");
+
+    // --- Assemble final commit message --------------------------------------
+    if (fragments.length === 0) {
+        return "No changes";
+    }
+
+    // Capitalize first fragment for a cleaner message.
+    fragments[0] =
+        fragments[0].charAt(0).toUpperCase() + fragments[0].slice(1);
+
+    // Join with commas, inserting “and” before the last item if we have >1.
+    let message: string;
+    if (fragments.length === 1) {
+        message = fragments[0];
+    } else {
+        const last = fragments.pop();
+        message = `${fragments.join(", ")} and ${last}`;
+    }
+
+    return message;
 }

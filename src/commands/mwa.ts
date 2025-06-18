@@ -1,7 +1,7 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, InteractionContextType, ChannelType, ActionRowBuilder, AnyComponentBuilder, ForumChannel, ForumThreadChannel, GuildForumTag, ForumLayoutType, SortOrderType, Snowflake } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, InteractionContextType, ChannelType, ActionRowBuilder, ForumChannel, GuildForumTag, ForumLayoutType, SortOrderType, Snowflake } from "discord.js";
 import { GuildHolder } from "../GuildHolder";
 import { Command } from "../interface/Command";
-import { replyEphemeral } from "../utils/Util";
+import { getCodeAndDescriptionFromTopic, replyEphemeral } from "../utils/Util";
 import { GuildConfigs } from "../config/GuildConfigs";
 import { SetArchiveCategoriesMenu } from "../components/menus/SetArchiveCategoriesMenu";
 import { SetEndorseRolesMenu } from "../components/menus/SetEndorseRolesMenu";
@@ -11,7 +11,7 @@ export class Mwa implements Command {
         return "mwa";
     }
 
-    getBuilder(guildHolder: GuildHolder): SlashCommandBuilder {
+    getBuilder(): SlashCommandBuilder {
         const data = new SlashCommandBuilder()
         data
             .setName('mwa')
@@ -32,12 +32,12 @@ export class Mwa implements Command {
             )
             .addSubcommand(subcommand =>
                 subcommand
-                    .setName('setpolls')
-                    .setDescription('Setup Llamabot to send polls to a channel')
+                    .setName('setlogs')
+                    .setDescription('Setup Llamabot to send update logs to a channel')
                     .addChannelOption(option =>
                         option
                             .setName('channel')
-                            .setDescription('Channel to send polls to')
+                            .setDescription('Channel to send update logs to')
                             .setRequired(true)
                             .addChannelTypes(ChannelType.GuildForum)
                     )
@@ -67,12 +67,6 @@ export class Mwa implements Command {
                             .setDescription('GitHub repository URL')
                             .setRequired(true)
                     )
-                    .addStringOption(option =>
-                        option
-                            .setName('token')
-                            .setDescription('GitHub repository token')
-                            .setRequired(true)
-                    )
             )
         return data;
     }
@@ -82,8 +76,8 @@ export class Mwa implements Command {
             this.setSubmissions(guildHolder, interaction)
         } else if (interaction.options.getSubcommand() === 'setarchives') {
             this.setArchives(guildHolder, interaction)
-        } else if (interaction.options.getSubcommand() === 'setpolls') {
-            this.setPolls(guildHolder, interaction)
+        } else if (interaction.options.getSubcommand() === 'setlogs') {
+            this.setLogs(guildHolder, interaction)
         } else if (interaction.options.getSubcommand() === 'setuparchives') {
             this.setupArchives(guildHolder, interaction)
         } else if (interaction.options.getSubcommand() === 'setendorseroles') {
@@ -95,19 +89,25 @@ export class Mwa implements Command {
 
     async setRepo(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         const url = interaction.options.getString('url')
-        const token = interaction.options.getString('token')
 
-        if (!url || !token) {
-            await replyEphemeral(interaction, 'Invalid URL or token')
+        if (!url) {
+            await replyEphemeral(interaction, 'Invalid URL')
             return
         }
 
         guildHolder.getConfigManager().setConfig(GuildConfigs.GITHUB_REPO_URL, url)
-        guildHolder.getConfigManager().setConfig(GuildConfigs.GITHUB_REPO_TOKEN, token)
         await replyEphemeral(interaction, `Successfully set Git repository URL to ${url} and token!`);
         interaction.followUp({
             content: `<@${interaction.user.id}> Set the Git repository to ${url}!`,
         });
+
+        try {
+            await guildHolder.getRepositoryManager().setRemote(url)
+        } catch (error) {
+            console.error('Error setting remote repository:', error)
+            await replyEphemeral(interaction, 'Error setting remote repository. Please check the URL and try again.')
+            return
+        }
     }
 
     async setSubmissions(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
@@ -138,15 +138,15 @@ export class Mwa implements Command {
         await replyEphemeral(interaction, 'Select endorsement roles', { components: [row] })
     }
 
-    async setPolls(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+    async setLogs(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         const channel = interaction.options.getChannel('channel')
         if (!channel) {
             await replyEphemeral(interaction, 'Invalid channel')
             return
         }
 
-        guildHolder.getConfigManager().setConfig(GuildConfigs.POLLS_CHANNEL_ID, channel.id)
-        await replyEphemeral(interaction, `Llamabot will now send polls to ${channel.name}!`);
+        guildHolder.getConfigManager().setConfig(GuildConfigs.LOGS_CHANNEL_ID, channel.id)
+        await replyEphemeral(interaction, `Llamabot will now send updates to ${channel.name}!`);
     }
 
 
@@ -206,12 +206,9 @@ export class Mwa implements Command {
 
             // check if topic exists
             if (channel.topic) {
-                const match = channel.topic.match(/Code: ([a-zA-Z]*)/)
-                if (match && match[1]) {
-                    codeMap.set(channel.id, match[1]);
-                } else {
-                    interaction.editReply(`Error: Channel ${channel.name} does not have a valid code in the topic.`)
-                    return;
+                const {code} = getCodeAndDescriptionFromTopic(channel.topic);
+                if (code) {
+                    codeMap.set(channel.id, code);
                 }
             } else {
                 interaction.editReply(`Error: Channel ${channel.name} does not have a topic set. Please set the topic to include a code in the format "Code: <code>"`)
@@ -241,7 +238,7 @@ export class Mwa implements Command {
         await interaction.channel.send(response);
 
         try {
-            await guildHolder.getRepositoryManager().setupArchives(channels, codeMap)
+            await guildHolder.getRepositoryManager().setupArchives(channels)
         } catch (error) {
             console.error('Error setting up archives:', error);
             await interaction.channel.send('An error occurred while setting up archives. Please check the console for details.');

@@ -1,4 +1,4 @@
-import { ActionRowBuilder, AttachmentBuilder, BaseSelectMenuBuilder, Channel, ChannelSelectMenuBuilder, ChannelType, Collection, EmbedBuilder, ForumChannel, MessageFlags, Snowflake, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, ThreadChannel } from "discord.js";
+import { ActionRowBuilder, AttachmentBuilder, EmbedBuilder, MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder";
 import { Menu } from "../../interface/Menu";
 import { getFileKey, hasPerms, isOwner, replyEphemeral } from "../../utils/Util";
@@ -13,7 +13,7 @@ export class SetImagesMenu implements Menu {
         return "set-images-menu";
     }
 
-    async getBuilder(guildHolder: GuildHolder, submission: Submission): Promise<StringSelectMenuBuilder> {
+    async getBuilder(submission: Submission): Promise<StringSelectMenuBuilder> {
         const attachments = await submission.getAttachments()
         const imageAttachments = attachments.filter(attachment => attachment.contentType && (attachment.contentType.startsWith('image/png') || attachment.contentType.startsWith('image/jpeg')))
 
@@ -47,7 +47,7 @@ export class SetImagesMenu implements Menu {
             )
     }
 
-    async execute(guildHolder: GuildHolder, interaction: StringSelectMenuInteraction, ...args: string[]): Promise<void> {
+    async execute(guildHolder: GuildHolder, interaction: StringSelectMenuInteraction): Promise<void> {
         if (
             !isOwner(interaction) &&
             !hasPerms(interaction)

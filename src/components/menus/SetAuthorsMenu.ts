@@ -1,4 +1,4 @@
-import { ActionRowBuilder, MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, UserSelectMenuBuilder, UserSelectMenuInteraction } from "discord.js";
+import { ActionRowBuilder, MessageFlags, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, UserSelectMenuBuilder, UserSelectMenuInteraction } from "discord.js";
 import { GuildHolder } from "../../GuildHolder";
 import { Menu } from "../../interface/Menu";
 import { hasPerms, replyEphemeral } from "../../utils/Util";
@@ -47,16 +47,16 @@ export class SetAuthorsMenu implements Menu {
         }
     }
 
-    async execute(guildHolder: GuildHolder, interaction: UserSelectMenuInteraction, extra: string, ...args: string[]): Promise<void> {
+    async execute(guildHolder: GuildHolder, interaction: UserSelectMenuInteraction, extra: string): Promise<void> {
         const isExtra = extra === 'e';
         if (isExtra) {
-            return this.executeExtra(guildHolder, interaction, ...args);
+            return this.executeExtra(guildHolder, interaction);
         } else {
-            return this.executeDiscord(guildHolder, interaction, ...args);
+            return this.executeDiscord(guildHolder, interaction);
         }
     }
 
-    async executeDiscord(guildHolder: GuildHolder, interaction: UserSelectMenuInteraction, ...args: string[]): Promise<void> {
+    async executeDiscord(guildHolder: GuildHolder, interaction: UserSelectMenuInteraction): Promise<void> {
         if (!hasPerms(interaction)) {
             replyEphemeral(interaction, 'You do not have permission to use this menu!');
             return;
@@ -150,7 +150,7 @@ export class SetAuthorsMenu implements Menu {
     }
 
 
-    async executeExtra(guildHolder: GuildHolder, interaction: UserSelectMenuInteraction, ...args: string[]): Promise<void> {
+    async executeExtra(guildHolder: GuildHolder, interaction: UserSelectMenuInteraction): Promise<void> {
         if (!hasPerms(interaction)) {
             replyEphemeral(interaction, 'You do not have permission to use this menu!');
             return;

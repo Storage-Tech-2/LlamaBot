@@ -23,7 +23,7 @@ export class RevisionEmbed {
         return this.row;
     }
 
-    public static async create(submission: Submission, revision: Revision, isCurrent = false, finalized = false): Promise<RevisionEmbed> {
+    public static async create(submission: Submission, revision: Revision, isCurrent = false): Promise<RevisionEmbed> {
         // const submissionData = submission.submissionData
         const embed = new EmbedBuilder()
         // const files = []

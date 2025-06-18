@@ -3,9 +3,10 @@ import { Config } from "../config/ConfigManager";
 import { Image } from "./Image";
 import { SubmissionStatus } from "./SubmissionStatus";
 import { Tag } from "./Tag";
-import { Revision, RevisionReference } from "./Revision";
+import { RevisionReference } from "./Revision";
 import { Attachment } from "./Attachment";
 import { Author } from "./Author";
+import { DiscordPostReference } from "../archive/ArchiveEntry";
 
 export const SubmissionConfigs = {
     /**
@@ -67,4 +68,9 @@ export const SubmissionConfigs = {
      * Endorers of the submission.
      */
     ENDORSERS: new Config<Author[]>("endorsers", []),
+
+    /**
+     * Post
+     */
+    POST: new Config<DiscordPostReference | null>("post",null)
 }

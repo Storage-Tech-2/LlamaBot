@@ -12,5 +12,7 @@ export type Attachment = {
         version?: string,
         size?: string,
         error?: string,
-    }
+    },
+
+    path?: string, // Local path if downloaded
 }

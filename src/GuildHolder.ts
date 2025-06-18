@@ -1,10 +1,12 @@
-import { Guild, Message, MessageReferenceType, MessageType, Snowflake } from "discord.js";
+import { ChannelType, Guild, Message, Snowflake } from "discord.js";
 import { Bot } from "./Bot";
 import { ConfigManager } from "./config/ConfigManager";
 import Path from "path";
 import { GuildConfigs } from "./config/GuildConfigs";
 import { SubmissionsManager } from "./submissions/SubmissionsManager";
 import { RepositoryManager } from "./archive/RepositoryManager";
+import { ArchiveEntryData } from "./archive/ArchiveEntry";
+import { generateCommitMessage } from "./utils/Util";
 
 /**
  * GuildHolder is a class that manages guild-related data.
@@ -124,6 +126,41 @@ export class GuildHolder {
     public getRepositoryManager(): RepositoryManager {
         return this.repositoryManager;
     }
-    
 
+
+
+
+    public async logUpdate(oldEntryData: ArchiveEntryData | undefined, newEntryData: ArchiveEntryData) {
+
+        const logChannelId = this.getConfigManager().getConfig(GuildConfigs.LOGS_CHANNEL_ID);
+        if (!logChannelId) {
+            console.warn('No log channel configured, skipping log message');
+            return;
+        }
+
+        const logChannel = await this.getGuild().channels.fetch(logChannelId);
+        if (!logChannel || logChannel.type !== ChannelType.GuildText) {
+            console.warn('Log channel not found or not a text channel, skipping log message');
+            return;
+        }
+
+        const forumChannel = await this.getGuild().channels.fetch(newEntryData.post?.threadId || '');
+        if (!forumChannel || forumChannel.type !== ChannelType.GuildForum) {
+            console.warn('Forum channel not found or not a forum channel, skipping log message');
+            return;
+        }
+
+        if (!oldEntryData) {
+            await logChannel.send({
+                content: `Added ${newEntryData.post?.threadURL} to ${forumChannel.url}`
+            });
+        } else {
+            const message = generateCommitMessage(oldEntryData, newEntryData);
+            if (message !== 'No changes') {
+                await logChannel.send({
+                    content: `${newEntryData.post?.threadURL} ${message}`
+                });
+            }
+        }
+    }
 }

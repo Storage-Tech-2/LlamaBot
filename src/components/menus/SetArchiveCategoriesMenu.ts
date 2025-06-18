@@ -1,4 +1,4 @@
-import { ChannelSelectMenuBuilder, ChannelType, Snowflake, StringSelectMenuBuilder, StringSelectMenuInteraction } from "discord.js";
+import { ChannelSelectMenuBuilder, ChannelType, Snowflake, StringSelectMenuInteraction } from "discord.js";
 import { GuildHolder } from "../../GuildHolder";
 import { Menu } from "../../interface/Menu";
 import { hasPerms, replyEphemeral } from "../../utils/Util";
@@ -21,7 +21,7 @@ export class SetArchiveCategoriesMenu implements Menu {
             .setDefaultChannels(currentCategories)
     }
     
-    async execute(guildHolder: GuildHolder, interaction: StringSelectMenuInteraction, ...args: string[]): Promise<void> {
+    async execute(guildHolder: GuildHolder, interaction: StringSelectMenuInteraction): Promise<void> {
         if (!hasPerms(interaction)) {
             replyEphemeral(interaction, 'You do not have permission to use this menu!');
             return;

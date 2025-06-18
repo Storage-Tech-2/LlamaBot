@@ -1,6 +1,6 @@
 import { Config } from "../config/ConfigManager";
 
-export type ArchiveChannel = {
+export type ArchiveChannelReference = {
     id: string;
     name: string;
     description: string;
@@ -13,5 +13,5 @@ export const RepositoryConfigs = {
     /**
      * Channel categories for the archive.
      */
-    ARCHIVE_CHANNELS: new Config<ArchiveChannel[]>("archiveChannels", []),
+    ARCHIVE_CHANNELS: new Config<ArchiveChannelReference[]>("archiveChannels", []),
 }

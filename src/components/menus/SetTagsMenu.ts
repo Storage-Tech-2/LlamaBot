@@ -134,7 +134,7 @@ export class SetTagsMenu implements Menu {
 
         if (tagsUnset) {
             const row = new ActionRowBuilder()
-                .addComponents(await new SetImagesMenu().getBuilder(guildHolder, submission))
+                .addComponents(await new SetImagesMenu().getBuilder(submission))
             await interaction.followUp({
                 content: `<@${interaction.user.id}> Please choose image attachments for your submission`,
                 components: [row as any],

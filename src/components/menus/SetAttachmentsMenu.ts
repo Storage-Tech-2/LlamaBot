@@ -1,11 +1,9 @@
-import { ActionRowBuilder, AttachmentBuilder, BaseSelectMenuBuilder, Channel, ChannelSelectMenuBuilder, ChannelType, Collection, EmbedBuilder, ForumChannel, MessageFlags, Snowflake, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, ThreadChannel } from "discord.js";
+import { MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder";
 import { Menu } from "../../interface/Menu";
-import { getFileKey, hasPerms, isOwner, replyEphemeral } from "../../utils/Util";
+import { hasPerms, isOwner, replyEphemeral } from "../../utils/Util";
 import { Submission } from "../../submissions/Submission";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs";
-import { Image } from "../../submissions/Image";
-import path from "path";
 import { Attachment } from "../../submissions/Attachment";
 
 export class SetAttachmentsMenu implements Menu {
@@ -13,7 +11,7 @@ export class SetAttachmentsMenu implements Menu {
         return "set-attachments-menu";
     }
 
-    async getBuilder(guildHolder: GuildHolder, submission: Submission): Promise<StringSelectMenuBuilder> {
+    async getBuilder(_guildHolder: GuildHolder, submission: Submission): Promise<StringSelectMenuBuilder> {
         const attachments = await submission.getAttachments()
         const fileAttachments = attachments.filter(attachment => !attachment.contentType || (!attachment.contentType.startsWith('image/') && !attachment.contentType.startsWith('video/') && !attachment.contentType.startsWith('audio/')))
 
@@ -48,7 +46,7 @@ export class SetAttachmentsMenu implements Menu {
             )
     }
 
-    async execute(guildHolder: GuildHolder, interaction: StringSelectMenuInteraction, ...args: string[]): Promise<void> {
+    async execute(guildHolder: GuildHolder, interaction: StringSelectMenuInteraction): Promise<void> {
         if (
             !isOwner(interaction) &&
             !hasPerms(interaction)

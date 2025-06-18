@@ -7,6 +7,7 @@ import { SetAttachmentsButton } from "../components/buttons/SetAttachmentsButton
 import { SetAuthorsButton } from "../components/buttons/SetAuthorsButton";
 import { getAuthorsString } from "../utils/Util";
 import { PublishButton } from "../components/buttons/PublishButton";
+import { SubmissionStatus } from "../submissions/SubmissionStatus";
 
 export class StarterEmbed {
     private embed: EmbedBuilder;
@@ -33,7 +34,7 @@ export class StarterEmbed {
         const images = configs.getConfig(SubmissionConfigs.IMAGES);
         const attachments = configs.getConfig(SubmissionConfigs.ATTACHMENTS);
         const endorsers = configs.getConfig(SubmissionConfigs.ENDORSERS);
-
+        const status = configs.getConfig(SubmissionConfigs.STATUS);
         const embed = new EmbedBuilder()
         embed.setColor('#0099ff')
         embed.setTitle('Submission Status')
@@ -77,6 +78,10 @@ export class StarterEmbed {
             description += ':five: Obtain endorsements\n'
         }
 
+        if (status === SubmissionStatus.ACCEPTED) {
+            description += `:tada: Published at ${submission.getConfigManager().getConfig(SubmissionConfigs.POST)?.threadURL}\n`
+        }
+
         description += `\nLast updated: <t:${Math.floor(Date.now() / 1000)}:F>`
 
         // Link to the latest version of the submission
@@ -107,7 +112,7 @@ export class StarterEmbed {
         }
 
         if (submission.isPublishable()) {
-            row.addComponents(await new PublishButton().getBuilder());
+            row.addComponents(await new PublishButton().getBuilder(status === SubmissionStatus.ACCEPTED));
         }
 
         return new StarterEmbed(embed, row);

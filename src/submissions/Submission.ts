@@ -1,4 +1,4 @@
-import { ActionRowBuilder, Channel, GuildBasedChannel, Message, MessageFlags, MessageReferenceType, Snowflake, TextChannel, TextThreadChannel } from "discord.js";
+import { ActionRowBuilder, Message, MessageFlags, MessageReferenceType, Snowflake, TextThreadChannel } from "discord.js";
 import { GuildHolder } from "../GuildHolder";
 import { ConfigManager } from "../config/ConfigManager";
 import Path from "path";
@@ -31,6 +31,7 @@ export class Submission {
     public attachmentsProcessing: boolean = false;
     private reviewLocked: boolean = false;
 
+    private publishLock: boolean = false;
 
     constructor(
         guildHolder: GuildHolder,
@@ -179,7 +180,7 @@ export class Submission {
         try {
             const initialRevision = await this.getInitialRevision();
 
-            const embed = await RevisionEmbed.create(this, initialRevision, true, false);
+            const embed = await RevisionEmbed.create(this, initialRevision, true);
             const channel = await this.getSubmissionChannel();
             const message = await channel.send({ embeds: [embed.getEmbed()], components: [embed.getRow() as any] });
 
@@ -301,12 +302,12 @@ export class Submission {
             const status = this.config.getConfig(SubmissionConfigs.STATUS);
             if (status === SubmissionStatus.NEW) {
                 this.config.setConfig(SubmissionConfigs.STATUS, SubmissionStatus.WAITING);
-              
-                const publishButton = await new PublishButton().getBuilder();
+
+                const publishButton = await new PublishButton().getBuilder(false);
 
                 channel.send({
                     content: `<@${channel.ownerId}> Congratulations! Your submission is now ready to be published! Click the button below to proceed.`,
-                    components: [ (new ActionRowBuilder().addComponents(publishButton)) as any ]
+                    components: [(new ActionRowBuilder().addComponents(publishButton)) as any]
                 });
             }
         }
@@ -362,7 +363,6 @@ export class Submission {
 
         this.llmReviseResponse = undefined;
 
-        const channel = await this.getSubmissionChannel();
         const isCurrent = this.getRevisionsManager().isRevisionCurrent(revision.id);
 
         const newRevisionData: Revision = {
@@ -380,7 +380,7 @@ export class Submission {
             content: `<@${message.author.id}> I've edited the submission${isCurrent ? ' and set it as current' : ''}`
         })
 
-        const embed = await RevisionEmbed.create(this, newRevisionData, isCurrent, false);
+        const embed = await RevisionEmbed.create(this, newRevisionData, isCurrent);
         const messageNew = await message.reply({
             embeds: [embed.getEmbed()],
             components: [embed.getRow() as any],
@@ -396,8 +396,6 @@ export class Submission {
 
 
     useLLMRevise(prompt: string, revision: Revision): LLMResponseFuture {
-        // find starter message
-        const revisionMessage = JSON.stringify(revision, null, 2)
         // request llm response
         const llmPrompt = new ModificationPrompt(
             prompt,
@@ -463,7 +461,48 @@ export class Submission {
         return attachments
     }
 
+    public async publish() {
+        if (this.publishLock) {
+            throw new Error('Publish is already in progress');
+        }
+
+        this.publishLock = true;
+
+       
+        let oldEntryData, newEntryData;
+
+        try {
+            const dt = await this.guildHolder.getRepositoryManager().addOrUpdateEntry(this);
+            oldEntryData = dt.oldEntryData;
+            newEntryData = dt.newEntryData;
+        } catch (error) {
+            this.publishLock = false;
+            throw error;
+        }
+        
+
+        try {
+            await this.guildHolder.logUpdate(oldEntryData, newEntryData);
+        } catch (error) {
+            this.publishLock = false;
+            throw error;
+        }
+
+        this.getConfigManager().setConfig(SubmissionConfigs.POST, newEntryData.post);
+        this.getConfigManager().setConfig(SubmissionConfigs.STATUS, SubmissionStatus.ACCEPTED);
+        await this.statusUpdated();        
+        this.publishLock = false;
+    }
+
     public getRevisionsManager(): RevisionManager {
         return this.revisions;
+    }
+
+    public getFolderPath(): string {
+        return this.folderPath;
+    }
+
+    public getGuildHolder(): GuildHolder {
+        return this.guildHolder;
     }
 }

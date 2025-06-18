@@ -1,11 +1,8 @@
-import { ActionRowBuilder, BaseSelectMenuBuilder, Channel, ChannelSelectMenuBuilder, ChannelType, Collection, ForumChannel, MessageFlags, RoleSelectMenuBuilder, RoleSelectMenuInteraction, Snowflake, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, ThreadChannel } from "discord.js";
+import { RoleSelectMenuBuilder, RoleSelectMenuInteraction } from "discord.js";
 import { GuildHolder } from "../../GuildHolder";
 import { Menu } from "../../interface/Menu";
-import { hasPerms, isOwner, replyEphemeral } from "../../utils/Util";
+import { hasPerms, replyEphemeral } from "../../utils/Util";
 import { GuildConfigs } from "../../config/GuildConfigs";
-import { Submission } from "../../submissions/Submission";
-import { SubmissionConfigs } from "../../submissions/SubmissionConfigs";
-import { SetTagsMenu } from "./SetTagsMenu";
 
 export class SetEndorseRolesMenu implements Menu {
     getID(): string {
@@ -25,7 +22,7 @@ export class SetEndorseRolesMenu implements Menu {
             .setDefaultRoles(currentRoles)
     }
 
-    async execute(guildHolder: GuildHolder, interaction: RoleSelectMenuInteraction, ...args: string[]): Promise<void> {
+    async execute(guildHolder: GuildHolder, interaction: RoleSelectMenuInteraction): Promise<void> {
         if (
             !hasPerms(interaction)
         ) {

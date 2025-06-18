@@ -6,7 +6,16 @@ import { Tag } from "../submissions/Tag";
 import fs from "fs/promises";
 import Path from "path";
 
+export type DiscordPostReference = {
+    forumId: Snowflake;
+    threadId: Snowflake;
+    threadURL: string;
+    messageId: Snowflake;
+    attachmentMessageId?: Snowflake;
+}
+
 export type ArchiveEntryData = {
+    id: Snowflake;
     name: string;
     code: string;
     authors: Author[];
@@ -21,7 +30,9 @@ export type ArchiveEntryData = {
     considerations: string[];
     notes: string;
 
-    submission: Snowflake;
+    /// For routing
+    post?: DiscordPostReference;
+
     timestamp: number;
 }
 

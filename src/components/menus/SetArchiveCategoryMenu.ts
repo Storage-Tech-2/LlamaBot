@@ -1,4 +1,4 @@
-import { ActionRowBuilder, CategoryChannel, ChannelType, Collection, Snowflake, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
+import { ActionRowBuilder, CategoryChannel, ChannelType, Collection, ForumChannel, Snowflake, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder";
 import { Menu } from "../../interface/Menu";
 import { hasPerms, isOwner, replyEphemeral } from "../../utils/Util";
@@ -23,12 +23,18 @@ export class SetArchiveCategoryMenu implements Menu {
             .setPlaceholder('Select archive category')
             .addOptions(
                 Array.from(categoryChannels.values()).map(channel => {
-                    return new StringSelectMenuOptionBuilder().setLabel(channel.name).setValue(channel.id)
+                     
+                    const categoryChannels = channels.filter(channel2 => {
+                        return channel2 && channel2.type === ChannelType.GuildForum && channel2.parentId === channel.id
+                    }) as unknown as Collection<Snowflake, ForumChannel>;
+
+                    const description = categoryChannels.map(c => `#${c.name}`).join(', ') || 'No forum channels in this category';
+                    return new StringSelectMenuOptionBuilder().setLabel(channel.name).setValue(channel.id).setDescription(description)
                 })
             )
     }
 
-    async execute(guildHolder: GuildHolder, interaction: StringSelectMenuInteraction, ...args: string[]): Promise<void> {
+    async execute(guildHolder: GuildHolder, interaction: StringSelectMenuInteraction): Promise<void> {
         if (
             !isOwner(interaction) &&
             !hasPerms(interaction)

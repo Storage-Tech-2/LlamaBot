@@ -6,4 +6,7 @@ export type Image = {
     url: string,
     description: string,
     contentType: string,
+    width?: number,
+    height?: number,
+    path?: string, // Local path if downloaded
 }
