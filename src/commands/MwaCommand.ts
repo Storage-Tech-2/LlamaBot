@@ -289,16 +289,16 @@ export class Mwa implements Command {
         }
 
         // Print each channel and its code
-        let response = 'Channel codes:\n';
-        codeMap.forEach((code, channelId) => {
-            const channel = guildHolder.getGuild().channels.cache.get(channelId);
-            if (channel) {
-                response += `- ${channel.name}: ${code}\n`;
-            } else {
-                response += `- Channel with ID ${channelId} not found.\n`;
-            }
-        });
-        await interaction.channel.send(response);
+        // let response = 'Channel codes:\n';
+        // codeMap.forEach((code, channelId) => {
+        //     const channel = guildHolder.getGuild().channels.cache.get(channelId);
+        //     if (channel) {
+        //         response += `- ${channel.name}: ${code}\n`;
+        //     } else {
+        //         response += `- Channel with ID ${channelId} not found.\n`;
+        //     }
+        // });
+        // await interaction.channel.send(response);
 
         try {
             await guildHolder.getRepositoryManager().setupArchives(channels)
