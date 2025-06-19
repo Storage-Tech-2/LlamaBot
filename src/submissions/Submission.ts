@@ -170,7 +170,6 @@ export class Submission {
 
         const revisions = this.getRevisionsManager().getRevisionsList();
         if (revisions.length > 0) {
-            console.warn('Revisions exist, skipping extraction');
             return;
         }
 
