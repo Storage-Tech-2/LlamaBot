@@ -1,4 +1,4 @@
-import { ActionRowBuilder, Message, MessageFlags, MessageReferenceType, Snowflake, TextThreadChannel } from "discord.js";
+import { ActionRowBuilder, ChannelType, Message, MessageFlags, MessageReferenceType, Snowflake, TextThreadChannel } from "discord.js";
 import { GuildHolder } from "../GuildHolder";
 import { ConfigManager } from "../config/ConfigManager";
 import Path from "path";
@@ -16,6 +16,7 @@ import { RevisionEmbed } from "../embed/RevisionEmbed";
 import { ModificationPrompt } from "../llm/prompts/ModificationPrompt";
 import { SubmissionStatus } from "./SubmissionStatus";
 import { PublishButton } from "../components/buttons/PublishButton";
+import { getTagByName, SubmissionTagNames, SubmissionTags } from "./SubmissionTags";
 
 export class Submission {
     private guildHolder: GuildHolder;
@@ -197,6 +198,7 @@ export class Submission {
             console.error('Error creating initial revision:', error);
         }
         this.reviewLocked = false; // Unlock the review process
+        await this.statusUpdated(); // Update the status of the submission
     }
 
     public async getInitialRevision(): Promise<Revision> {
@@ -333,6 +335,79 @@ export class Submission {
                 }
             }
         }
+
+        await this.updateTags(); // Update tags based on the current status
+        
+    }
+
+    public async updateTags() {
+        const channel = await this.getSubmissionChannel();
+        if (!channel.parentId) {
+            console.error('Submission channel has no parent channel, cannot update tags');
+            return; // No parent channel, cannot update tags
+        }
+
+
+        const forumChannel = await this.guildHolder.getGuild().channels.fetch(channel.parentId);
+        if (!forumChannel || forumChannel.type !== ChannelType.GuildForum) {
+            console.error('Parent channel is not a forum channel, cannot update tags');
+            return;
+        }
+
+        const availableTags = forumChannel.availableTags;
+        const currentTags = channel.appliedTags;
+        const newTagNames = [];
+
+
+        const status = this.getConfigManager().getConfig(SubmissionConfigs.STATUS);
+        const isLocked = this.getConfigManager().getConfig(SubmissionConfigs.IS_LOCKED);
+        const isOnHold = this.getConfigManager().getConfig(SubmissionConfigs.ON_HOLD);
+
+        switch (status) {
+            case SubmissionStatus.NEW:
+                newTagNames.push(SubmissionTagNames.NEW);
+                break;
+            case SubmissionStatus.WAITING:
+                newTagNames.push(SubmissionTagNames.WAITING_FOR_PUBLICATION);
+                break;
+            case SubmissionStatus.ACCEPTED:
+                newTagNames.push(SubmissionTagNames.PUBLISHED);
+                break;
+            case SubmissionStatus.RETRACTED:
+                newTagNames.push(SubmissionTagNames.RETRACTED);
+                break;
+            case SubmissionStatus.REJECTED:
+                newTagNames.push(SubmissionTagNames.REJECTED);
+                break;
+            case SubmissionStatus.NEED_ENDORSEMENT:
+                newTagNames.push(SubmissionTagNames.NEED_ENDORSEMENT);
+                break;
+        }
+
+        if (isLocked) {
+            newTagNames.push(SubmissionTagNames.LOCKED);
+        }
+        if (isOnHold) {
+            newTagNames.push(SubmissionTagNames.ON_HOLD);
+        }
+
+        const newTags = [];
+        for (const tagName of newTagNames) {
+            const tag = availableTags.find(t => t.name === tagName);
+            if (tag) {
+                newTags.push(tag.id);
+            }
+        }
+
+        currentTags.forEach(tagId => {
+            const tag = availableTags.find(t => t.id === tagId);
+            if (tag && !SubmissionTags.find(t => t.name === tag.name)) {
+                // If the tag is not a standard submission tag, we keep it
+                newTags.push(tag.id);
+            }
+        });
+
+        await channel.setAppliedTags(newTags)
     }
 
     public async handleMessage(message: Message) {

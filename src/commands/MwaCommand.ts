@@ -5,6 +5,7 @@ import { getCodeAndDescriptionFromTopic, replyEphemeral } from "../utils/Util";
 import { GuildConfigs } from "../config/GuildConfigs";
 import { SetArchiveCategoriesMenu } from "../components/menus/SetArchiveCategoriesMenu";
 import { SetEndorseRolesMenu } from "../components/menus/SetEndorseRolesMenu";
+import { SubmissionTags } from "../submissions/SubmissionTags";
 
 export class Mwa implements Command {
     getID(): string {
@@ -155,6 +156,29 @@ export class Mwa implements Command {
             await replyEphemeral(interaction, 'This command can only be used in a text channel.')
             return;
         }
+
+        // Setup submission channel
+        const submissionChannelId = guildHolder.getConfigManager().getConfig(GuildConfigs.SUBMISSION_CHANNEL_ID);
+        if (!submissionChannelId) {
+            await replyEphemeral(interaction, 'Submission channel is not set. Please set it using `/mwa setsubmissions` command.');
+            return;
+        }
+
+        const submissionChannel = await guildHolder.getGuild().channels.fetch(submissionChannelId);
+        if (!submissionChannel || submissionChannel.type !== ChannelType.GuildForum) {
+            await replyEphemeral(interaction, 'Submission channel is not a valid forum channel. Please set it using `/mwa setsubmissions` command.');
+            return;
+        }
+
+        const tags = submissionChannel.availableTags.filter(tag => {
+                return !SubmissionTags.some(t => t.name === tag.name)
+        })
+        const newTags = SubmissionTags.concat(tags);
+        await submissionChannel.setAvailableTags(newTags);
+        await submissionChannel.setDefaultReactionEmoji({
+            name: '👍',
+            id: null
+        });
         
         const currentCategories = guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
         // get all channels in categories
