@@ -290,51 +290,56 @@ export class Submission {
 
 
     public async statusUpdated() {
-        const statusMessageId = this.config.getConfig(SubmissionConfigs.STATUS_MESSAGE_ID);
-        if (!statusMessageId) {
-            throw new Error('Status message not sent yet!');
-        }
-
-        const channel = await this.getSubmissionChannel();
-        const message = await channel.messages.fetch(statusMessageId);
-
-        if (!message) {
-            throw new Error('Status message not found');
-        }
-
-        const starterEmbed = await StarterEmbed.create(this);
-        await message.edit({ embeds: [starterEmbed.getEmbed()], components: [starterEmbed.getRow() as any] });
-
-
-        const status = this.config.getConfig(SubmissionConfigs.STATUS);
-        if (this.isPublishable(true) && !this.isPublishable()) {
-            // If the submission is publishable but needs endorsement, we notify the owner
-            if (status === SubmissionStatus.NEW) {
-                this.config.setConfig(SubmissionConfigs.STATUS, SubmissionStatus.NEED_ENDORSEMENT);
-                await channel.send({
-                    content: `<@${channel.ownerId}> Your submission now requires endorsement before it can be published. Please wait for the endorsers to review it. Do not ping them directly, they will review it when they have time.`,
-                });
+        try {
+            const statusMessageId = this.config.getConfig(SubmissionConfigs.STATUS_MESSAGE_ID);
+            if (!statusMessageId) {
+                throw new Error('Status message not sent yet!');
             }
-        } else if (this.isPublishable()) {
-            if (status === SubmissionStatus.NEW || status === SubmissionStatus.NEED_ENDORSEMENT) {
-                this.config.setConfig(SubmissionConfigs.STATUS, SubmissionStatus.WAITING);
 
-                if (this.getConfigManager().getConfig(SubmissionConfigs.ON_HOLD)) {
-                    await channel.send({
-                        content: `<@${channel.ownerId}> Your submission is now ready to be published, but it is currently on hold. Editors must release the hold before it can be published. The reason for the hold is: ${this.getConfigManager().getConfig(SubmissionConfigs.HOLD_REASON) || 'No reason provided.'}`,
-                    });
-                } else {
-                    const publishButton = await new PublishButton().getBuilder(false);
+            const channel = await this.getSubmissionChannel();
+            const message = await channel.messages.fetch(statusMessageId);
 
+            if (!message) {
+                throw new Error('Status message not found');
+            }
+
+            const starterEmbed = await StarterEmbed.create(this);
+            await message.edit({ embeds: [starterEmbed.getEmbed()], components: [starterEmbed.getRow() as any] });
+
+
+            const status = this.config.getConfig(SubmissionConfigs.STATUS);
+            if (this.isPublishable(true) && !this.isPublishable()) {
+                // If the submission is publishable but needs endorsement, we notify the owner
+                if (status === SubmissionStatus.NEW) {
+                    this.config.setConfig(SubmissionConfigs.STATUS, SubmissionStatus.NEED_ENDORSEMENT);
                     await channel.send({
-                        content: `<@${channel.ownerId}> Congratulations! Your submission is now ready to be published! Click the button below to proceed.`,
-                        components: [(new ActionRowBuilder().addComponents(publishButton)) as any]
+                        content: `<@${channel.ownerId}> Your submission now requires endorsement before it can be published. Please wait for the endorsers to review it. Do not ping them directly, they will review it when they have time.`,
                     });
                 }
-            }
-        }
+            } else if (this.isPublishable()) {
+                if (status === SubmissionStatus.NEW || status === SubmissionStatus.NEED_ENDORSEMENT) {
+                    this.config.setConfig(SubmissionConfigs.STATUS, SubmissionStatus.WAITING);
 
-        await this.updateTags(); // Update tags based on the current status
+                    if (this.getConfigManager().getConfig(SubmissionConfigs.ON_HOLD)) {
+                        await channel.send({
+                            content: `<@${channel.ownerId}> Your submission is now ready to be published, but it is currently on hold. Editors must release the hold before it can be published. The reason for the hold is: ${this.getConfigManager().getConfig(SubmissionConfigs.HOLD_REASON) || 'No reason provided.'}`,
+                        });
+                    } else {
+                        const publishButton = await new PublishButton().getBuilder(false);
+
+                        await channel.send({
+                            content: `<@${channel.ownerId}> Congratulations! Your submission is now ready to be published! Click the button below to proceed.`,
+                            components: [(new ActionRowBuilder().addComponents(publishButton)) as any]
+                        });
+                    }
+                }
+            }
+
+            await this.updateTags(); // Update tags based on the current status
+        } catch (error) {
+            console.error('Error updating status:', error);
+            throw error; // Rethrow the error to be handled by the caller
+        }
 
     }
 
@@ -443,7 +448,7 @@ export class Submission {
 
         const wmsg = await message.reply('Processing revision, please wait')
 
-       
+
         let response
         try {
             this.llmReviseResponse = this.useLLMRevise(message.content, revision)
