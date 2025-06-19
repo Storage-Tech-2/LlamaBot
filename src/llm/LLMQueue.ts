@@ -16,6 +16,8 @@ export class LLMQueue {
      */
     private _llmQueue: LLMRequestAndPromise[] = [];
 
+    private _processing: boolean = false;
+
     constructor() {
         this._llmQueue = [];
     }
@@ -60,11 +62,20 @@ export class LLMQueue {
             return;
         }
 
+        if (this._processing) {
+            // If already processing, do not start another request
+            return;
+        }
+
+        this._processing = true;
+        
+
         // Pop the next request from the queue
         const request = this.popQueue();
         if (!request) {
             return;
         }
+
         // Process the request and return the response
         try {
             const response = await this.processRequest(request.request);
@@ -73,6 +84,7 @@ export class LLMQueue {
         } catch (error: any) {
             console.error('Error processing LLM request:', error.message);
         } finally {
+            this._processing = false;
             // If there are more requests in the queue, process the next one
             if (this._llmQueue.length > 0) {
                 this.processNextRequest();
