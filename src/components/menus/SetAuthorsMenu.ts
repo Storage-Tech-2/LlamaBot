@@ -1,7 +1,7 @@
 import { ActionRowBuilder, MessageFlags, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, UserSelectMenuBuilder, UserSelectMenuInteraction } from "discord.js";
 import { GuildHolder } from "../../GuildHolder";
 import { Menu } from "../../interface/Menu";
-import { hasPerms, replyEphemeral } from "../../utils/Util";
+import { canEditSubmission, replyEphemeral } from "../../utils/Util";
 import { Author, AuthorType } from "../../submissions/Author";
 import { Submission } from "../../submissions/Submission";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs";
@@ -57,16 +57,16 @@ export class SetAuthorsMenu implements Menu {
     }
 
     async executeDiscord(guildHolder: GuildHolder, interaction: UserSelectMenuInteraction): Promise<void> {
-        if (!hasPerms(interaction)) {
-            replyEphemeral(interaction, 'You do not have permission to use this menu!');
-            return;
-        }
-
         const submissionId = interaction.channelId
         const submission = await guildHolder.getSubmissionsManager().getSubmission(submissionId)
         if (!submission) {
             replyEphemeral(interaction, 'Submission not found')
             return
+        }
+
+        if (!canEditSubmission(interaction, submission)) {
+            replyEphemeral(interaction, 'You do not have permission to use this menu!');
+            return;
         }
 
         const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) === null;
@@ -151,16 +151,16 @@ export class SetAuthorsMenu implements Menu {
 
 
     async executeExtra(guildHolder: GuildHolder, interaction: UserSelectMenuInteraction): Promise<void> {
-        if (!hasPerms(interaction)) {
-            replyEphemeral(interaction, 'You do not have permission to use this menu!');
-            return;
-        }
-
         const submissionId = interaction.channelId
         const submission = await guildHolder.getSubmissionsManager().getSubmission(submissionId)
         if (!submission) {
             replyEphemeral(interaction, 'Submission not found')
             return
+        }
+
+        if (!canEditSubmission(interaction, submission)) {
+            replyEphemeral(interaction, 'You do not have permission to use this menu!');
+            return;
         }
 
         const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) === null;

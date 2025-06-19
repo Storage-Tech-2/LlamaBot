@@ -1,7 +1,7 @@
 import { RoleSelectMenuBuilder, RoleSelectMenuInteraction } from "discord.js";
 import { GuildHolder } from "../../GuildHolder";
 import { Menu } from "../../interface/Menu";
-import { hasPerms, replyEphemeral } from "../../utils/Util";
+import { isAdmin, replyEphemeral } from "../../utils/Util";
 import { GuildConfigs } from "../../config/GuildConfigs";
 
 export class SetEndorseRolesMenu implements Menu {
@@ -24,7 +24,7 @@ export class SetEndorseRolesMenu implements Menu {
 
     async execute(guildHolder: GuildHolder, interaction: RoleSelectMenuInteraction): Promise<void> {
         if (
-            !hasPerms(interaction)
+            !isAdmin(interaction)
         ) {
             replyEphemeral(interaction, 'You do not have permission to use this!')
             return

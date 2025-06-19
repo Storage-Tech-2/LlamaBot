@@ -1,7 +1,7 @@
 import { ButtonBuilder, ButtonInteraction, ButtonStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder";
 import { Button } from "../../interface/Button";
-import { hasPerms, isOwner, replyEphemeral } from "../../utils/Util";
+import { canPublishSubmission, replyEphemeral } from "../../utils/Util";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs";
 
 export class PublishButton implements Button {
@@ -17,17 +17,16 @@ export class PublishButton implements Button {
     }
 
     async execute(guildHolder: GuildHolder, interaction: ButtonInteraction): Promise<void> {
-        if (
-            !isOwner(interaction) &&
-            !hasPerms(interaction)
-        ) {
-            replyEphemeral(interaction, 'You do not have permission to use this!')
-            return;
-        }
-
         const submission = await guildHolder.getSubmissionsManager().getSubmission(interaction.channelId);
         if (!submission) {
             replyEphemeral(interaction, 'Submission not found');
+            return;
+        }
+
+        if (
+            !canPublishSubmission(interaction, submission)
+        ) {
+            replyEphemeral(interaction, 'You do not have permission to use this!')
             return;
         }
 
@@ -36,14 +35,15 @@ export class PublishButton implements Button {
             return;
         }
 
-        interaction.reply({
+        await interaction.reply({
             content: `<@${interaction.user.id}> initiated publishing!`,
         });
 
         try {
             await submission.publish();
         } catch(e: any) {
-            interaction.followUp({
+            console.error(e);
+            await interaction.followUp({
                 content: `Failed to publish submission because of error: ${e.message}`,
             });
             return;
@@ -51,7 +51,7 @@ export class PublishButton implements Button {
 
         const url = submission.getConfigManager().getConfig(SubmissionConfigs.POST)?.threadURL;
               
-        interaction.followUp({
+        await interaction.followUp({
             content: `Submission published successfully! ${url}`
         });
     }

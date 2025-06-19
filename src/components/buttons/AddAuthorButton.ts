@@ -1,9 +1,7 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle } from "discord.js";
+import { ButtonBuilder, ButtonInteraction, ButtonStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder";
 import { Button } from "../../interface/Button";
-import { hasPerms, isOwner, replyEphemeral } from "../../utils/Util";
-import { SetArchiveCategoryMenu } from "../menus/SetArchiveCategoryMenu";
-import { SetAuthorsMenu } from "../menus/SetAuthorsMenu";
+import { canEditSubmission, replyEphemeral } from "../../utils/Util";
 import { AddAuthorModal } from "../modals/AddAuthorModal";
 
 export class AddAuthorButton implements Button {
@@ -18,19 +16,19 @@ export class AddAuthorButton implements Button {
             .setStyle(ButtonStyle.Primary)
     }
 
-    async execute(guildHolder: GuildHolder, interaction: ButtonInteraction, ...args: string[]): Promise<void> {
-        if (
-            !isOwner(interaction) &&
-            !hasPerms(interaction)
-        ) {
-            replyEphemeral(interaction, 'You do not have permission to use this!')
-        }
-
+    async execute(guildHolder: GuildHolder, interaction: ButtonInteraction): Promise<void> {
         const submission = await guildHolder.getSubmissionsManager().getSubmission(interaction.channelId);
         if (!submission) {
             replyEphemeral(interaction, 'Submission not found');
             return;
         }
+
+        if (
+            !canEditSubmission(interaction, submission)
+        ) {
+            replyEphemeral(interaction, 'You do not have permission to use this!')
+        }
+
 
         const modal = await new AddAuthorModal().getBuilder()
         await interaction.showModal(modal);

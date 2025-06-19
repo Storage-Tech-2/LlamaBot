@@ -282,6 +282,8 @@ export class Submission {
         return Path.join(this.folderPath, 'attachments');
     }
 
+
+
     public async statusUpdated() {
         const statusMessageId = this.config.getConfig(SubmissionConfigs.STATUS_MESSAGE_ID);
         if (!statusMessageId) {
@@ -394,6 +396,13 @@ export class Submission {
         this.statusUpdated();
     }
 
+    setLock(locked: boolean) {
+        this.config.setConfig(SubmissionConfigs.IS_LOCKED, locked);
+    }
+
+    setHold(hold: boolean) {
+        this.config.setConfig(SubmissionConfigs.ON_HOLD, hold);
+    }
 
     useLLMRevise(prompt: string, revision: Revision): LLMResponseFuture {
         // request llm response

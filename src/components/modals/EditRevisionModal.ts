@@ -2,7 +2,7 @@ import { ActionRowBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, S
 import { GuildHolder } from "../../GuildHolder";
 import { Modal } from "../../interface/Modal";
 import { Revision, RevisionType } from "../../submissions/Revision";
-import { hasPerms, isOwner, replyEphemeral } from "../../utils/Util";
+import { canEditSubmission, replyEphemeral } from "../../utils/Util";
 import { RevisionEmbed } from "../../embed/RevisionEmbed";
 
 export class EditRevisionModal implements Modal {
@@ -51,15 +51,7 @@ export class EditRevisionModal implements Modal {
         return modal
     }
 
-    async execute(guildHolder: GuildHolder, interaction: ModalSubmitInteraction, revisionId: Snowflake, ...args: any[]): Promise<void> {
-        if (
-            !isOwner(interaction) &&
-            !hasPerms(interaction)
-        ) {
-            replyEphemeral(interaction, 'You do not have permission to use this!')
-            return;
-        }
-
+    async execute(guildHolder: GuildHolder, interaction: ModalSubmitInteraction, revisionId: Snowflake): Promise<void> {
         const submissionId = interaction.channelId
         if (!submissionId) {
             replyEphemeral(interaction, 'Submission ID not found')
@@ -70,6 +62,13 @@ export class EditRevisionModal implements Modal {
         if (!submission) {
             replyEphemeral(interaction, 'Submission not found')
             return
+        }
+
+        if (
+            !canEditSubmission(interaction, submission)
+        ) {
+            replyEphemeral(interaction, 'You do not have permission to use this!')
+            return;
         }
 
         const revision = await submission.getRevisionsManager().getRevisionById(revisionId)
@@ -100,7 +99,7 @@ export class EditRevisionModal implements Modal {
             content: `<@${interaction.user.id}> Manually edited the submission${isCurrent ? ' and set it as current' : ''}`
         })
 
-        const embed = await RevisionEmbed.create(submission, newRevisionData, isCurrent, false);
+        const embed = await RevisionEmbed.create(submission, newRevisionData, isCurrent);
         const messageNew = await interaction.followUp({
             embeds: [embed.getEmbed()],
             components: [embed.getRow() as any],

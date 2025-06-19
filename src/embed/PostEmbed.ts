@@ -1,6 +1,6 @@
-import { ActionRowBuilder, AttachmentBuilder, EmbedBuilder } from "discord.js";
+import { ActionRowBuilder, AttachmentBuilder, EmbedBuilder, Message } from "discord.js";
 import { Submission } from "../submissions/Submission";
-import { getAuthorsString, getFileKey } from "../utils/Util";
+import { escapeString, getAuthorsString, getFileKey, getGithubOwnerAndProject } from "../utils/Util";
 import Path from "path";
 import { Attachment } from "../submissions/Attachment";
 import { ArchiveEntryData } from "../archive/ArchiveEntry";
@@ -23,7 +23,33 @@ export class PostEmbed {
         return this.row;
     }
 
-    public static async createAttachmentMessage(submission: Submission, _submissionURL: string, commitID: string, path: string, entryData: ArchiveEntryData): Promise<{ content: string, files: AttachmentBuilder[] }> {
+    public static async createAttachmentUpload(_submission: Submission, _submissionURL: string, _commitID: string, path: string, entryData: ArchiveEntryData): Promise<{ content: string, files: AttachmentBuilder[] }> {
+        const files: AttachmentBuilder[] = [];
+        const attachments = entryData.attachments;
+        attachments.forEach(attachment => {
+            if (attachment.contentType === 'mediafire' || !attachment.path) {
+                return;
+            }
+
+            const key = escapeString(attachment.name);
+            const filePath = Path.join(path, attachment.path);
+            const file = new AttachmentBuilder(filePath);
+            file.setName(key);
+            file.setDescription(attachment.description || '');
+            files.push(file);
+        });
+        return {
+            content: `This message contains the files for the submission **${entryData.name}**.`,
+            files: files
+        }
+    }
+
+    public static async createAttachmentMessage(submission: Submission, _submissionURL: string, commitID: string, path: string, entryData: ArchiveEntryData, uploadMessage: Message): Promise<{ content: string, files: AttachmentBuilder[] }> {
+        const attachmentURLs = new Map();
+        uploadMessage.attachments.forEach(attachment => {
+            attachmentURLs.set(attachment.name, attachment.url);
+        });
+        
         const litematics: Attachment[] = []
         const others: Attachment[] = []
         const attachments = entryData.attachments;
@@ -38,18 +64,15 @@ export class PostEmbed {
 
         const githubURL = submission.getGuildHolder().getConfigManager().getConfig(GuildConfigs.GITHUB_REPO_URL);
         // parse the URL to get the repo name and owner
-        const urlParts = new URL(githubURL);
-        const pathParts = urlParts.pathname.split('/');
-        const repoOwner = pathParts[1];
-        const repoName = pathParts[2];
-
+        const { owner, project } = getGithubOwnerAndProject(githubURL);
         // construct a raw URL
-        const rawURL = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/${commitID}/${path}/`;
+        const rawURL = `https://raw.githubusercontent.com/${owner}/${project}/${commitID}/${path}`;
 
         if (litematics.length) {
             description += '**Litematics:**\n'
             litematics.forEach(attachment => {
-                description += `- [${attachment.name}](${rawURL}/${attachment.path}): MC ${attachment.litematic?.version}, ${attachment.litematic?.size}\n`
+                const url = attachmentURLs.get(attachment.name) || attachment.url;
+                description += `- ${url} [Github](${rawURL}/${attachment.path}): MC ${attachment.litematic?.version}, ${attachment.litematic?.size}\n`
             })
         }
 
@@ -60,7 +83,8 @@ export class PostEmbed {
                     description += `- [${attachment.name}](${attachment.url}): Mediafire link\n`
                     return;
                 }
-                description += `- [${attachment.name}](${rawURL}/${attachment.path}): ${attachment.contentType}\n`
+                const url = attachmentURLs.get(attachment.name) || attachment.url;
+                description += `- ${url} [Github](${rawURL}/${attachment.path}): ${attachment.contentType}\n`
             })
         }
 
@@ -73,7 +97,7 @@ export class PostEmbed {
 
     public static async createInitialMessage(submission: Submission, submissionURL: string, commitID: string, path: string, entryData: ArchiveEntryData): Promise<{ content: string, files: AttachmentBuilder[] }> {
         let content = [];
-      
+
         const description = entryData.description;
         const features = entryData.features;
         const considerations = entryData.considerations;
@@ -99,16 +123,14 @@ export class PostEmbed {
 
         const githubURL = submission.getGuildHolder().getConfigManager().getConfig(GuildConfigs.GITHUB_REPO_URL);
         // parse the URL to get the repo name and owner
-        const urlParts = new URL(githubURL);
-        const pathParts = urlParts.pathname.split('/');
-        const repoOwner = pathParts[1];
-        const repoName = pathParts[2];
+        const { owner, project } = getGithubOwnerAndProject(githubURL);
 
-    
-        const gitURL = `https://github.com/${repoOwner}/${repoName}/tree/master/${path}`;
-        const commitURL = `https://github.com/${repoOwner}/${repoName}/commit/${commitID}`;
+
+        const gitURL = `https://github.com/${owner}/${project}/tree/master/${path}`;
+        const commitURL = `https://github.com/${owner}/${project}/commit/${commitID}`;
         content.push(`\n[Submission Thread](${submissionURL})`);
         content.push(`[Github](${gitURL}) - [Commit](${commitURL})`);
+        content.push(`Edited on <t:${Math.floor(entryData.timestamp / 1000)}:F>`);
 
         const files: AttachmentBuilder[] = [];
         images.forEach(image => {

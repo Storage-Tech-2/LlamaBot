@@ -28,6 +28,7 @@ export class StarterEmbed {
 
     public static async create(submission: Submission): Promise<StarterEmbed> {
         const configs = submission.getConfigManager();
+        const submissionChannel = await submission.getSubmissionChannel();
         const authors = configs.getConfig(SubmissionConfigs.AUTHORS);
         const archiveChannelID = configs.getConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID);
         const tags = configs.getConfig(SubmissionConfigs.TAGS);
@@ -78,7 +79,9 @@ export class StarterEmbed {
             description += ':five: Obtain endorsements\n'
         }
 
-        if (status === SubmissionStatus.ACCEPTED) {
+        if (status === SubmissionStatus.WAITING) {
+            description += `:pray: Waiting for <@${submissionChannel.ownerId}> to publish the submission\n`
+        } else if (status === SubmissionStatus.ACCEPTED) {
             description += `:tada: Published at ${submission.getConfigManager().getConfig(SubmissionConfigs.POST)?.threadURL}\n`
         }
 
@@ -87,7 +90,7 @@ export class StarterEmbed {
         // Link to the latest version of the submission
         const currentRevision = submission.getRevisionsManager().getCurrentRevision();
         if (currentRevision) {
-            const message = await (await submission.getSubmissionChannel()).messages.fetch(currentRevision.id);
+            const message = await submissionChannel.messages.fetch(currentRevision.id);
             description += `\n\n[View latest submission draft](${message.url})`
         }
 

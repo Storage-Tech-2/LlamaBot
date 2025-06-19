@@ -1,7 +1,7 @@
 import { ActionRowBuilder, ForumChannel, MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder";
 import { Menu } from "../../interface/Menu";
-import { hasPerms, isOwner, replyEphemeral } from "../../utils/Util";
+import { canEditSubmission, isModerator, replyEphemeral } from "../../utils/Util";
 import { Submission } from "../../submissions/Submission";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs";
 import { SetImagesMenu } from "./SetImagesMenu";
@@ -45,19 +45,18 @@ export class SetTagsMenu implements Menu {
     }
 
     async execute(guildHolder: GuildHolder, interaction: StringSelectMenuInteraction, ..._args: string[]): Promise<void> {
-        if (
-            !isOwner(interaction) &&
-            !hasPerms(interaction)
-        ) {
-            replyEphemeral(interaction, 'You do not have permission to use this!')
-            return
-        }
-
         const submissionId = interaction.channelId
         const submission = await guildHolder.getSubmissionsManager().getSubmission(submissionId)
         if (!submission) {
             replyEphemeral(interaction, 'Submission not found');
             return;
+        }
+
+        if (
+            !canEditSubmission(interaction, submission)
+        ) {
+            replyEphemeral(interaction, 'You do not have permission to use this!')
+            return
         }
 
         const archiveChannelId = submission.getConfigManager().getConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID);
@@ -73,7 +72,7 @@ export class SetTagsMenu implements Menu {
         const newTagIds = new Set(interaction.values)
         newTagIds.delete('none') // remove 'none' if it exists
 
-        if (!hasPerms(interaction)) {
+        if (!isModerator(interaction)) {
             const tagsAdmin = new Set(availableTags.filter(tag => {
                 return tag.moderated
             }).map(tag => tag.id))

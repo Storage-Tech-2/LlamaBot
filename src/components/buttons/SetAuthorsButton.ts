@@ -1,8 +1,7 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, Interaction } from "discord.js";
 import { GuildHolder } from "../../GuildHolder";
 import { Button } from "../../interface/Button";
-import { hasPerms, isOwner, replyEphemeral } from "../../utils/Util";
-import { SetArchiveCategoryMenu } from "../menus/SetArchiveCategoryMenu";
+import { canEditSubmission, replyEphemeral } from "../../utils/Util";
 import { SetAuthorsMenu } from "../menus/SetAuthorsMenu";
 import { AddAuthorButton } from "./AddAuthorButton";
 import { Submission } from "../../submissions/Submission";
@@ -22,17 +21,17 @@ export class SetAuthorsButton implements Button {
     }
 
 
-    async execute(guildHolder: GuildHolder, interaction: ButtonInteraction, ...args: string[]): Promise<void> {
-        if (
-            !isOwner(interaction) &&
-            !hasPerms(interaction)
-        ) {
-            replyEphemeral(interaction, 'You do not have permission to use this!')
-        }
-
+    async execute(guildHolder: GuildHolder, interaction: ButtonInteraction): Promise<void> {
         const submission = await guildHolder.getSubmissionsManager().getSubmission(interaction.channelId);
         if (!submission) {
             replyEphemeral(interaction, 'Submission not found');
+            return;
+        }
+
+        if (
+            !canEditSubmission(interaction, submission)
+        ) {
+            replyEphemeral(interaction, 'You do not have permission to use this!')
             return;
         }
 

@@ -5,7 +5,7 @@ import { ConfigManager } from "../config/ConfigManager";
 import Path from "path";
 import { ChannelType, ForumChannel, MessageFlags } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs";
-import { deepClone, escapeString, generateCommitMessage, getCodeAndDescriptionFromTopic, getFileKey } from "../utils/Util";
+import { areObjectsIdentical, deepClone, escapeString, generateCommitMessage, getCodeAndDescriptionFromTopic, getFileKey } from "../utils/Util";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry";
 import { Submission } from "../submissions/Submission";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs";
@@ -30,8 +30,11 @@ export class RepositoryManager {
         if (!await fs.access(this.folderPath).then(() => true).catch(() => false)) {
             await fs.mkdir(this.folderPath, { recursive: true });
         }
-        this.git = simpleGit(this.folderPath);
-        await this.git.init();
+        this.git = simpleGit(this.folderPath)
+            .init()
+            .addConfig('user.name', 'LlamaBot')
+            .addConfig('user.email', 'llama@soontech.org');
+
 
         // check if gitignore exists, create it if it doesn't
         const gitignorePath = Path.join(this.folderPath, '.gitignore');
@@ -42,8 +45,6 @@ export class RepositoryManager {
             await this.git.commit('Initial commit: add .gitignore');
         }
 
-        await this.git.addConfig('user.name', 'Llamabot Archive Bot');
-        await this.git.addConfig('user.email', 'llama@soontech.org');
 
         // Load the config manager
         await this.configManager.loadConfig();
@@ -181,7 +182,11 @@ export class RepositoryManager {
                     attachment.name = newName;
 
                     const oldPath = attachment.path || '';
-                    const newPath = oldPath.replace(new RegExp(`^${oldEntryRef.code}`), newEntryRef.code);
+                    // split the path to get the file name
+                    const oldPathParts = oldPath.split('/');
+                    const oldFileName = oldPathParts.pop() || '';
+                    oldPathParts.push(oldFileName.replace(new RegExp(`^${oldEntryRef.code}`), newEntryRef.code));
+                    const newPath = oldPathParts.join("/");
                     if (oldPath !== newPath) {
                         const fullOldPath = Path.join(newFolderPath, oldPath);
                         const fullNewPath = Path.join(newFolderPath, newPath);
@@ -335,7 +340,7 @@ export class RepositoryManager {
                 let destKey = destKeyOrig;
 
                 // Check for duplicate file names
-                for (let i = 1; i < 100; i++) {
+                for (let i = 1; i < 15; i++) {
                     if (await fs.access(Path.join(imageFolder, `${destKey}.png`)).then(() => true).catch(() => false)) {
                         destKey = `${destKeyOrig}_${i}`;
                     }
@@ -344,6 +349,7 @@ export class RepositoryManager {
                 const destPath = Path.join(imageFolder, `${destKey}.png`);
                 await fs.copyFile(sourcePath, destPath);
                 image.path = `images/${destKey}.png`;
+                image.name = destKey; // Update the name to the new key
             }
 
             for (const attachment of entryData.attachments) {
@@ -355,21 +361,31 @@ export class RepositoryManager {
 
                 const destKeyOrig = entryData.code + '_' + escapeString(dest.join(''));
                 let destKey = destKeyOrig;
-                for (let i = 1; i < 100; i++) {
+                for (let i = 1; i < 15; i++) {
                     if (await fs.access(Path.join(attachmentFolder, `${destKey}${ext ? '.' + ext : ''}`)).then(() => true).catch(() => false)) {
                         destKey = `${destKeyOrig}_${i}`;
                     }
                 }
 
-                const destPath = Path.join(attachmentFolder, `${destKey}${ext ? '.' + ext : ''}`);
-
+                const newKey = `${destKey}${ext ? '.' + ext : ''}`;
+                const sourcePath = Path.join(submission.getAttachmentFolder(), getFileKey(attachment));
+                const destPath = Path.join(attachmentFolder, newKey);
+                attachment.path = `attachments/${newKey}`;
+                attachment.name = destKey; // Update the name to the new key
                 if (attachment.contentType === 'mediafire') {
                     await fs.writeFile(destPath, attachment.url || '', 'utf-8');
-                    attachment.path = `attachments/${destKey}.url`;
                 } else {
-                    const sourcePath = Path.join(submission.getAttachmentFolder(), getFileKey(attachment));
                     await fs.copyFile(sourcePath, destPath);
-                    attachment.path = `attachments/${destKey}${ext ? '.' + ext : ''}`;
+                }
+            }
+
+            if (existingEntry) {
+                const dt = deepClone(existingEntry.getData());
+                dt.timestamp = entryData.timestamp;
+                // compare the data
+                console.log(dt, entryData, areObjectsIdentical(dt, entryData));
+                if (areObjectsIdentical(dt, entryData)) {
+                    throw new Error("No changes detected in the entry data");
                 }
             }
 
@@ -400,7 +416,7 @@ export class RepositoryManager {
                 }
             }
 
-            const path = `Archive/${archiveChannelRef.path}/${entryRef.path}`;
+            const path = `${archiveChannelRef.path}/${entryRef.path}`;
             let message = await PostEmbed.createInitialMessage(submission, submissionChannel.url, '', path, entryData);
             if (!thread) {
                 thread = await publishChannel.threads.create({
@@ -439,7 +455,7 @@ export class RepositoryManager {
             await this.git.add(entryFolder);
             await this.git.add(channelPath); // to update currentCodeId and entries
             if (existingEntryRef && existingEntry) {
-                
+
                 await this.git.commit(generateCommitMessage(existingEntry.getData(), entryData));
             } else {
                 await this.git.commit(`Added entry ${entryData.name} (${entryData.code}) to channel ${archiveChannel.getData().name} (${archiveChannel.getData().code})`);
@@ -447,9 +463,18 @@ export class RepositoryManager {
 
             // Now post to discord
 
+            // First, upload attachments
+           
             const commitID = await this.git.revparse('HEAD');
+            
+            const attachmentUpload = await PostEmbed.createAttachmentUpload(submission, submissionChannel.url, commitID, entryFolder, entryData);
+            const uploadMessage = await submissionChannel.send({
+                content: attachmentUpload.content,
+                files: attachmentUpload.files,
+            });
+
             message = await PostEmbed.createInitialMessage(submission, submissionChannel.url, commitID, path, entryData);
-            const attachmentMessage = await PostEmbed.createAttachmentMessage(submission, submissionChannel.url, commitID, path, entryData);
+            const attachmentMessage = await PostEmbed.createAttachmentMessage(submission, submissionChannel.url, commitID, path, entryData, uploadMessage);
 
             if (entryData.name !== thread.name) {
                 await thread.edit({

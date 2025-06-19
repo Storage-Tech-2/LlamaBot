@@ -1,7 +1,7 @@
 import { ChannelSelectMenuBuilder, ChannelType, Snowflake, StringSelectMenuInteraction } from "discord.js";
 import { GuildHolder } from "../../GuildHolder";
 import { Menu } from "../../interface/Menu";
-import { hasPerms, replyEphemeral } from "../../utils/Util";
+import { isAdmin, replyEphemeral } from "../../utils/Util";
 import { GuildConfigs } from "../../config/GuildConfigs";
 
 export class SetArchiveCategoriesMenu implements Menu {
@@ -22,7 +22,7 @@ export class SetArchiveCategoriesMenu implements Menu {
     }
     
     async execute(guildHolder: GuildHolder, interaction: StringSelectMenuInteraction): Promise<void> {
-        if (!hasPerms(interaction)) {
+        if (!isAdmin(interaction)) {
             replyEphemeral(interaction, 'You do not have permission to use this menu!');
             return;
         }

@@ -15,7 +15,7 @@ export class Mwa implements Command {
         const data = new SlashCommandBuilder()
         data
             .setName('mwa')
-            .setDescription('Llamabot commands')
+            .setDescription('Llamabot setup for administrators')
             .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
             .setContexts(InteractionContextType.Guild)
             .addSubcommand(subcommand =>
@@ -39,7 +39,7 @@ export class Mwa implements Command {
                             .setName('channel')
                             .setDescription('Channel to send update logs to')
                             .setRequired(true)
-                            .addChannelTypes(ChannelType.GuildForum)
+                            .addChannelTypes(ChannelType.GuildText)
                     )
             )
              .addSubcommand(subcommand =>

@@ -1,7 +1,7 @@
 import { ActionRowBuilder, AttachmentBuilder, EmbedBuilder, MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder";
 import { Menu } from "../../interface/Menu";
-import { getFileKey, hasPerms, isOwner, replyEphemeral } from "../../utils/Util";
+import { canEditSubmission, getFileKey, replyEphemeral } from "../../utils/Util";
 import { Submission } from "../../submissions/Submission";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs";
 import { Image } from "../../submissions/Image";
@@ -48,20 +48,21 @@ export class SetImagesMenu implements Menu {
     }
 
     async execute(guildHolder: GuildHolder, interaction: StringSelectMenuInteraction): Promise<void> {
-        if (
-            !isOwner(interaction) &&
-            !hasPerms(interaction)
-        ) {
-            replyEphemeral(interaction, 'You do not have permission to use this!')
-            return
-        }
-
+      
         const submissionId = interaction.channelId
         const submission = await guildHolder.getSubmissionsManager().getSubmission(submissionId)
         if (!submission) {
             replyEphemeral(interaction, 'Submission not found')
             return
         }
+
+        if (
+            !canEditSubmission(interaction, submission)
+        ) {
+            replyEphemeral(interaction, 'You do not have permission to use this!')
+            return
+        }
+
 
         if (submission.imagesProcessing) {
             replyEphemeral(interaction, 'Images are currently being processed. Please wait until they are done.');

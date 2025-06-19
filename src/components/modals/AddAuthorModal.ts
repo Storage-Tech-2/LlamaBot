@@ -1,7 +1,7 @@
-import { ActionRowBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, Snowflake, TextInputBuilder, TextInputStyle } from "discord.js";
+import { ActionRowBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder";
 import { Modal } from "../../interface/Modal";
-import { hasPerms, isOwner, replyEphemeral } from "../../utils/Util";
+import { canEditSubmission, replyEphemeral } from "../../utils/Util";
 import { Author, AuthorType } from "../../submissions/Author";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs";
 import { SetAuthorsButton } from "../buttons/SetAuthorsButton";
@@ -36,15 +36,7 @@ export class AddAuthorModal implements Modal {
         return modal
     }
 
-    async execute(guildHolder: GuildHolder, interaction: ModalSubmitInteraction, ...args: any[]): Promise<void> {
-        if (
-            !isOwner(interaction) &&
-            !hasPerms(interaction)
-        ) {
-            replyEphemeral(interaction, 'You do not have permission to use this!')
-            return;
-        }
-
+    async execute(guildHolder: GuildHolder, interaction: ModalSubmitInteraction): Promise<void> {
         const submissionId = interaction.channelId
         if (!submissionId) {
             replyEphemeral(interaction, 'Submission ID not found')
@@ -55,6 +47,13 @@ export class AddAuthorModal implements Modal {
         if (!submission) {
             replyEphemeral(interaction, 'Submission not found')
             return
+        }
+
+        if (
+            !canEditSubmission(interaction, submission)
+        ) {
+            replyEphemeral(interaction, 'You do not have permission to use this!')
+            return;
         }
 
         let name = interaction.fields.getTextInputValue('nameInput');

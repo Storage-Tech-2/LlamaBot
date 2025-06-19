@@ -1,7 +1,7 @@
 import { MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder";
 import { Menu } from "../../interface/Menu";
-import { hasPerms, isOwner, replyEphemeral } from "../../utils/Util";
+import { canEditSubmission, escapeString, replyEphemeral } from "../../utils/Util";
 import { Submission } from "../../submissions/Submission";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs";
 import { Attachment } from "../../submissions/Attachment";
@@ -40,25 +40,24 @@ export class SetAttachmentsMenu implements Menu {
                 fileAttachments.map(file => {
                     return new StringSelectMenuOptionBuilder().setLabel(file.name)
                         .setValue(file.id)
-                        .setDescription(file.description)
+                        .setDescription(file.description.substring(0, 100))
                         .setDefault(currentFiles.some(att => att.id === file.id))
                 })
             )
     }
 
     async execute(guildHolder: GuildHolder, interaction: StringSelectMenuInteraction): Promise<void> {
-        if (
-            !isOwner(interaction) &&
-            !hasPerms(interaction)
-        ) {
-            replyEphemeral(interaction, 'You do not have permission to use this!')
-            return
-        }
-
         const submissionId = interaction.channelId
         const submission = await guildHolder.getSubmissionsManager().getSubmission(submissionId)
         if (!submission) {
             replyEphemeral(interaction, 'Submission not found')
+            return
+        }
+
+        if (
+            !canEditSubmission(interaction, submission)
+        ) {
+            replyEphemeral(interaction, 'You do not have permission to use this!')
             return
         }
 
@@ -103,14 +102,14 @@ export class SetAttachmentsMenu implements Menu {
         if (litematics.length) {
             description += '**Litematics:**\n'
             litematics.forEach(attachment => {
-                description += `- [${attachment.name}](${attachment.url}): MC ${attachment.litematic?.version}, ${attachment.litematic?.size}\n`
+                description += `- [${escapeString(attachment.name)}](${attachment.url}): MC ${attachment.litematic?.version}, ${attachment.litematic?.size}\n`
             })
         }
 
         if (others.length) {
             description += '**Other files:**\n'
             others.forEach(attachment => {
-                description += `- [${attachment.name}](${attachment.url}): ${attachment.contentType}\n`
+                description += `- [${escapeString(attachment.name)}](${attachment.url}): ${attachment.contentType}\n`
             })
         }
 

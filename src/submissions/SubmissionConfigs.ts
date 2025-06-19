@@ -25,6 +25,16 @@ export const SubmissionConfigs = {
     STATUS: new Config("status", SubmissionStatus.NEW),
 
     /**
+     * Is locked
+     */
+    IS_LOCKED: new Config<boolean>("is_locked", false),
+
+    /**
+     * Is holded
+     */
+    ON_HOLD: new Config<boolean>("on_holded", false),
+
+    /**
      * ID of the submission thread.
      */
     SUBMISSION_THREAD_ID: new Config<Snowflake>("submission_channel_id", ""),

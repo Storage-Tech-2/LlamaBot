@@ -3,7 +3,7 @@ import { Button } from '../interface/Button'
 import { Menu } from '../interface/Menu'
 import { Modal } from '../interface/Modal'
 import { Secrets } from '../Bot'
-import { GuildMember, Interaction, MessageFlags, PermissionFlagsBits, REST, Routes, TextThreadChannel } from 'discord.js'
+import { Interaction, Message, MessageFlags, PermissionFlagsBits, REST, Routes, TextBasedChannel, TextThreadChannel } from 'discord.js'
 import { GuildHolder } from '../GuildHolder'
 import { Attachment } from '../submissions/Attachment'
 import { Image } from '../submissions/Image'
@@ -14,6 +14,9 @@ import sharp from 'sharp'
 import { Litematic } from '@kleppe/litematic-reader'
 import { Author, AuthorType } from '../submissions/Author'
 import { ArchiveEntryData } from '../archive/ArchiveEntry'
+import { GuildConfigs } from '../config/GuildConfigs'
+import { Submission } from '../submissions/Submission'
+import { SubmissionConfigs } from '../submissions/SubmissionConfigs'
 
 export function getItemsFromArray<T extends (Button | Menu | Modal | Command)>(itemArray: T[]): Map<string, T> {
     const items = new Map()
@@ -55,88 +58,60 @@ export function replyEphemeral(interaction: any, content: string, options = {}) 
     }
 }
 
-export function hasPerms(interaction: Interaction): boolean {
-    if (!interaction.member) {
-        return false
-    }
-    const member = interaction.member as GuildMember;
-    if (member.permissions.has(PermissionFlagsBits.ManageMessages)) {
-        return true
-    }
-    return false
-}
-
-export function isOwner(interaction: Interaction): boolean {
-    if (!interaction.member || !interaction.channel) {
-        return false
-    }
-
-    if (!interaction.channel.isThread()) {
-        return false
-    }
-
-    const member = interaction.member as GuildMember;
-    if (interaction.channel.ownerId === member.id) {
-        return true
-    }
-
-    return false
-}
-
 
 export async function getAllAttachments(channel: TextThreadChannel): Promise<Attachment[]> {
-    return channel.messages.fetch({ limit: 100 }).then(messages => {
-        const attachments: Attachment[] = [];
-        messages.forEach(message => {
-            if (message.author.bot) {
-                return
-            }
-            if (message.content.length > 0) {
-                // Find all URLs in the message
-                const urls = message.content.match(/https?:\/\/[^\s]+/g)
-                if (urls) {
-                    urls.forEach(url => {
-                        // Check if mediafire
-                        // https://www.mediafire.com/file/idjbw9lc1kt4obj/1_17_Crafter-r2.zip/file
-                        if (url.startsWith('https://www.mediafire.com/file/')) {
-                            const id = url.split('/')[4]
-                            const name = url.split('/')[5]
-                            attachments.push({
-                                id: id,
-                                name: name,
-                                contentType: 'mediafire',
-                                url: url,
-                                description: `[MediaFire] Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`
-                            })
-                        } else if (url.startsWith('https://cdn.discordapp.com/attachments/')) {
-                            // https://cdn.discordapp.com/attachments/749137321710059542/912059917106548746/Unbreakable_8gt_reset_6gt_box_replacement.litematic?ex=6832c4bd&is=6831733d&hm=1e5ff51ca94199d70f26ad2611715c86afbb095e3da120416e55352ccf43f7a4&
-                            const id = url.split('/')[5]
-                            const name = url.split('/')[6].split('?')[0]
-                            attachments.push({
-                                id: id,
-                                name: name,
-                                contentType: 'discord',
-                                url: url,
-                                description: `[DiscordCDN] Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`
-                            })
-                        }
-                    })
-                }
-            }
-            if (message.attachments.size > 0) {
-                message.attachments.forEach(attachment => {
-                    attachments.push({
-                        id: attachment.id,
-                        name: attachment.name,
-                        contentType: attachment.contentType || 'unknown',
-                        url: attachment.url,
-                        description: `Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`
-                    });
+    const attachments: Attachment[] = [];
+
+    await iterateAllMessages(channel, async (message: Message) => {
+        if (message.author.bot) {
+            return true;
+        }
+        if (message.content.length > 0) {
+            // Find all URLs in the message
+            const urls = message.content.match(/https?:\/\/[^\s]+/g)
+            if (urls) {
+                urls.forEach(url => {
+                    // Check if mediafire
+                    // https://www.mediafire.com/file/idjbw9lc1kt4obj/1_17_Crafter-r2.zip/file
+                    if (url.startsWith('https://www.mediafire.com/file/')) {
+                        const id = url.split('/')[4]
+                        const name = url.split('/')[5]
+                        attachments.push({
+                            id: id,
+                            name: name,
+                            contentType: 'mediafire',
+                            url: url,
+                            description: `[MediaFire] Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`
+                        })
+                    } else if (url.startsWith('https://cdn.discordapp.com/attachments/')) {
+                        // https://cdn.discordapp.com/attachments/749137321710059542/912059917106548746/Unbreakable_8gt_reset_6gt_box_replacement.litematic?ex=6832c4bd&is=6831733d&hm=1e5ff51ca94199d70f26ad2611715c86afbb095e3da120416e55352ccf43f7a4&
+                        const id = url.split('/')[5]
+                        const name = url.split('/')[6].split('?')[0]
+                        attachments.push({
+                            id: id,
+                            name: name,
+                            contentType: 'discord',
+                            url: url,
+                            description: `[DiscordCDN] Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`
+                        })
+                    }
                 })
             }
-        })
-        return attachments
-    })
+        }
+        if (message.attachments.size > 0) {
+            message.attachments.forEach(attachment => {
+                attachments.push({
+                    id: attachment.id,
+                    name: attachment.name,
+                    contentType: attachment.contentType || 'unknown',
+                    url: attachment.url,
+                    description: `Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`
+                });
+            })
+        }
+        return true;
+    });
+    return attachments;
 }
 
 export function escapeString(str: string): string {
@@ -251,7 +226,8 @@ export async function processAttachments(attachments: Attachment[], attachments_
 
     // Process each attachment
     await Promise.all(attachments.map(async attachment => {
-        const attachmentPath = Path.join(attachments_folder, getFileKey(attachment));
+        const key = getFileKey(attachment);
+        const attachmentPath = Path.join(attachments_folder, key);
         // If the attachment already exists, skip processing
         if (await fs.access(attachmentPath).then(() => true).catch(() => false)) {
             return;
@@ -447,18 +423,31 @@ export function areObjectsIdentical<T>(obj1: T, obj2: T): boolean {
             return false; // different types or one is null
         }
 
-        const keysA = Object.keys(a);
-        const keysB = Object.keys(b);
-
-        if (keysA.length !== keysB.length) {
-            return false; // different number of keys
+        if (Array.isArray(a) !== Array.isArray(b)) {
+            return false; // one is array, the other is not
         }
 
-        for (const key of keysA) {
-            if (!keysB.includes(key)) {
-                return false; // key mismatch
+        if (Array.isArray(a)) {
+            if (a.length !== b.length) {
+                return false; // different array lengths
             }
-            stack.push([a[key], b[key]]);
+            for (let i = 0; i < a.length; i++) {
+                stack.push([a[i], b[i]]); // push each element for comparison
+            }
+        } else {
+            const keysA = Object.keys(a);
+            const keysB = Object.keys(b);
+
+            if (keysA.length !== keysB.length) {
+                return false; // different number of keys
+            }
+
+            for (const key of keysA) {
+                if (!Object.hasOwn(b, key)) {
+                    return false; // key exists in a but not in b
+                }
+                stack.push([a[key], b[key]]); // push each value for comparison
+            }
         }
     }
     return true; // all keys and values match
@@ -518,4 +507,167 @@ export function generateCommitMessage(
     }
 
     return message;
+}
+
+export function getGithubOwnerAndProject(url: string): { owner: string, project: string } {
+    const parsedUrl = new URL(url);
+    const pathParts = parsedUrl.pathname.split('/').filter(part => part.length > 0);
+
+    if (pathParts.length < 2) {
+        throw new Error('Invalid GitHub URL');
+    }
+
+    const owner = pathParts[0];
+    const project = pathParts[1].replace(/\.git$/, ''); // Remove .git if present
+    return { owner, project };
+}
+
+async function iterateAllMessages(channel: TextBasedChannel, iterator: (message: Message) => Promise<boolean>) {
+    // Create message pointer
+    let message = await channel.messages
+        .fetch({ limit: 1 })
+        .then(messagePage => (messagePage.size === 1 ? messagePage.at(0) : null));
+
+    while (message) {
+        await channel.messages
+            .fetch({ limit: 100, before: message.id })
+            .then(messagePage => {
+
+                for (const msg of messagePage.values()) {
+                    // If the iterator returns false, stop iterating
+                    if (!iterator(msg)) {
+                        return;
+                    }
+                }
+
+                // Update our message pointer to be the last message on the page of messages
+                message = 0 < messagePage.size ? messagePage.at(messagePage.size - 1) : null;
+            });
+    }
+}
+
+/**
+ * Checks if the interaction has admin permissions.
+ */
+export function isAdmin(interaction: Interaction): boolean {
+    if (!interaction.member || !interaction.inGuild()) {
+        return false
+    }
+    if (interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
+        return true
+    }
+    return false
+}
+
+/**
+ * Checks if the interaction has moderator permissions.
+ */
+export function isModerator(interaction: Interaction): boolean {
+    if (!interaction.member || !interaction.inGuild()) {
+        return false
+    }
+    if (interaction.memberPermissions.has(PermissionFlagsBits.ManageMessages)) {
+        return true
+    }
+    return false
+}
+
+/**
+ * Check if the interaction is from the owner of the thread.
+ */
+export function isOwner(interaction: Interaction): boolean {
+    if (!interaction.member || !interaction.inGuild() || !interaction.channel) {
+        return false
+    }
+
+    if (!interaction.channel.isThread()) {
+        return false
+    }
+
+    if (interaction.channel.ownerId === interaction.member.user.id) {
+        return true
+    }
+
+    return false
+}
+
+/**
+ * Check if the interaction has an endorser role.
+ */
+export function isEndorser(interaction: Interaction, guildHolder: GuildHolder): boolean {
+    if (!interaction.member || !interaction.inCachedGuild()) {
+        return false
+    }
+    const member = interaction.member;
+    const endorseRoleIds = guildHolder.getConfigManager().getConfig(GuildConfigs.ENDORSE_ROLE_IDS);
+    if (!endorseRoleIds || endorseRoleIds.length === 0) {
+        return false;
+    }
+    for (const roleId of endorseRoleIds) {
+        if (member.roles.cache.has(roleId)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Check if the interaction has an editor role.
+ */
+export function isEditor(interaction: Interaction, guildHolder: GuildHolder): boolean {
+    if (!interaction.member || !interaction.inCachedGuild()) {
+        return false
+    }
+    const member = interaction.member;
+    const editorRoleIds = guildHolder.getConfigManager().getConfig(GuildConfigs.EDITOR_ROLE_IDS);
+    if (!editorRoleIds || editorRoleIds.length === 0) {
+        return false;
+    }
+    for (const roleId of editorRoleIds) {
+        if (member.roles.cache.has(roleId)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+export function canEditSubmission(interaction: Interaction, submission: Submission): boolean {
+    if (!interaction.inCachedGuild() || !interaction.member) {
+        return false;
+    }
+
+    if (isAdmin(interaction) || isModerator(interaction) || isEditor(interaction, submission.getGuildHolder())) {
+        return true;
+    }
+
+    if (submission.getConfigManager().getConfig(SubmissionConfigs.IS_LOCKED)) {
+        return false;
+    }
+
+    if (isOwner(interaction) || isEndorser(interaction, submission.getGuildHolder())) {
+        return true;
+    }
+
+    return false;
+}
+
+export function canPublishSubmission(interaction: Interaction, submission: Submission): boolean {
+    if (!interaction.inCachedGuild() || !interaction.member) {
+        return false;
+    }
+
+    if (isAdmin(interaction) || isModerator(interaction) || isEditor(interaction, submission.getGuildHolder())) {
+        return true;
+    }
+
+    if (submission.getConfigManager().getConfig(SubmissionConfigs.ON_HOLD)) {
+        return false;
+    }
+
+    if (isOwner(interaction)) {
+        return true;
+    }
+
+    return false;
 }

@@ -1,9 +1,7 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, InteractionContextType, ChannelType, ActionRowBuilder, AnyComponentBuilder, ForumChannel, ForumThreadChannel, GuildForumTag, ForumLayoutType, SortOrderType } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType } from "discord.js";
 import { GuildHolder } from "../GuildHolder";
 import { Command } from "../interface/Command";
-import { hasPerms, replyEphemeral } from "../utils/Util";
-import { GuildConfigs } from "../config/GuildConfigs";
-import { SetArchiveCategoriesMenu } from "../components/menus/SetArchiveCategoriesMenu";
+import { isEndorser, replyEphemeral } from "../utils/Util";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs";
 import { AuthorType } from "../submissions/Author";
 
@@ -12,7 +10,7 @@ export class EndorseCommand implements Command {
         return "endorse";
     }
 
-    getBuilder(guildHolder: GuildHolder): SlashCommandBuilder {
+    getBuilder(_guildHolder: GuildHolder): SlashCommandBuilder {
         const data = new SlashCommandBuilder()
         data.setName(this.getID())
             .setDescription('Endorse a submission')
@@ -30,11 +28,7 @@ export class EndorseCommand implements Command {
         
         // Check if user has endorse role
         if (
-            !hasPerms(interaction) &&
-            !guildHolder.getConfigManager().getConfig(GuildConfigs.ENDORSE_ROLE_IDS).some(roleId => {
-                if (!interaction.inCachedGuild() || !interaction.member) return false;
-                return interaction.member.roles?.cache.has(roleId);
-            })
+            !isEndorser(interaction, guildHolder)
         ) {
             replyEphemeral(interaction, 'You do not have permission to use this command!');
             return;
