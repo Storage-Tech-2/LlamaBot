@@ -12,7 +12,7 @@ export const SubmissionTags: GuildForumTag[] = [
         moderated: true
     },
     {
-        name: "Waiting for Publication",
+        name: "Waiting",
         emoji: { name: '⏳' },
         moderated: true
     },
@@ -46,7 +46,7 @@ export const SubmissionTags: GuildForumTag[] = [
 export const SubmissionTagNames = {
     NEW: "New",
     NEED_ENDORSEMENT: "Need Endorsement",
-    WAITING_FOR_PUBLICATION: "Waiting for Publication",
+    WAITING_FOR_PUBLICATION: "Waiting",
     PUBLISHED: "Published",
     REJECTED: "Rejected",
     RETRACTED: "Retracted",
