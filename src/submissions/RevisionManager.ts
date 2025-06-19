@@ -1,10 +1,10 @@
 import { Snowflake } from "discord.js";
-import { Submission } from "./Submission";
-import { SubmissionConfigs } from "./SubmissionConfigs";
-import { Revision, RevisionReference } from "./Revision";
+import { Submission } from "./Submission.js";
+import { SubmissionConfigs } from "./SubmissionConfigs.js";
+import { Revision, RevisionReference } from "./Revision.js";
 import fs from "fs/promises";
 import path from "path";
-import { RevisionEmbed } from "../embed/RevisionEmbed";
+import { RevisionEmbed } from "../embed/RevisionEmbed.js";
 
 export class RevisionManager {
     submission: Submission;

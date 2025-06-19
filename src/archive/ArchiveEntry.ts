@@ -1,8 +1,8 @@
 import { Snowflake } from "discord.js";
-import { Attachment } from "../submissions/Attachment";
-import { Author } from "../submissions/Author";
-import { Image } from "../submissions/Image";
-import { Tag } from "../submissions/Tag";
+import { Attachment } from "../submissions/Attachment.js";
+import { Author } from "../submissions/Author.js";
+import { Image } from "../submissions/Image.js";
+import { Tag } from "../submissions/Tag.js";
 import fs from "fs/promises";
 import Path from "path";
 

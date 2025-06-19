@@ -1,5 +1,5 @@
 import { BaseSelectMenuBuilder, RoleSelectMenuInteraction, StringSelectMenuInteraction, UserSelectMenuInteraction } from "discord.js";
-import { GuildHolder } from "../GuildHolder";
+import { GuildHolder } from "../GuildHolder.js";
 
 /**
  * Button interface for defining discord.js select menu components.

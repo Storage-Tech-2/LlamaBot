@@ -1,5 +1,5 @@
 import { Snowflake } from "discord.js";
-import { Config } from "./ConfigManager";
+import { Config } from "./ConfigManager.js";
 
 export const GuildConfigs = {
     /**

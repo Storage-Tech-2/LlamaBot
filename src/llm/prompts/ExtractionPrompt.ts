@@ -1,4 +1,4 @@
-import { Prompt } from "./Prompt";
+import { Prompt } from "./Prompt.js";
 
 const prompt_template = `
 Create a JSON object containing the description and a list of features extracted from a given text. Cons and notes are optional but should be included if present.

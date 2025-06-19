@@ -1,10 +1,10 @@
 import { ActionRowBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
-import { GuildHolder } from "../../GuildHolder";
-import { Modal } from "../../interface/Modal";
-import { canEditSubmission, replyEphemeral } from "../../utils/Util";
-import { Author, AuthorType } from "../../submissions/Author";
-import { SubmissionConfigs } from "../../submissions/SubmissionConfigs";
-import { SetAuthorsButton } from "../buttons/SetAuthorsButton";
+import { GuildHolder } from "../../GuildHolder.js";
+import { Modal } from "../../interface/Modal.js";
+import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
+import { Author, AuthorType } from "../../submissions/Author.js";
+import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
+import { SetAuthorsButton } from "../buttons/SetAuthorsButton.js";
 
 export class AddAuthorModal implements Modal {
     getID(): string {

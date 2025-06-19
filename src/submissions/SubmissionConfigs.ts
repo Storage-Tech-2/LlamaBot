@@ -1,12 +1,12 @@
 import { Snowflake } from "discord.js";
-import { Config } from "../config/ConfigManager";
-import { Image } from "./Image";
-import { SubmissionStatus } from "./SubmissionStatus";
-import { Tag } from "./Tag";
-import { RevisionReference } from "./Revision";
-import { Attachment } from "./Attachment";
-import { Author } from "./Author";
-import { DiscordPostReference } from "../archive/ArchiveEntry";
+import { Config } from "../config/ConfigManager.js";
+import { Image } from "./Image.js";
+import { SubmissionStatus } from "./SubmissionStatus.js";
+import { Tag } from "./Tag.js";
+import { RevisionReference } from "./Revision.js";
+import { Attachment } from "./Attachment.js";
+import { Author } from "./Author.js";
+import { DiscordPostReference } from "../archive/ArchiveEntry.js";
 
 export const SubmissionConfigs = {
     /**

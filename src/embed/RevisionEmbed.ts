@@ -1,10 +1,10 @@
 import { ActionRowBuilder, EmbedBuilder } from "discord.js";
-import { Submission } from "../submissions/Submission";
-import { Revision } from "../submissions/Revision";
-import { EditSubmissionButton } from "../components/buttons/EditSubmissionButton";
-import { MakeRevisionCurrentButton } from "../components/buttons/MakeRevisionCurrentButton";
-import { SubmissionConfigs } from "../submissions/SubmissionConfigs";
-import { getAuthorsString } from "../utils/Util";
+import { Submission } from "../submissions/Submission.js";
+import { Revision } from "../submissions/Revision.js";
+import { EditSubmissionButton } from "../components/buttons/EditSubmissionButton.js";
+import { MakeRevisionCurrentButton } from "../components/buttons/MakeRevisionCurrentButton.js";
+import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
+import { getAuthorsString } from "../utils/Util.js";
 
 export class RevisionEmbed {
     private embed: EmbedBuilder;

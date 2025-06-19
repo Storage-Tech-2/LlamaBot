@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Storage tech bot",
   "main": "index.ts",
+  "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "test": "jest",

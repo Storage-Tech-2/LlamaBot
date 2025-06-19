@@ -1,5 +1,5 @@
 import { ModalBuilder, ModalSubmitInteraction } from "discord.js";
-import { GuildHolder } from "../GuildHolder";
+import { GuildHolder } from "../GuildHolder.js";
 
 /**
  * Button interface for defining discord.js select modal components.

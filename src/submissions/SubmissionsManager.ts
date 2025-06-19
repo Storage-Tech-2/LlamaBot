@@ -1,8 +1,8 @@
 import { Snowflake } from "discord.js";
-import { Submission } from "./Submission";
+import { Submission } from "./Submission.js";
 import fs from "fs/promises";
 import Path from "path";
-import { GuildHolder } from "../GuildHolder";
+import { GuildHolder } from "../GuildHolder.js";
 
 export class SubmissionsManager {
     private submissions: Map<Snowflake, Submission>;

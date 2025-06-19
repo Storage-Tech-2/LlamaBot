@@ -1,4 +1,4 @@
-import { LLMRequest } from "./LLMRequest"
+import { LLMRequest } from "./LLMRequest.js"
 
 export type LLMRequestAndPromise = {
     /**

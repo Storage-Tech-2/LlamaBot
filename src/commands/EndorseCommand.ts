@@ -1,9 +1,9 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType } from "discord.js";
-import { GuildHolder } from "../GuildHolder";
-import { Command } from "../interface/Command";
-import { isEditor, isEndorser, isModerator, replyEphemeral } from "../utils/Util";
-import { SubmissionConfigs } from "../submissions/SubmissionConfigs";
-import { AuthorType } from "../submissions/Author";
+import { GuildHolder } from "../GuildHolder.js";
+import { Command } from "../interface/Command.js";
+import { isEditor, isEndorser, isModerator, replyEphemeral } from "../utils/Util.js";
+import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
+import { AuthorType } from "../submissions/Author.js";
 
 export class EndorseCommand implements Command {
     getID(): string {

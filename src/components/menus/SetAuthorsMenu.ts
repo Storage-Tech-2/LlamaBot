@@ -1,11 +1,11 @@
 import { ActionRowBuilder, MessageFlags, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, UserSelectMenuBuilder, UserSelectMenuInteraction } from "discord.js";
-import { GuildHolder } from "../../GuildHolder";
-import { Menu } from "../../interface/Menu";
-import { canEditSubmission, replyEphemeral } from "../../utils/Util";
-import { Author, AuthorType } from "../../submissions/Author";
-import { Submission } from "../../submissions/Submission";
-import { SubmissionConfigs } from "../../submissions/SubmissionConfigs";
-import { SetArchiveCategoryMenu } from "./SetArchiveCategoryMenu";
+import { GuildHolder } from "../../GuildHolder.js";
+import { Menu } from "../../interface/Menu.js";
+import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
+import { Author, AuthorType } from "../../submissions/Author.js";
+import { Submission } from "../../submissions/Submission.js";
+import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
+import { SetArchiveCategoryMenu } from "./SetArchiveCategoryMenu.js";
 
 export class SetAuthorsMenu implements Menu {
     getID(): string {

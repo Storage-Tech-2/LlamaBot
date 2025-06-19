@@ -1,6 +1,6 @@
-import { Modal } from "../../interface/Modal";
-import { AddAuthorModal } from "./AddAuthorModal";
-import { EditRevisionModal } from "./EditRevisionModal";
+import { Modal } from "../../interface/Modal.js";
+import { AddAuthorModal } from "./AddAuthorModal.js";
+import { EditRevisionModal } from "./EditRevisionModal.js";
 
 export function getModals(): Modal[] {
     const Modals: Modal[] = [

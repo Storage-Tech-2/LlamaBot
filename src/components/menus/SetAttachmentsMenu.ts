@@ -1,10 +1,10 @@
 import { MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
-import { GuildHolder } from "../../GuildHolder";
-import { Menu } from "../../interface/Menu";
-import { canEditSubmission, escapeString, replyEphemeral } from "../../utils/Util";
-import { Submission } from "../../submissions/Submission";
-import { SubmissionConfigs } from "../../submissions/SubmissionConfigs";
-import { Attachment } from "../../submissions/Attachment";
+import { GuildHolder } from "../../GuildHolder.js";
+import { Menu } from "../../interface/Menu.js";
+import { canEditSubmission, escapeString, replyEphemeral } from "../../utils/Util.js";
+import { Submission } from "../../submissions/Submission.js";
+import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
+import { Attachment } from "../../submissions/Attachment.js";
 
 export class SetAttachmentsMenu implements Menu {
     getID(): string {

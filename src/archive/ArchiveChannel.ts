@@ -1,7 +1,7 @@
 import { Snowflake } from "discord.js";
 import fs from "fs/promises";
 import Path from "path";
-import { ArchiveChannelReference } from "./RepositoryConfigs";
+import { ArchiveChannelReference } from "./RepositoryConfigs.js";
 
 export type ArchiveEntryReference = {
     id: Snowflake;

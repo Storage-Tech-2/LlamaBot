@@ -1,12 +1,12 @@
 import { ChannelType, EmbedBuilder, Guild, Message, Snowflake } from "discord.js";
-import { Bot } from "./Bot";
-import { ConfigManager } from "./config/ConfigManager";
+import { Bot } from "./Bot.js";
+import { ConfigManager } from "./config/ConfigManager.js";
 import Path from "path";
-import { GuildConfigs } from "./config/GuildConfigs";
-import { SubmissionsManager } from "./submissions/SubmissionsManager";
-import { RepositoryManager } from "./archive/RepositoryManager";
-import { ArchiveEntryData } from "./archive/ArchiveEntry";
-import { getAuthorsString, getChanges, truncateStringWithEllipsis } from "./utils/Util";
+import { GuildConfigs } from "./config/GuildConfigs.js";
+import { SubmissionsManager } from "./submissions/SubmissionsManager.js";
+import { RepositoryManager } from "./archive/RepositoryManager.js";
+import { ArchiveEntryData } from "./archive/ArchiveEntry.js";
+import { getAuthorsString, getChanges, truncateStringWithEllipsis } from "./utils/Util.js";
 
 /**
  * GuildHolder is a class that manages guild-related data.
@@ -72,7 +72,7 @@ export class GuildHolder {
      * @returns The path to the guild's configuration folder.
      */
     public getGuildFolder(): string {
-        return Path.join(__dirname, '..', 'config', this.getGuildId());
+        return Path.join(process.cwd(), 'config', this.getGuildId());
     }
 
     public getSubmissionsChannelId(): Snowflake {

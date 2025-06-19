@@ -1,8 +1,8 @@
 import { RoleSelectMenuBuilder, RoleSelectMenuInteraction } from "discord.js";
-import { GuildHolder } from "../../GuildHolder";
-import { Menu } from "../../interface/Menu";
-import { isAdmin, replyEphemeral } from "../../utils/Util";
-import { GuildConfigs } from "../../config/GuildConfigs";
+import { GuildHolder } from "../../GuildHolder.js";
+import { Menu } from "../../interface/Menu.js";
+import { isAdmin, replyEphemeral } from "../../utils/Util.js";
+import { GuildConfigs } from "../../config/GuildConfigs.js";
 
 export class SetEndorseRolesMenu implements Menu {
     getID(): string {

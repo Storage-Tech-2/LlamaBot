@@ -1,9 +1,9 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType } from "discord.js";
-import { GuildHolder } from "../GuildHolder";
-import { Command } from "../interface/Command";
-import { isEditor, isModerator, replyEphemeral } from "../utils/Util";
-import { SubmissionConfigs } from "../submissions/SubmissionConfigs";
-import { SubmissionStatus } from "../submissions/SubmissionStatus";
+import { GuildHolder } from "../GuildHolder.js";
+import { Command } from "../interface/Command.js";
+import { isEditor, isModerator, replyEphemeral } from "../utils/Util.js";
+import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
+import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
 
 export class EditorPowersCommand implements Command {
     getID(): string {

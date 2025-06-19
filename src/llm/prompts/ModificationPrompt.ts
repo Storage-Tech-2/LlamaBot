@@ -1,6 +1,6 @@
-import { Revision } from "../../submissions/Revision";
-import { LLMResponse } from "../LLMResponse";
-import { Prompt } from "./Prompt";
+import { Revision } from "../../submissions/Revision.js";
+import { LLMResponse } from "../LLMResponse.js";
+import { Prompt } from "./Prompt.js";
 
 export class ModificationPrompt implements Prompt {
     /**

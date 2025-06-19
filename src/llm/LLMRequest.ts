@@ -1,4 +1,4 @@
-import { Prompt } from "./prompts/Prompt";
+import { Prompt } from "./prompts/Prompt.js";
 
 /**
  * The LLMRequest class represents a request to a Large Language Model (LLM).

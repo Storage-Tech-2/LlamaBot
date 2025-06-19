@@ -1,13 +1,13 @@
 import { ActionRowBuilder, EmbedBuilder } from "discord.js";
-import { Submission } from "../submissions/Submission";
-import { SubmissionConfigs } from "../submissions/SubmissionConfigs";
-import { SetArchiveChannelButton } from "../components/buttons/SetArchiveChannelButton";
-import { SetTagsButton } from "../components/buttons/SetTagsButton";
-import { SetAttachmentsButton } from "../components/buttons/SetAttachmentsButton";
-import { SetAuthorsButton } from "../components/buttons/SetAuthorsButton";
-import { getAuthorsString } from "../utils/Util";
-import { PublishButton } from "../components/buttons/PublishButton";
-import { SubmissionStatus } from "../submissions/SubmissionStatus";
+import { Submission } from "../submissions/Submission.js";
+import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
+import { SetArchiveChannelButton } from "../components/buttons/SetArchiveChannelButton.js";
+import { SetTagsButton } from "../components/buttons/SetTagsButton.js";
+import { SetAttachmentsButton } from "../components/buttons/SetAttachmentsButton.js";
+import { SetAuthorsButton } from "../components/buttons/SetAuthorsButton.js";
+import { getAuthorsString } from "../utils/Util.js";
+import { PublishButton } from "../components/buttons/PublishButton.js";
+import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
 
 export class StarterEmbed {
     private embed: EmbedBuilder;

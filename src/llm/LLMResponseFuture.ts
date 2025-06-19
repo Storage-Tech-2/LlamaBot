@@ -1,5 +1,5 @@
-import { LLMResponse } from "./LLMResponse";
-import { LLMResponseStatus } from "./LLMResponseStatus";
+import { LLMResponse } from "./LLMResponse.js";
+import { LLMResponseStatus } from "./LLMResponseStatus.js";
 
 export class LLMResponseFuture {
     status: LLMResponseStatus;

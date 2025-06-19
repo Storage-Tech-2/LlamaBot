@@ -3,7 +3,7 @@ node_modules
 coverage
 .vscode
 .config
-.pem
+*.pem
 config
 secrets.json
 __pycache__

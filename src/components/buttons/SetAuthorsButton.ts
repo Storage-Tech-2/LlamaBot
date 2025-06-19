@@ -1,12 +1,12 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, Interaction } from "discord.js";
-import { GuildHolder } from "../../GuildHolder";
-import { Button } from "../../interface/Button";
-import { canEditSubmission, replyEphemeral } from "../../utils/Util";
-import { SetAuthorsMenu } from "../menus/SetAuthorsMenu";
-import { AddAuthorButton } from "./AddAuthorButton";
-import { Submission } from "../../submissions/Submission";
-import { AuthorType } from "../../submissions/Author";
-import { SubmissionConfigs } from "../../submissions/SubmissionConfigs";
+import { GuildHolder } from "../../GuildHolder.js";
+import { Button } from "../../interface/Button.js";
+import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
+import { SetAuthorsMenu } from "../menus/SetAuthorsMenu.js";
+import { AddAuthorButton } from "./AddAuthorButton.js";
+import { Submission } from "../../submissions/Submission.js";
+import { AuthorType } from "../../submissions/Author.js";
+import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 
 export class SetAuthorsButton implements Button {
     getID(): string {

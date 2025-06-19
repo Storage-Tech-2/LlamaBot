@@ -1,8 +1,8 @@
 import { ButtonBuilder, ButtonInteraction, ButtonStyle } from "discord.js";
-import { GuildHolder } from "../../GuildHolder";
-import { Button } from "../../interface/Button";
-import { canEditSubmission, replyEphemeral } from "../../utils/Util";
-import { AddAuthorModal } from "../modals/AddAuthorModal";
+import { GuildHolder } from "../../GuildHolder.js";
+import { Button } from "../../interface/Button.js";
+import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
+import { AddAuthorModal } from "../modals/AddAuthorModal.js";
 
 export class AddAuthorButton implements Button {
     getID(): string {

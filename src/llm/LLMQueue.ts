@@ -1,8 +1,8 @@
 import got from "got";
-import { LLMRequest } from "./LLMRequest";
-import { LLMResponseFuture as LLMResponseFuture } from "./LLMResponseFuture";
-import { LLMRequestAndPromise } from "./LLMRequestAndPromise";
-import { LLMResponse } from "./LLMResponse";
+import { LLMRequest } from "./LLMRequest.js";
+import { LLMResponseFuture as LLMResponseFuture } from "./LLMResponseFuture.js";
+import { LLMRequestAndPromise } from "./LLMRequestAndPromise.js";
+import { LLMResponse } from "./LLMResponse.js";
 
 
 const URL = 'http://localhost:8000/generate'

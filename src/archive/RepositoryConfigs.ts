@@ -1,4 +1,4 @@
-import { Config } from "../config/ConfigManager";
+import { Config } from "../config/ConfigManager.js";
 
 export type ArchiveChannelReference = {
     id: string;

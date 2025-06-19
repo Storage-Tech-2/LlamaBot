@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
-import { GuildHolder } from "../GuildHolder";
+import { GuildHolder } from "../GuildHolder.js";
 
 /**
  * Command interface for defining discord.js commands.

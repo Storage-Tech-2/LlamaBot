@@ -1,10 +1,10 @@
 import { ActionRowBuilder, ChannelType, Collection, ForumChannel, MessageFlags, Snowflake, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
-import { GuildHolder } from "../../GuildHolder";
-import { Menu } from "../../interface/Menu";
-import { canEditSubmission, getCodeAndDescriptionFromTopic, isModerator, replyEphemeral } from "../../utils/Util";
-import { Submission } from "../../submissions/Submission";
-import { SubmissionConfigs } from "../../submissions/SubmissionConfigs";
-import { SetTagsMenu } from "./SetTagsMenu";
+import { GuildHolder } from "../../GuildHolder.js";
+import { Menu } from "../../interface/Menu.js";
+import { canEditSubmission, getCodeAndDescriptionFromTopic, isModerator, replyEphemeral } from "../../utils/Util.js";
+import { Submission } from "../../submissions/Submission.js";
+import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
+import { SetTagsMenu } from "./SetTagsMenu.js";
 
 export class SetArchiveChannelMenu implements Menu {
     getID(): string {

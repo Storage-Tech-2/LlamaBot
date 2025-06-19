@@ -1,12 +1,12 @@
-import { SetArchiveCategoriesMenu } from "./SetArchiveCategoriesMenu";
-import { SetArchiveCategoryMenu } from "./SetArchiveCategoryMenu";
-import { SetArchiveChannelMenu } from "./SetArchiveChannelMenu";
-import { SetAttachmentsMenu } from "./SetAttachmentsMenu";
-import { SetAuthorsMenu } from "./SetAuthorsMenu";
-import { SetEditorRolesMenu } from "./SetEditorRolesMenu";
-import { SetEndorseRolesMenu } from "./SetEndorseRolesMenu";
-import { SetImagesMenu } from "./SetImagesMenu";
-import { SetTagsMenu } from "./SetTagsMenu";
+import { SetArchiveCategoriesMenu } from "./SetArchiveCategoriesMenu.js";
+import { SetArchiveCategoryMenu } from "./SetArchiveCategoryMenu.js";
+import { SetArchiveChannelMenu } from "./SetArchiveChannelMenu.js";
+import { SetAttachmentsMenu } from "./SetAttachmentsMenu.js";
+import { SetAuthorsMenu } from "./SetAuthorsMenu.js";
+import { SetEditorRolesMenu } from "./SetEditorRolesMenu.js";
+import { SetEndorseRolesMenu } from "./SetEndorseRolesMenu.js";
+import { SetImagesMenu } from "./SetImagesMenu.js";
+import { SetTagsMenu } from "./SetTagsMenu.js";
 
 export function getMenus() {
     const Menus = [

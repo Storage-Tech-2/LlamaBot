@@ -1,8 +1,8 @@
 import { ButtonBuilder, ButtonInteraction, ButtonStyle } from "discord.js";
-import { GuildHolder } from "../../GuildHolder";
-import { Button } from "../../interface/Button";
-import { canPublishSubmission, replyEphemeral } from "../../utils/Util";
-import { SubmissionConfigs } from "../../submissions/SubmissionConfigs";
+import { GuildHolder } from "../../GuildHolder.js";
+import { Button } from "../../interface/Button.js";
+import { canPublishSubmission, replyEphemeral } from "../../utils/Util.js";
+import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 
 export class PublishButton implements Button {
     getID(): string {

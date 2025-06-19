@@ -1,11 +1,11 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, InteractionContextType, ChannelType, ActionRowBuilder, ForumChannel, GuildForumTag, ForumLayoutType, SortOrderType, Snowflake } from "discord.js";
-import { GuildHolder } from "../GuildHolder";
-import { Command } from "../interface/Command";
-import { getCodeAndDescriptionFromTopic, replyEphemeral } from "../utils/Util";
-import { GuildConfigs } from "../config/GuildConfigs";
-import { SetArchiveCategoriesMenu } from "../components/menus/SetArchiveCategoriesMenu";
-import { SetEndorseRolesMenu } from "../components/menus/SetEndorseRolesMenu";
-import { SubmissionTags } from "../submissions/SubmissionTags";
+import { GuildHolder } from "../GuildHolder.js";
+import { Command } from "../interface/Command.js";
+import { getCodeAndDescriptionFromTopic, replyEphemeral } from "../utils/Util.js";
+import { GuildConfigs } from "../config/GuildConfigs.js";
+import { SetArchiveCategoriesMenu } from "../components/menus/SetArchiveCategoriesMenu.js";
+import { SetEndorseRolesMenu } from "../components/menus/SetEndorseRolesMenu.js";
+import { SubmissionTags } from "../submissions/SubmissionTags.js";
 
 export class Mwa implements Command {
     getID(): string {

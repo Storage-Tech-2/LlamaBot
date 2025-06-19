@@ -1,8 +1,8 @@
 import { ButtonBuilder, ButtonInteraction, ButtonStyle } from "discord.js";
-import { GuildHolder } from "../../GuildHolder";
-import { Button } from "../../interface/Button";
-import { canEditSubmission, replyEphemeral } from "../../utils/Util";
-import { EditRevisionModal } from "../modals/EditRevisionModal";
+import { GuildHolder } from "../../GuildHolder.js";
+import { Button } from "../../interface/Button.js";
+import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
+import { EditRevisionModal } from "../modals/EditRevisionModal.js";
 export class EditSubmissionButton implements Button {
     getID(): string {
         return "edit-submission-button";

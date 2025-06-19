@@ -1,10 +1,10 @@
 import { ActionRowBuilder, ForumChannel, MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
-import { GuildHolder } from "../../GuildHolder";
-import { Menu } from "../../interface/Menu";
-import { canEditSubmission, isModerator, replyEphemeral } from "../../utils/Util";
-import { Submission } from "../../submissions/Submission";
-import { SubmissionConfigs } from "../../submissions/SubmissionConfigs";
-import { SetImagesMenu } from "./SetImagesMenu";
+import { GuildHolder } from "../../GuildHolder.js";
+import { Menu } from "../../interface/Menu.js";
+import { canEditSubmission, isModerator, replyEphemeral } from "../../utils/Util.js";
+import { Submission } from "../../submissions/Submission.js";
+import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
+import { SetImagesMenu } from "./SetImagesMenu.js";
 
 export class SetTagsMenu implements Menu {
     getID(): string {

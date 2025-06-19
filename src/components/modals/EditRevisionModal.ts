@@ -1,9 +1,9 @@
 import { ActionRowBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, Snowflake, TextInputBuilder, TextInputStyle } from "discord.js";
-import { GuildHolder } from "../../GuildHolder";
-import { Modal } from "../../interface/Modal";
-import { Revision, RevisionType } from "../../submissions/Revision";
-import { canEditSubmission, replyEphemeral } from "../../utils/Util";
-import { RevisionEmbed } from "../../embed/RevisionEmbed";
+import { GuildHolder } from "../../GuildHolder.js";
+import { Modal } from "../../interface/Modal.js";
+import { Revision, RevisionType } from "../../submissions/Revision.js";
+import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
+import { RevisionEmbed } from "../../embed/RevisionEmbed.js";
 
 export class EditRevisionModal implements Modal {
     getID(): string {

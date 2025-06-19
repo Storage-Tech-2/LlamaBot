@@ -1,18 +1,18 @@
-import simpleGit, { SimpleGit } from "simple-git";
-import { GuildHolder } from "../GuildHolder";
+import { GuildHolder } from "../GuildHolder.js";
 import fs from "fs/promises";
-import { ConfigManager } from "../config/ConfigManager";
+import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
 import { ChannelType, ForumChannel, MessageFlags } from "discord.js";
-import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs";
-import { areObjectsIdentical, deepClone, escapeString, generateCommitMessage, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject } from "../utils/Util";
-import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry";
-import { Submission } from "../submissions/Submission";
-import { SubmissionConfigs } from "../submissions/SubmissionConfigs";
-import { ArchiveChannel, ArchiveEntryReference } from "./ArchiveChannel";
-import { Lock } from "../utils/Lock";
-import { PostEmbed } from "../embed/PostEmbed";
-import { GuildConfigs } from "../config/GuildConfigs";
+import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
+import { areObjectsIdentical, deepClone, escapeString, generateCommitMessage, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject } from "../utils/Util.js";
+import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";
+import { Submission } from "../submissions/Submission.js";
+import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
+import { ArchiveChannel, ArchiveEntryReference } from "./ArchiveChannel.js";
+import { Lock } from "../utils/Lock.js";
+import { PostEmbed } from "../embed/PostEmbed.js";
+import { GuildConfigs } from "../config/GuildConfigs.js";
+import {simpleGit, SimpleGit } from "simple-git";
 
 
 export class RepositoryManager {
@@ -36,7 +36,8 @@ export class RepositoryManager {
         this.git = simpleGit(this.folderPath)
             .init()
             .addConfig('user.name', 'llamabot-archiver[bot]')
-            .addConfig('user.email', '217070326+llamabot-archiver[bot]@users.noreply.github.com');
+            .addConfig('user.email', '217070326+llamabot-archiver[bot]@users.noreply.github.com')
+            .addConfig('pull.rebase', 'false')
 
 
         // check if gitignore exists, create it if it doesn't
@@ -59,6 +60,12 @@ export class RepositoryManager {
             console.error("Error pulling from remote:", e.message);
         }
 
+        try {
+            await this.push();
+        } catch (e: any) {
+            console.error("Error pushing to remote:", e.message);
+        }
+
         await this.lock.release();
     }
 
@@ -67,7 +74,8 @@ export class RepositoryManager {
             throw new Error("Git not initialized");
         }
         await this.updateRemote();
-        await this.git.pull('origin', 'main');
+        const branchName = await this.git.branchLocal().then(branch => branch.current);
+        await this.git.pull('origin', branchName);
     }
 
     async updateRemote() {
@@ -656,7 +664,9 @@ export class RepositoryManager {
             return;
         }
         await this.updateRemote();
-        await this.git.push();
+
+        const branchName = await this.git.branchLocal().then(branch => branch.current);
+        await this.git.push(['-u', 'origin', branchName]);
     }
 
     async save() {

@@ -1,21 +1,19 @@
 import { ChatInputCommandInteraction, Client, GatewayIntentBits, SelectMenuInteraction } from "discord.js";
-import { GuildHolder } from "./GuildHolder";
-import { LLMQueue } from "./llm/LLMQueue";
+import { GuildHolder } from "./GuildHolder.js";
+import { LLMQueue } from "./llm/LLMQueue.js";
 import path from "path";
 import fs from "fs/promises";
-import { Command } from "./interface/Command";
-import { Button } from "./interface/Button";
-import { Menu } from "./interface/Menu";
-import { Modal } from "./interface/Modal";
-import { deployCommands, getItemsFromArray, replyEphemeral } from "./utils/Util";
-import { getButtons } from "./components/buttons";
-import { getCommands } from "./commands";
-import { getMenus } from "./components/menus";
-import { getModals } from "./components/modals";
-import { TempDataStore } from "./utils/TempDataStore";
-import { App, Octokit } from "octokit";
-import got from "got";
-
+import { Command } from "./interface/Command.js";
+import { Button } from "./interface/Button.js";
+import { Menu } from "./interface/Menu.js";
+import { Modal } from "./interface/Modal.js";
+import { deployCommands, getItemsFromArray, replyEphemeral } from "./utils/Util.js";
+import { getButtons } from "./components/buttons/index.js";
+import { getCommands } from "./commands/index.js";
+import { getMenus } from "./components/menus/index.js";
+import { getModals } from "./components/modals/index.js";
+import { TempDataStore } from "./utils/TempDataStore.js";
+import { App } from "octokit";
 /**
  * The Secrets type defines the structure for the bot's secrets, including the token and client ID.
  */
@@ -23,7 +21,6 @@ export type Secrets = {
     token: string;
     clientId: string;
     githubAppId: string;
-    githubPrivateKey: string;
 }
 
 /**
@@ -101,7 +98,7 @@ export class Bot {
     }
 
     async start() {
-        const secretsPath = path.join(__dirname, '..', 'secrets.json')
+        const secretsPath = path.join(process.cwd(), 'secrets.json')
         const secrets = JSON.parse(await fs.readFile(secretsPath, 'utf-8')) as Secrets
         if (!secrets.token || !secrets.clientId) {
             throw new Error('Missing token or clientId in secrets.json')
@@ -118,7 +115,7 @@ export class Bot {
 
         this.githubClient = new App({
             appId: secrets.githubAppId,
-            privateKey: secrets.githubPrivateKey,
+            privateKey: await fs.readFile(path.join(process.cwd(), 'key.pem'), 'utf-8'),
         });
 
         return new Promise((resolve, reject) => {
@@ -253,7 +250,7 @@ export class Bot {
      */
     public async getGithubInstallationToken(orgId: string): Promise<string> {
         const installations: { access_tokens_url: any; }[] = [];
-        await this.githubClient?.eachInstallation(({ octokit, installation }) => {
+        await this.githubClient?.eachInstallation(({ installation }) => {
             if (installation.account?.login === orgId) {
                 installations.push(installation);
             }
