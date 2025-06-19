@@ -6,6 +6,7 @@ import { GuildConfigs } from "../config/GuildConfigs.js";
 import { SetArchiveCategoriesMenu } from "../components/menus/SetArchiveCategoriesMenu.js";
 import { SetEndorseRolesMenu } from "../components/menus/SetEndorseRolesMenu.js";
 import { SubmissionTags } from "../submissions/SubmissionTags.js";
+import { SetEditorRolesMenu } from "../components/menus/SetEditorRolesMenu.js";
 
 export class Mwa implements Command {
     getID(): string {
@@ -43,10 +44,15 @@ export class Mwa implements Command {
                             .addChannelTypes(ChannelType.GuildText)
                     )
             )
-             .addSubcommand(subcommand =>
+            .addSubcommand(subcommand =>
                 subcommand
                     .setName('setendorseroles')
                     .setDescription('Setup Llamabot endorse roles')
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('seteditorroles')
+                    .setDescription('Setup Llamabot editor roles')
             )
             .addSubcommand(subcommand =>
                 subcommand
@@ -83,6 +89,8 @@ export class Mwa implements Command {
             this.setupArchives(guildHolder, interaction)
         } else if (interaction.options.getSubcommand() === 'setendorseroles') {
             this.setEndorseRoles(guildHolder, interaction)
+        } else if (interaction.options.getSubcommand() === 'seteditorroles') {
+            this.setEditorRoles(guildHolder, interaction)
         } else if (interaction.options.getSubcommand() === 'setrepo') {
             this.setRepo(guildHolder, interaction)
         }
@@ -134,11 +142,18 @@ export class Mwa implements Command {
         await replyEphemeral(interaction, 'Select archive categories', { components: [row] })
     }
 
-     async setEndorseRoles(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+    async setEndorseRoles(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         const dt = await (new SetEndorseRolesMenu()).getBuilder(guildHolder);
         const row = new ActionRowBuilder()
             .addComponents(dt);
         await replyEphemeral(interaction, 'Select endorsement roles', { components: [row] })
+    }
+
+    async setEditorRoles(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const dt = await (new SetEditorRolesMenu()).getBuilder(guildHolder);
+        const row = new ActionRowBuilder()
+            .addComponents(dt);
+        await replyEphemeral(interaction, 'Select editor roles', { components: [row] })
     }
 
     async setLogs(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
@@ -173,7 +188,7 @@ export class Mwa implements Command {
         }
 
         const tags = submissionChannel.availableTags.filter(tag => {
-                return !SubmissionTags.some(t => t.name === tag.name)
+            return !SubmissionTags.some(t => t.name === tag.name)
         })
         const newTags = SubmissionTags.concat(tags);
         await submissionChannel.setAvailableTags(newTags);
@@ -181,7 +196,7 @@ export class Mwa implements Command {
             name: '👍',
             id: null
         });
-        
+
         const currentCategories = guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
         // get all channels in categories
         const allchannels = await guildHolder.getGuild().channels.fetch()
@@ -223,7 +238,7 @@ export class Mwa implements Command {
             })
             const newTags = basicTags.concat(tags)
             await channel.setAvailableTags(newTags)
-            await channel.setDefaultReactionEmoji({ 
+            await channel.setDefaultReactionEmoji({
                 name: '👍',
                 id: null
             })
@@ -232,7 +247,7 @@ export class Mwa implements Command {
 
             // check if topic exists
             if (channel.topic) {
-                const {code} = getCodeAndDescriptionFromTopic(channel.topic);
+                const { code } = getCodeAndDescriptionFromTopic(channel.topic);
                 if (code) {
                     codeMap.set(channel.id, code);
                 }
@@ -241,8 +256,8 @@ export class Mwa implements Command {
                 return;
             }
         }
-        
-      
+
+
         // Check if codemap has duplicates
         const codes = Array.from(codeMap.values());
         const duplicates = codes.filter((code, index) => codes.indexOf(code) !== index);
