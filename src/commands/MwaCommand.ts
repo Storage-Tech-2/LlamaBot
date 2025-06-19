@@ -103,8 +103,9 @@ export class Mwa implements Command {
         });
 
         try {
-            await guildHolder.getRepositoryManager().updateRemote()
-            await guildHolder.getRepositoryManager().push()
+            await guildHolder.getRepositoryManager().updateRemote();
+            await guildHolder.getRepositoryManager().pull();
+            await guildHolder.getRepositoryManager().push();
         } catch (error) {
             console.error('Error setting remote repository:', error)
             await replyEphemeral(interaction, 'Error setting remote repository. Please check the URL and try again.')
