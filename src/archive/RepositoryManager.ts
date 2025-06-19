@@ -447,7 +447,7 @@ export class RepositoryManager {
                 const destPath = Path.join(imageFolder, `${destKey}.png`);
                 await fs.copyFile(sourcePath, destPath);
                 image.path = `images/${destKey}.png`;
-                image.name = destKey; // Update the name to the new key
+                image.name = destKey + '.png'; // Update the name to the new key
             }
 
             for (const attachment of entryData.attachments) {
