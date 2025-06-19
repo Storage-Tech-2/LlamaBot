@@ -109,7 +109,7 @@ export class StarterEmbed {
                 const message = await submissionChannel.messages.fetch(currentRevision.id);
                 description += `\n\n[View latest submission draft](${message.url})`
             } catch (e: any) {
-                console.error(`Failed to fetch the latest submission draft: ${currentRevision.id} ${e.message}`);
+                //console.error(`Failed to fetch the latest submission draft: ${currentRevision.id} ${e.message}`);
             }
         }
 
