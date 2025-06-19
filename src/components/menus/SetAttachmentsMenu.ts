@@ -13,7 +13,7 @@ export class SetAttachmentsMenu implements Menu {
 
     async getBuilder(_guildHolder: GuildHolder, submission: Submission): Promise<StringSelectMenuBuilder> {
         const attachments = await submission.getAttachments()
-        const fileAttachments = attachments.filter(attachment => !attachment.contentType || (!attachment.contentType.startsWith('image/') && !attachment.contentType.startsWith('video/') && !attachment.contentType.startsWith('audio/')))
+        const fileAttachments = attachments.filter(attachment => attachment.contentType)
 
         if (!fileAttachments.length) {
             return new StringSelectMenuBuilder()
