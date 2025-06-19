@@ -619,19 +619,23 @@ export class RepositoryManager {
             const entryPath = foundEntry.getFolderPath();
 
             // Remove all files inside the entry folder
-            const files = await fs.readdir(entryPath);
-            for (const file of files) {
-                const filePath = Path.join(entryPath, file);
-                const stat = await fs.lstat(filePath);
-                if (stat.isFile()) {
-                    await fs.unlink(filePath);
-                } else if (stat.isDirectory()) {
-                    await fs.rm(filePath, { recursive: true, force: true });
+            const files = [];
+            const stack = [entryPath];
+            while (stack.length > 0) {
+                const currentPath = stack.pop();
+                if (!currentPath) continue;
+                const entries = await fs.readdir(currentPath, { withFileTypes: true });
+                for (const entry of entries) {
+                    const fullPath = Path.join(currentPath, entry.name);
+                    if (entry.isDirectory()) {
+                        stack.push(fullPath);
+                    } else {
+                        files.push(fullPath);
+                    }
                 }
             }
 
-            // Remove the entry from the channel
-            await this.git.rm(entryPath);
+            await this.git.rm(files);
             
             foundChannel.getData().entries.splice(foundEntryIndex, 1);
             await foundChannel.save();
