@@ -105,8 +105,12 @@ export class StarterEmbed {
         // Link to the latest version of the submission
         const currentRevision = submission.getRevisionsManager().getCurrentRevision();
         if (currentRevision) {
-            const message = await submissionChannel.messages.fetch(currentRevision.id);
-            description += `\n\n[View latest submission draft](${message.url})`
+            try {
+                const message = await submissionChannel.messages.fetch(currentRevision.id);
+                description += `\n\n[View latest submission draft](${message.url})`
+            } catch (e: any) {
+                console.error(`Failed to fetch the latest submission draft: ${currentRevision.id} ${e.message}`);
+            }
         }
 
         embed.setDescription(description)
