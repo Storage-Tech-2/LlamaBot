@@ -70,8 +70,8 @@ export class LLMQueue {
             const response = await this.processRequest(request.request);
             // Resolve the promise with the response
             request.resolve(response);
-        } catch (error) {
-            console.error('Error processing LLM request:', error);
+        } catch (error: any) {
+            console.error('Error processing LLM request:', error.message);
         } finally {
             // If there are more requests in the queue, process the next one
             if (this._llmQueue.length > 0) {
