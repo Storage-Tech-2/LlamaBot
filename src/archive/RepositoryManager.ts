@@ -5,13 +5,14 @@ import { ConfigManager } from "../config/ConfigManager";
 import Path from "path";
 import { ChannelType, ForumChannel, MessageFlags } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs";
-import { areObjectsIdentical, deepClone, escapeString, generateCommitMessage, getCodeAndDescriptionFromTopic, getFileKey } from "../utils/Util";
+import { areObjectsIdentical, deepClone, escapeString, generateCommitMessage, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject } from "../utils/Util";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry";
 import { Submission } from "../submissions/Submission";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs";
 import { ArchiveChannel, ArchiveEntryReference } from "./ArchiveChannel";
 import { Lock } from "../utils/Lock";
 import { PostEmbed } from "../embed/PostEmbed";
+import { GuildConfigs } from "../config/GuildConfigs";
 
 
 export class RepositoryManager {
@@ -19,7 +20,9 @@ export class RepositoryManager {
     private git?: SimpleGit;
     private configManager: ConfigManager;
     private lock: Lock = new Lock();
-    constructor(_guildHolder: GuildHolder, folderPath: string) {
+    private guildHolder: GuildHolder;
+    constructor(guildHolder: GuildHolder, folderPath: string) {
+        this.guildHolder = guildHolder;
         this.folderPath = folderPath;
         this.configManager = new ConfigManager(Path.join(folderPath, 'config.json'));
     }
@@ -51,7 +54,7 @@ export class RepositoryManager {
 
         // try pull
         try {
-            await this.git.pull('origin', 'main');
+            await this.pull();
         } catch (e: any) {
             console.error("Error pulling from remote:", e.message);
         }
@@ -59,23 +62,39 @@ export class RepositoryManager {
         await this.lock.release();
     }
 
-    async setRemote(url: string) {
-        await this.lock.acquire();
+    async pull() {
         if (!this.git) {
             throw new Error("Git not initialized");
         }
+        await this.updateRemote();
+        await this.git.pull('origin', 'main');
+    }
+
+    async updateRemote() {
+        if (!this.git) {
+            throw new Error("Git not initialized");
+        }
+
+        const remoteURL = this.guildHolder.getConfigManager().getConfig(GuildConfigs.GITHUB_REPO_URL);
+        if (!remoteURL) {
+            throw new Error("GitHub repository URL not set in guild configuration");
+        }
+
+        const { owner, project } = getGithubOwnerAndProject(remoteURL);
+        if (!owner || !project) {
+            throw new Error("Invalid GitHub repository URL");
+        }
+
+        const token = await this.guildHolder.getBot().getGithubInstallationToken(owner);
+
+
         const remotes = await this.git.getRemotes(true);
         const origin = remotes.find(r => r.name === 'origin');
         if (origin) {
             await this.git.removeRemote('origin');
         }
-        await this.git.addRemote('origin', url);
-        try {
-            await this.git.push(['-u', 'origin', 'main']);
-        } catch (e) {
-            console.error("Error pushing to remote:", e);
-        }
-        await this.lock.release();
+
+        await this.git.addRemote('origin', `https://x-access-token:${token}@github.com/${owner}/${project}.git`);
     }
 
     public getChannelReferences() {
@@ -226,7 +245,11 @@ export class RepositoryManager {
         // Add config if it doesn't exist
         await this.git.add(Path.join(this.folderPath, 'config.json'));
         await this.git.commit('Updated repository configuration');
-        await this.push();
+        try {
+            await this.push();
+        } catch (e: any) {
+            console.error("Error pushing to remote:", e.message);
+        }
         await this.lock.release();
     }
 
@@ -312,7 +335,7 @@ export class RepositoryManager {
             const features = revision.features || [];
             const considerations = revision.considerations || [];
             const notes = revision.notes || '';
-           
+
 
 
             const entryData: ArchiveEntryData = deepClone({
@@ -453,7 +476,7 @@ export class RepositoryManager {
                 if (areObjectsIdentical(dt, entryData)) {
                     throw new Error("No changes detected in the entry data");
                 }
-            
+
                 archiveChannel.getData().entries[existing.entryIndex] = entryRef;
             } else {
                 // New entry
@@ -556,7 +579,11 @@ export class RepositoryManager {
                 flags: [MessageFlags.SuppressEmbeds]
             });
 
-            await this.push();
+            try {
+                await this.push();
+            } catch (e: any) {
+                console.error("Error pushing to remote:", e.message);
+            }
             await this.lock.release();
             return {
                 oldEntryData: existing ? existing.entry.getData() : undefined,
@@ -610,8 +637,11 @@ export class RepositoryManager {
             // Remove post
             submission.getConfigManager().setConfig(SubmissionConfigs.POST, null);
             await submission.save();
-
-            await this.push();
+            try {
+                await this.push();
+            } catch (e: any) {
+                console.error("Error pushing to remote:", e.message);
+            }
 
             return entryData;
         } catch (e) {
@@ -625,11 +655,8 @@ export class RepositoryManager {
         if (!this.git) {
             return;
         }
-        try {
-            await this.git.push();
-        } catch (e: any) {
-            console.error("Error pushing to remote:", e.message);
-        }
+        await this.updateRemote();
+        await this.git.push();
     }
 
     async save() {

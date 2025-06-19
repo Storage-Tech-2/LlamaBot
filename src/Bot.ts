@@ -13,6 +13,8 @@ import { getCommands } from "./commands";
 import { getMenus } from "./components/menus";
 import { getModals } from "./components/modals";
 import { TempDataStore } from "./utils/TempDataStore";
+import { App, Octokit } from "octokit";
+import got from "got";
 
 /**
  * The Secrets type defines the structure for the bot's secrets, including the token and client ID.
@@ -20,6 +22,8 @@ import { TempDataStore } from "./utils/TempDataStore";
 export type Secrets = {
     token: string;
     clientId: string;
+    githubAppId: string;
+    githubPrivateKey: string;
 }
 
 /**
@@ -71,6 +75,11 @@ export class Bot {
      */
     tempData: TempDataStore;
 
+    /**
+     * Github client
+     */
+    githubClient?: App;
+
 
     constructor() {
         this.guilds = new Map()
@@ -88,7 +97,7 @@ export class Bot {
                 GatewayIntentBits.MessageContent,
                 GatewayIntentBits.GuildMembers
             ]
-        })
+        });
     }
 
     async start() {
@@ -105,6 +114,12 @@ export class Bot {
 
         this.setupListeners(secrets)
         this.client.login(secrets.token)
+
+
+        this.githubClient = new App({
+            appId: secrets.githubAppId,
+            privateKey: secrets.githubPrivateKey,
+        });
 
         return new Promise((resolve, reject) => {
             this.client.once('ready', async () => {
@@ -230,5 +245,35 @@ export class Bot {
 
     public getTempDataStore(): TempDataStore {
         return this.tempData;
+    }
+
+    /**
+     * Get the Github installation token for an organization.
+     * @param orgId The ID of the organization.
+     */
+    public async getGithubInstallationToken(orgId: string): Promise<string> {
+        const installations: { access_tokens_url: any; }[] = [];
+        await this.githubClient?.eachInstallation(({ octokit, installation }) => {
+            if (installation.account?.login === orgId) {
+                installations.push(installation);
+            }
+        });
+
+        if (installations.length === 0) {
+            throw new Error(`No GitHub installation found for organization ${orgId}`);
+        }
+
+        const url = installations[0].access_tokens_url;
+
+        const response = await this.githubClient?.octokit.request('POST ' + url, {
+            headers: {
+                'Accept': 'application/vnd.github+json',
+            }
+        });
+
+        if (!response || !response.data || !response.data.token) {
+            throw new Error(`Failed to get GitHub installation token for organization ${orgId}`);
+        }
+        return response.data.token;
     }
 }
