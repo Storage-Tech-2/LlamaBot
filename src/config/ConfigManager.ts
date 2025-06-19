@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { deepClone } from '../utils/Util.js';
 
 /**
  * Config type defines the structure for the configuration settings.
@@ -69,7 +70,7 @@ export class ConfigManager {
         if (this.configMap.has(config.id)) {
             return this.configMap.get(config.id) as T;
         }
-        return config.default;
+        return deepClone(config.default);
     }
 
     /**
