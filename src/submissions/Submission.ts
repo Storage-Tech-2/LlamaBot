@@ -310,11 +310,13 @@ export class Submission {
             const status = this.config.getConfig(SubmissionConfigs.STATUS);
             if (this.isPublishable(true) && !this.isPublishable()) {
                 // If the submission is publishable but needs endorsement, we notify the owner
-                if (status === SubmissionStatus.NEW) {
+                if (status === SubmissionStatus.NEW || status === SubmissionStatus.WAITING) {
                     this.config.setConfig(SubmissionConfigs.STATUS, SubmissionStatus.NEED_ENDORSEMENT);
-                    await channel.send({
-                        content: `<@${channel.ownerId}> Your submission now requires endorsement before it can be published. Please wait for the endorsers to review it. Do not ping them directly, they will review it when they have time.`,
-                    });
+                    if (status === SubmissionStatus.NEW) {
+                        await channel.send({
+                            content: `<@${channel.ownerId}> Your submission now requires endorsement before it can be published. Please wait for the endorsers to review it. Do not ping them directly, they will review it when they have time.`,
+                        });
+                    }
                 }
             } else if (this.isPublishable()) {
                 if (status === SubmissionStatus.NEW || status === SubmissionStatus.NEED_ENDORSEMENT) {
