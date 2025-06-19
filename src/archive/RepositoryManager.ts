@@ -626,6 +626,11 @@ export class RepositoryManager {
                 if (!currentPath) continue;
                 const entries = await fs.readdir(currentPath, { withFileTypes: true });
                 for (const entry of entries) {
+                    if (entry.name === '.DS_Store') {
+                        // delete .DS_Store files
+                        await fs.unlink(Path.join(currentPath, entry.name));
+                        continue; // Skip .DS_Store files
+                    }
                     const fullPath = Path.join(currentPath, entry.name);
                     if (entry.isDirectory()) {
                         stack.push(fullPath);
