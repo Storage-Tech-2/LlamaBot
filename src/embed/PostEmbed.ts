@@ -104,7 +104,8 @@ export class PostEmbed {
         const notes = entryData.notes;
         const authors = entryData.authors;
         const images = entryData.images;
-        content.push(`**Authors:** ${getAuthorsString(authors)}\n`);
+        content.push(`**Authors:** ${getAuthorsString(authors)}`);
+        content.push(`**Endorsered by:** ${getAuthorsString(entryData.endorsers)}\n`);
         content.push(description);
 
         if (features.length) {

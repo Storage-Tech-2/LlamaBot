@@ -163,4 +163,30 @@ export class GuildHolder {
             }
         }
     }
+
+
+    public async logRetraction(oldEntryData: ArchiveEntryData, reason: string) {
+
+        const logChannelId = this.getConfigManager().getConfig(GuildConfigs.LOGS_CHANNEL_ID);
+        if (!logChannelId) {
+            console.warn('No log channel configured, skipping log message');
+            return;
+        }
+
+        const logChannel = await this.getGuild().channels.fetch(logChannelId);
+        if (!logChannel || logChannel.type !== ChannelType.GuildText) {
+            console.warn('Log channel not found or not a text channel, skipping log message');
+            return;
+        }
+
+        const forumChannel = await this.getGuild().channels.fetch(oldEntryData.post?.threadId || '');
+        if (!forumChannel || forumChannel.type !== ChannelType.GuildForum) {
+            console.warn('Forum channel not found or not a forum channel, skipping log message');
+            return;
+        }
+
+        await logChannel.send({
+            content: `Retracted ${oldEntryData.post?.threadURL} from ${forumChannel.url}.\nReason: ${reason}`
+        });
+    }
 }

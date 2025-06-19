@@ -3,6 +3,7 @@ import { SetArchiveCategoryMenu } from "./SetArchiveCategoryMenu";
 import { SetArchiveChannelMenu } from "./SetArchiveChannelMenu";
 import { SetAttachmentsMenu } from "./SetAttachmentsMenu";
 import { SetAuthorsMenu } from "./SetAuthorsMenu";
+import { SetEditorRolesMenu } from "./SetEditorRolesMenu";
 import { SetEndorseRolesMenu } from "./SetEndorseRolesMenu";
 import { SetImagesMenu } from "./SetImagesMenu";
 import { SetTagsMenu } from "./SetTagsMenu";
@@ -11,6 +12,7 @@ export function getMenus() {
     const Menus = [
         new SetArchiveCategoriesMenu(),
         new SetEndorseRolesMenu(),
+        new SetEditorRolesMenu(),
 
         new SetAuthorsMenu(),
         new SetArchiveCategoryMenu(),

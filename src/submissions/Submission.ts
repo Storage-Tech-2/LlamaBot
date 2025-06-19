@@ -122,7 +122,7 @@ export class Submission {
         this.checkReview();
     }
 
-    public isPublishable(): boolean {
+    public isPublishable(withoutEndorsers: boolean = false): boolean {
         const authors = this.config.getConfig(SubmissionConfigs.AUTHORS);
         const archiveChannelId = this.config.getConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID);
         const submissionTags = this.config.getConfig(SubmissionConfigs.TAGS);
@@ -141,6 +141,11 @@ export class Submission {
         }
 
         // check endorsers
+        if (withoutEndorsers) {
+            // If we are checking without endorsers, we can skip this check
+            return true;
+        }
+
         const endorsers = this.config.getConfig(SubmissionConfigs.ENDORSERS);
         if (endorsers.length === 0) {
             // If there are no endorsers, we cannot proceed
@@ -300,17 +305,32 @@ export class Submission {
         const starterEmbed = await StarterEmbed.create(this);
         await message.edit({ embeds: [starterEmbed.getEmbed()], components: [starterEmbed.getRow() as any] });
 
-        if (this.isPublishable()) {
-            const status = this.config.getConfig(SubmissionConfigs.STATUS);
+
+        const status = this.config.getConfig(SubmissionConfigs.STATUS);
+        if (this.isPublishable(true) && !this.isPublishable()) {
+            // If the submission is publishable but needs endorsement, we notify the owner
             if (status === SubmissionStatus.NEW) {
+                this.config.setConfig(SubmissionConfigs.STATUS, SubmissionStatus.NEED_ENDORSEMENT);
+                await channel.send({
+                    content: `<@${channel.ownerId}> Your submission now requires endorsement before it can be published. Please wait for the endorsers to review it. Do not ping them directly, they will review it when they have time.`,
+                });
+            }
+        } else if (this.isPublishable()) {
+            if (status === SubmissionStatus.NEW || status === SubmissionStatus.NEED_ENDORSEMENT) {
                 this.config.setConfig(SubmissionConfigs.STATUS, SubmissionStatus.WAITING);
 
-                const publishButton = await new PublishButton().getBuilder(false);
+                if (this.getConfigManager().getConfig(SubmissionConfigs.ON_HOLD)) {
+                    await channel.send({
+                        content: `<@${channel.ownerId}> Your submission is now ready to be published, but it is currently on hold. Editors must release the hold before it can be published. The reason for the hold is: ${this.getConfigManager().getConfig(SubmissionConfigs.HOLD_REASON) || 'No reason provided.'}`,
+                    });
+                } else {
+                    const publishButton = await new PublishButton().getBuilder(false);
 
-                channel.send({
-                    content: `<@${channel.ownerId}> Congratulations! Your submission is now ready to be published! Click the button below to proceed.`,
-                    components: [(new ActionRowBuilder().addComponents(publishButton)) as any]
-                });
+                    await channel.send({
+                        content: `<@${channel.ownerId}> Congratulations! Your submission is now ready to be published! Click the button below to proceed.`,
+                        components: [(new ActionRowBuilder().addComponents(publishButton)) as any]
+                    });
+                }
             }
         }
     }
@@ -477,7 +497,7 @@ export class Submission {
 
         this.publishLock = true;
 
-       
+
         let oldEntryData, newEntryData;
 
         try {
@@ -488,7 +508,7 @@ export class Submission {
             this.publishLock = false;
             throw error;
         }
-        
+
 
         try {
             await this.guildHolder.logUpdate(oldEntryData, newEntryData);
@@ -499,8 +519,37 @@ export class Submission {
 
         this.getConfigManager().setConfig(SubmissionConfigs.POST, newEntryData.post);
         this.getConfigManager().setConfig(SubmissionConfigs.STATUS, SubmissionStatus.ACCEPTED);
-        await this.statusUpdated();        
+        await this.statusUpdated();
         this.publishLock = false;
+    }
+
+    public async retract() {
+        if (this.publishLock) {
+            throw new Error('Retract is already in progress');
+        }
+
+        this.publishLock = true;
+        const reason = this.getConfigManager().getConfig(SubmissionConfigs.RETRACTION_REASON);
+
+        let oldEntryData;
+        try {
+            oldEntryData = await this.guildHolder.getRepositoryManager().retractEntry(this, reason);
+        } catch (error) {
+            this.publishLock = false;
+            throw error;
+        }
+
+        try {
+            await this.guildHolder.logRetraction(oldEntryData, reason);
+        } catch (error) {
+            this.publishLock = false;
+            throw error;
+        }
+
+        this.getConfigManager().setConfig(SubmissionConfigs.STATUS, SubmissionStatus.RETRACTED);
+        await this.statusUpdated();
+        this.publishLock = false;
+
     }
 
     public getRevisionsManager(): RevisionManager {

@@ -3,10 +3,15 @@
  */
 export enum SubmissionStatus {
     /**
-     * Submission is new, and is awaiting tagging.
+     * Submission is new, and is awaiting processing.
      */
     NEW = "new",
 
+    /**
+     * Submission is completed, but needs endorser's confirmation.
+     */
+    NEED_ENDORSEMENT = "need_endorsement",
+    
     /**
      * Submission is waiting for author's confirmation.
      */

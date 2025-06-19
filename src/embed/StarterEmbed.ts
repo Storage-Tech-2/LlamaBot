@@ -37,7 +37,18 @@ export class StarterEmbed {
         const endorsers = configs.getConfig(SubmissionConfigs.ENDORSERS);
         const status = configs.getConfig(SubmissionConfigs.STATUS);
         const embed = new EmbedBuilder()
-        embed.setColor('#0099ff')
+        if (status === SubmissionStatus.ACCEPTED) {
+            embed.setColor('#00ff00')
+        } else if (status === SubmissionStatus.REJECTED) {
+            embed.setColor('#ff0000')
+        } else if (status === SubmissionStatus.RETRACTED) {
+            embed.setColor('#ff8800')
+        } else if (configs.getConfig(SubmissionConfigs.ON_HOLD)) {
+            embed.setColor('#ffff00')
+        } else {
+            embed.setColor('#0099ff')
+        }
+
         embed.setTitle('Submission Status')
 
         let description = 'Thank you for submitting your work! Before we can publish your submission, the following needs to be completed:'
@@ -83,6 +94,10 @@ export class StarterEmbed {
             description += `:pray: Waiting for <@${submissionChannel.ownerId}> to publish the submission\n`
         } else if (status === SubmissionStatus.ACCEPTED) {
             description += `:tada: Published at ${submission.getConfigManager().getConfig(SubmissionConfigs.POST)?.threadURL}\n`
+        } else if (status === SubmissionStatus.REJECTED) {
+            description += `:x: The submission was rejected. Reason: ${configs.getConfig(SubmissionConfigs.REJECTION_REASON) || 'No reason provided.'}`
+        } else if (status === SubmissionStatus.RETRACTED) {
+            description += `:no_entry: The submission was retracted from the archive. Reason: ${configs.getConfig(SubmissionConfigs.RETRACTION_REASON) || 'No reason provided.'}`
         }
 
         description += `\nLast updated: <t:${Math.floor(Date.now() / 1000)}:F>`

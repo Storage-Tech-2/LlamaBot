@@ -30,9 +30,29 @@ export const SubmissionConfigs = {
     IS_LOCKED: new Config<boolean>("is_locked", false),
 
     /**
+     * Lock reason
+     */
+    LOCK_REASON: new Config<string>("lock_reason", ""),
+
+    /**
      * Is holded
      */
     ON_HOLD: new Config<boolean>("on_holded", false),
+
+    /**
+     * Hold reason
+     */
+    HOLD_REASON: new Config<string>("hold_reason", ""),
+
+    /**
+     * Retraction reason
+     */
+    RETRACTION_REASON: new Config<string>("retraction_reason", ""),
+
+    /**
+     * Rejection reason
+     */
+    REJECTION_REASON: new Config<string>("rejection_reason", ""),
 
     /**
      * ID of the submission thread.

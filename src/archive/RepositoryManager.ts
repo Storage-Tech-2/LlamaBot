@@ -510,6 +510,69 @@ export class RepositoryManager {
         }
     }
 
+    async retractEntry(submission: Submission, reason: string): Promise<ArchiveEntryData> {
+        if (!this.git) {
+            throw new Error("Git not initialized");
+        }
+        await this.lock.acquire();
+        try {
+            // Find archived entry in all channels
+            const channels = this.getChannelReferences();
+
+            let foundChannel: ArchiveChannel | null = null;
+            let foundEntryIndex = -1;
+
+            for (const channelRef of channels) {
+                const channelPath = Path.join(this.folderPath, channelRef.path);
+                const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
+                const entryIndex = archiveChannel.getData().entries.findIndex(e => e.id === submission.getId());
+                if (entryIndex !== -1) {
+                    foundChannel = archiveChannel;
+                    foundEntryIndex = entryIndex;
+                    break;
+                }
+            }
+
+            if (!foundChannel) {
+                throw new Error(`No archived entry found for submission ${submission.getId()}`);
+            }
+
+            const entryRef = foundChannel.getData().entries[foundEntryIndex];
+            const entryPath = Path.join(foundChannel.getFolderPath(), entryRef.path);
+            const entry = await ArchiveEntry.fromFolder(entryPath);
+            const entryData = entry.getData();
+
+            // Remove the entry
+            await this.git.rm(entryPath);
+            foundChannel.getData().entries.splice(foundEntryIndex, 1);
+            await foundChannel.save();
+
+            // Commit the removal
+            await this.git.commit(`Retracted entry ${entryData.name} (${entryData.code}) from channel ${foundChannel.getData().name} (${foundChannel.getData().code})\nReason: ${reason || 'No reason provided'}`);
+
+            // Now post to discord
+            if (!entryData.post) {
+                throw new Error('Entry does not have a post or thread ID');
+            }
+            const publishForumId = entryData.post.forumId;
+            const publishForum = await submission.getGuildHolder().getGuild().channels.fetch(publishForumId);
+            if (!publishForum || publishForum.type !== ChannelType.GuildForum) {
+                throw new Error('Publish forum not found or is not a forum channel');
+            }
+            const thread = await publishForum.threads.fetch(entryData.post.threadId);
+            if (!thread) {
+                throw new Error('Thread not found in publish forum');
+            }
+
+            await thread.delete(reason || 'No reason provided');
+            
+            return entryData;
+        } catch (e) {
+            this.lock.release();
+            throw e;
+        }
+    }
+
 
     async push() {
         if (!this.git) {
