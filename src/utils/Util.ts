@@ -67,7 +67,6 @@ export async function getAllAttachments(channel: TextThreadChannel): Promise<Att
         if (message.author.bot) {
             return true;
         }
-        console.log(message.content)
         if (message.content.length > 0) {
             // Find all URLs in the message
             const urls = message.content.match(/https?:\/\/[^\s]+/g)
@@ -610,20 +609,18 @@ async function iterateAllMessages(channel: TextBasedChannel, iterator: (message:
         .then(messagePage => (messagePage.size === 1 ? messagePage.at(0) : null));
 
     while (message) {
-        await channel.messages
-            .fetch({ limit: 100, before: message.id })
-            .then(messagePage => {
+        const messages = await channel.messages.fetch({ limit: 100, before: message.id })
 
-                for (const msg of messagePage.values()) {
-                    // If the iterator returns false, stop iterating
-                    if (!iterator(msg)) {
-                        return;
-                    }
-                }
 
-                // Update our message pointer to be the last message on the page of messages
-                message = 0 < messagePage.size ? messagePage.at(messagePage.size - 1) : null;
-            });
+        for (const msg of messages.values()) {
+            // If the iterator returns false, stop iterating
+            if (!await iterator(msg)) {
+                return;
+            }
+        }
+
+        // Update our message pointer to be the last message on the page of messages
+        message = 0 < messages.size ? messages.at(messages.size - 1) : null;
     }
 }
 
