@@ -16,7 +16,7 @@ export class SetAuthorsButton implements Button {
     async getBuilder(isSet: boolean): Promise<ButtonBuilder> {
         return new ButtonBuilder()
             .setCustomId(this.getID())
-            .setLabel(isSet ? 'Change Authors' : 'Set Authors')
+            .setLabel(isSet ? 'Change Authors' : 'Let\'s Start!')
             .setStyle(isSet ? ButtonStyle.Secondary : ButtonStyle.Primary)
     }
 
