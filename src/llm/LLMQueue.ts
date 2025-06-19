@@ -128,7 +128,9 @@ export class LLMQueue {
                     mode: 'extraction',
                     input_text: prompt
                 },
-                timeout: 30000 // 30 seconds
+                timeout: {
+                    request: 30000 // 30 seconds
+                }
             }).json();
             return response as LLMResponse;
         } catch (error) {

@@ -11,26 +11,7 @@ export class SetAttachmentsMenu implements Menu {
         return "set-attachments-menu";
     }
 
-    async getBuilder(_guildHolder: GuildHolder, submission: Submission): Promise<StringSelectMenuBuilder> {
-        const attachments = await submission.getAttachments()
-        const fileAttachments = attachments.filter(attachment => attachment.contentType)
-
-        if (!fileAttachments.length) {
-            return new StringSelectMenuBuilder()
-                .setCustomId(this.getID())
-                .setMinValues(1)
-                .setMaxValues(1)
-                .setPlaceholder('No files found. Try uploading a file first')
-                .addOptions([
-                    new StringSelectMenuOptionBuilder()
-                        .setLabel('No files found')
-                        .setValue('none')
-                        .setDescription('No files found')
-                ])
-        }
-
-        const currentFiles = submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) || [];
-
+    async getBuilder(fileAttachments: Attachment[], currentFiles: Attachment[]): Promise<StringSelectMenuBuilder> {
         return new StringSelectMenuBuilder()
             .setCustomId(this.getID())
             .setMinValues(0)
@@ -44,6 +25,17 @@ export class SetAttachmentsMenu implements Menu {
                         .setDefault(currentFiles.some(att => att.id === file.id))
                 })
             )
+    }
+
+    async getBuilderOrNull(_guildHolder: GuildHolder, submission: Submission): Promise<StringSelectMenuBuilder | null> {
+        const attachments = await submission.getAttachments()
+        const fileAttachments = attachments.filter(attachment => attachment.contentType)
+
+        if (!fileAttachments.length) {
+            return null; // No file attachments available
+        }
+        const currentFiles = submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) || [];
+        return this.getBuilder(fileAttachments, currentFiles);
     }
 
     async execute(guildHolder: GuildHolder, interaction: StringSelectMenuInteraction): Promise<void> {

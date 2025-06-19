@@ -7,43 +7,14 @@ import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Image } from "../../submissions/Image.js";
 import path from "path";
 import { SetAttachmentsMenu } from "./SetAttachmentsMenu.js";
+import { SetAttachmentsButton } from "../buttons/SetAttachmentsButton.js";
 
 export class SetImagesMenu implements Menu {
     getID(): string {
         return "set-images-menu";
     }
 
-    async getBuilder(submission: Submission): Promise<StringSelectMenuBuilder> {
-        const attachments = await submission.getAttachments()
-        const imageAttachments = attachments.filter(attachment => {
-            if (!attachment.contentType) {
-                return false;
-            }
-            if (attachment.name.endsWith('.png') || attachment.name.endsWith('.jpg') || attachment.name.endsWith('.jpeg')) {
-                return true;
-            }
-            
-            if (attachment.contentType.startsWith('image/png') || attachment.contentType.startsWith('image/jpeg')) {
-                return true;
-            }
-            return false;
-        })
-
-        if (!imageAttachments.length) {
-            return new StringSelectMenuBuilder()
-                .setCustomId(this.getID())
-                .setMinValues(1)
-                .setMaxValues(1)
-                .setPlaceholder('No images found. Try uploading an PNG/JPEG image first')
-                .addOptions([
-                    new StringSelectMenuOptionBuilder()
-                        .setLabel('No images found')
-                        .setValue('none')
-                        .setDescription('No images found')
-                ])
-        }
-
-        const currentImages = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) || [];
+    async getBuilder(imageAttachments: Image[], currentImages: Image[]): Promise<StringSelectMenuBuilder> {
         return new StringSelectMenuBuilder()
             .setCustomId(this.getID())
             .setMinValues(0)
@@ -59,8 +30,32 @@ export class SetImagesMenu implements Menu {
             )
     }
 
+    async getBuilderOrNull(submission: Submission): Promise<StringSelectMenuBuilder | null> {
+        const attachments = await submission.getAttachments()
+        const imageAttachments = attachments.filter(attachment => {
+            if (!attachment.contentType) {
+                return false;
+            }
+            if (attachment.name.endsWith('.png') || attachment.name.endsWith('.jpg') || attachment.name.endsWith('.jpeg')) {
+                return true;
+            }
+
+            if (attachment.contentType.startsWith('image/png') || attachment.contentType.startsWith('image/jpeg')) {
+                return true;
+            }
+            return false;
+        })
+
+        if (!imageAttachments.length) {
+            return null;
+        }
+
+        const currentImages = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) || [];
+        return this.getBuilder(imageAttachments, currentImages);
+    }
+
     async execute(guildHolder: GuildHolder, interaction: StringSelectMenuInteraction): Promise<void> {
-      
+
         const submissionId = interaction.channelId
         const submission = await guildHolder.getSubmissionsManager().getSubmission(submissionId)
         if (!submission) {
@@ -93,7 +88,7 @@ export class SetImagesMenu implements Menu {
         }).filter(o => !!o);
         const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null;
         const currentImages = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) || [];
-        
+
         const added: Image[] = [];
         const removed: Image[] = [];
 
@@ -153,13 +148,26 @@ export class SetImagesMenu implements Menu {
         submission.statusUpdated();
 
         if (isFirstTime) {
-            const row = new ActionRowBuilder()
-                .addComponents(await new SetAttachmentsMenu().getBuilder(guildHolder, submission))
-            await interaction.followUp({
-                content: `<@${interaction.user.id}> Please choose other attachments (Schematics/WDLS) for your submission`,
-                components: [row as any],
-                flags: MessageFlags.Ephemeral
-            })
+            const menu = await new SetAttachmentsMenu().getBuilderOrNull(guildHolder, submission);
+            if (menu) {
+                const row = new ActionRowBuilder()
+                    .addComponents(menu)
+                await interaction.followUp({
+                    content: `<@${interaction.user.id}> Please choose other attachments (Schematics/WDLS) for your submission`,
+                    components: [row as any],
+                    flags: MessageFlags.Ephemeral
+                })
+            } else {
+                await interaction.followUp({
+                    content: `<@${interaction.user.id}> No other attachments found! Try uploading files first then press the button below.`,
+                    flags: MessageFlags.Ephemeral,
+                    components: [
+                        new ActionRowBuilder().addComponents(
+                            await new SetAttachmentsButton().getBuilder(false)
+                        ) as any
+                    ]
+                });
+            }
         }
 
         submission.checkReview()

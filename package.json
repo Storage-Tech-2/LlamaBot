@@ -20,7 +20,7 @@
   "dependencies": {
     "@kleppe/litematic-reader": "^1.0.11",
     "discord.js": "^14.14.1",
-    "got": "^11.8.2",
+    "got": "^14.4.7",
     "octokit": "^5.0.3",
     "sharp": "^0.34.2",
     "simple-git": "^3.28.0"

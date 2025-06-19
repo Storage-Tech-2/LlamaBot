@@ -31,23 +31,37 @@ export class SetAttachmentsButton implements Button {
 
 
         const imagesMenu = new SetImagesMenu();
-        const imagesMenuBuilder = await imagesMenu.getBuilder(submission);
         const attachmentsMenu = new SetAttachmentsMenu();
-        const menuBuilder = await attachmentsMenu.getBuilder(guildHolder, submission);
-        const row1 = new ActionRowBuilder().addComponents(imagesMenuBuilder);
-        const row2 = new ActionRowBuilder().addComponents(menuBuilder);
 
-        await replyEphemeral(interaction, `<@${interaction.user.id}> Please select image attachments for the submission`,
-        {
-            components: [row1 as any],
-        });
+        const imagesMenuBuilder = await imagesMenu.getBuilderOrNull(submission);
+        const menuBuilder = await attachmentsMenu.getBuilderOrNull(guildHolder, submission);
 
+        if (imagesMenuBuilder) {
+            const row1 = new ActionRowBuilder().addComponents(imagesMenuBuilder);
+            await replyEphemeral(interaction, `<@${interaction.user.id}> Please select image attachments for the submission`,
+                {
+                    components: [row1 as any],
+                });
+        } else if (menuBuilder) {
+            const row = new ActionRowBuilder()
+                .addComponents(await new SetAttachmentsButton().getBuilder(false));
+            await replyEphemeral(interaction, `<@${interaction.user.id}> No image attachments found! Try uploading images first and then use this button again.`,{
+                components: [row as any]
+            });
+        }
 
-        await replyEphemeral(interaction, `<@${interaction.user.id}> Please select other attachments (Schematics/WDLs) for the submission`,
-        {
-            components: [row2 as any],
-        });
-
-
+        if (menuBuilder) {
+            const row2 = new ActionRowBuilder().addComponents(menuBuilder);
+            await replyEphemeral(interaction, `<@${interaction.user.id}> Please select other attachments (Schematics/WDLs) for the submission`,
+                {
+                    components: [row2 as any],
+                });
+        } else {
+            const row = new ActionRowBuilder()
+                .addComponents(await new SetAttachmentsButton().getBuilder(false));
+            await replyEphemeral(interaction, `<@${interaction.user.id}> No attachments found! Try uploading files first and then use this button again.`, {
+                components: [row as any]
+            });
+        }
     }
 }

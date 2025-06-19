@@ -5,6 +5,7 @@ import { canEditSubmission, isModerator, replyEphemeral } from "../../utils/Util
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { SetImagesMenu } from "./SetImagesMenu.js";
+import { SetAttachmentsButton } from "../buttons/SetAttachmentsButton.js";
 
 export class SetTagsMenu implements Menu {
     getID(): string {
@@ -132,12 +133,26 @@ export class SetTagsMenu implements Menu {
         }
 
         if (tagsUnset) {
-            const row = new ActionRowBuilder()
-                .addComponents(await new SetImagesMenu().getBuilder(submission))
-            await replyEphemeral(interaction, `<@${interaction.user.id}> Please choose image attachments for your submission`,
-            {
-                components: [row as any],
-            });
+            const menu = await new SetImagesMenu().getBuilderOrNull(submission);
+            if (menu) {
+                const row = new ActionRowBuilder()
+                    .addComponents(menu)
+                await interaction.followUp({
+                    content: `<@${interaction.user.id}> Please choose images for the submission`,
+                    components: [row as any],
+                    flags: MessageFlags.Ephemeral
+                })
+            } else {
+                await interaction.followUp({
+                    content: `<@${interaction.user.id}> No images found! Try uploading images first and then press the button below.`,
+                    flags: MessageFlags.Ephemeral,
+                    components: [
+                        new ActionRowBuilder().addComponents(
+                            await new SetAttachmentsButton().getBuilder(false)
+                        ) as any
+                    ]
+                });
+            }
         }
 
         submission.checkReview()
