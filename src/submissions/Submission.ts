@@ -16,7 +16,7 @@ import { RevisionEmbed } from "../embed/RevisionEmbed";
 import { ModificationPrompt } from "../llm/prompts/ModificationPrompt";
 import { SubmissionStatus } from "./SubmissionStatus";
 import { PublishButton } from "../components/buttons/PublishButton";
-import { getTagByName, SubmissionTagNames, SubmissionTags } from "./SubmissionTags";
+import { SubmissionTagNames, SubmissionTags } from "./SubmissionTags";
 
 export class Submission {
     private guildHolder: GuildHolder;

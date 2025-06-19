@@ -32,8 +32,8 @@ export class RepositoryManager {
         }
         this.git = simpleGit(this.folderPath)
             .init()
-            .addConfig('user.name', 'LlamaBot')
-            .addConfig('user.email', 'llama@soontech.org');
+            .addConfig('user.name', 'llamabot-archiver[bot]')
+            .addConfig('user.email', '217070326+llamabot-archiver[bot]@users.noreply.github.com');
 
 
         // check if gitignore exists, create it if it doesn't

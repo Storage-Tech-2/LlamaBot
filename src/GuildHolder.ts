@@ -6,7 +6,7 @@ import { GuildConfigs } from "./config/GuildConfigs";
 import { SubmissionsManager } from "./submissions/SubmissionsManager";
 import { RepositoryManager } from "./archive/RepositoryManager";
 import { ArchiveEntryData } from "./archive/ArchiveEntry";
-import { generateCommitMessage, getAuthorsString, getChanges, truncateStringWithEllipsis } from "./utils/Util";
+import { getAuthorsString, getChanges, truncateStringWithEllipsis } from "./utils/Util";
 
 /**
  * GuildHolder is a class that manages guild-related data.
