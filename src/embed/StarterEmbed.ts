@@ -95,9 +95,9 @@ export class StarterEmbed {
         } else if (status === SubmissionStatus.ACCEPTED) {
             description += `:tada: Published at ${submission.getConfigManager().getConfig(SubmissionConfigs.POST)?.threadURL}\n`
         } else if (status === SubmissionStatus.REJECTED) {
-            description += `:x: The submission was rejected. Reason: ${configs.getConfig(SubmissionConfigs.REJECTION_REASON) || 'No reason provided.'}`
+            description += `:no_entry: The submission was rejected. Reason: ${configs.getConfig(SubmissionConfigs.REJECTION_REASON) || 'No reason provided.'}`
         } else if (status === SubmissionStatus.RETRACTED) {
-            description += `:no_entry: The submission was retracted from the archive. Reason: ${configs.getConfig(SubmissionConfigs.RETRACTION_REASON) || 'No reason provided.'}`
+            description += `:x: The submission was retracted from the archive. Reason: ${configs.getConfig(SubmissionConfigs.RETRACTION_REASON) || 'No reason provided.'}`
         }
 
         description += `\nLast updated: <t:${Math.floor(Date.now() / 1000)}:F>`
