@@ -338,7 +338,6 @@ export class Submission {
             await this.updateTags(); // Update tags based on the current status
         } catch (error) {
             console.error('Error updating status:', error);
-            throw error; // Rethrow the error to be handled by the caller
         }
 
     }
