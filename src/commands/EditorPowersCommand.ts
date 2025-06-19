@@ -169,18 +169,22 @@ export class EditorPowersCommand implements Command {
                 }
                 const reason = interaction.options.getString('reason') || '';
                
+                interaction.deferReply();
+
                 submission.getConfigManager().setConfig(SubmissionConfigs.RETRACTION_REASON, reason);
                 try {
                     await submission.retract();
                 } catch (e: any) {
                     console.error(e);
-                    replyEphemeral(interaction, 'Failed to retract submission: ' + e.message);
+                    interaction.editReply({
+                        content: `Failed to retract submission: ${e.message || 'Unknown error'}`,
+                    });
                     return;
                 }
                 submission.getConfigManager().setConfig(SubmissionConfigs.STATUS, SubmissionStatus.RETRACTED);
 
                 await submission.statusUpdated();
-                await interaction.reply({
+                await interaction.editReply({
                     content: `<@${interaction.user.id}> has retracted this submission. It is no longer archived. Note that the submission can be re-archived once issues are resolved. Reason: ${reason || 'No reason provided'}`,
                 });
 
