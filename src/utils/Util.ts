@@ -86,7 +86,23 @@ export async function getAllAttachments(channel: TextThreadChannel): Promise<Att
                             name: name,
                             contentType: 'mediafire',
                             url: url,
-                            description: `[MediaFire] Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`
+                            description: `[MediaFire] Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`,
+                            canDownload: false // MediaFire links cannot be downloaded directly
+                        })
+                    } else if (url.startsWith('https://youtu.be/') || url.startsWith('https://www.youtube.com/watch')) {
+                        // YouTube links
+                        const videoId = new URL(url).searchParams.get('v') || url.split('/').pop();
+                        if (!videoId) return;
+                        if (attachments.some(attachment => attachment.id === videoId)) {
+                            return;
+                        }
+                        attachments.push({
+                            id: videoId,
+                            name: `YouTube Video ${videoId}`,
+                            contentType: 'youtube',
+                            url: url,
+                            description: `[YouTube] Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`,
+                            canDownload: false // YouTube links cannot be downloaded directly
                         })
                     } else if (url.startsWith('https://cdn.discordapp.com/attachments/')) {
                         // https://cdn.discordapp.com/attachments/749137321710059542/912059917106548746/Unbreakable_8gt_reset_6gt_box_replacement.litematic?ex=6832c4bd&is=6831733d&hm=1e5ff51ca94199d70f26ad2611715c86afbb095e3da120416e55352ccf43f7a4&
@@ -100,7 +116,8 @@ export async function getAllAttachments(channel: TextThreadChannel): Promise<Att
                             name: name,
                             contentType: 'discord',
                             url: url,
-                            description: `[DiscordCDN] Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`
+                            description: `[DiscordCDN] Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`,
+                            canDownload: true // Discord CDN links can be downloaded directly
                         })
                     }
                 })
@@ -118,7 +135,8 @@ export async function getAllAttachments(channel: TextThreadChannel): Promise<Att
                     name: attachment.name,
                     contentType: attachment.contentType || 'unknown',
                     url: attachment.url,
-                    description: `Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`
+                    description: `Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`,
+                    canDownload: true, // Discord attachments can be downloaded directly
                 });
             })
         }
@@ -248,7 +266,7 @@ export async function processAttachments(attachments: Attachment[], attachments_
 
         const ext = attachment.name.split('.').pop();
 
-        if (attachment.contentType !== 'mediafire') {
+        if (attachment.canDownload) {
             const attachmentData = await got(attachment.url, { responseType: 'buffer' });
             await fs.writeFile(attachmentPath, attachmentData.body);
             if (ext === 'litematic') {

@@ -14,5 +14,6 @@ export type Attachment = {
         error?: string,
     },
 
+    canDownload: boolean, // Whether the file can be downloaded
     path?: string, // Local path if downloaded
 }

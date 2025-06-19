@@ -101,7 +101,19 @@ export class SetAttachmentsMenu implements Menu {
         if (others.length) {
             description += '**Other files:**\n'
             others.forEach(attachment => {
-                description += `- [${escapeString(attachment.name)}](${attachment.url}): ${attachment.contentType}\n`
+                let type = attachment.contentType;
+                switch (attachment.contentType) {
+                    case 'mediafire':
+                        type = 'Mediafire link';
+                        break;
+                    case 'youtube':
+                        type = 'YouTube link';
+                        break;
+                    case 'discord':
+                        type = 'Discord link';
+                        break;
+                }
+                description += `- [${escapeString(attachment.name)}](${attachment.url}): ${type}\n`
             })
         }
 

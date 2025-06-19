@@ -453,7 +453,7 @@ export class RepositoryManager {
             for (const attachment of entryData.attachments) {
                 const dest = attachment.name.split('.');
                 let ext = dest.length > 1 ? escapeString(dest.pop() || '') : '';
-                if (attachment.contentType === 'mediafire') {
+                if (!attachment.canDownload) {
                     ext = 'url';
                 }
 
@@ -470,7 +470,7 @@ export class RepositoryManager {
                 const destPath = Path.join(attachmentFolder, newKey);
                 attachment.path = `attachments/${newKey}`;
                 attachment.name = destKey; // Update the name to the new key
-                if (attachment.contentType === 'mediafire') {
+                if (!attachment.canDownload) {
                     await fs.writeFile(destPath, attachment.url || '', 'utf-8');
                 } else {
                     await fs.copyFile(sourcePath, destPath);

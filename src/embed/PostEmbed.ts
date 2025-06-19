@@ -27,7 +27,7 @@ export class PostEmbed {
         const files: AttachmentBuilder[] = [];
         const attachments = entryData.attachments;
         attachments.forEach(attachment => {
-            if (attachment.contentType === 'mediafire' || !attachment.path) {
+            if (!attachment.canDownload || !attachment.path) {
                 return;
             }
 
@@ -82,9 +82,17 @@ export class PostEmbed {
                 if (attachment.contentType === 'mediafire') {
                     description += `- [${attachment.name}](${attachment.url}): Mediafire link\n`
                     return;
+                } else if (attachment.contentType === 'youtube') {
+                    description += `- [${attachment.name}](${attachment.url}): YouTube link\n`
+                    return;
+                } else if (attachment.canDownload) {
+                    const url = attachmentURLs.get(attachment.name) || attachment.url;
+                    description += `- ${url} [Github](${rawURL}/${attachment.path}): Discord link\n`
+                    return;
+                } else {
+                    description += `- [${escapeString(attachment.name)}](${attachment.url}): ContentType ${attachment.contentType}\n`
+                    return;
                 }
-                const url = attachmentURLs.get(attachment.name) || attachment.url;
-                description += `- ${url} [Github](${rawURL}/${attachment.path}): ${attachment.contentType}\n`
             })
         }
 
