@@ -139,7 +139,7 @@ export class GuildHolder {
         }
 
         const logChannel = await this.getGuild().channels.fetch(logChannelId);
-        if (!logChannel || logChannel.type !== ChannelType.GuildText) {
+        if (!logChanne) {
             console.warn('Log channel not found or not a text channel, skipping log message');
             return;
         }
@@ -232,7 +232,7 @@ export class GuildHolder {
         }
 
         const logChannel = await this.getGuild().channels.fetch(logChannelId);
-        if (!logChannel || logChannel.type !== ChannelType.GuildText) {
+        if (!logChannel) {
             console.warn('Log channel not found or not a text channel, skipping log message');
             return;
         }
