@@ -15,7 +15,19 @@ export class SetImagesMenu implements Menu {
 
     async getBuilder(submission: Submission): Promise<StringSelectMenuBuilder> {
         const attachments = await submission.getAttachments()
-        const imageAttachments = attachments.filter(attachment => attachment.contentType && (attachment.contentType.startsWith('image/png') || attachment.contentType.startsWith('image/jpeg')))
+        const imageAttachments = attachments.filter(attachment => {
+            if (!attachment.contentType) {
+                return false;
+            }
+            if (attachment.name.endsWith('.png') || attachment.name.endsWith('.jpg') || attachment.name.endsWith('.jpeg')) {
+                return true;
+            }
+            
+            if (attachment.contentType.startsWith('image/png') || attachment.contentType.startsWith('image/jpeg')) {
+                return true;
+            }
+            return false;
+        })
 
         if (!imageAttachments.length) {
             return new StringSelectMenuBuilder()
