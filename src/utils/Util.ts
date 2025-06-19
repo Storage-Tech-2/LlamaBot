@@ -108,6 +108,9 @@ export async function getAllAttachments(channel: TextThreadChannel): Promise<Att
         }
         if (message.attachments.size > 0) {
             message.attachments.forEach(attachment => {
+                if (attachments.some(attachment2 => attachment2.id === attachment.id)) {
+                    return;
+                }
                 attachments.push({
                     id: attachment.id,
                     name: attachment.name,
@@ -487,7 +490,7 @@ export function getChange<T>(old: T, updated: T): Change<T> | undefined {
     return { old, new: updated };
 }
 
-export function getChangeIDs<T extends {id: Snowflake}>(old: T[], updated: T[]): Change<T[]> | undefined {
+export function getChangeIDs<T extends { id: Snowflake }>(old: T[], updated: T[]): Change<T[]> | undefined {
     // Create sets for old and new arrays
     const oldSet = new Set(old.map(item => item.id));
     const newSet = new Set(updated.map(item => item.id));
@@ -499,7 +502,7 @@ export function getChangeIDs<T extends {id: Snowflake}>(old: T[], updated: T[]):
     return { old, new: updated };
 }
 
-export function getChangeNames<T extends {name: string}>(old: T[], updated: T[]): Change<T[]> | undefined {
+export function getChangeNames<T extends { name: string }>(old: T[], updated: T[]): Change<T[]> | undefined {
     // Create sets for old and new arrays
     const oldSet = new Set(old.map(item => item.name));
     const newSet = new Set(updated.map(item => item.name));
