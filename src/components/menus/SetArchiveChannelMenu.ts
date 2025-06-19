@@ -101,7 +101,7 @@ export class SetArchiveChannelMenu implements Menu {
             const row = new ActionRowBuilder()
                 .addComponents(component);
             await interaction.followUp({
-                content: `<@${interaction.user.id}> Please select tags`,
+                content: `Please select tags`,
                 components: [row as any],
                 flags: MessageFlags.Ephemeral
             })

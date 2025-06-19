@@ -140,7 +140,7 @@ export class SetAuthorsMenu implements Menu {
             const row = new ActionRowBuilder()
                 .addComponents(await new SetArchiveCategoryMenu().getBuilder(guildHolder))
             await interaction.followUp({
-                content: `<@${interaction.user.id}> Please select an archive category for your submission`,
+                content: `Please select an archive category for your submission`,
                 components: [row as any],
                 flags: MessageFlags.Ephemeral
             })
@@ -227,7 +227,7 @@ export class SetAuthorsMenu implements Menu {
             const row = new ActionRowBuilder()
                 .addComponents(await new SetArchiveCategoryMenu().getBuilder(guildHolder))
             await interaction.followUp({
-                content: `<@${interaction.user.id}> Please select an archive category for your submission`,
+                content: `Please select an archive category for your submission`,
                 components: [row as any],
                 flags: MessageFlags.Ephemeral
             })

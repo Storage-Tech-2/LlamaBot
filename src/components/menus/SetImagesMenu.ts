@@ -153,13 +153,13 @@ export class SetImagesMenu implements Menu {
                 const row = new ActionRowBuilder()
                     .addComponents(menu)
                 await interaction.followUp({
-                    content: `<@${interaction.user.id}> Please choose other attachments (Schematics/WDLS) for your submission`,
+                    content: `Please choose other attachments (Schematics/WDLS) for your submission`,
                     components: [row as any],
                     flags: MessageFlags.Ephemeral
                 })
             } else {
                 await interaction.followUp({
-                    content: `<@${interaction.user.id}> No other attachments found! Try uploading files first then press the button below.`,
+                    content: `No other attachments found! Try uploading files first then press the button below.`,
                     flags: MessageFlags.Ephemeral,
                     components: [
                         new ActionRowBuilder().addComponents(

@@ -40,28 +40,28 @@ export class SetAttachmentsButton implements Button {
 
         if (imagesMenuBuilder) {
             const row1 = new ActionRowBuilder().addComponents(imagesMenuBuilder);
-            await replyEphemeral(interaction, `<@${interaction.user.id}> Please select image attachments for the submission`,
+            await replyEphemeral(interaction, `Please select image attachments for the submission`,
                 {
                     components: [row1 as any],
                 });
         } else if (menuBuilder || !shouldAlsoAskAttachments) {
             const row = new ActionRowBuilder()
                 .addComponents(await new SetAttachmentsButton().getBuilder(false));
-            await replyEphemeral(interaction, `<@${interaction.user.id}> No image attachments found! Try uploading images first and then use this button again.`,{
+            await replyEphemeral(interaction, `No image attachments found! Try uploading images first and then use this button again.`,{
                 components: [row as any]
             });
         }
 
         if (menuBuilder) {
             const row2 = new ActionRowBuilder().addComponents(menuBuilder);
-            await replyEphemeral(interaction, `<@${interaction.user.id}> Please select other attachments (Schematics/WDLs) for the submission`,
+            await replyEphemeral(interaction, `Please select other attachments (Schematics/WDLs) for the submission`,
                 {
                     components: [row2 as any],
                 });
         } else if (shouldAlsoAskAttachments) {
             const row = new ActionRowBuilder()
                 .addComponents(await new SetAttachmentsButton().getBuilder(false));
-            await replyEphemeral(interaction, `<@${interaction.user.id}> No attachments found! Try uploading files first and then use this button again.`, {
+            await replyEphemeral(interaction, `No attachments found! Try uploading files first and then use this button again.`, {
                 components: [row as any]
             });
         }

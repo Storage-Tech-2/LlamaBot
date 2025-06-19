@@ -33,10 +33,8 @@ export class SetTagsButton implements Button {
         const menuBuilder = await tagsMenu.getBuilder(guildHolder, isMod, submission);
         const row = new ActionRowBuilder().addComponents(menuBuilder);
 
-        await interaction.reply({
-            content: `<@${interaction.user.id}> Please select tag(s) for the submission`,
+        await replyEphemeral(interaction, `Please select tag(s) for the submission`, {
             components: [row as any],
-            ephemeral: true
         });
     }
 }
