@@ -41,7 +41,7 @@ export class Mwa implements Command {
                             .setName('channel')
                             .setDescription('Channel to send update logs to')
                             .setRequired(true)
-                            .addChannelTypes(ChannelType.GuildText)
+                            .addChannelTypes(ChannelType.GuildAnnouncement, ChannelType.GuildText)
                     )
             )
             .addSubcommand(subcommand =>
