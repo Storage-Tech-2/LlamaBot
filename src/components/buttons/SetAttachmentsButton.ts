@@ -4,6 +4,7 @@ import { Button } from "../../interface/Button.js";
 import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
 import { SetAttachmentsMenu } from "../menus/SetAttachmentsMenu.js";
 import { SetImagesMenu } from "../menus/SetImagesMenu.js";
+import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 
 export class SetAttachmentsButton implements Button {
     getID(): string {
@@ -33,8 +34,9 @@ export class SetAttachmentsButton implements Button {
         const imagesMenu = new SetImagesMenu();
         const attachmentsMenu = new SetAttachmentsMenu();
 
+        const shouldAlsoAskAttachments = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) !== null;
         const imagesMenuBuilder = await imagesMenu.getBuilderOrNull(submission);
-        const menuBuilder = await attachmentsMenu.getBuilderOrNull(guildHolder, submission);
+        const menuBuilder = shouldAlsoAskAttachments ? await attachmentsMenu.getBuilderOrNull(guildHolder, submission) : null;
 
         if (imagesMenuBuilder) {
             const row1 = new ActionRowBuilder().addComponents(imagesMenuBuilder);
@@ -42,7 +44,7 @@ export class SetAttachmentsButton implements Button {
                 {
                     components: [row1 as any],
                 });
-        } else if (menuBuilder) {
+        } else if (menuBuilder || !shouldAlsoAskAttachments) {
             const row = new ActionRowBuilder()
                 .addComponents(await new SetAttachmentsButton().getBuilder(false));
             await replyEphemeral(interaction, `<@${interaction.user.id}> No image attachments found! Try uploading images first and then use this button again.`,{
@@ -56,7 +58,7 @@ export class SetAttachmentsButton implements Button {
                 {
                     components: [row2 as any],
                 });
-        } else {
+        } else if (shouldAlsoAskAttachments) {
             const row = new ActionRowBuilder()
                 .addComponents(await new SetAttachmentsButton().getBuilder(false));
             await replyEphemeral(interaction, `<@${interaction.user.id}> No attachments found! Try uploading files first and then use this button again.`, {
