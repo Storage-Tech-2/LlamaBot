@@ -110,11 +110,10 @@ export class Submission {
         }
 
         // If no revisions, we can start the extraction process
-        const prompt = new ExtractionPrompt(message.content)
-        const request = new LLMRequest(1, prompt);
-        this.extractionResults = this.guildHolder.getBot().llmQueue.addRequest(request);
-
         try {
+            const prompt = new ExtractionPrompt(message.content)
+            const request = new LLMRequest(1, prompt);
+            this.extractionResults = this.guildHolder.getBot().llmQueue.addRequest(request);
             await this.extractionResults.getResponse();
         } catch (error) {
             console.error('Error getting LLM response:', error);
@@ -336,7 +335,7 @@ export class Submission {
         }
 
         await this.updateTags(); // Update tags based on the current status
-        
+
     }
 
     public async updateTags() {
@@ -444,10 +443,10 @@ export class Submission {
 
         const wmsg = await message.reply('Processing revision, please wait')
 
-        this.llmReviseResponse = this.useLLMRevise(message.content, revision)
-
+       
         let response
         try {
+            this.llmReviseResponse = this.useLLMRevise(message.content, revision)
             response = await this.llmReviseResponse.getResponse();
             await wmsg.delete()
         } catch (error) {
