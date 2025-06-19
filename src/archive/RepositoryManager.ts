@@ -51,7 +51,7 @@ export class RepositoryManager {
 
         // try pull
         try {
-            await this.git.pull('origin', 'master');
+            await this.git.pull('origin', 'main');
         } catch (e: any) {
             console.error("Error pulling from remote:", e.message);
         }
@@ -71,7 +71,7 @@ export class RepositoryManager {
         }
         await this.git.addRemote('origin', url);
         try {
-            await this.git.push(['-u', 'origin', 'master']);
+            await this.git.push(['-u', 'origin', 'main']);
         } catch (e) {
             console.error("Error pushing to remote:", e);
         }
