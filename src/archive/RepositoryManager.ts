@@ -673,6 +673,8 @@ export class RepositoryManager {
                 console.error("Error pushing to remote:", e.message);
             }
 
+            this.lock.release();
+
             return entryData;
         } catch (e) {
             this.lock.release();
