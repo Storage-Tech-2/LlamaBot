@@ -134,11 +134,10 @@ export class SetTagsMenu implements Menu {
         if (tagsUnset) {
             const row = new ActionRowBuilder()
                 .addComponents(await new SetImagesMenu().getBuilder(submission))
-            await interaction.followUp({
-                content: `<@${interaction.user.id}> Please choose image attachments for your submission`,
+            await replyEphemeral(interaction, `<@${interaction.user.id}> Please choose image attachments for your submission`,
+            {
                 components: [row as any],
-                flags: MessageFlags.Ephemeral
-            })
+            });
         }
 
         submission.checkReview()
