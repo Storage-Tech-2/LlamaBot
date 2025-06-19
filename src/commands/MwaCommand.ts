@@ -198,8 +198,30 @@ export class Mwa implements Command {
         });
 
         const currentCategories = guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
-        // get all channels in categories
+
         const allchannels = await guildHolder.getGuild().channels.fetch()
+
+        // get all categories in the guild
+        const categories = guildHolder.getGuild().channels.cache.filter(channel => {
+            return channel && channel.type === ChannelType.GuildCategory && currentCategories.includes(channel.id)
+        });
+
+        for (const category of categories.values()) {
+            // set permissions
+            if (category.type !== ChannelType.GuildCategory) {
+                continue;
+            }
+
+            const permissions = category.permissionOverwrites;
+            await permissions.edit(guildHolder.getGuild().roles.everyone, {
+                SendMessages: false,
+                SendMessagesInThreads: false,
+                CreatePrivateThreads: false,
+                CreatePublicThreads: false,
+            })
+        }
+        
+        // get all channels in categories
         const channels = allchannels.filter(channel => {
             return channel && channel.type === ChannelType.GuildForum && channel.parentId && currentCategories.includes(channel.parentId)
         }) as unknown as ForumChannel[];
