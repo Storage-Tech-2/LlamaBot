@@ -61,7 +61,7 @@ export function replyEphemeral(interaction: any, content: string, options = {}) 
 
 
 export async function getAllAttachments(channel: TextThreadChannel): Promise<Attachment[]> {
-    const attachments: Attachment[] = [];
+    let attachments: Attachment[] = [];
 
     await iterateAllMessages(channel, async (message: Message) => {
         if (message.author.bot) {
@@ -92,6 +92,7 @@ export async function getAllAttachments(channel: TextThreadChannel): Promise<Att
                         // https://cdn.discordapp.com/attachments/749137321710059542/912059917106548746/Unbreakable_8gt_reset_6gt_box_replacement.litematic?ex=6832c4bd&is=6831733d&hm=1e5ff51ca94199d70f26ad2611715c86afbb095e3da120416e55352ccf43f7a4&
                         const id = url.split('/')[5]
                         const name = url.split('/')[6].split('?')[0]
+                        console.log('Found Discord CDN attachment:', id, name, url)
                         if (attachments.some(attachment => attachment.id === id)) {
                             return;
                         }
@@ -109,6 +110,8 @@ export async function getAllAttachments(channel: TextThreadChannel): Promise<Att
         if (message.attachments.size > 0) {
             message.attachments.forEach(attachment => {
                 if (attachments.some(attachment2 => attachment2.id === attachment.id)) {
+                    // remove duplicate
+                    attachments = attachments.filter(a => a.id !== attachment.id);
                     return;
                 }
                 attachments.push({

@@ -16,7 +16,6 @@ export class SetImagesMenu implements Menu {
     async getBuilder(submission: Submission): Promise<StringSelectMenuBuilder> {
         const attachments = await submission.getAttachments()
         const imageAttachments = attachments.filter(attachment => {
-            console.log(attachment);
             if (!attachment.contentType) {
                 return false;
             }
