@@ -23,7 +23,7 @@ export class MakeRevisionCurrentButton implements Button {
             return;
         }
 
-        if (canEditSubmission(interaction, submission)) {
+        if (!canEditSubmission(interaction, submission)) {
             replyEphemeral(interaction, "You do not have permission to use this!");
             return;
         }

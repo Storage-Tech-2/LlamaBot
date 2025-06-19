@@ -55,6 +55,7 @@ export class RepositoryManager {
         } catch (e: any) {
             console.error("Error pulling from remote:", e.message);
         }
+
         await this.lock.release();
     }
 
@@ -116,7 +117,7 @@ export class RepositoryManager {
         for (const channel of removedChannels) {
             const channelPath = Path.join(this.folderPath, channel.path);
             // Commit the removal
-            await this.git.rm([channelPath]);
+            await fs.rm(channelPath, { recursive: true, force: true });
             await this.git.commit(`Removed channel ${channel.name} (${channel.code})`);
         }
 
@@ -229,7 +230,41 @@ export class RepositoryManager {
         await this.lock.release();
     }
 
+    async findEntryBySubmissionId(submissionId: string): Promise<null | {
+        channelRef: ArchiveChannelReference,
+        channel: ArchiveChannel,
+        entry: ArchiveEntry,
+        entryRef: ArchiveEntryReference,
+        entryIndex: number
+    }> {
+        const channelReferences = this.getChannelReferences();
+        for (const channelRef of channelReferences) {
+            const channelPath = Path.join(this.folderPath, channelRef.path);
+            const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
+            const entries = archiveChannel.getData().entries;
+            const entryIndex = entries.findIndex(e => e.id === submissionId);
+            if (entryIndex !== -1) {
+                const entryRef = entries[entryIndex];
+                const entryPath = Path.join(channelPath, entryRef.path);
+                const entry = await ArchiveEntry.fromFolder(entryPath);
+                return {
+                    channelRef,
+                    channel: archiveChannel,
+                    entry,
+                    entryRef,
+                    entryIndex
+                };
+            }
+        }
+
+        return null;
+    }
+
     async addOrUpdateEntry(submission: Submission): Promise<{ oldEntryData?: ArchiveEntryData, newEntryData: ArchiveEntryData }> {
+
+        if (!this.git) {
+            throw new Error("Git not initialized");
+        }
         await this.lock.acquire();
         try {
             const archiveChannelId = submission.getConfigManager().getConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID);
@@ -237,17 +272,21 @@ export class RepositoryManager {
                 throw new Error("Submission does not have an archive channel set");
             }
 
+
             const archiveChannelRef = this.getChannelReferences().find(c => c.id === archiveChannelId);
             if (!archiveChannelRef) {
                 throw new Error("Archive channel reference not found");
             }
-
             const channelPath = Path.join(this.folderPath, archiveChannelRef.path);
             const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
 
-            const existingEntryIndex = archiveChannel.getData().entries.findIndex(e => e.id === submission.getId());
-            const existingEntryRef = existingEntryIndex !== -1 ? archiveChannel.getData().entries[existingEntryIndex] : null;
-            const existingEntry = existingEntryRef ? await ArchiveEntry.fromFolder(Path.join(channelPath, existingEntryRef.path)) : null;
+
+            // Find old entry if it exists
+            const existing = await this.findEntryBySubmissionId(submission.getId());
+            const isSameChannel = existing && existing.channelRef.id === archiveChannelId;
+            const newCode = isSameChannel ? existing.entryRef.code : (archiveChannel.getData().code + (++archiveChannel.getData().currentCodeId).toString().padStart(3, '0'));
+
+
 
             const revisionReference = submission.getRevisionsManager().getCurrentRevision();
             if (!revisionReference) {
@@ -273,11 +312,9 @@ export class RepositoryManager {
             const features = revision.features || [];
             const considerations = revision.considerations || [];
             const notes = revision.notes || '';
-            const post = submission.getConfigManager().getConfig(SubmissionConfigs.POST) || undefined;
+           
 
 
-
-            const newCode = existingEntryRef ? existingEntryRef.code : (archiveChannel.getData().code + (++archiveChannel.getData().currentCodeId).toString().padStart(3, '0'));
             const entryData: ArchiveEntryData = deepClone({
                 id: submission.getId(),
                 name,
@@ -292,7 +329,7 @@ export class RepositoryManager {
                 considerations,
                 notes,
                 timestamp: Date.now(),
-                post
+                post: undefined, // post will be set later
             });
 
             const entryRef: ArchiveEntryReference = {
@@ -303,7 +340,37 @@ export class RepositoryManager {
                 path: `${entryData.code}_${escapeString(entryData.name) || ''}`,
             }
 
+
             const entryFolder = Path.join(channelPath, entryRef.path);
+            if (existing) {
+                const existingFolder = Path.join(existing.channel.getFolderPath(), existing.entryRef.path);
+                if (existingFolder !== entryFolder) {
+                    // If the folder is different, we need to rename the old folder
+                    await this.git.mv(existingFolder, entryFolder);
+                }
+
+                if (!isSameChannel) {
+                    // If the channel is different, we need to remove the old entry from the old channel
+                    existing.channel.getData().entries.splice(existing.entryIndex, 1);
+                    await existing.channel.save();
+
+                    // Also remove old discord post if it exists
+                    const post = existing.entry.getData().post;
+                    if (post) {
+                        const publishForumId = post.forumId;
+                        const publishForum = await submission.getGuildHolder().getGuild().channels.fetch(publishForumId);
+                        if (publishForum && publishForum.type === ChannelType.GuildForum) {
+                            const thread = await publishForum.threads.fetch(post.threadId);
+                            if (thread) {
+                                await thread.delete('Entry moved to a different channel');
+                            }
+                        }
+                    }
+                } else {
+                    entryData.post = existing.entry.getData().post;
+                }
+            }
+
             await fs.mkdir(entryFolder, { recursive: true });
             const entry = new ArchiveEntry(entryData, entryFolder);
 
@@ -379,19 +446,15 @@ export class RepositoryManager {
                 }
             }
 
-            if (existingEntry) {
-                const dt = deepClone(existingEntry.getData());
+            if (existing && isSameChannel) {
+                const dt = deepClone(existing.entry.getData());
                 dt.timestamp = entryData.timestamp;
                 // compare the data
-                console.log(dt, entryData, areObjectsIdentical(dt, entryData));
                 if (areObjectsIdentical(dt, entryData)) {
                     throw new Error("No changes detected in the entry data");
                 }
-            }
-
-            if (existingEntryRef) {
-                // Update existing entry
-                archiveChannel.getData().entries[existingEntryIndex] = entryRef;
+            
+                archiveChannel.getData().entries[existing.entryIndex] = entryRef;
             } else {
                 // New entry
                 archiveChannel.getData().entries.push(entryRef);
@@ -402,7 +465,6 @@ export class RepositoryManager {
             if (!publishChannel || publishChannel.type !== ChannelType.GuildForum) {
                 throw new Error('Publish channel not found or is not a forum channel');
             }
-
 
             let thread;
             if (entryData.post) {
@@ -447,16 +509,12 @@ export class RepositoryManager {
             await entry.save();
             await archiveChannel.save();
 
-            // Commit the new entry
-            if (!this.git) {
-                throw new Error("Git not initialized");
-            }
-
             await this.git.add(entryFolder);
             await this.git.add(channelPath); // to update currentCodeId and entries
-            if (existingEntryRef && existingEntry) {
 
-                await this.git.commit(generateCommitMessage(existingEntry.getData(), entryData));
+            if (existing) {
+
+                await this.git.commit(generateCommitMessage(existing.entry.getData(), entryData));
             } else {
                 await this.git.commit(`Added entry ${entryData.name} (${entryData.code}) to channel ${archiveChannel.getData().name} (${archiveChannel.getData().code})`);
             }
@@ -464,9 +522,9 @@ export class RepositoryManager {
             // Now post to discord
 
             // First, upload attachments
-           
+
             const commitID = await this.git.revparse('HEAD');
-            
+
             const attachmentUpload = await PostEmbed.createAttachmentUpload(submission, submissionChannel.url, commitID, entryFolder, entryData);
             const uploadMessage = await submissionChannel.send({
                 content: attachmentUpload.content,
@@ -501,7 +559,7 @@ export class RepositoryManager {
             await this.push();
             await this.lock.release();
             return {
-                oldEntryData: existingEntry ? existingEntry.getData() : undefined,
+                oldEntryData: existing ? existing.entry.getData() : undefined,
                 newEntryData: entry.getData()
             }
         } catch (e) {
@@ -517,33 +575,16 @@ export class RepositoryManager {
         await this.lock.acquire();
         try {
             // Find archived entry in all channels
-            const channels = this.getChannelReferences();
-
-            let foundChannel: ArchiveChannel | null = null;
-            let foundEntryIndex = -1;
-
-            for (const channelRef of channels) {
-                const channelPath = Path.join(this.folderPath, channelRef.path);
-                const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
-                const entryIndex = archiveChannel.getData().entries.findIndex(e => e.id === submission.getId());
-                if (entryIndex !== -1) {
-                    foundChannel = archiveChannel;
-                    foundEntryIndex = entryIndex;
-                    break;
-                }
+            const found = await this.findEntryBySubmissionId(submission.getId());
+            if (!found) {
+                throw new Error(`Submission ${submission.getId()} not found in any archive channel`);
             }
-
-            if (!foundChannel) {
-                throw new Error(`No archived entry found for submission ${submission.getId()}`);
-            }
-
-            const entryRef = foundChannel.getData().entries[foundEntryIndex];
-            const entryPath = Path.join(foundChannel.getFolderPath(), entryRef.path);
-            const entry = await ArchiveEntry.fromFolder(entryPath);
-            const entryData = entry.getData();
+            const { channel: foundChannel, entry: foundEntry, entryIndex: foundEntryIndex } = found;
+            const entryData = foundEntry.getData();
+            const entryPath = foundEntry.getFolderPath();
 
             // Remove the entry
-            await this.git.rm(entryPath);
+            await fs.rm(entryPath, { recursive: true, force: true });
             foundChannel.getData().entries.splice(foundEntryIndex, 1);
             await foundChannel.save();
 
@@ -565,7 +606,13 @@ export class RepositoryManager {
             }
 
             await thread.delete(reason || 'No reason provided');
-            
+
+            // Remove post
+            submission.getConfigManager().setConfig(SubmissionConfigs.POST, null);
+            await submission.save();
+
+            await this.push();
+
             return entryData;
         } catch (e) {
             this.lock.release();

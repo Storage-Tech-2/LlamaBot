@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType } from "discord.js";
 import { GuildHolder } from "../GuildHolder";
 import { Command } from "../interface/Command";
-import { isEndorser, replyEphemeral } from "../utils/Util";
+import { isEditor, isEndorser, isModerator, replyEphemeral } from "../utils/Util";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs";
 import { AuthorType } from "../submissions/Author";
 
@@ -28,7 +28,7 @@ export class EndorseCommand implements Command {
         
         // Check if user has endorse role
         if (
-            !isEndorser(interaction, guildHolder)
+            !isEndorser(interaction, guildHolder) && !isModerator(interaction) && !isEditor(interaction, guildHolder)
         ) {
             replyEphemeral(interaction, 'You do not have permission to use this command!');
             return;

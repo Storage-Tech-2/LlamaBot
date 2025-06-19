@@ -3,7 +3,7 @@ import { Button } from '../interface/Button'
 import { Menu } from '../interface/Menu'
 import { Modal } from '../interface/Modal'
 import { Secrets } from '../Bot'
-import { Interaction, Message, MessageFlags, PermissionFlagsBits, REST, Routes, TextBasedChannel, TextThreadChannel } from 'discord.js'
+import { Interaction, Message, MessageFlags, PermissionFlagsBits, REST, Routes, Snowflake, TextBasedChannel, TextThreadChannel } from 'discord.js'
 import { GuildHolder } from '../GuildHolder'
 import { Attachment } from '../submissions/Attachment'
 import { Image } from '../submissions/Image'
@@ -17,6 +17,7 @@ import { ArchiveEntryData } from '../archive/ArchiveEntry'
 import { GuildConfigs } from '../config/GuildConfigs'
 import { Submission } from '../submissions/Submission'
 import { SubmissionConfigs } from '../submissions/SubmissionConfigs'
+import { Tag } from '../submissions/Tag'
 
 export function getItemsFromArray<T extends (Button | Menu | Modal | Command)>(itemArray: T[]): Map<string, T> {
     const items = new Map()
@@ -453,40 +454,107 @@ export function areObjectsIdentical<T>(obj1: T, obj2: T): boolean {
     return true; // all keys and values match
 }
 
+export type Change<T> = {
+    old: T;
+    new: T;
+}
+
+export type Changes = {
+    name?: Change<string>;
+    code?: Change<string>;
+    authors?: Change<Author[]>;
+    endorsers?: Change<Author[]>;
+    tags?: Change<Tag[]>;
+    description?: Change<string>;
+    features?: Change<string[]>;
+    considerations?: Change<string[]>;
+    notes?: Change<string>;
+    images?: Change<Image[]>;
+    attachments?: Change<Attachment[]>;
+}
+
+export function getChange<T>(old: T, updated: T): Change<T> | undefined {
+    if (areObjectsIdentical(old, updated)) {
+        return undefined;
+    }
+    return { old, new: updated };
+}
+
+export function getChangeIDs<T extends {id: Snowflake}>(old: T[], updated: T[]): Change<T[]> | undefined {
+    // Create sets for old and new arrays
+    const oldSet = new Set(old.map(item => item.id));
+    const newSet = new Set(updated.map(item => item.id));
+
+    // Check if the sets are identical
+    if (newSet.size === oldSet.size && oldSet.intersection(newSet).size === oldSet.size) {
+        return undefined; // No changes
+    }
+    return { old, new: updated };
+}
+
+export function getChangeNames<T extends {name: string}>(old: T[], updated: T[]): Change<T[]> | undefined {
+    // Create sets for old and new arrays
+    const oldSet = new Set(old.map(item => item.name));
+    const newSet = new Set(updated.map(item => item.name));
+
+    // Check if the sets are identical
+    if (newSet.size === oldSet.size && oldSet.intersection(newSet).size === oldSet.size) {
+        return undefined; // No changes
+    }
+    return { old, new: updated };
+}
+
+
+export function getChanges(
+    existing: ArchiveEntryData,
+    updated: ArchiveEntryData,
+): Changes {
+    return {
+        name: getChange(existing.name, updated.name),
+        code: getChange(existing.code, updated.code),
+        authors: getChange(existing.authors, updated.authors),
+        endorsers: getChange(existing.endorsers, updated.endorsers),
+        tags: getChangeNames(existing.tags, updated.tags),
+        description: getChange(existing.description, updated.description),
+        features: getChange(existing.features, updated.features),
+        considerations: getChange(existing.considerations, updated.considerations),
+        notes: getChange(existing.notes, updated.notes),
+        images: getChangeIDs(existing.images, updated.images),
+        attachments: getChangeIDs(existing.attachments, updated.attachments)
+    }
+}
+
+export function truncateStringWithEllipsis(str: string, maxLength: number): string {
+    if (str.length <= maxLength) {
+        return str;
+    }
+    return str.substring(0, maxLength - 3) + '...';
+}
 
 export function generateCommitMessage(
     existing: ArchiveEntryData,
     updated: ArchiveEntryData,
 ): string {
     // --- Diff checks ---------------------------------------------------------
-    const nameChanged = existing.name !== updated.name;
-    const authorsChanged = !areObjectsIdentical(existing.authors, updated.authors);
-    const endorsersChanged = !areObjectsIdentical(existing.endorsers, updated.endorsers);
-    const tagsChanged = !areObjectsIdentical(existing.tags, updated.tags);
-    const descriptionChanged = existing.description !== updated.description;
-    const featuresChanged = !areObjectsIdentical(existing.features, updated.features);
-    const considerationsChanged = !areObjectsIdentical(existing.considerations, updated.considerations);
-    const notesChanged = existing.notes !== updated.notes;
-    const imagesChanged = !areObjectsIdentical(existing.images, updated.images);
-    const attachmentsChanged = !areObjectsIdentical(existing.attachments, updated.attachments);
-    const postChanged = !areObjectsIdentical(existing.post, updated.post);
-
+    const changes = getChanges(existing, updated);
     // --- Build message fragments --------------------------------------------
     const fragments: string[] = [];
 
-    if (nameChanged) {
-        fragments.push(`renamed “${existing.name}” to “${updated.name}”`);
+    if (changes.code) {
+        fragments.push(`code changed from “${changes.code.old}” to “${changes.code.new}”`);
     }
-    if (authorsChanged) fragments.push("updated authors");
-    if (endorsersChanged) fragments.push("updated endorsers");
-    if (tagsChanged) fragments.push("updated tags");
-    if (descriptionChanged) fragments.push("updated description");
-    if (featuresChanged) fragments.push("updated features");
-    if (considerationsChanged) fragments.push("updated considerations");
-    if (notesChanged) fragments.push("updated notes");
-    if (imagesChanged) fragments.push("updated images");
-    if (attachmentsChanged) fragments.push("updated attachments");
-    if (postChanged) fragments.push("updated post");
+    if (changes.name) {
+        fragments.push(`renamed “${changes.name.old}” to “${changes.name.new}”`);
+    }
+    if (changes.authors) fragments.push("updated authors");
+    if (changes.endorsers) fragments.push("updated endorsers");
+    if (changes.tags) fragments.push("updated tags");
+    if (changes.description) fragments.push("updated description");
+    if (changes.features) fragments.push("updated features");
+    if (changes.considerations) fragments.push("updated considerations");
+    if (changes.notes) fragments.push("updated notes");
+    if (changes.images) fragments.push("updated images");
+    if (changes.attachments) fragments.push("updated attachments");
 
     // --- Assemble final commit message --------------------------------------
     if (fragments.length === 0) {

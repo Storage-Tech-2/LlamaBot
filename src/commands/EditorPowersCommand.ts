@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType } from "discord.js";
 import { GuildHolder } from "../GuildHolder";
 import { Command } from "../interface/Command";
-import { isEndorser, replyEphemeral } from "../utils/Util";
+import { isEditor, isEndorser, isModerator, replyEphemeral } from "../utils/Util";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs";
 import { SubmissionStatus } from "../submissions/SubmissionStatus";
 
@@ -84,7 +84,7 @@ export class EditorPowersCommand implements Command {
 
         // Check if user has endorse role
         if (
-            !isEndorser(interaction, guildHolder)
+            !isEditor(interaction, guildHolder) && !isModerator(interaction)
         ) {
             replyEphemeral(interaction, 'You do not have permission to use this command!');
             return;
@@ -173,6 +173,7 @@ export class EditorPowersCommand implements Command {
                 try {
                     await submission.retract();
                 } catch (e: any) {
+                    console.error(e);
                     replyEphemeral(interaction, 'Failed to retract submission: ' + e.message);
                     return;
                 }

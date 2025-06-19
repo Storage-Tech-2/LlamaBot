@@ -12,7 +12,7 @@ export class PublishButton implements Button {
     async getBuilder(is_published: boolean): Promise<ButtonBuilder> {
         return new ButtonBuilder()
             .setCustomId(this.getID())
-            .setLabel(is_published ? 'Publish!' : 'Republish!')
+            .setLabel(is_published ? 'Republish!' : 'Publish!')
             .setStyle(ButtonStyle.Success);
     }
 
