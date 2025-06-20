@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType, MessageFlags } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { replyEphemeral } from "../utils/Util.js";
@@ -39,6 +39,7 @@ export class GetThanksCommand implements Command {
         
         const origMessage = await interaction.reply({
             content: `Fetching thank-you points...`,
+            flags: [MessageFlags.SuppressNotifications]
         });
 
         let message = `<@${userData.id}> has a total of ${userData.thankedCountTotal} thank-you points in this server.`;
