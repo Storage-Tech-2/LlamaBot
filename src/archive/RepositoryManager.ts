@@ -4,7 +4,7 @@ import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
 import { ChannelType, ForumChannel, MessageFlags } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
-import { areObjectsIdentical, deepClone, escapeString, generateCommitMessage, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject } from "../utils/Util.js";
+import { deepClone, escapeString, generateCommitMessage, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject } from "../utils/Util.js";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";
 import { Submission } from "../submissions/Submission.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
