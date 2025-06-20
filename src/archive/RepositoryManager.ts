@@ -743,12 +743,11 @@ export class RepositoryManager {
 
                         const files: AttachmentBuilder[] = [];
                         if (comment.attachments.length > 0) {
-                            const commentAttachmentFolder = Path.join(entryFolder, 'comments_attachments');
                             for (const attachment of comment.attachments) {
                                 if (!attachment.canDownload || !attachment.path || attachment.contentType === 'discord') {
                                     continue; // Skip attachments that cannot be downloaded or have no path
                                 }
-                                const attachmentPath = Path.join(commentAttachmentFolder, attachment.path);
+                                const attachmentPath = Path.join(entryFolder, attachment.path);
                                 if (await fs.access(attachmentPath).then(() => true).catch(() => false)) {
                                     const file = new AttachmentBuilder(attachmentPath);
                                     file.setName(attachment.name);
