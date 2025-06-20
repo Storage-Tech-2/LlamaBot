@@ -74,27 +74,15 @@ export class RepositoryManager {
         await this.getPostToSubmissionIndex();
     }
 
+    getIndexPath() {
+        return Path.join(this.folderPath, 'post_to_submission_index.json');
+    }
 
     async getPostToSubmissionIndex() {
-        if (!this.git) {
-            console.error("Git not initialized");
-            return;
-        }
-
-        const filePath = Path.join(this.folderPath, 'post_to_submission_index.json');
+        const filePath = this.getIndexPath();
         if (!await fs.access(filePath).then(() => true).catch(() => false)) {
             // If the file does not exist, create it
             await fs.writeFile(filePath, JSON.stringify({}, null, 2), 'utf-8');
-            await this.lock.acquire();
-            try {
-                await this.git.add(filePath);
-                await this.git.commit('Create Post to Submission Index');
-                await this.push();
-            } catch (e: any) {
-                console.error("Error committing post_to_submission_index.json:", e.message);
-            }
-            await this.lock.release();
-
             return {};
         } else {
             // If the file exists, read it
@@ -112,17 +100,8 @@ export class RepositoryManager {
         if (!this.git) {
             throw new Error("Git not initialized");
         }
-        const filePath = Path.join(this.folderPath, 'post_to_submission_index.json');
+        const filePath = this.getIndexPath();
         await fs.writeFile(filePath, JSON.stringify(index, null, 2), 'utf-8');
-        await this.lock.acquire();
-        try {
-            await this.git.add(filePath);
-            await this.git.commit('Update Post to Submission Index');
-            await this.push();
-        } catch (e: any) {
-            console.error("Error committing post_to_submission_index.json:", e.message);
-        }
-        await this.lock.release();
     }
 
     async getSubmissionIDByPostID(postID: Snowflake): Promise<Snowflake | null> {
