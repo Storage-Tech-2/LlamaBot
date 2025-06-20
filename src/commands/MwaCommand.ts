@@ -205,7 +205,14 @@ export class Mwa implements Command {
         const tags = submissionChannel.availableTags.filter(tag => {
             return !SubmissionTags.some(t => t.name === tag.name)
         })
-        const newTags = SubmissionTags.concat(tags);
+        const newTags = SubmissionTags.map((t)=>{
+            const existingTag = submissionChannel.availableTags.find(tag => tag.name === t.name);
+            if (existingTag) {
+                return existingTag;
+            }
+            return t;
+        }).concat(tags);
+
         await submissionChannel.setAvailableTags(newTags);
         await submissionChannel.setDefaultReactionEmoji({
             name: '👍',
@@ -273,7 +280,13 @@ export class Mwa implements Command {
             const tags = channel.availableTags.filter(tag => {
                 return !basicTags.some(t => t.name === tag.name)
             })
-            const newTags = basicTags.concat(tags)
+            const newTags = basicTags.map((t)=>{
+                const existingTag = channel.availableTags.find(tag => tag.name === t.name);
+                if (existingTag) {
+                    return existingTag;
+                }
+                return t;
+            }).concat(tags);
             await channel.setAvailableTags(newTags)
             await channel.setDefaultReactionEmoji({
                 name: '👍',
