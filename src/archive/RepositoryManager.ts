@@ -519,12 +519,12 @@ export class RepositoryManager {
                         flags: [MessageFlags.SuppressEmbeds]
                     },
                     name: entryData.code + ' ' + entryData.name,
-                    appliedTags: entryData.tags.map(tag => tag.id),
+                    appliedTags: entryData.tags.map(tag => tag.id).filter(tagId => publishChannel.availableTags.some(t => t.id === tagId)),
                 })
                 entryData.post.threadId = thread.id;
                 entryData.post.threadURL = thread.url;
             } else {
-                await thread.setAppliedTags(entryData.tags.map(tag => tag.id));
+                await thread.setAppliedTags(entryData.tags.map(tag => tag.id).filter(tagId => publishChannel.availableTags.some(t => t.id === tagId)));
             }
 
             let attachmentMessageInstance;
