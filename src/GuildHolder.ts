@@ -133,6 +133,19 @@ export class GuildHolder {
         }
     }
 
+
+    /**
+     * Handles a message deletion in the guild.
+     */
+    public async handleMessageDelete(message: Message) {
+        // Handle message inside archived post
+        if (message.channel.isThread() && message.channel.parentId && this.cachedChannelIds.includes(message.channel.parentId)) {
+            this.getRepositoryManager().handlePostMessageDelete(message).catch(e => {
+                console.error('Error handling post message:', e);
+            });
+        }
+    }
+
     public async handleSubmissionMessage(message: Message) {
         const submissionId = message.channel.id
         let submission = await this.submissions.getSubmission(submissionId)

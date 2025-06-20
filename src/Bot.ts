@@ -230,6 +230,23 @@ export class Bot {
             }
         })
 
+
+        this.client.on('messageDelete', async (message) => {
+            if (!message.author) return
+            if (!message.inGuild()) return
+
+            const guildHolder = this.guilds.get(message.guildId)
+            if (!guildHolder) return
+
+            // Handle message in guild
+            try {
+                await guildHolder.handleMessageDelete(message)
+            } catch (error) {
+                console.error('Error handling message delete:', error)
+            }
+        })
+        
+
         this.client.on('error', (error) => {
             console.error('Discord client error:', error)
         })

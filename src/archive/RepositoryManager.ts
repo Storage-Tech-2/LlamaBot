@@ -864,12 +864,20 @@ export class RepositoryManager {
 
         const commentsFile = Path.join(entryPath, 'comments.json');
         let comments: ArchiveComment[] = [];
-        try {
-            comments = JSON.parse(await fs.readFile(commentsFile, 'utf-8')) as ArchiveComment[];
-        } catch (e) {
-        }
 
         await this.lock.acquire();
+        try {
+            comments = JSON.parse(await fs.readFile(commentsFile, 'utf-8')) as ArchiveComment[];
+        } catch (e: any) {
+            if (e.code !== 'ENOENT') {
+                console.error("Error reading comments file:", e);
+                this.lock.release();
+                return;
+            }
+            await fs.writeFile(commentsFile, JSON.stringify([], null, 2), 'utf-8');
+            await this.git.add(commentsFile);
+        }
+
         try {
             if (attachments.length > 0) {
                 const commentsAttachmentFolder = Path.join(entryPath, 'comments_attachments');
@@ -899,8 +907,8 @@ export class RepositoryManager {
             }
             comments.push(newComment);
             await fs.writeFile(commentsFile, JSON.stringify(comments, null, 2), 'utf-8');
-            await this.git.add(commentsFile);
-            await this.git.commit(`Added comment to ${found.entry.getData().code}`);
+           
+            await this.git.commit(`Added ${message.member?.displayName}'s comment to ${found.entry.getData().code}`);
             try {
                 await this.push();
             } catch (e: any) {
@@ -909,7 +917,68 @@ export class RepositoryManager {
         } catch (e) {
             console.error("Error handling post message:", e);
         }
-        await this.lock.release();
+        this.lock.release();
+    }
+
+
+    public async handlePostMessageDelete(message: Message) {
+        const postId = message.channel.id;
+        const submissionId = await this.getSubmissionIDByPostID(postId);
+
+        if (!submissionId) {
+            throw new Error(`No submission found for post ID ${postId}`);
+        }
+
+        if (!this.git) {
+            throw new Error("Git not initialized");
+        }
+
+
+        const found = await this.findEntryBySubmissionId(submissionId);
+        if (!found) {
+            throw new Error(`No entry found for submission ID ${submissionId}`);
+        }
+
+        const entryPath = found.entry.getFolderPath();
+
+        const commentsFile = Path.join(entryPath, 'comments.json');
+        let comments: ArchiveComment[] = [];
+        try {
+            comments = JSON.parse(await fs.readFile(commentsFile, 'utf-8')) as ArchiveComment[];
+        } catch (e) {
+        }
+
+        const deletedCommentIndex = comments.findIndex(c => c.id === message.id);
+        if (deletedCommentIndex === -1) {
+            return;
+        }
+
+        const deletedComment = comments[deletedCommentIndex];
+
+        await this.lock.acquire();
+        try {
+            if (deletedComment.attachments.length > 0) {
+                const commentsAttachmentFolder = Path.join(entryPath, 'comments_attachments');
+               
+                for (const attachment of deletedComment.attachments) {
+                    const attachmentPath = Path.join(commentsAttachmentFolder, getFileKey(attachment));
+                    if (attachment.canDownload) {
+                        this.git.rm(attachmentPath);
+                    }
+                }
+            }
+            comments.splice(deletedCommentIndex, 1);
+            await fs.writeFile(commentsFile, JSON.stringify(comments, null, 2), 'utf-8');
+            await this.git.commit(`Deleted ${message.member?.displayName}'s comment from ${found.entry.getData().code}`);
+            try {
+                await this.push();
+            } catch (e: any) {
+                console.error("Error pushing to remote:", e.message);
+            }
+        } catch (e) {
+            console.error("Error handling post message:", e);
+        }
+        this.lock.release();
     }
 
 }
