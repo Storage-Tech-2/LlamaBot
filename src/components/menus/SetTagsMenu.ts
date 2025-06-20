@@ -1,7 +1,7 @@
 import { ActionRowBuilder, ForumChannel, MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { canEditSubmission, isModerator, replyEphemeral } from "../../utils/Util.js";
+import { canEditSubmission, canSetPrivilegedTags, replyEphemeral } from "../../utils/Util.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { SetImagesMenu } from "./SetImagesMenu.js";
@@ -73,7 +73,7 @@ export class SetTagsMenu implements Menu {
         const newTagIds = new Set(interaction.values)
         newTagIds.delete('none') // remove 'none' if it exists
 
-        if (!isModerator(interaction)) {
+        if (!canSetPrivilegedTags(interaction, submission)) {
             const tagsAdmin = new Set(availableTags.filter(tag => {
                 return tag.moderated
             }).map(tag => tag.id))

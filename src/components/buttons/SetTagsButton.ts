@@ -1,7 +1,7 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Button } from "../../interface/Button.js";
-import { canEditSubmission, isModerator, replyEphemeral } from "../../utils/Util.js";
+import { canEditSubmission, canSetPrivilegedTags, replyEphemeral } from "../../utils/Util.js";
 import { SetTagsMenu } from "../menus/SetTagsMenu.js";
 
 export class SetTagsButton implements Button {
@@ -28,7 +28,7 @@ export class SetTagsButton implements Button {
             return;
         }
         
-        const isMod = isModerator(interaction);
+        const isMod = canSetPrivilegedTags(interaction, submission);
         const tagsMenu = new SetTagsMenu();
         const menuBuilder = await tagsMenu.getBuilder(guildHolder, isMod, submission);
         const row = new ActionRowBuilder().addComponents(menuBuilder);

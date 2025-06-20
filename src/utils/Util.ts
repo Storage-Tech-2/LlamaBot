@@ -756,3 +756,15 @@ export function canPublishSubmission(interaction: Interaction, submission: Submi
 
     return false;
 }
+
+export function canSetPrivilegedTags(interaction: Interaction, submission: Submission): boolean {
+    if (!interaction.inCachedGuild() || !interaction.member) {
+        return false;
+    }
+    
+    if (isAdmin(interaction) || isModerator(interaction) || isEditor(interaction, submission.getGuildHolder())) {
+        return true;
+    }
+
+    return false
+}

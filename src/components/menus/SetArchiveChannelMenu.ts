@@ -1,7 +1,7 @@
 import { ActionRowBuilder, ChannelType, Collection, ForumChannel, MessageFlags, Snowflake, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { canEditSubmission, getCodeAndDescriptionFromTopic, isModerator, replyEphemeral } from "../../utils/Util.js";
+import { canEditSubmission, canSetPrivilegedTags, getCodeAndDescriptionFromTopic, replyEphemeral } from "../../utils/Util.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { SetTagsMenu } from "./SetTagsMenu.js";
@@ -97,7 +97,7 @@ export class SetArchiveChannelMenu implements Menu {
         submission.statusUpdated();
 
         if (!currentChannel) {
-            const component = await new SetTagsMenu().getBuilder(guildHolder, isModerator(interaction), submission);
+            const component = await new SetTagsMenu().getBuilder(guildHolder, canSetPrivilegedTags(interaction, submission), submission);
             const row = new ActionRowBuilder()
                 .addComponents(component);
             await interaction.followUp({
