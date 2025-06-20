@@ -157,6 +157,13 @@ export class GuildHolder {
         const now = Date.now();
         const oneDay = 24 * 60 * 60 * 1000; //
         if (userData.thankedBuffer.some(thank => thank.thankedBy === thanksSenderID && now - thank.timestamp < oneDay)) {
+            const embed = new EmbedBuilder()
+                .setColor(0x00FF00) // Green color for thank you message
+                .setTitle(`Point Already Given!`)
+                .setDescription(`You've already thanked <@${thanksRecieverID}> in the last 24 hours. Thank you anyway for being great!`)
+                .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.`});
+            await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
+            
             return; // Already thanked in the last 24 hours
         }
 
