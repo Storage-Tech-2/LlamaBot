@@ -32,7 +32,7 @@ export class SetArchiveCategoriesMenu implements Menu {
         const added = Array.from(newCategories.difference(currentCategories)).map(c => `<#${c}>`)
         const removed = Array.from(currentCategories.difference(newCategories)).map(c => `<#${c}>`)
         guildHolder.getConfigManager().setConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS, Array.from(newCategories))
-
+        guildHolder.updatePostChannelsCache();
         const str = []
 
         if (added.length) {

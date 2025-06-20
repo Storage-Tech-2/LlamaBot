@@ -2,9 +2,9 @@ import { GuildHolder } from "../GuildHolder.js";
 import fs from "fs/promises";
 import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
-import { ChannelType, ForumChannel, MessageFlags } from "discord.js";
+import { ChannelType, ForumChannel, Message, MessageFlags, Snowflake } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
-import { deepClone, escapeString, generateCommitMessage, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, reclassifyAuthors } from "../utils/Util.js";
+import { deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors } from "../utils/Util.js";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";
 import { Submission } from "../submissions/Submission.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
@@ -12,7 +12,9 @@ import { ArchiveChannel, ArchiveEntryReference } from "./ArchiveChannel.js";
 import { Lock } from "../utils/Lock.js";
 import { PostEmbed } from "../embed/PostEmbed.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
-import {simpleGit, SimpleGit } from "simple-git";
+import { simpleGit, SimpleGit } from "simple-git";
+import { ArchiveComment } from "./ArchiveComments.js";
+import { AuthorType } from "../submissions/Author.js";
 
 
 export class RepositoryManager {
@@ -67,6 +69,102 @@ export class RepositoryManager {
         }
 
         await this.lock.release();
+
+        await this.getPostToSubmissionIndex();
+    }
+
+
+    async getPostToSubmissionIndex() {
+        if (!this.git) {
+            console.error("Git not initialized");
+            return;
+        }
+
+        const filePath = Path.join(this.folderPath, 'post_to_submission_index.json');
+        if (!await fs.access(filePath).then(() => true).catch(() => false)) {
+            // If the file does not exist, create it
+            await fs.writeFile(filePath, JSON.stringify({}, null, 2), 'utf-8');
+            await this.lock.acquire();
+            try {
+                await this.git.add(filePath);
+                await this.git.commit('Create Post to Submission Index');
+                await this.push();
+            } catch (e: any) {
+                console.error("Error committing post_to_submission_index.json:", e.message);
+            }
+            await this.lock.release();
+
+            return {};
+        } else {
+            // If the file exists, read it
+            const content = await fs.readFile(filePath, 'utf-8');
+            try {
+                return JSON.parse(content);
+            } catch (e) {
+                console.error("Error parsing post_to_submission_index.json:", e);
+                return {};
+            }
+        }
+    }
+
+    async savePostToSubmissionIndex(index: any) {
+        if (!this.git) {
+            throw new Error("Git not initialized");
+        }
+        const filePath = Path.join(this.folderPath, 'post_to_submission_index.json');
+        await fs.writeFile(filePath, JSON.stringify(index, null, 2), 'utf-8');
+        await this.lock.acquire();
+        try {
+            await this.git.add(filePath);
+            await this.git.commit('Update Post to Submission Index');
+            await this.push();
+        } catch (e: any) {
+            console.error("Error committing post_to_submission_index.json:", e.message);
+        }
+        await this.lock.release();
+    }
+
+    async getSubmissionIDByPostID(postID: Snowflake): Promise<Snowflake | null> {
+        const index = await this.getPostToSubmissionIndex();
+        if (index.hasOwnProperty(postID)) {
+            return index[postID] as Snowflake;
+        } else {
+            // check all entries
+            const channelReferences = this.getChannelReferences();
+            for (const channelRef of channelReferences) {
+                const channelPath = Path.join(this.folderPath, channelRef.path);
+                const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
+                const entries = archiveChannel.getData().entries;
+                for (const entryRef of entries) {
+                    const entryPath = Path.join(channelPath, entryRef.path);
+                    const entry = await ArchiveEntry.fromFolder(entryPath);
+                    const post = entry.getData().post;
+                    if (post && post.threadId === postID) {
+                        await this.setSubmissionIDForPostID(postID, entry.getData().id); // Ensure the index is updated
+                        return entry.getData().id; // Return the submission ID
+                    }
+                }
+            }
+            return null;
+        }
+    }
+
+    async setSubmissionIDForPostID(postID: Snowflake, submissionID: Snowflake) {
+        const index = await this.getPostToSubmissionIndex();
+        const prevValue = index.hasOwnProperty(postID) ? index[postID] : null;
+        if (prevValue === submissionID) {
+            return; // No change needed
+        }
+        index[postID] = submissionID;
+        await this.savePostToSubmissionIndex(index);
+    }
+
+    async deleteSubmissionIDForPostID(postID: Snowflake) {
+        const index = await this.getPostToSubmissionIndex();
+        if (index.hasOwnProperty(postID)) {
+            delete index[postID];
+            await this.savePostToSubmissionIndex(index);
+        }
     }
 
     async pull() {
@@ -626,6 +724,9 @@ export class RepositoryManager {
                 console.error("Error pushing to remote:", e.message);
             }
             await this.lock.release();
+
+            await this.setSubmissionIDForPostID(thread.id, submission.getId());
+
             return {
                 oldEntryData: existing ? existing.entry.getData() : undefined,
                 newEntryData: entry.getData()
@@ -674,7 +775,7 @@ export class RepositoryManager {
             }
 
             await this.git.rm(files);
-            
+
             foundChannel.getData().entries.splice(foundEntryIndex, 1);
             await foundChannel.save();
 
@@ -708,6 +809,8 @@ export class RepositoryManager {
 
             this.lock.release();
 
+            await this.deleteSubmissionIDForPostID(thread.id);
+
             return entryData;
         } catch (e) {
             this.lock.release();
@@ -734,5 +837,79 @@ export class RepositoryManager {
         return this.configManager;
     }
 
-}
 
+
+    public async handlePostMessage(message: Message) {
+        const postId = message.channel.id;
+        const submissionId = await this.getSubmissionIDByPostID(postId);
+
+        if (!submissionId) {
+            throw new Error(`No submission found for post ID ${postId}`);
+        }
+
+        if (!this.git) {
+            throw new Error("Git not initialized");
+        }
+
+
+        const found = await this.findEntryBySubmissionId(submissionId);
+        if (!found) {
+            throw new Error(`No entry found for submission ID ${submissionId}`);
+        }
+
+        const content = message.content;
+        const attachments = getAttachmentsFromMessage(message);
+
+        const entryPath = found.entry.getFolderPath();
+
+        const commentsFile = Path.join(entryPath, 'comments.json');
+        let comments: ArchiveComment[] = [];
+        try {
+            comments = JSON.parse(await fs.readFile(commentsFile, 'utf-8')) as ArchiveComment[];
+        } catch (e) {
+        }
+
+        await this.lock.acquire();
+        try {
+            if (attachments.length > 0) {
+                const commentsAttachmentFolder = Path.join(entryPath, 'comments_attachments');
+                await fs.mkdir(commentsAttachmentFolder, { recursive: true });
+                await processAttachments(attachments, commentsAttachmentFolder, false);
+                for (const attachment of attachments) {
+                    const attachmentPath = Path.join(commentsAttachmentFolder, getFileKey(attachment));
+                    if (attachment.canDownload) {
+                        attachment.path = `comments_attachments/${getFileKey(attachment)}`;
+                        await this.git.add(attachmentPath);
+                    }
+                }
+
+            }
+
+            const newComment: ArchiveComment = {
+                id: message.id,
+                sender: {
+                    type: AuthorType.DiscordInGuild,
+                    id: message.author.id,
+                    username: message.author.username,
+                    displayName: message.member?.displayName || undefined
+                },
+                content: content,
+                attachments: attachments,
+                timestamp: Date.now()
+            }
+            comments.push(newComment);
+            await fs.writeFile(commentsFile, JSON.stringify(comments, null, 2), 'utf-8');
+            await this.git.add(commentsFile);
+            await this.git.commit(`Added comment to ${found.entry.getData().code}`);
+            try {
+                await this.push();
+            } catch (e: any) {
+                console.error("Error pushing to remote:", e.message);
+            }
+        } catch (e) {
+            console.error("Error handling post message:", e);
+        }
+        await this.lock.release();
+    }
+
+}

@@ -1,4 +1,4 @@
-import { ChannelType, EmbedBuilder, Guild, Message, MessageFlags, Snowflake } from "discord.js";
+import { ChannelType, EmbedBuilder, ForumChannel, Guild, Message, MessageFlags, Snowflake } from "discord.js";
 import { Bot } from "./Bot.js";
 import { ConfigManager } from "./config/ConfigManager.js";
 import Path from "path";
@@ -6,7 +6,7 @@ import { GuildConfigs } from "./config/GuildConfigs.js";
 import { SubmissionsManager } from "./submissions/SubmissionsManager.js";
 import { RepositoryManager } from "./archive/RepositoryManager.js";
 import { ArchiveEntryData } from "./archive/ArchiveEntry.js";
-import { getAuthorsString, getChanges, truncateStringWithEllipsis } from "./utils/Util.js";
+import { getAttachmentsFromMessage, getAuthorsString, getChanges, truncateStringWithEllipsis } from "./utils/Util.js";
 import { UserManager } from "./support/UserManager.js";
 import { UserData } from "./support/UserData.js";
 
@@ -34,6 +34,7 @@ export class GuildHolder {
      */
     private submissions: SubmissionsManager;
 
+    private cachedChannelIds: Snowflake[] = [];
 
     private repositoryManager: RepositoryManager;
     private userManager: UserManager;
@@ -62,6 +63,8 @@ export class GuildHolder {
             } catch (e) {
                 console.error('Error initializing repository manager:', e);
             }
+
+            await this.updatePostChannelsCache();
             console.log(`GuildHolder initialized for guild: ${guild.name} (${guild.id})`);
         });
     }
@@ -86,6 +89,23 @@ export class GuildHolder {
         return this.config.getConfig(GuildConfigs.SUBMISSION_CHANNEL_ID) as Snowflake;
     }
 
+    public async getPostChannels(): Promise<ForumChannel[]> {
+        const categories = this.config.getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
+        const channels: ForumChannel[] = [];
+        const allChannels = await this.guild.channels.fetch();
+        for (const channel of allChannels.values()) {
+            if (channel && channel.type === ChannelType.GuildForum && categories.includes(channel.parentId as Snowflake)) {
+                channels.push(channel as ForumChannel);
+            }
+        }
+        return channels;
+    }
+
+    public async updatePostChannelsCache() {
+        const channels = await this.getPostChannels();
+        this.cachedChannelIds = channels.map(channel => channel.id);
+    }
+
     /**
      * Handles a message received in the guild.
      */
@@ -100,16 +120,29 @@ export class GuildHolder {
 
         // Handle submissions
         if (message.channel.isThread() && message.channel.parentId === this.getSubmissionsChannelId()) {
-            const submissionId = message.channel.id
-            let submission = await this.submissions.getSubmission(submissionId)
-            if (!submission) {
-                submission = await this.submissions.makeSubmission(submissionId)
-                submission.init().catch(e => {
-                    console.error('Error initializing submission:', e)
-                })
-            } else {
-                await submission.handleMessage(message)
-            }
+            this.handleSubmissionMessage(message).catch(e => {
+                console.error('Error handling submission message:', e);
+            });
+        }
+
+        // Handle message inside archived post
+        if (message.channel.isThread() && message.channel.parentId && this.cachedChannelIds.includes(message.channel.parentId)) {
+            this.getRepositoryManager().handlePostMessage(message).catch(e => {
+                console.error('Error handling post message:', e);
+            });
+        }
+    }
+
+    public async handleSubmissionMessage(message: Message) {
+        const submissionId = message.channel.id
+        let submission = await this.submissions.getSubmission(submissionId)
+        if (!submission) {
+            submission = await this.submissions.makeSubmission(submissionId)
+            submission.init().catch(e => {
+                console.error('Error initializing submission:', e)
+            })
+        } else {
+            await submission.handleMessage(message)
         }
     }
 
@@ -138,7 +171,7 @@ export class GuildHolder {
 
         // Check if the receiver is a bot
         if (originalMessage.author.bot) {
-           return;
+            return;
         }
 
         // get user data for reciever
@@ -161,9 +194,9 @@ export class GuildHolder {
                 .setColor(0x00FF00) // Green color for thank you message
                 .setTitle(`Point Already Given!`)
                 .setDescription(`You've already thanked <@${thanksRecieverID}> in the last 24 hours. Thank you anyway for being great!`)
-                .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.`});
+                .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
             await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
-            
+
             return; // Already thanked in the last 24 hours
         }
 
@@ -188,7 +221,7 @@ export class GuildHolder {
                 { name: 'Total points', value: `${userData.thankedCountTotal}`, inline: true },
                 { name: 'In the past month', value: `${userData.thankedBuffer.length}`, inline: true },
             )
-            .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.`});
+            .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
         await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
         await this.checkHelper(userData);
     }
@@ -350,19 +383,19 @@ export class GuildHolder {
 
             embed.setDescription(`**Name:** ${newEntryData.name}\n[Submission Thread](${submissionThread.url})`);
             embed.setURL(newEntryData.post?.threadURL || '');
-        
+
             const fields = [];
-            if (changes.code) fields.push({ name: 'Code', value: `*${oldEntryData.code}* → *${newEntryData.code}*`});
-            if (changes.name) fields.push({ name: 'Name', value: `*${oldEntryData.name}* → *${newEntryData.name}*`});
-            if (changes.authors) fields.push({ name: 'Authors', value: `*${getAuthorsString(oldEntryData.authors)}* → *${getAuthorsString(newEntryData.authors)}*`});
-            if (changes.endorsers) fields.push({ name: 'Endorsers', value: `*${getAuthorsString(oldEntryData.endorsers)}* → *${getAuthorsString(newEntryData.endorsers)}*`});
-            if (changes.tags) fields.push({ name: 'Tags', value: `*${oldEntryData.tags.map(t => t.name).join(', ')}* → *${newEntryData.tags.map(t => t.name).join(', ')}*`});
-            if (changes.description) fields.push({ name: 'Description', value: `*${truncateStringWithEllipsis(oldEntryData.description, 100)}* → *${truncateStringWithEllipsis(newEntryData.description, 500)}*`});
-            if (changes.features) fields.push({ name: 'Features', value: `*${oldEntryData.features.length} features* → *${newEntryData.features.length} features*`});
-            if (changes.considerations) fields.push({ name: 'Considerations', value: `*${oldEntryData.considerations.length} considerations* → *${newEntryData.considerations.length} considerations*`});
-            if (changes.notes) fields.push({ name: 'Notes', value: `*${oldEntryData.notes.length} characters* → *${newEntryData.notes.length} characters*`});
-            if (changes.images) fields.push({ name: 'Images', value: `*${oldEntryData.images.length} images* → *${newEntryData.images.length} images*`});
-            if (changes.attachments) fields.push({ name: 'Attachments', value: `*${oldEntryData.attachments.length} attachments* → *${newEntryData.attachments.length} attachments*`});
+            if (changes.code) fields.push({ name: 'Code', value: `*${oldEntryData.code}* → *${newEntryData.code}*` });
+            if (changes.name) fields.push({ name: 'Name', value: `*${oldEntryData.name}* → *${newEntryData.name}*` });
+            if (changes.authors) fields.push({ name: 'Authors', value: `*${getAuthorsString(oldEntryData.authors)}* → *${getAuthorsString(newEntryData.authors)}*` });
+            if (changes.endorsers) fields.push({ name: 'Endorsers', value: `*${getAuthorsString(oldEntryData.endorsers)}* → *${getAuthorsString(newEntryData.endorsers)}*` });
+            if (changes.tags) fields.push({ name: 'Tags', value: `*${oldEntryData.tags.map(t => t.name).join(', ')}* → *${newEntryData.tags.map(t => t.name).join(', ')}*` });
+            if (changes.description) fields.push({ name: 'Description', value: `*${truncateStringWithEllipsis(oldEntryData.description, 100)}* → *${truncateStringWithEllipsis(newEntryData.description, 500)}*` });
+            if (changes.features) fields.push({ name: 'Features', value: `*${oldEntryData.features.length} features* → *${newEntryData.features.length} features*` });
+            if (changes.considerations) fields.push({ name: 'Considerations', value: `*${oldEntryData.considerations.length} considerations* → *${newEntryData.considerations.length} considerations*` });
+            if (changes.notes) fields.push({ name: 'Notes', value: `*${oldEntryData.notes.length} characters* → *${newEntryData.notes.length} characters*` });
+            if (changes.images) fields.push({ name: 'Images', value: `*${oldEntryData.images.length} images* → *${newEntryData.images.length} images*` });
+            if (changes.attachments) fields.push({ name: 'Attachments', value: `*${oldEntryData.attachments.length} attachments* → *${newEntryData.attachments.length} attachments*` });
             embed.addFields(fields);
             embed.setColor(0xFFFF00); // Yellow for update
         }

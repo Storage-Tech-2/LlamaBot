@@ -60,6 +60,85 @@ export function replyEphemeral(interaction: any, content: string, options = {}) 
 }
 
 
+export function getAttachmentsFromMessage(message: Message, attachments: Attachment[] = []): Attachment[] {
+    if (message.content.length > 0) {
+        // Find all URLs in the message
+        const urls = message.content.match(/https?:\/\/[^\s]+/g)
+        if (urls) {
+            urls.forEach(url => {
+                // Check if mediafire
+                // https://www.mediafire.com/file/idjbw9lc1kt4obj/1_17_Crafter-r2.zip/file
+                if (url.startsWith('https://www.mediafire.com/file/')) {
+                    const id = url.split('/')[4]
+                    const name = url.split('/')[5]
+                    // check if duplicate
+                    if (attachments.some(attachment => attachment.id === id)) {
+                        return;
+                    }
+                    attachments.push({
+                        id: id,
+                        name: name,
+                        contentType: 'mediafire',
+                        url: url,
+                        description: `[MediaFire] Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`,
+                        canDownload: false // MediaFire links cannot be downloaded directly
+                    })
+                } else if (url.startsWith('https://youtu.be/') || url.startsWith('https://www.youtube.com/watch')) {
+                    // YouTube links
+                    const videoId = new URL(url).searchParams.get('v') || url.split('/').pop();
+                    if (!videoId) return;
+                    if (attachments.some(attachment => attachment.id === videoId)) {
+                        return;
+                    }
+                    attachments.push({
+                        id: videoId,
+                        name: `YouTube Video ${videoId}`,
+                        contentType: 'youtube',
+                        url: url,
+                        description: `[YouTube] Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`,
+                        canDownload: false // YouTube links cannot be downloaded directly
+                    })
+                } else if (url.startsWith('https://cdn.discordapp.com/attachments/')) {
+                    // https://cdn.discordapp.com/attachments/749137321710059542/912059917106548746/Unbreakable_8gt_reset_6gt_box_replacement.litematic?ex=6832c4bd&is=6831733d&hm=1e5ff51ca94199d70f26ad2611715c86afbb095e3da120416e55352ccf43f7a4&
+                    const id = url.split('/')[5]
+                    const name = url.split('/')[6].split('?')[0]
+                    if (attachments.some(attachment => attachment.id === id)) {
+                        return;
+                    }
+                    attachments.push({
+                        id: id,
+                        name: name,
+                        contentType: 'discord',
+                        url: url,
+                        description: `[DiscordCDN] Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`,
+                        canDownload: true // Discord CDN links can be downloaded directly
+                    })
+                }
+            })
+        }
+    }
+    if (message.attachments.size > 0) {
+        message.attachments.forEach(attachment => {
+            const index = attachments.findIndex(attachment2 => attachment2.id === attachment.id);
+
+            if (index !== -1) {
+                // remove duplicate
+                attachments.splice(index, 1);
+                return;
+            }
+            attachments.push({
+                id: attachment.id,
+                name: attachment.name,
+                contentType: attachment.contentType || 'unknown',
+                url: attachment.url,
+                description: `Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`,
+                canDownload: true, // Discord attachments can be downloaded directly
+            });
+        })
+    }
+    return attachments;
+}
+
 export async function getAllAttachments(channel: TextThreadChannel): Promise<Attachment[]> {
     let attachments: Attachment[] = [];
 
@@ -67,79 +146,9 @@ export async function getAllAttachments(channel: TextThreadChannel): Promise<Att
         if (message.author.bot) {
             return true;
         }
-        if (message.content.length > 0) {
-            // Find all URLs in the message
-            const urls = message.content.match(/https?:\/\/[^\s]+/g)
-            if (urls) {
-                urls.forEach(url => {
-                    // Check if mediafire
-                    // https://www.mediafire.com/file/idjbw9lc1kt4obj/1_17_Crafter-r2.zip/file
-                    if (url.startsWith('https://www.mediafire.com/file/')) {
-                        const id = url.split('/')[4]
-                        const name = url.split('/')[5]
-                        // check if duplicate
-                        if (attachments.some(attachment => attachment.id === id)) {
-                            return;
-                        }
-                        attachments.push({
-                            id: id,
-                            name: name,
-                            contentType: 'mediafire',
-                            url: url,
-                            description: `[MediaFire] Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`,
-                            canDownload: false // MediaFire links cannot be downloaded directly
-                        })
-                    } else if (url.startsWith('https://youtu.be/') || url.startsWith('https://www.youtube.com/watch')) {
-                        // YouTube links
-                        const videoId = new URL(url).searchParams.get('v') || url.split('/').pop();
-                        if (!videoId) return;
-                        if (attachments.some(attachment => attachment.id === videoId)) {
-                            return;
-                        }
-                        attachments.push({
-                            id: videoId,
-                            name: `YouTube Video ${videoId}`,
-                            contentType: 'youtube',
-                            url: url,
-                            description: `[YouTube] Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`,
-                            canDownload: false // YouTube links cannot be downloaded directly
-                        })
-                    } else if (url.startsWith('https://cdn.discordapp.com/attachments/')) {
-                        // https://cdn.discordapp.com/attachments/749137321710059542/912059917106548746/Unbreakable_8gt_reset_6gt_box_replacement.litematic?ex=6832c4bd&is=6831733d&hm=1e5ff51ca94199d70f26ad2611715c86afbb095e3da120416e55352ccf43f7a4&
-                        const id = url.split('/')[5]
-                        const name = url.split('/')[6].split('?')[0]
-                        if (attachments.some(attachment => attachment.id === id)) {
-                            return;
-                        }
-                        attachments.push({
-                            id: id,
-                            name: name,
-                            contentType: 'discord',
-                            url: url,
-                            description: `[DiscordCDN] Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`,
-                            canDownload: true // Discord CDN links can be downloaded directly
-                        })
-                    }
-                })
-            }
-        }
-        if (message.attachments.size > 0) {
-            message.attachments.forEach(attachment => {
-                if (attachments.some(attachment2 => attachment2.id === attachment.id)) {
-                    // remove duplicate
-                    attachments = attachments.filter(a => a.id !== attachment.id);
-                    return;
-                }
-                attachments.push({
-                    id: attachment.id,
-                    name: attachment.name,
-                    contentType: attachment.contentType || 'unknown',
-                    url: attachment.url,
-                    description: `Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`,
-                    canDownload: true, // Discord attachments can be downloaded directly
-                });
-            })
-        }
+        // Get attachments from the message
+        getAttachmentsFromMessage(message, attachments);
+
         return true;
     });
     return attachments;
@@ -232,7 +241,7 @@ export async function processImages(images: Image[], download_folder: string, pr
 
 }
 
-export async function processAttachments(attachments: Attachment[], attachments_folder: string): Promise<Attachment[]> {
+export async function processAttachments(attachments: Attachment[], attachments_folder: string, remove_old: boolean = true): Promise<Attachment[]> {
     // Check if the folder exists, if not, create it
     if (attachments.length > 0) {
         if (!await fs.access(attachments_folder).then(() => true).catch(() => false)) {
@@ -241,19 +250,21 @@ export async function processAttachments(attachments: Attachment[], attachments_
     }
 
     // Remove attachments that are already processed but not in the current list
-    const existingFiles = await fs.readdir(attachments_folder);
-    await Promise.all(existingFiles.map(async file => {
-        // check if the file is in the attachments list
-        const fileKey = file.toLowerCase();
-        if (!attachments.some(attachment => getFileKey(attachment) === fileKey)) {
-            const filePath = Path.join(attachments_folder, file);
-            try {
-                await fs.unlink(filePath);
-            } catch (err) {
-                console.error(`Failed to remove file ${filePath}:`, err);
+    if (remove_old) {
+        const existingFiles = await fs.readdir(attachments_folder);
+        await Promise.all(existingFiles.map(async file => {
+            // check if the file is in the attachments list
+            const fileKey = file.toLowerCase();
+            if (!attachments.some(attachment => getFileKey(attachment) === fileKey)) {
+                const filePath = Path.join(attachments_folder, file);
+                try {
+                    await fs.unlink(filePath);
+                } catch (err) {
+                    console.error(`Failed to remove file ${filePath}:`, err);
+                }
             }
-        }
-    }));
+        }));
+    }
 
     // Process each attachment
     await Promise.all(attachments.map(async attachment => {
@@ -417,7 +428,7 @@ export function getAuthorsString(authors: Author[] | null): string {
     return authors.map(author => {
         const name = author.displayName || author.username;
         if (author.type === AuthorType.DiscordInGuild) {
-             return `<@${author.id}>`;
+            return `<@${author.id}>`;
         } else if (author.type === AuthorType.DiscordExternal) {
             return `${name} (<@${author.id}>)`;
         } else {
