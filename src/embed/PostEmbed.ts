@@ -112,7 +112,12 @@ export class PostEmbed {
         const notes = entryData.notes;
         const authors = entryData.authors;
         const images = entryData.images;
-         content.push(description);
+
+
+        content.push(`**Authors:** ${getAuthorsString(authors)}`);
+        content.push(`**Endorsed by:** ${getAuthorsString(entryData.endorsers)}\n`);
+       
+        content.push(description);
 
         if (features.length) {
             content.push('\n**Features:**');
@@ -127,10 +132,6 @@ export class PostEmbed {
         if (notes.length) {
             content.push(`\n**Notes:**\n${notes}`);
         }
-
-        content.push(`\n**Authors:** ${getAuthorsString(authors)}`);
-        content.push(`**Endorsed by:** ${getAuthorsString(entryData.endorsers)}`);
-       
 
         const githubURL = submission.getGuildHolder().getConfigManager().getConfig(GuildConfigs.GITHUB_REPO_URL);
         // parse the URL to get the repo name and owner
