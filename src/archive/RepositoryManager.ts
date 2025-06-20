@@ -760,12 +760,12 @@ export class RepositoryManager {
 
                         const embed = new EmbedBuilder()
                             .setAuthor({
-                                name: getAuthorsString([author]),
+                                name: author.displayName || author.username || 'Unknown Author',
                                 iconURL: author.iconURL || undefined,
                             })
                             .setDescription(comment.content)
                             .setTimestamp(comment.timestamp ? new Date(comment.timestamp) : undefined)
-                        
+
                         const commentMessage = await thread.send({
                             embeds: [embed],
                             files: files,
@@ -775,7 +775,7 @@ export class RepositoryManager {
                     // Save comments back to the file
                     await fs.writeFile(commentsFile, JSON.stringify(comments, null, 2), 'utf-8');
                     await this.git.add(commentsFile);
-                    
+
                 }
 
             }
@@ -1010,24 +1010,25 @@ export class RepositoryManager {
         const entryPath = found.entry.getFolderPath();
 
         const commentsFile = Path.join(entryPath, 'comments.json');
-        let comments: ArchiveComment[] = [];
-        try {
-            comments = JSON.parse(await fs.readFile(commentsFile, 'utf-8')) as ArchiveComment[];
-        } catch (e) {
-        }
-
-        const deletedCommentIndex = comments.findIndex(c => c.id === message.id);
-        if (deletedCommentIndex === -1) {
-            return;
-        }
-
-        const deletedComment = comments[deletedCommentIndex];
-
         await this.lock.acquire();
         try {
+            let comments: ArchiveComment[] = [];
+            try {
+                comments = JSON.parse(await fs.readFile(commentsFile, 'utf-8')) as ArchiveComment[];
+            } catch (e) {
+            }
+
+            const deletedCommentIndex = comments.findIndex(c => c.id === message.id);
+            if (deletedCommentIndex === -1) {
+                return;
+            }
+
+            const deletedComment = comments[deletedCommentIndex];
+
+
             if (deletedComment.attachments.length > 0) {
                 const commentsAttachmentFolder = Path.join(entryPath, 'comments_attachments');
-               
+
                 for (const attachment of deletedComment.attachments) {
                     const attachmentPath = Path.join(commentsAttachmentFolder, getFileKey(attachment));
                     if (attachment.canDownload) {
@@ -1037,7 +1038,7 @@ export class RepositoryManager {
             }
             comments.splice(deletedCommentIndex, 1);
             await fs.writeFile(commentsFile, JSON.stringify(comments, null, 2), 'utf-8');
-            await this.git.add(commentsFile).commit(`Deleted ${message.member?.displayName}'s comment from ${found.entry.getData().code}`);
+            await this.git.add(commentsFile).commit(`Deleted ${deletedComment.sender?.displayName}'s comment from ${found.entry.getData().code}`);
             try {
                 await this.push();
             } catch (e: any) {
