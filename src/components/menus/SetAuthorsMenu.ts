@@ -14,10 +14,10 @@ export class SetAuthorsMenu implements Menu {
 
     async getBuilder(guildHolder: GuildHolder, submission: Submission, isExtra: boolean): Promise<UserSelectMenuBuilder | StringSelectMenuBuilder> {
         const currentAuthors = (submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || []).filter(author => {
-            if (isExtra) {
-                return author.type === AuthorType.Unknown || author.type === AuthorType.DiscordDeleted;
+            if (author.type === AuthorType.Unknown || author.type === AuthorType.DiscordDeleted) {
+                return isExtra;
             } else {
-                return author.type === AuthorType.DiscordInGuild || author.type === AuthorType.DiscordExternal;
+                return !isExtra;
             }
         });
 

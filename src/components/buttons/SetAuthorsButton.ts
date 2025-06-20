@@ -1,7 +1,7 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, Interaction } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Button } from "../../interface/Button.js";
-import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
+import { canEditSubmission, reclassifyAuthors, replyEphemeral } from "../../utils/Util.js";
 import { SetAuthorsMenu } from "../menus/SetAuthorsMenu.js";
 import { AddAuthorButton } from "./AddAuthorButton.js";
 import { Submission } from "../../submissions/Submission.js";
@@ -44,9 +44,15 @@ export class SetAuthorsButton implements Button {
             .addComponents(await new SetAuthorsMenu().getBuilder(guildHolder, submission, false));
         components.push(row);
 
+        // Update existing authors
+        const updatedAuthors =  await reclassifyAuthors(guildHolder, submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || []);
+        if (updatedAuthors.length > 0) {
+            submission.getConfigManager().setConfig(SubmissionConfigs.AUTHORS, updatedAuthors);
+        }
+
         // get authors
         const currentAuthors = (submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || []).filter(author => {
-            return author.type === AuthorType.Unknown;
+            return author.type === AuthorType.Unknown || author.type === AuthorType.DiscordDeleted;
         });
         if (currentAuthors.length > 0) {
             const row1 = new ActionRowBuilder()
