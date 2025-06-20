@@ -416,4 +416,8 @@ export class GuildHolder {
             embeds: [embed],
         });
     }
+
+    public getUserManager(): UserManager {
+        return this.userManager;
+    }
 }
