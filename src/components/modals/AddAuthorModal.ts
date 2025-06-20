@@ -5,6 +5,7 @@ import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
 import { Author, AuthorType } from "../../submissions/Author.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { SetAuthorsButton } from "../buttons/SetAuthorsButton.js";
+import { SetArchiveCategoryMenu } from "../menus/SetArchiveCategoryMenu.js";
 
 export class AddAuthorModal implements Modal {
     getID(): string {
@@ -16,7 +17,7 @@ export class AddAuthorModal implements Modal {
             .setCustomId(this.getID())
             .setTitle('Add Author Manually')
 
-    
+
 
         const userIDInput = new TextInputBuilder()
             .setCustomId('idInput')
@@ -58,7 +59,7 @@ export class AddAuthorModal implements Modal {
 
         const name = interaction.fields.getTextInputValue('nameInput');
         const userId = interaction.fields.getTextInputValue('idInput') || null;
-        
+
         const author: Author = {
             type: AuthorType.Unknown,
             id: userId || undefined,
@@ -76,7 +77,7 @@ export class AddAuthorModal implements Modal {
         }
 
         if (userId) {
-           const user = await guildHolder.getBot().client.users.fetch(userId);
+            const user = await guildHolder.getBot().client.users.fetch(userId);
             if (!user) {
                 replyEphemeral(interaction, 'User not found. Please provide a valid Discord User ID or leave it empty.');
                 return;
@@ -90,6 +91,8 @@ export class AddAuthorModal implements Modal {
                 author.type = AuthorType.DiscordExternal;
             }
         }
+
+        const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) === null;
 
         const currentAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
         if (currentAuthors.some(a => {
@@ -105,17 +108,25 @@ export class AddAuthorModal implements Modal {
 
         currentAuthors.push(author);
         submission.getConfigManager().setConfig(SubmissionConfigs.AUTHORS, currentAuthors);
-       
+
         const channel = await submission.getSubmissionChannel();
         channel.send({
             content: `<@${interaction.user.id}> added author: ${author.username} (${author.id ? `<@${author.id}>` : 'Unknown ID'})`,
             flags: MessageFlags.SuppressNotifications
         });
 
-       
+
 
         await SetAuthorsButton.sendAuthorsMenuAndButton(guildHolder, submission, interaction);
-       
+
         submission.statusUpdated();
+
+        if (isFirstTime) {
+            const row = new ActionRowBuilder()
+                .addComponents(await new SetArchiveCategoryMenu().getBuilder(guildHolder))
+            await replyEphemeral(interaction,`Please select an archive category for your submission`,{
+                components: [row as any],
+            })
+        }
     }
 }
