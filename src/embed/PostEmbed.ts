@@ -129,7 +129,7 @@ export class PostEmbed {
         }
 
         content.push(`\n**Authors:** ${getAuthorsString(authors)}`);
-        content.push(`**Endorsed by:** ${getAuthorsString(entryData.endorsers)}\n`);
+        content.push(`**Endorsed by:** ${getAuthorsString(entryData.endorsers)}`);
        
 
         const githubURL = submission.getGuildHolder().getConfigManager().getConfig(GuildConfigs.GITHUB_REPO_URL);
