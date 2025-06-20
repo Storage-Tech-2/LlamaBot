@@ -259,16 +259,17 @@ export async function processAttachments(attachments: Attachment[], attachments_
     await Promise.all(attachments.map(async attachment => {
         const key = getFileKey(attachment);
         const attachmentPath = Path.join(attachments_folder, key);
-        // If the attachment already exists, skip processing
-        if (await fs.access(attachmentPath).then(() => true).catch(() => false)) {
-            return;
-        }
 
         const ext = attachment.name.split('.').pop();
 
         if (attachment.canDownload) {
-            const attachmentData = await got(attachment.url, { responseType: 'buffer' });
-            await fs.writeFile(attachmentPath, attachmentData.body);
+
+            // If the attachment already exists, skip download
+            if (!await fs.access(attachmentPath).then(() => true).catch(() => false)) {
+                const attachmentData = await got(attachment.url, { responseType: 'buffer' });
+                await fs.writeFile(attachmentPath, attachmentData.body);
+            }
+
             if (ext === 'litematic') {
                 try {
                     const litematicFile = await fs.readFile(attachmentPath);
