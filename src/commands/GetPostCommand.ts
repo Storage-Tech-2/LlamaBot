@@ -59,11 +59,8 @@ export class GetPostCommand implements Command {
         }
 
         await interaction.reply({
-            content: `Found post with code \`${code}\`:`,
+            content: `Found post! ${message.url}`
         });
-
-        // forward the message to the user
-        await message.forward(interaction.channelId);
     }
 
 }
