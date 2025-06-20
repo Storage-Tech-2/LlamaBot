@@ -177,7 +177,11 @@ export class GuildHolder {
             .setColor(0x00FF00) // Green color for thank you message
             .setTitle(`Point Received!`)
             .setDescription(`<@${thanksSenderID}> gave a point to <@${thanksRecieverID}>!`)
-            .setFooter({ text: `Total points: ${userData.thankedCountTotal} (${userData.thankedBuffer.length} in the past month)` })
+            .addFields(
+                { name: 'Total points', value: `${userData.thankedCountTotal}`, inline: true },
+                { name: 'In the past month', value: `${userData.thankedBuffer.length}`, inline: true },
+            )
+            .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.`});
         await message.reply({ embeds: [embed] });
         await this.checkHelper(userData);
     }
