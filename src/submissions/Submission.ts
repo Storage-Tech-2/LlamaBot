@@ -598,6 +598,7 @@ export class Submission {
 
         this.getConfigManager().setConfig(SubmissionConfigs.POST, newEntryData.post);
         this.getConfigManager().setConfig(SubmissionConfigs.STATUS, SubmissionStatus.ACCEPTED);
+        this.getConfigManager().setConfig(SubmissionConfigs.IS_LOCKED, true);
         await this.statusUpdated();
         this.publishLock = false;
     }
