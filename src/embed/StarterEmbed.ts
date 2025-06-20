@@ -43,7 +43,7 @@ export class StarterEmbed {
             embed.setColor('#ff0000')
         } else if (status === SubmissionStatus.RETRACTED) {
             embed.setColor('#ff8800')
-        } else if (configs.getConfig(SubmissionConfigs.ON_HOLD)) {
+        } else if (configs.getConfig(SubmissionConfigs.ON_HOLD) || configs.getConfig(SubmissionConfigs.IS_LOCKED)) {
             embed.setColor('#ffff00')
         } else {
             embed.setColor('#0099ff')
@@ -95,9 +95,17 @@ export class StarterEmbed {
         } else if (status === SubmissionStatus.ACCEPTED) {
             description += `:tada: Published at ${submission.getConfigManager().getConfig(SubmissionConfigs.POST)?.threadURL}\n`
         } else if (status === SubmissionStatus.REJECTED) {
-            description += `:no_entry: The submission was rejected. Reason: ${configs.getConfig(SubmissionConfigs.REJECTION_REASON) || 'No reason provided.'}`
+            description += `:no_entry: The submission was rejected. Reason: ${configs.getConfig(SubmissionConfigs.REJECTION_REASON) || 'No reason provided.'}\n`
         } else if (status === SubmissionStatus.RETRACTED) {
-            description += `:x: The submission was retracted from the archive. Reason: ${configs.getConfig(SubmissionConfigs.RETRACTION_REASON) || 'No reason provided.'}`
+            description += `:x: The submission was retracted from the archive. Reason: ${configs.getConfig(SubmissionConfigs.RETRACTION_REASON) || 'No reason provided.'}\n`
+        }
+
+        if (configs.getConfig(SubmissionConfigs.ON_HOLD)) {
+            description += `:pause_button: The submission is currently on hold. Reason: ${configs.getConfig(SubmissionConfigs.HOLD_REASON) || 'No reason provided.'}\n`
+        }
+
+        if (configs.getConfig(SubmissionConfigs.IS_LOCKED)) {
+            description += `:lock: The submission is currently locked. Reason: ${configs.getConfig(SubmissionConfigs.LOCK_REASON) || 'No reason provided.'}\n`
         }
 
         description += `\nLast updated: <t:${Math.floor(Date.now() / 1000)}:F>`
