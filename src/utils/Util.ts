@@ -796,11 +796,13 @@ export async function reclassifyAuthors(guildHolder: GuildHolder, list: Author[]
             newAuthor.type = AuthorType.DiscordInGuild;
             newAuthor.displayName = member.displayName;
             newAuthor.username = member.user.username;
+            newAuthor.iconURL = member.user.displayAvatarURL();
         } else {
             const user = await guildHolder.getBot().client.users.fetch(author.id).catch(() => null);
             if (user) { // is a user but not a member of the guild
                 newAuthor.type = AuthorType.DiscordExternal;
                 newAuthor.username = user.username;
+                newAuthor.iconURL = user.displayAvatarURL();
             } else {
                 newAuthor.type = AuthorType.DiscordDeleted;
             }

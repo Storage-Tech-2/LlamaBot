@@ -85,7 +85,9 @@ export class SetAuthorsMenu implements Menu {
             return {
                 type: AuthorType.DiscordInGuild,
                 id: user.id,
-                name: user.user.username
+                name: user.user.username,
+                displayName: user.displayName,
+                iconURL: user.displayAvatarURL()
             }
         }))).filter(author => author !== null) as Author[];
 

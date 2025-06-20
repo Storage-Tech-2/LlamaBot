@@ -2,9 +2,9 @@ import { GuildHolder } from "../GuildHolder.js";
 import fs from "fs/promises";
 import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
-import { ChannelType, ForumChannel, Message, MessageFlags, Snowflake } from "discord.js";
+import { AttachmentBuilder, ChannelType, EmbedBuilder, ForumChannel, Message, MessageFlags, Snowflake } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
-import { deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors } from "../utils/Util.js";
+import { deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getAuthorsString, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors } from "../utils/Util.js";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";
 import { Submission } from "../submissions/Submission.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
@@ -646,6 +646,7 @@ export class RepositoryManager {
 
             const path = `${archiveChannelRef.path}/${entryRef.path}`;
             let message = await PostEmbed.createInitialMessage(submission, submissionChannel.url, '', path, entryData);
+            let wasThreadCreated = false;
             if (!thread) {
                 thread = await publishChannel.threads.create({
                     message: {
@@ -658,6 +659,7 @@ export class RepositoryManager {
                 })
                 entryData.post.threadId = thread.id;
                 entryData.post.threadURL = thread.url;
+                wasThreadCreated = true;
             } else {
                 await thread.setAppliedTags(entryData.tags.map(tag => tag.id).filter(tagId => publishChannel.availableTags.some(t => t.id === tagId)));
             }
@@ -682,11 +684,6 @@ export class RepositoryManager {
             await this.git.add(entryFolder);
             await this.git.add(channelPath); // to update currentCodeId and entries
 
-            if (existing) {
-                await this.git.commit(`${entryData.code}: ${generateCommitMessage(existing.entry.getData(), entryData)}`);
-            } else {
-                await this.git.commit(`Added entry ${entryData.name} (${entryData.code}) to channel ${archiveChannel.getData().name} (${archiveChannel.getData().code})`);
-            }
 
             // Now post to discord
 
@@ -724,6 +721,70 @@ export class RepositoryManager {
                 content: attachmentMessage.content,
                 flags: [MessageFlags.SuppressEmbeds]
             });
+
+
+            if (wasThreadCreated) { // check if there are comments to post
+                const commentsFile = Path.join(entryFolder, 'comments.json');
+                let comments: ArchiveComment[] = [];
+                try {
+                    comments = JSON.parse(await fs.readFile(commentsFile, 'utf-8')) as ArchiveComment[];
+                }
+                catch (e: any) {
+                    if (e.code !== 'ENOENT') {
+                        console.error("Error reading comments file:", e);
+                        throw e;
+                    }
+                }
+
+                if (comments.length > 0) {
+                    for (const comment of comments) {
+                        const author = (await reclassifyAuthors(this.guildHolder, [comment.sender]))[0];
+                        comment.sender = author;
+
+                        const files: AttachmentBuilder[] = [];
+                        if (comment.attachments.length > 0) {
+                            const commentAttachmentFolder = Path.join(entryFolder, 'comments_attachments');
+                            for (const attachment of comment.attachments) {
+                                if (!attachment.canDownload || !attachment.path || attachment.contentType === 'discord') {
+                                    continue; // Skip attachments that cannot be downloaded or have no path
+                                }
+                                const attachmentPath = Path.join(commentAttachmentFolder, attachment.path);
+                                if (await fs.access(attachmentPath).then(() => true).catch(() => false)) {
+                                    const file = new AttachmentBuilder(attachmentPath);
+                                    file.setName(attachment.name);
+                                    file.setDescription(attachment.description || '');
+                                    files.push(file);
+                                }
+                            }
+                        }
+
+                        const embed = new EmbedBuilder()
+                            .setAuthor({
+                                name: getAuthorsString([author]),
+                                iconURL: author.iconURL || undefined,
+                            })
+                            .setDescription(comment.content)
+                            .setTimestamp(comment.timestamp ? new Date(comment.timestamp) : undefined)
+                        
+                        const commentMessage = await thread.send({
+                            embeds: [embed],
+                            files: files,
+                        });
+                        comment.id = commentMessage.id;
+                    }
+                    // Save comments back to the file
+                    await fs.writeFile(commentsFile, JSON.stringify(comments, null, 2), 'utf-8');
+                    await this.git.add(commentsFile);
+                    
+                }
+
+            }
+
+            if (existing) {
+                await this.git.commit(`${entryData.code}: ${generateCommitMessage(existing.entry.getData(), entryData)}`);
+            } else {
+                await this.git.commit(`Added entry ${entryData.name} (${entryData.code}) to channel ${archiveChannel.getData().name} (${archiveChannel.getData().code})`);
+            }
 
             try {
                 await this.push();
@@ -976,8 +1037,7 @@ export class RepositoryManager {
             }
             comments.splice(deletedCommentIndex, 1);
             await fs.writeFile(commentsFile, JSON.stringify(comments, null, 2), 'utf-8');
-            await this.git.add(commentsFile);
-            await this.git.commit(`Deleted ${message.member?.displayName}'s comment from ${found.entry.getData().code}`);
+            await this.git.add(commentsFile).commit(`Deleted ${message.member?.displayName}'s comment from ${found.entry.getData().code}`);
             try {
                 await this.push();
             } catch (e: any) {

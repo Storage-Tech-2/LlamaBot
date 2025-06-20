@@ -10,4 +10,5 @@ export type Author = {
     id?: string, // Discord user ID or other identifier
     username?: string, // Username
     displayName?: string, // Display name if different from username
+    iconURL?: string, // URL to the user's avatar or icon
 }

@@ -87,8 +87,10 @@ export class AddAuthorModal implements Modal {
             if (member) {
                 author.type = AuthorType.DiscordInGuild;
                 author.displayName = member.displayName;
+                author.iconURL = member.displayAvatarURL();
             } else {
                 author.type = AuthorType.DiscordExternal;
+                author.iconURL = user.displayAvatarURL();
             }
         }
 
