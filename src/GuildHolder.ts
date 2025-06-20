@@ -1,4 +1,4 @@
-import { ChannelType, EmbedBuilder, ForumChannel, Guild, Message, MessageFlags, Snowflake } from "discord.js";
+import { AnyThreadChannel, ChannelType, EmbedBuilder, ForumChannel, Guild, Message, MessageFlags, Snowflake } from "discord.js";
 import { Bot } from "./Bot.js";
 import { ConfigManager } from "./config/ConfigManager.js";
 import Path from "path";
@@ -6,7 +6,7 @@ import { GuildConfigs } from "./config/GuildConfigs.js";
 import { SubmissionsManager } from "./submissions/SubmissionsManager.js";
 import { RepositoryManager } from "./archive/RepositoryManager.js";
 import { ArchiveEntryData } from "./archive/ArchiveEntry.js";
-import { getAttachmentsFromMessage, getAuthorsString, getChanges, truncateStringWithEllipsis } from "./utils/Util.js";
+import { getAuthorsString, getChanges, truncateStringWithEllipsis } from "./utils/Util.js";
 import { UserManager } from "./support/UserManager.js";
 import { UserData } from "./support/UserData.js";
 
@@ -142,6 +142,18 @@ export class GuildHolder {
         if (message.channel.isThread() && message.channel.parentId && this.cachedChannelIds.includes(message.channel.parentId)) {
             this.getRepositoryManager().handlePostMessageDelete(message).catch(e => {
                 console.error('Error handling post message:', e);
+            });
+        }
+    }
+
+    /**
+     * Handles a thread deletion in the guild.
+     */
+    public async handleThreadDelete(thread: AnyThreadChannel) {
+        // Handle message inside archived post
+        if (thread.parentId && this.cachedChannelIds.includes(thread.parentId)) {
+            this.getRepositoryManager().handlePostThreadDelete(thread).catch(e => {
+                console.error('Error handling post thread deletion:', e);
             });
         }
     }

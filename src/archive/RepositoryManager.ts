@@ -2,7 +2,7 @@ import { GuildHolder } from "../GuildHolder.js";
 import fs from "fs/promises";
 import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
-import { AttachmentBuilder, ChannelType, EmbedBuilder, ForumChannel, Message, MessageFlags, Snowflake } from "discord.js";
+import { AnyThreadChannel, AttachmentBuilder, ChannelType, EmbedBuilder, ForumChannel, Message, MessageFlags, Snowflake } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
 import { deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getAuthorsString, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors } from "../utils/Util.js";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";
@@ -15,6 +15,7 @@ import { GuildConfigs } from "../config/GuildConfigs.js";
 import { simpleGit, SimpleGit } from "simple-git";
 import { ArchiveComment } from "./ArchiveComments.js";
 import { AuthorType } from "../submissions/Author.js";
+import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
 
 
 export class RepositoryManager {
@@ -844,27 +845,14 @@ export class RepositoryManager {
             await this.git.rm(files);
 
             foundChannel.getData().entries.splice(foundEntryIndex, 1);
-            await this.git.add(foundChannel.getDataPath());
             await foundChannel.save();
+            await this.git.add(foundChannel.getDataPath());
 
             // Commit the removal
             await this.git.commit(`Retracted entry ${entryData.name} (${entryData.code}) from channel ${foundChannel.getData().name} (${foundChannel.getData().code})\nReason: ${reason || 'No reason provided'}`);
 
             // Now post to discord
-            if (!entryData.post) {
-                throw new Error('Entry does not have a post or thread ID');
-            }
-            const publishForumId = entryData.post.forumId;
-            const publishForum = await submission.getGuildHolder().getGuild().channels.fetch(publishForumId);
-            if (!publishForum || publishForum.type !== ChannelType.GuildForum) {
-                throw new Error('Publish forum not found or is not a forum channel');
-            }
-            const thread = await publishForum.threads.fetch(entryData.post.threadId);
-            if (!thread) {
-                throw new Error('Thread not found in publish forum');
-            }
-
-            await thread.delete(reason || 'No reason provided');
+            await this.removeDiscordPost(entryData, submission, reason);
 
             // Remove post
             submission.getConfigManager().setConfig(SubmissionConfigs.POST, null);
@@ -877,13 +865,33 @@ export class RepositoryManager {
 
             this.lock.release();
 
-            await this.deleteSubmissionIDForPostID(thread.id);
+            await this.deleteSubmissionIDForPostID(entryData.post?.threadId || '');
 
             return entryData;
         } catch (e) {
             this.lock.release();
             throw e;
         }
+    }
+
+    async removeDiscordPost(entryData: ArchiveEntryData, submission: Submission, reason?: string): Promise<void> {
+        if (!entryData.post) {
+            return; // No post to remove
+        }
+
+        const publishForumId = entryData.post.forumId;
+        const publishForum = await submission.getGuildHolder().getGuild().channels.fetch(publishForumId);
+        if (!publishForum || publishForum.type !== ChannelType.GuildForum) {
+            return; // Publish forum not found or is not a forum channel
+        }
+        const thread = await publishForum.threads.fetch(entryData.post.threadId);
+        if (!thread) {
+            return; // Thread not found in publish forum
+        }
+
+        await thread.delete(reason || 'No reason provided').catch(e => {
+            console.error("Error deleting thread:", e);
+        });
     }
 
 
@@ -1045,6 +1053,85 @@ export class RepositoryManager {
             }
         } catch (e) {
             console.error("Error handling post message:", e);
+        }
+        this.lock.release();
+    }
+
+    public async handlePostThreadDelete(thread: AnyThreadChannel) {
+        const postId = thread.id;
+        const submissionId = await this.getSubmissionIDByPostID(postId);
+
+        if (!submissionId) {
+            throw new Error(`No submission found for post ID ${postId}`);
+        }
+
+        if (!this.git) {
+            throw new Error("Git not initialized");
+        }
+      
+        await this.lock.acquire();
+        try {
+            const submissionId = await this.getSubmissionIDByPostID(postId);
+            if (!submissionId) {
+                throw new Error(`No submission found for post ID ${postId}`);
+            }
+
+            const found = await this.findEntryBySubmissionId(submissionId);
+            if (!found) {
+                throw new Error(`No entry found for submission ID ${submissionId}`);
+            }
+
+            const entryPath = found.entry.getFolderPath();
+
+            // Remove all files inside the entry folder
+            const files = [];
+            const stack = [entryPath];
+            while (stack.length > 0) {
+                const currentPath = stack.pop();
+                if (!currentPath) continue;
+                const entries = await fs.readdir(currentPath, { withFileTypes: true });
+                for (const entry of entries) {
+                    if (entry.name === '.DS_Store') {
+                        // delete .DS_Store files
+                        await fs.unlink(Path.join(currentPath, entry.name));
+                        continue; // Skip .DS_Store files
+                    }
+                    const fullPath = Path.join(currentPath, entry.name);
+                    if (entry.isDirectory()) {
+                        stack.push(fullPath);
+                    } else {
+                        files.push(fullPath);
+                    }
+                }
+            }
+            await this.git.rm(files);
+            found.channel.getData().entries.splice(found.entryIndex, 1);
+            await found.channel.save();
+            await this.git.add(found.channel.getDataPath());
+            // Commit the removal
+            await this.git.commit(`Force deleted ${found.entry.getData().code} ${found.entry.getData().name} from channel ${found.channel.getData().name} (${found.channel.getData().code})`);
+            
+            // check submission
+            try {
+                const submission = await this.guildHolder.getSubmissionsManager().getSubmission(submissionId);
+                if (submission) {
+                    submission.getConfigManager().setConfig(SubmissionConfigs.POST, null);
+                    submission.getConfigManager().setConfig(SubmissionConfigs.STATUS, SubmissionStatus.RETRACTED);
+                    submission.getConfigManager().setConfig(SubmissionConfigs.REJECTION_REASON, 'Thread deleted');
+                    await submission.save();
+                    await submission.statusUpdated();
+                }
+            } catch (e: any) {
+                console.error("Error updating submission config:", e.message);
+            }
+
+            try {
+                await this.push();
+            } catch (e: any) {
+                console.error("Error pushing to remote:", e.message);
+            }
+        } catch (e) {
+            console.error("Error handling post thread delete:", e);
         }
         this.lock.release();
     }

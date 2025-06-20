@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, Client, GatewayIntentBits, SelectMenuInteraction } from "discord.js";
+import { ChannelType, ChatInputCommandInteraction, Client, GatewayIntentBits, SelectMenuInteraction } from "discord.js";
 import { GuildHolder } from "./GuildHolder.js";
 import { LLMQueue } from "./llm/LLMQueue.js";
 import path from "path";
@@ -243,6 +243,21 @@ export class Bot {
                 await guildHolder.handleMessageDelete(message)
             } catch (error) {
                 console.error('Error handling message delete:', error)
+            }
+        })
+
+        this.client.on('threadDelete', async (thread) => {
+            if (!thread.isTextBased()) return
+            
+
+            const guildHolder = this.guilds.get(thread.guildId)
+            if (!guildHolder) return
+
+            // Handle message in guild
+            try {
+                await guildHolder.handleThreadDelete(thread)
+            } catch (error) {
+                console.error('Error handling thread delete:', error)
             }
         })
         
