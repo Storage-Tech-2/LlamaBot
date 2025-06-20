@@ -1073,12 +1073,12 @@ export class RepositoryManager {
         try {
             const submissionId = await this.getSubmissionIDByPostID(postId);
             if (!submissionId) {
-                throw new Error(`No submission found for post ID ${postId}`);
+                return;
             }
 
             const found = await this.findEntryBySubmissionId(submissionId);
             if (!found) {
-                throw new Error(`No entry found for submission ID ${submissionId}`);
+                return;
             }
 
             const entryPath = found.entry.getFolderPath();
@@ -1128,7 +1128,9 @@ export class RepositoryManager {
                     await submission.save();
                     await submission.statusUpdated();
                 }
-                await this.guildHolder.logRetraction(found.entry.getData(), 'Thread deleted');
+                this.guildHolder.logRetraction(found.entry.getData(), 'Thread deleted').catch(e => {
+                    console.error("Error logging retraction:", e);
+                });
             } catch (e: any) {
                 console.error("Error updating submission config:", e.message);
             }
