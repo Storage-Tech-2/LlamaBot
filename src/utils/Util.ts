@@ -776,7 +776,7 @@ export async function reclassifyAuthors(guildHolder: GuildHolder, list: Author[]
     const result: Author[] = [];
     for (const author of list) {
         const newAuthor: Author = { ...author };
-        if (author.type === AuthorType.Unknown || !author.id) {
+        if (author.type === AuthorType.Unknown || !author.id || author.type === AuthorType.DiscordDeleted) {
             // keep as is
             result.push(newAuthor);
             continue;
