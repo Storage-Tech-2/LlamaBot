@@ -1,4 +1,4 @@
-import { ChannelType, EmbedBuilder, Guild, Message, Snowflake } from "discord.js";
+import { ChannelType, EmbedBuilder, Guild, Message, MessageFlags, Snowflake } from "discord.js";
 import { Bot } from "./Bot.js";
 import { ConfigManager } from "./config/ConfigManager.js";
 import Path from "path";
@@ -182,7 +182,7 @@ export class GuildHolder {
                 { name: 'In the past month', value: `${userData.thankedBuffer.length}`, inline: true },
             )
             .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.`});
-        await message.reply({ embeds: [embed] });
+        await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
         await this.checkHelper(userData);
     }
 
