@@ -242,7 +242,12 @@ export class RepositoryManager {
         for (const channel of removedChannels) {
             const channelPath = Path.join(this.folderPath, channel.path);
             // Commit the removal
-            await fs.rm(channelPath, { recursive: true, force: true });
+            for (const file of await fs.readdir(channelPath)) {
+                const filePath = Path.join(channelPath, file);
+                // recursive
+                await fs.rm(filePath, { recursive: true, force: true });
+            }
+            await this.git.rm(channelPath);
             await this.git.commit(`Removed channel ${channel.name} (${channel.code})`);
         }
 
@@ -341,6 +346,7 @@ export class RepositoryManager {
             } else {
                 msg = `Updated channel ${oldChannel.name} (${channel.code})`;
             }
+            await this.git.add(newPath);
             await this.git.commit(msg);
         }
 
@@ -512,6 +518,7 @@ export class RepositoryManager {
                     // If the channel is different, we need to remove the old entry from the old channel
                     existing.channel.getData().entries.splice(existing.entryIndex, 1);
                     await existing.channel.save();
+                    await this.git.add(existing.channel.getDataPath());
 
                     // Also remove old discord post if it exists
                     const post = existing.entry.getData().post;
@@ -670,12 +677,12 @@ export class RepositoryManager {
 
             await entry.save();
             await archiveChannel.save();
+            await this.git.add(archiveChannel.getDataPath());
 
             await this.git.add(entryFolder);
             await this.git.add(channelPath); // to update currentCodeId and entries
 
             if (existing) {
-
                 await this.git.commit(`${entryData.code}: ${generateCommitMessage(existing.entry.getData(), entryData)}`);
             } else {
                 await this.git.commit(`Added entry ${entryData.name} (${entryData.code}) to channel ${archiveChannel.getData().name} (${archiveChannel.getData().code})`);
@@ -777,6 +784,7 @@ export class RepositoryManager {
             await this.git.rm(files);
 
             foundChannel.getData().entries.splice(foundEntryIndex, 1);
+            await this.git.add(foundChannel.getDataPath());
             await foundChannel.save();
 
             // Commit the removal
@@ -875,7 +883,6 @@ export class RepositoryManager {
                 return;
             }
             await fs.writeFile(commentsFile, JSON.stringify([], null, 2), 'utf-8');
-            await this.git.add(commentsFile);
         }
 
         try {
@@ -907,7 +914,7 @@ export class RepositoryManager {
             }
             comments.push(newComment);
             await fs.writeFile(commentsFile, JSON.stringify(comments, null, 2), 'utf-8');
-           
+            await this.git.add(commentsFile);
             await this.git.commit(`Added ${message.member?.displayName}'s comment to ${found.entry.getData().code}`);
             try {
                 await this.push();
@@ -969,6 +976,7 @@ export class RepositoryManager {
             }
             comments.splice(deletedCommentIndex, 1);
             await fs.writeFile(commentsFile, JSON.stringify(comments, null, 2), 'utf-8');
+            await this.git.add(commentsFile);
             await this.git.commit(`Deleted ${message.member?.displayName}'s comment from ${found.entry.getData().code}`);
             try {
                 await this.push();
