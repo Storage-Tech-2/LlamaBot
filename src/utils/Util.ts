@@ -796,6 +796,7 @@ export async function reclassifyAuthors(guildHolder: GuildHolder, list: Author[]
                 newAuthor.type = AuthorType.DiscordDeleted;
             }
         }
+        result.push(newAuthor);
     }
     return result;
 }
