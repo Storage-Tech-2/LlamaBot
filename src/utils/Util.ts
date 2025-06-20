@@ -773,13 +773,11 @@ export function canSetPrivilegedTags(interaction: Interaction, submission: Submi
 }
 
 export async function reclassifyAuthors(guildHolder: GuildHolder, list: Author[]): Promise<Author[]> {
-    const result: Author[] = [];
-    for (const author of list) {
+    return Promise.all(list.map(async author => {
         const newAuthor: Author = { ...author };
         if (author.type === AuthorType.Unknown || !author.id || author.type === AuthorType.DiscordDeleted) {
             // keep as is
-            result.push(newAuthor);
-            continue;
+            return newAuthor;
         }
 
         const member = await guildHolder.getGuild().members.fetch(author.id).catch(() => null);
@@ -796,7 +794,6 @@ export async function reclassifyAuthors(guildHolder: GuildHolder, list: Author[]
                 newAuthor.type = AuthorType.DiscordDeleted;
             }
         }
-        result.push(newAuthor);
-    }
-    return result;
+        return newAuthor;
+    }));
 }
