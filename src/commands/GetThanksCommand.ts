@@ -45,10 +45,13 @@ export class GetThanksCommand implements Command {
         let message = `<@${userData.id}> has a total of ${userData.thankedCountTotal} thank-you points in this server.`;
         
         if (userData.thankedBuffer.length > 0) {
-            message += `\n\n**${userData.thankedBuffer.length} Thanks Recieved in the Last 30 Days:**`;
+            message += `\n\n**${userData.thankedBuffer.length} Thanks Recieved in the Last 30 Days:** ${userData.thankedBuffer.length > 15 ? '(showing most recent 15)' : ''}`;
             const buffer = userData.thankedBuffer.slice(0);
             buffer.reverse(); // Reverse the buffer to show the most recent first
-            for (const thanked of userData.thankedBuffer) {
+            if (buffer.length > 15) {
+                buffer.splice(0, buffer.length - 15); // Limit to the most recent 15
+            }
+            for (const thanked of buffer) {
                 const url = `https://discord.com/channels/${guildHolder.getGuild().id}/${thanked.channelId}/${thanked.messageId}`;
                 message += `\n- <t:${Math.floor(thanked.timestamp/1000)}:D>, thanked by <@${thanked.thankedBy}> for ${url}`;
             }
