@@ -1,7 +1,9 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType, ChannelType } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
-import { replyEphemeral } from "../utils/Util.js";
+import { isEditor, isEndorser, isModerator, replyEphemeral } from "../utils/Util.js";
+import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
+import { AuthorType } from "../submissions/Author.js";
 
 export class GetPostCommand implements Command {
     getID(): string {
@@ -46,20 +48,13 @@ export class GetPostCommand implements Command {
 
         // fetch channel
         const threadChannel = await guildHolder.getGuild().channels.fetch(post.threadId).catch(() => null);
-        if (!threadChannel || !threadChannel.isTextBased()) {
+        if (!threadChannel) {
             await replyEphemeral(interaction, `The post with code \`${code}\` is not in a valid thread channel.`);
             return;
         }
 
-        // get message
-        const message = await threadChannel.messages.fetch(post.messageId).catch(() => null);
-        if (!message) {
-            await replyEphemeral(interaction, `The message for the post with code \`${code}\` does not exist or has been deleted.`);
-            return;
-        }
-
         await interaction.reply({
-            content: `Found post! ${message.url}`
+            content: `Found post! ${threadChannel.url}`
         });
     }
 
