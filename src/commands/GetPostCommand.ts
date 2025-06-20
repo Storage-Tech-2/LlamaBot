@@ -46,22 +46,15 @@ export class GetPostCommand implements Command {
             return;
         }
 
-        // fetch forum channel
-        const forumChannel = await guildHolder.getGuild().channels.fetch(post.forumId).catch(() => null);
-        if (!forumChannel || forumChannel.type !== ChannelType.GuildForum) {
-            await replyEphemeral(interaction, `The post with code \`${code}\` is not in a valid forum channel.`);
-            return;
-        }
-
-        // get thread
-        const thread = await forumChannel.threads.fetch(post.threadId).catch(() => null);
-        if (!thread) {
-            await replyEphemeral(interaction, `The thread for the post with code \`${code}\` does not exist or has been deleted.`);
+        // fetch channel
+        const threadChannel = await guildHolder.getGuild().channels.fetch(post.threadId).catch(() => null);
+        if (!threadChannel || !threadChannel.isTextBased()) {
+            await replyEphemeral(interaction, `The post with code \`${code}\` is not in a valid thread channel.`);
             return;
         }
 
         // get message
-        const message = await thread.messages.fetch(post.messageId).catch(() => null);
+        const message = await threadChannel.messages.fetch(post.messageId).catch(() => null);
         if (!message) {
             await replyEphemeral(interaction, `The message for the post with code \`${code}\` does not exist or has been deleted.`);
             return;
