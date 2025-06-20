@@ -1117,10 +1117,18 @@ export class RepositoryManager {
                 if (submission) {
                     submission.getConfigManager().setConfig(SubmissionConfigs.POST, null);
                     submission.getConfigManager().setConfig(SubmissionConfigs.STATUS, SubmissionStatus.RETRACTED);
-                    submission.getConfigManager().setConfig(SubmissionConfigs.REJECTION_REASON, 'Thread deleted');
+                    submission.getConfigManager().setConfig(SubmissionConfigs.RETRACTION_REASON, 'Thread deleted');
+
+                    // send message to the user
+                    const channel = await submission.getSubmissionChannel();
+                    channel.send({
+                        content: `Your submission ${submission.getConfigManager().getConfig(SubmissionConfigs.NAME)} has been forcibly retracted because the thread was deleted.`
+                    });
+
                     await submission.save();
                     await submission.statusUpdated();
                 }
+                await this.guildHolder.logRetraction(found.entry.getData(), 'Thread deleted');
             } catch (e: any) {
                 console.error("Error updating submission config:", e.message);
             }
