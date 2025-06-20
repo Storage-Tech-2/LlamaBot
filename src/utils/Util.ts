@@ -746,7 +746,7 @@ export function canPublishSubmission(interaction: Interaction, submission: Submi
         return true;
     }
 
-    if (submission.getConfigManager().getConfig(SubmissionConfigs.ON_HOLD)) {
+    if (submission.getConfigManager().getConfig(SubmissionConfigs.ON_HOLD) || submission.getConfigManager().getConfig(SubmissionConfigs.IS_LOCKED)) {
         return false;
     }
 
@@ -761,7 +761,7 @@ export function canSetPrivilegedTags(interaction: Interaction, submission: Submi
     if (!interaction.inCachedGuild() || !interaction.member) {
         return false;
     }
-    
+
     if (isAdmin(interaction) || isModerator(interaction) || isEditor(interaction, submission.getGuildHolder())) {
         return true;
     }
