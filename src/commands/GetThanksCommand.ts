@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType, MessageFlags } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
-import { replyEphemeral } from "../utils/Util.js";
+import { replyEphemeral, truncateStringWithEllipsis } from "../utils/Util.js";
 
 export class GetThanksCommand implements Command {
     getID(): string {
@@ -50,12 +50,12 @@ export class GetThanksCommand implements Command {
             buffer.reverse(); // Reverse the buffer to show the most recent first
             for (const thanked of userData.thankedBuffer) {
                 const url = `https://discord.com/channels/${guildHolder.getGuild().id}/${thanked.channelId}/${thanked.messageId}`;
-                message += `\n- On <t:${Math.floor(thanked.timestamp/1000)}:f>, thanked by <@${thanked.thankedBy}> for ${url}`;
+                message += `\n- <t:${Math.floor(thanked.timestamp/1000)}:D>, thanked by <@${thanked.thankedBy}> for ${url}`;
             }
         }
 
         await origMessage.edit({
-            content: message
+            content: truncateStringWithEllipsis(message, 2000),
         });
 
     }
