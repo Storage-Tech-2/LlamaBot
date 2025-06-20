@@ -49,17 +49,8 @@ export class GetThanksCommand implements Command {
             const buffer = userData.thankedBuffer.slice(0);
             buffer.reverse(); // Reverse the buffer to show the most recent first
             for (const thanked of userData.thankedBuffer) {
-                const channel = await guildHolder.getGuild().channels.fetch(thanked.channelId).catch(() => null);
-                if (!channel || !channel.isTextBased()) {
-                    message += `\n- On <t:${Math.floor(thanked.timestamp/1000)}:f>, thanked by <@${thanked.thankedBy}> (Channel not found)`;
-                } else {
-                    const messageObj = await channel.messages.fetch(thanked.messageId).catch(() => null);
-                    if (messageObj) {
-                        message += `\n- On <t:${Math.floor(thanked.timestamp/1000)}:f>, thanked by <@${thanked.thankedBy}> for ${messageObj.url}`;
-                    } else {
-                        message += `\n- On <t:${Math.floor(thanked.timestamp/1000)}:f>, thanked by <@${thanked.thankedBy}> (Message not found)`;
-                    }
-                }
+                const url = `https://discord.com/channels/${guildHolder.getGuild().id}/${thanked.channelId}/${thanked.messageId}`;
+                message += `\n- On <t:${Math.floor(thanked.timestamp/1000)}:f>, thanked by <@${thanked.thankedBy}> for ${url}`;
             }
         }
 
