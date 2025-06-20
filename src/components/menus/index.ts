@@ -5,6 +5,7 @@ import { SetAttachmentsMenu } from "./SetAttachmentsMenu.js";
 import { SetAuthorsMenu } from "./SetAuthorsMenu.js";
 import { SetEditorRolesMenu } from "./SetEditorRolesMenu.js";
 import { SetEndorseRolesMenu } from "./SetEndorseRolesMenu.js";
+import { SetHelperRoleMenu } from "./SetHelperRoleMenu.js";
 import { SetImagesMenu } from "./SetImagesMenu.js";
 import { SetTagsMenu } from "./SetTagsMenu.js";
 
@@ -13,6 +14,7 @@ export function getMenus() {
         new SetArchiveCategoriesMenu(),
         new SetEndorseRolesMenu(),
         new SetEditorRolesMenu(),
+        new SetHelperRoleMenu(),
 
         new SetAuthorsMenu(),
         new SetArchiveCategoryMenu(),

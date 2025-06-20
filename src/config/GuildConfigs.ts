@@ -42,4 +42,14 @@ export const GuildConfigs = {
      * Github repository URL for the archive.
      */
     GITHUB_REPO_URL: new Config<string>("githubRepoUrl", ""),
+
+    /**
+     * Helper role
+     */
+    HELPER_ROLE_ID: new Config<Snowflake>("helperRoleId", ""),
+
+    /**
+     * Helper role threshold
+     */
+    HELPER_ROLE_THRESHOLD: new Config<number>("helperRoleThreshold", 5),
 }

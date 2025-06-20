@@ -7,6 +7,8 @@ import { SubmissionsManager } from "./submissions/SubmissionsManager.js";
 import { RepositoryManager } from "./archive/RepositoryManager.js";
 import { ArchiveEntryData } from "./archive/ArchiveEntry.js";
 import { getAuthorsString, getChanges, truncateStringWithEllipsis } from "./utils/Util.js";
+import { UserManager } from "./support/UserManager.js";
+import { UserData } from "./support/UserData.js";
 
 /**
  * GuildHolder is a class that manages guild-related data.
@@ -32,7 +34,11 @@ export class GuildHolder {
      */
     private submissions: SubmissionsManager;
 
+
     private repositoryManager: RepositoryManager;
+    private userManager: UserManager;
+
+    private lastDayLoop: number = 0;
 
     /**
      * Creates a new GuildHolder instance.
@@ -45,6 +51,7 @@ export class GuildHolder {
         this.config = new ConfigManager(Path.join(this.getGuildFolder(), 'config.json'));
         this.submissions = new SubmissionsManager(this, Path.join(this.getGuildFolder(), 'submissions'));
         this.repositoryManager = new RepositoryManager(this, Path.join(this.getGuildFolder(), 'archive'));
+        this.userManager = new UserManager(Path.join(this.getGuildFolder(), 'users'));
         this.config.loadConfig().then(async () => {
             // Set guild name and ID in the config
             this.config.setConfig(GuildConfigs.GUILD_NAME, guild.name);
@@ -83,6 +90,15 @@ export class GuildHolder {
      * Handles a message received in the guild.
      */
     public async handleMessage(message: Message) {
+
+        // Check if message contains "thanks" or "thank you"
+        if (message.reference && message.content.match(/\b(thanks|thank you)[!\.]?\b/i)) {
+            this.handleThanksMessage(message).catch(e => {
+                console.error('Error handling thanks message:', e);
+            });
+        }
+
+        // Handle submissions
         if (message.channel.isThread() && message.channel.parentId === this.getSubmissionsChannelId()) {
             const submissionId = message.channel.id
             let submission = await this.submissions.getSubmission(submissionId)
@@ -97,6 +113,76 @@ export class GuildHolder {
         }
     }
 
+    public async handleThanksMessage(message: Message) {
+        // Check if it's a reply to another message
+        if (!message.reference || !message.reference.messageId) {
+            console.warn('Message is not a reply, skipping thanks handling');
+            return;
+        }
+
+        // Fetch the original message being replied to
+        const originalMessage = await message.channel.messages.fetch(message.reference.messageId);
+        if (!originalMessage) {
+            console.warn('Original message not found, skipping thanks handling');
+            return;
+        }
+
+        // Get author of the original message
+        const thanksSenderID = message.author.id;
+        const thanksRecieverID = originalMessage.author.id;
+
+        // Check if the sender and receiver are the same
+        if (thanksSenderID === thanksRecieverID) {
+            return;
+        }
+
+        // Check if the receiver is a bot
+        if (originalMessage.author.bot) {
+           return;
+        }
+
+        // get user data for reciever
+        let userData = await this.userManager.getUserData(thanksRecieverID);
+        if (!userData) {
+            userData = {
+                id: thanksRecieverID,
+                username: originalMessage.author.username,
+                thankedCountTotal: 0,
+                thankedBuffer: [],
+            };
+            await this.userManager.saveUserData(userData);
+        }
+
+        // Check if the sender has already thanked the receiver in the last 24 hours
+        const now = Date.now();
+        const oneDay = 24 * 60 * 60 * 1000; //
+        if (userData.thankedBuffer.some(thank => thank.thankedBy === thanksSenderID && now - thank.timestamp < oneDay)) {
+            return; // Already thanked in the last 24 hours
+        }
+
+        // Add the thank you to the buffer
+        userData.thankedBuffer.push({
+            thankedBy: thanksSenderID,
+            timestamp: now,
+            channelId: message.channel.id,
+            messageId: message.id,
+        });
+
+        // Increment the thanked count
+        userData.thankedCountTotal++;
+        await this.userManager.saveUserData(userData);
+
+        // Send a thank you message in the channel
+        const embed = new EmbedBuilder()
+            .setColor(0x00FF00) // Green color for thank you message
+            .setTitle(`Point Received!`)
+            .setDescription(`<@${thanksSenderID}> gave a point to <@${thanksRecieverID}>!`)
+            .setFooter({ text: `Total points: ${userData.thankedCountTotal} (${userData.thankedBuffer.length} in the past month)` })
+        await message.reply({ embeds: [embed] });
+        await this.checkHelper(userData);
+    }
+
+
     /**
      * Called every second to perform periodic tasks.
      */
@@ -105,6 +191,60 @@ export class GuildHolder {
         await this.submissions.purgeOldSubmissions();
         await this.submissions.saveSubmissions();
         await this.repositoryManager.save();
+
+        const now = Date.now();
+        if (now - this.lastDayLoop >= 24 * 60 * 60 * 1000) { // Every 24 hours
+            this.lastDayLoop = now;
+            await this.purgeThanksBuffer();
+        }
+    }
+
+    public async purgeThanksBuffer() {
+        const users = await this.userManager.getAllUserIDs();
+        for (const userId of users) {
+            const userData = await this.userManager.getUserData(userId);
+            if (!userData) continue;
+
+            // Purge buffer entries older than 30 days
+            const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+            userData.thankedBuffer = userData.thankedBuffer.filter(thank => thank.timestamp >= thirtyDaysAgo);
+
+            // Save updated user data
+            await this.userManager.saveUserData(userData);
+
+            await this.checkHelper(userData);
+        }
+
+    }
+
+    public async checkHelper(userData: UserData) {
+        const shouldHaveHelperRole = userData.thankedBuffer.length > this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_THRESHOLD);
+        const guild = this.getGuild();
+        const helperRoleId = this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_ID) as Snowflake | undefined;
+        if (!helperRoleId) {
+            return;
+        }
+
+        const helperRole = guild.roles.cache.get(helperRoleId);
+        if (!helperRole) {
+            console.warn(`Helper role with ID ${helperRoleId} not found in guild ${guild.name}`);
+            return;
+        }
+
+        const member = await guild.members.fetch(userData.id).catch(() => null);
+        if (!member) {
+            console.warn(`Member with ID ${userData.id} not found in guild ${guild.name}`);
+            return;
+        }
+
+        const hasHelperRole = member.roles.cache.has(helperRoleId);
+        if (shouldHaveHelperRole && !hasHelperRole) {
+            await member.roles.add(helperRole);
+        }
+        else if (!shouldHaveHelperRole && hasHelperRole) {
+            await member.roles.remove(helperRole);
+        }
+
     }
 
     public getGuild(): Guild {

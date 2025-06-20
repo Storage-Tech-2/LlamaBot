@@ -223,7 +223,15 @@ export class Bot {
             if (!guildHolder) return
 
             // Handle message in guild
-            await guildHolder.handleMessage(message)
+            try {
+                await guildHolder.handleMessage(message)
+            } catch (error) {
+                console.error('Error handling message:', error)
+            }
+        })
+
+        this.client.on('error', (error) => {
+            console.error('Discord client error:', error)
         })
     }
 

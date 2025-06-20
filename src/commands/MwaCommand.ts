@@ -7,6 +7,7 @@ import { SetArchiveCategoriesMenu } from "../components/menus/SetArchiveCategori
 import { SetEndorseRolesMenu } from "../components/menus/SetEndorseRolesMenu.js";
 import { SubmissionTags } from "../submissions/SubmissionTags.js";
 import { SetEditorRolesMenu } from "../components/menus/SetEditorRolesMenu.js";
+import { SetHelperRoleMenu } from "../components/menus/SetHelperRoleMenu.js";
 
 export class Mwa implements Command {
     getID(): string {
@@ -56,6 +57,11 @@ export class Mwa implements Command {
             )
             .addSubcommand(subcommand =>
                 subcommand
+                    .setName('sethelperrole')
+                    .setDescription('Setup Llamabot helper role')
+            )
+            .addSubcommand(subcommand =>
+                subcommand
                     .setName('setarchives')
                     .setDescription('Setup archive channels for Llamabot')
             )
@@ -91,6 +97,8 @@ export class Mwa implements Command {
             this.setEndorseRoles(guildHolder, interaction)
         } else if (interaction.options.getSubcommand() === 'seteditorroles') {
             this.setEditorRoles(guildHolder, interaction)
+        } else if (interaction.options.getSubcommand() === 'sethelperrole') {
+            this.setHelperRole(guildHolder, interaction)
         } else if (interaction.options.getSubcommand() === 'setrepo') {
             this.setRepo(guildHolder, interaction)
         }
@@ -154,6 +162,13 @@ export class Mwa implements Command {
         const row = new ActionRowBuilder()
             .addComponents(dt);
         await replyEphemeral(interaction, 'Select editor roles', { components: [row] })
+    }
+
+    async setHelperRole(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const dt = await (new SetHelperRoleMenu()).getBuilder(guildHolder);
+        const row = new ActionRowBuilder()
+            .addComponents(dt);
+        await replyEphemeral(interaction, 'Select helper role', { components: [row] })
     }
 
     async setLogs(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
@@ -220,7 +235,7 @@ export class Mwa implements Command {
                 CreatePublicThreads: false,
             })
         }
-        
+
         // get all channels in categories
         const channels = allchannels.filter(channel => {
             return channel && channel.type === ChannelType.GuildForum && channel.parentId && currentCategories.includes(channel.parentId)
