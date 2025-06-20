@@ -578,7 +578,7 @@ export class RepositoryManager {
 
             if (existing) {
 
-                await this.git.commit(generateCommitMessage(existing.entry.getData(), entryData));
+                await this.git.commit(`${entryData.code}: ${generateCommitMessage(existing.entry.getData(), entryData)}`);
             } else {
                 await this.git.commit(`Added entry ${entryData.name} (${entryData.code}) to channel ${archiveChannel.getData().name} (${archiveChannel.getData().code})`);
             }
