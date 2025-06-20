@@ -8,7 +8,7 @@ import { LLMResponseFuture } from "../llm/LLMResponseFuture.js";
 import { LLMResponseStatus } from "../llm/LLMResponseStatus.js";
 import { LLMRequest } from "../llm/LLMRequest.js";
 import { ExtractionPrompt } from "../llm/prompts/ExtractionPrompt.js";
-import { getAllAttachments, processAttachments, processImages } from "../utils/Util.js";
+import { getAllAttachments, processAttachments, processImages, reclassifyAuthors } from "../utils/Util.js";
 import { Attachment } from "./Attachment.js";
 import { RevisionManager } from "./RevisionManager.js";
 import { Revision, RevisionType } from "./Revision.js";
@@ -301,6 +301,16 @@ export class Submission {
 
             if (!message) {
                 throw new Error('Status message not found');
+            }
+
+            const updatedAuthors = await reclassifyAuthors(this.guildHolder, this.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || []);
+            if (updatedAuthors.length > 0) {
+                this.getConfigManager().setConfig(SubmissionConfigs.AUTHORS, updatedAuthors);
+            }
+
+            const updatedEndorsers = await reclassifyAuthors(this.guildHolder, this.getConfigManager().getConfig(SubmissionConfigs.ENDORSERS) || []);
+            if (updatedEndorsers.length > 0) {
+                this.getConfigManager().setConfig(SubmissionConfigs.ENDORSERS, updatedEndorsers);
             }
 
             const starterEmbed = await StarterEmbed.create(this);
