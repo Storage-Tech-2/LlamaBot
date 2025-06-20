@@ -478,12 +478,12 @@ export class RepositoryManager {
             }
 
             if (existing && isSameChannel) {
-                const dt = deepClone(existing.entry.getData());
-                dt.timestamp = entryData.timestamp;
-                // compare the data
-                if (areObjectsIdentical(dt, entryData)) {
-                    throw new Error("No changes detected in the entry data");
-                }
+                // const dt = deepClone(existing.entry.getData());
+                // dt.timestamp = entryData.timestamp;
+                // // compare the data
+                // if (areObjectsIdentical(dt, entryData)) {
+                //     throw new Error("No changes detected in the entry data");
+                // }
 
                 archiveChannel.getData().entries[existing.entryIndex] = entryRef;
             } else {
