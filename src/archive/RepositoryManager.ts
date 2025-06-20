@@ -896,43 +896,45 @@ export class RepositoryManager {
 
     public async handlePostMessage(message: Message) {
         const postId = message.channel.id;
-        const submissionId = await this.getSubmissionIDByPostID(postId);
-
-        if (!submissionId) {
-            throw new Error(`No submission found for post ID ${postId}`);
-        }
 
         if (!this.git) {
-            throw new Error("Git not initialized");
+            return;
         }
 
-
-        const found = await this.findEntryBySubmissionId(submissionId);
-        if (!found) {
-            throw new Error(`No entry found for submission ID ${submissionId}`);
-        }
-
-        const content = message.content;
-        const attachments = getAttachmentsFromMessage(message);
-
-        const entryPath = found.entry.getFolderPath();
-
-        const commentsFile = Path.join(entryPath, 'comments.json');
-        let comments: ArchiveComment[] = [];
 
         await this.lock.acquire();
         try {
-            comments = JSON.parse(await fs.readFile(commentsFile, 'utf-8')) as ArchiveComment[];
-        } catch (e: any) {
-            if (e.code !== 'ENOENT') {
-                console.error("Error reading comments file:", e);
-                this.lock.release();
+            const submissionId = await this.getSubmissionIDByPostID(postId);
+
+            if (!submissionId) {
                 return;
             }
-            await fs.writeFile(commentsFile, JSON.stringify([], null, 2), 'utf-8');
-        }
 
-        try {
+
+            const found = await this.findEntryBySubmissionId(submissionId);
+            if (!found) {
+                throw new Error(`No entry found for submission ID ${submissionId}`);
+            }
+
+            const content = message.content;
+            const attachments = getAttachmentsFromMessage(message);
+
+            const entryPath = found.entry.getFolderPath();
+
+            const commentsFile = Path.join(entryPath, 'comments.json');
+            let comments: ArchiveComment[] = [];
+
+            try {
+                comments = JSON.parse(await fs.readFile(commentsFile, 'utf-8')) as ArchiveComment[];
+            } catch (e: any) {
+                if (e.code !== 'ENOENT') {
+                    console.error("Error reading comments file:", e);
+                    this.lock.release();
+                    return;
+                }
+                await fs.writeFile(commentsFile, JSON.stringify([], null, 2), 'utf-8');
+            }
+
             if (attachments.length > 0) {
                 const commentsAttachmentFolder = Path.join(entryPath, 'comments_attachments');
                 await fs.mkdir(commentsAttachmentFolder, { recursive: true });
@@ -976,28 +978,28 @@ export class RepositoryManager {
 
 
     public async handlePostMessageDelete(message: Message) {
-        const postId = message.channel.id;
-        const submissionId = await this.getSubmissionIDByPostID(postId);
-
-        if (!submissionId) {
-            throw new Error(`No submission found for post ID ${postId}`);
-        }
 
         if (!this.git) {
             throw new Error("Git not initialized");
         }
 
-
-        const found = await this.findEntryBySubmissionId(submissionId);
-        if (!found) {
-            throw new Error(`No entry found for submission ID ${submissionId}`);
-        }
-
-        const entryPath = found.entry.getFolderPath();
-
-        const commentsFile = Path.join(entryPath, 'comments.json');
+        const postId = message.channel.id;
         await this.lock.acquire();
         try {
+            const submissionId = await this.getSubmissionIDByPostID(postId);
+            if (!submissionId) {
+                return;
+            }
+
+            const found = await this.findEntryBySubmissionId(submissionId);
+            if (!found) {
+                return;
+            }
+
+            const entryPath = found.entry.getFolderPath();
+
+            const commentsFile = Path.join(entryPath, 'comments.json');
+
             let comments: ArchiveComment[] = [];
             try {
                 comments = JSON.parse(await fs.readFile(commentsFile, 'utf-8')) as ArchiveComment[];
@@ -1038,19 +1040,15 @@ export class RepositoryManager {
 
     public async handlePostThreadDelete(thread: AnyThreadChannel) {
         const postId = thread.id;
-        const submissionId = await this.getSubmissionIDByPostID(postId);
-
-        if (!submissionId) {
-            throw new Error(`No submission found for post ID ${postId}`);
-        }
 
         if (!this.git) {
             throw new Error("Git not initialized");
         }
-      
+
         await this.lock.acquire();
         try {
             const submissionId = await this.getSubmissionIDByPostID(postId);
+
             if (!submissionId) {
                 return;
             }
@@ -1087,6 +1085,8 @@ export class RepositoryManager {
             found.channel.getData().entries.splice(found.entryIndex, 1);
             await found.channel.save();
             await this.git.add(found.channel.getDataPath());
+
+            await this.deleteSubmissionIDForPostID(postId);
             // Commit the removal
             await this.git.commit(`Force deleted ${found.entry.getData().code} ${found.entry.getData().name} from channel ${found.channel.getData().name} (${found.channel.getData().code})`);
             
