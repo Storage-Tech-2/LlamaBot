@@ -4,7 +4,7 @@ import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
 import { ChannelType, ForumChannel, MessageFlags } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
-import { deepClone, escapeString, generateCommitMessage, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject } from "../utils/Util.js";
+import { deepClone, escapeString, generateCommitMessage, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, reclassifyAuthors } from "../utils/Util.js";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";
 import { Submission } from "../submissions/Submission.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
@@ -364,8 +364,8 @@ export class RepositoryManager {
             config.setConfig(SubmissionConfigs.NAME, submissionChannel.name);
 
             const name = config.getConfig(SubmissionConfigs.NAME);
-            const authors = config.getConfig(SubmissionConfigs.AUTHORS) || [];
-            const endorsers = config.getConfig(SubmissionConfigs.ENDORSERS);
+            const authors = await reclassifyAuthors(this.guildHolder, config.getConfig(SubmissionConfigs.AUTHORS) || []);
+            const endorsers = await reclassifyAuthors(this.guildHolder, config.getConfig(SubmissionConfigs.ENDORSERS));
             const tags = config.getConfig(SubmissionConfigs.TAGS) || [];
             const images = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) || [];
             const attachments = submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) || [];

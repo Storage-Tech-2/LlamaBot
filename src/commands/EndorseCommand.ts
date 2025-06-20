@@ -20,7 +20,7 @@ export class EndorseCommand implements Command {
 
     async execute(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction): Promise<void> {
         if (
-            !interaction.inGuild()
+            !interaction.inCachedGuild()
         ) {
             replyEphemeral(interaction, 'This command can only be used in a forum channel.')
             return;
@@ -52,7 +52,7 @@ export class EndorseCommand implements Command {
             });
         } else {
             // User has not endorsed, add endorsement
-            endorsements.push({ type: AuthorType.Discord, id: interaction.user.id, name: interaction.user.username });
+            endorsements.push({ type: AuthorType.DiscordInGuild, id: interaction.user.id, username: interaction.user.username, displayName: interaction.member.displayName });
             submission.getConfigManager().setConfig(SubmissionConfigs.ENDORSERS, endorsements);
             interaction.reply({
                 content: `<@${interaction.user.id}> Has endorsed this submission.`,

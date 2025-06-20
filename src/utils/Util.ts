@@ -415,10 +415,13 @@ export function getAuthorsString(authors: Author[] | null): string {
         return 'No authors';
     }
     return authors.map(author => {
-        if (author.type === AuthorType.Discord) {
-            return `<@${author.id}> (${author.name})`;
+        const name = author.displayName || author.username;
+        if (author.type === AuthorType.DiscordInGuild) {
+             return `<@${author.id}>`;
+        } else if (author.type === AuthorType.DiscordExternal) {
+            return `${name} (<@${author.id}>)`;
         } else {
-            return author.name;
+            return name;
         }
     }).join(', ');
 }
@@ -767,4 +770,32 @@ export function canSetPrivilegedTags(interaction: Interaction, submission: Submi
     }
 
     return false
+}
+
+export async function reclassifyAuthors(guildHolder: GuildHolder, list: Author[]): Promise<Author[]> {
+    const result: Author[] = [];
+    for (const author of list) {
+        const newAuthor: Author = { ...author };
+        if (author.type === AuthorType.Unknown || !author.id) {
+            // keep as is
+            result.push(newAuthor);
+            continue;
+        }
+
+        const member = await guildHolder.getGuild().members.fetch(author.id).catch(() => null);
+        if (member) { // is a member of the guild
+            newAuthor.type = AuthorType.DiscordInGuild;
+            newAuthor.displayName = member.displayName;
+            newAuthor.username = member.user.username;
+        } else {
+            const user = await guildHolder.getBot().client.users.fetch(author.id).catch(() => null);
+            if (user) { // is a user but not a member of the guild
+                newAuthor.type = AuthorType.DiscordExternal;
+                newAuthor.username = user.username;
+            } else {
+                newAuthor.type = AuthorType.DiscordDeleted;
+            }
+        }
+    }
+    return result;
 }

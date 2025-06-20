@@ -1,9 +1,7 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType, ChannelType } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
-import { isEditor, isEndorser, isModerator, replyEphemeral } from "../utils/Util.js";
-import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
-import { AuthorType } from "../submissions/Author.js";
+import { replyEphemeral } from "../utils/Util.js";
 
 export class GetPostCommand implements Command {
     getID(): string {

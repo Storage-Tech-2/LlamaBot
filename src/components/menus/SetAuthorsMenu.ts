@@ -15,9 +15,9 @@ export class SetAuthorsMenu implements Menu {
     async getBuilder(guildHolder: GuildHolder, submission: Submission, isExtra: boolean): Promise<UserSelectMenuBuilder | StringSelectMenuBuilder> {
         const currentAuthors = (submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || []).filter(author => {
             if (isExtra) {
-                return author.type === AuthorType.Unknown;
+                return author.type === AuthorType.Unknown || author.type === AuthorType.DiscordDeleted;
             } else {
-                return author.type === AuthorType.Discord
+                return author.type === AuthorType.DiscordInGuild || author.type === AuthorType.DiscordExternal;
             }
         });
 
@@ -30,9 +30,9 @@ export class SetAuthorsMenu implements Menu {
                 .setPlaceholder('Select authors')
                 .setOptions(currentAuthors.map(author => {
                     const opt = new StringSelectMenuOptionBuilder();
-                    opt.setLabel(author.name || 'Unknown Author');
-                    opt.setValue(author.name || 'unknown-author');
-                    opt.setDefault(currentAuthors.some(a => a.name === author.name));
+                    opt.setLabel(author.displayName || author.username || 'Unknown Author');
+                    opt.setValue(author.username || 'unknown-author');
+                    opt.setDefault(currentAuthors.some(a => a.username === author.username));
                     return opt;
                 }))
         } else {
@@ -83,7 +83,7 @@ export class SetAuthorsMenu implements Menu {
                 }
             }
             return {
-                type: AuthorType.Discord,
+                type: AuthorType.DiscordInGuild,
                 id: user.id,
                 name: user.user.username
             }
@@ -98,7 +98,7 @@ export class SetAuthorsMenu implements Menu {
         }
 
         for (const author of currentAuthors) {
-            if (author.type === AuthorType.Discord && !newAuthors.some(a => a.id === author.id)) {
+            if (author.type !== AuthorType.Unknown && !newAuthors.some(a => a.id === author.id)) {
                 removed.push(author);
             }
         }
@@ -167,7 +167,7 @@ export class SetAuthorsMenu implements Menu {
         const currentAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
 
         const newAuthors = (await Promise.all(interaction.values.map(async (name) => {
-            const existingAuthor = currentAuthors.find(a => a.type === AuthorType.Unknown && a.name === name);
+            const existingAuthor = currentAuthors.find(a => a.type === AuthorType.Unknown && a.username === name);
             return existingAuthor || {
                 type: AuthorType.Unknown,
                 id: null, // No ID for unknown authors
@@ -179,13 +179,13 @@ export class SetAuthorsMenu implements Menu {
         const removed: Author[] = [];
 
         for (const author of newAuthors) {
-            if (!currentAuthors.some(a => a.type === AuthorType.Unknown && a.name === author.name)) {
+            if (!currentAuthors.some(a => a.type === AuthorType.Unknown && a.username === author.username)) {
                 added.push(author);
             }
         }
 
         for (const author of currentAuthors) {
-            if (author.type === AuthorType.Unknown && !newAuthors.some(a => a.name === author.name)) {
+            if (author.type === AuthorType.Unknown && !newAuthors.some(a => a.username === author.username)) {
                 removed.push(author);
             }
         }
@@ -199,7 +199,7 @@ export class SetAuthorsMenu implements Menu {
             currentAuthors.push(author);
         });
         removed.forEach(author => {
-            const index = currentAuthors.findIndex(a => a.type === AuthorType.Unknown && a.name === author.name);
+            const index = currentAuthors.findIndex(a => a.type === AuthorType.Unknown && a.username === author.username);
             if (index !== -1) {
                 currentAuthors.splice(index, 1);
             }
@@ -209,10 +209,10 @@ export class SetAuthorsMenu implements Menu {
 
         const str = [];
         if (added.length) {
-            str.push('added ' + added.map(a => a.name).join(', '));
+            str.push('added ' + added.map(a => a.username).join(', '));
         }
         if (removed.length) {
-            str.push('removed ' + removed.map(a => a.name).join(', '));
+            str.push('removed ' + removed.map(a => a.username).join(', '));
         }
 
         if (str.length) {

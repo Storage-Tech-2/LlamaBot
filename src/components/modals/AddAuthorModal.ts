@@ -56,9 +56,15 @@ export class AddAuthorModal implements Modal {
             return;
         }
 
-        let name = interaction.fields.getTextInputValue('nameInput');
+        const name = interaction.fields.getTextInputValue('nameInput');
         const userId = interaction.fields.getTextInputValue('idInput') || null;
         
+        const author: Author = {
+            type: AuthorType.Unknown,
+            id: userId || undefined,
+            username: name || 'Unknown'
+        };
+
         if (userId && !/^\d{17,19}$/.test(userId)) {
             replyEphemeral(interaction, 'Invalid Discord User ID format. Please provide a valid ID or leave it empty.');
             return;
@@ -75,24 +81,23 @@ export class AddAuthorModal implements Modal {
                 replyEphemeral(interaction, 'User not found. Please provide a valid Discord User ID or leave it empty.');
                 return;
             }
-            name = user.username || name; // Use the username if available, otherwise use the provided name
+            author.username = user.username; // Use the username if available, otherwise use the provided name
+            const member = await guildHolder.getGuild().members.fetch(userId).catch(() => null);
+            if (member) {
+                author.type = AuthorType.DiscordInGuild;
+                author.displayName = member.displayName;
+            } else {
+                author.type = AuthorType.DiscordExternal;
+            }
         }
-
-        const author: Author = {
-            type: userId ? AuthorType.Discord : AuthorType.Unknown,
-            id: userId || undefined,
-            name: name || 'Unknown Author'
-        };
-        
 
         const currentAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
         if (currentAuthors.some(a => {
-            if (a.type === AuthorType.Discord && author.type === AuthorType.Discord) {
+            if (a.id && author.id) {
                 return a.id === author.id;
-            } else if (a.type === AuthorType.Unknown && author.type === AuthorType.Unknown) {
-                return a.name === author.name;
+            } else {
+                return a.username === author.username && a.type === author.type;
             }
-            return false;
         })) {
             replyEphemeral(interaction, 'This author is already in the list!');
             return;
@@ -103,7 +108,7 @@ export class AddAuthorModal implements Modal {
        
         const channel = await submission.getSubmissionChannel();
         channel.send({
-            content: `<@${interaction.user.id}> added author: ${author.name} (${author.id ? `<@${author.id}>` : 'Unknown ID'})`,
+            content: `<@${interaction.user.id}> added author: ${author.username} (${author.id ? `<@${author.id}>` : 'Unknown ID'})`,
             flags: MessageFlags.SuppressNotifications
         });
 

@@ -1,10 +1,13 @@
 export enum AuthorType {
-    Discord = "discord",
+    DiscordInGuild = "discord-in-guild",
+    DiscordExternal = "discord-external",
+    DiscordDeleted = "discord-deleted",
     Unknown = "unknown",
 }
 
 export type Author = {
     type: AuthorType,
     id?: string, // Discord user ID or other identifier
-    name?: string, // Username or display name
+    username?: string, // Username
+    displayName?: string, // Display name if different from username
 }
