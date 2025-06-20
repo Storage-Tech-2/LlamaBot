@@ -222,7 +222,7 @@ export class GuildHolder {
     }
 
     public async checkHelper(userData: UserData) {
-        const shouldHaveHelperRole = userData.thankedBuffer.length > this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_THRESHOLD);
+        const shouldHaveHelperRole = userData.thankedBuffer.length >= this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_THRESHOLD);
         const guild = this.getGuild();
         const helperRoleId = this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_ID) as Snowflake | undefined;
         if (!helperRoleId) {
