@@ -45,7 +45,7 @@ export class GetThanksCommand implements Command {
         let message = `<@${userData.id}> has a total of ${userData.thankedCountTotal} thank-you points in this server.`;
         
         if (userData.thankedBuffer.length > 0) {
-            message += `\n\n**${userData.thankedBuffer.length} Thanks Recieved in the Last 30 Days:** ${userData.thankedBuffer.length > 15 ? '(showing most recent 15)' : ''}`;
+            message += `\n\n**${userData.thankedBuffer.length} Thanks recieved in the last 30 days:** ${userData.thankedBuffer.length > 15 ? '(showing most recent 15)' : ''}`;
             const buffer = userData.thankedBuffer.slice(0);
             buffer.reverse(); // Reverse the buffer to show the most recent first
             if (buffer.length > 15) {
