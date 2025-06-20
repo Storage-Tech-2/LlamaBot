@@ -416,7 +416,7 @@ export function getAuthorsString(authors: Author[] | null): string {
     }
     return authors.map(author => {
         if (author.type === AuthorType.Discord) {
-            return `<@${author.id}>`;
+            return `<@${author.id}> (${author.name})`;
         } else {
             return author.name;
         }
