@@ -291,6 +291,36 @@ export class RepositoryManager {
         return null;
     }
 
+    async findEntryBySubmissionCode(submissionCode: string): Promise<null | {
+        channelRef: ArchiveChannelReference,
+        channel: ArchiveChannel,
+        entry: ArchiveEntry,
+        entryRef: ArchiveEntryReference,
+        entryIndex: number
+    }> {
+        const channelReferences = this.getChannelReferences();
+        for (const channelRef of channelReferences) {
+            const channelPath = Path.join(this.folderPath, channelRef.path);
+            const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
+            const entries = archiveChannel.getData().entries;
+            const entryIndex = entries.findIndex(e => e.code === submissionCode);
+            if (entryIndex !== -1) {
+                const entryRef = entries[entryIndex];
+                const entryPath = Path.join(channelPath, entryRef.path);
+                const entry = await ArchiveEntry.fromFolder(entryPath);
+                return {
+                    channelRef,
+                    channel: archiveChannel,
+                    entry,
+                    entryRef,
+                    entryIndex
+                };
+            }
+        }
+
+        return null;
+    }
+
     async addOrUpdateEntry(submission: Submission): Promise<{ oldEntryData?: ArchiveEntryData, newEntryData: ArchiveEntryData }> {
 
         if (!this.git) {
