@@ -599,7 +599,7 @@ export class Submission {
         this.getConfigManager().setConfig(SubmissionConfigs.POST, newEntryData.post);
         this.getConfigManager().setConfig(SubmissionConfigs.STATUS, SubmissionStatus.ACCEPTED);
         this.getConfigManager().setConfig(SubmissionConfigs.IS_LOCKED, true);
-        this.getConfigManager().setConfig(SubmissionConfigs.LOCK_REASON, 'Submission has been published. Please contact an editor to unlock it if needed.');
+        this.getConfigManager().setConfig(SubmissionConfigs.LOCK_REASON, 'Auto-locked after publish. Please contact an editor to unlock it if needed.');
         await this.statusUpdated();
         this.publishLock = false;
     }
