@@ -226,7 +226,7 @@ export class EditorPowersCommand implements Command {
                 });
                 break;
             default:
-                replyEphemeral(interaction, 'Unknown subcommand');
+                replyEphemeral(interaction, 'Invalid subcommand. Please use one of the available subcommands.');
                 return;
         }
     }

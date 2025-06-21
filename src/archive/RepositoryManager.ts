@@ -14,7 +14,7 @@ import { PostEmbed } from "../embed/PostEmbed.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { simpleGit, SimpleGit } from "simple-git";
 import { ArchiveComment } from "./ArchiveComments.js";
-import { AuthorType } from "../submissions/Author.js";
+import { Author, AuthorType } from "../submissions/Author.js";
 import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
 
 
@@ -1330,6 +1330,31 @@ export class RepositoryManager {
             console.error("Error handling post thread update:", e);
         }
         this.lock.release();
+    }
+
+    public async getEntriesByAuthor(author: Author, endorsers: boolean = false): Promise<ArchiveEntryData[]> {
+        const entries: ArchiveEntryData[] = [];
+        const channelRefs = this.getChannelReferences();
+        for (const channelRef of channelRefs) {
+            const channelPath = Path.join(this.folderPath, channelRef.path);
+            const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
+            for (const entryRef of archiveChannel.getData().entries) {
+                const entryPath = Path.join(channelPath, entryRef.path);
+                const entry = await ArchiveEntry.fromFolder(entryPath);
+                const entryData = entry.getData();
+                const compareAuthors = endorsers ? entryData.endorsers : entryData.authors;
+                if (compareAuthors.some(otherAuthor => {
+                    if (author.type === AuthorType.Unknown) {
+                        return otherAuthor.username === author.username;
+                    } else {
+                        return otherAuthor.id === author.id;
+                    }
+                })) {
+                    entries.push(entryData);
+                }
+            }
+        }
+        return entries;
     }
 
 }
