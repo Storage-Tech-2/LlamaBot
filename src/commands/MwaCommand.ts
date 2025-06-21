@@ -279,6 +279,8 @@ export class Mwa implements Command {
             return;
         }
 
+        await interaction.deferReply()
+
         const tags = submissionChannel.availableTags.filter(tag => {
             return !SubmissionTags.some(t => t.name === tag.name)
         })
@@ -346,7 +348,6 @@ export class Mwa implements Command {
         ] as GuildForumTag[];
         // check each channel
 
-        await interaction.deferReply()
         const codeMap = new Map<Snowflake, string>();
         for (const channel of channels.values()) {
             const tags = channel.availableTags.filter(tag => {
