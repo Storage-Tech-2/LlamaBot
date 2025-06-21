@@ -859,6 +859,9 @@ export class RepositoryManager {
 
             await this.git.rm(files);
 
+            // delete folder
+            await fs.rm(entryPath, { recursive: true, force: true });
+
             foundChannel.getData().entries.splice(foundEntryIndex, 1);
             await foundChannel.save();
             await this.git.add(foundChannel.getDataPath());
@@ -1226,6 +1229,9 @@ export class RepositoryManager {
                 }
             }
             await this.git.rm(files);
+            // delete folder
+            await fs.rm(entryPath, { recursive: true, force: true });
+
             found.channel.getData().entries.splice(found.entryIndex, 1);
             await found.channel.save();
             await this.git.add(found.channel.getDataPath());
