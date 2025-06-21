@@ -43,19 +43,24 @@ export async function deployCommands(
 }
 
 
-export function replyEphemeral(interaction: any, content: string, options = {}) {
-    if (!interaction.replied) {
-        return interaction.reply({
-            ...options,
-            content: content,
-            flags: MessageFlags.Ephemeral
-        })
-    } else {
-        return interaction.followUp({
-            ...options,
-            content: content,
-            flags: MessageFlags.Ephemeral
-        })
+export async function replyEphemeral(interaction: any, content: string, options = {}) {
+    try {
+        if (!interaction.replied) {
+            return await interaction.reply({
+                ...options,
+                content: content,
+                flags: MessageFlags.Ephemeral
+            })
+        } else {
+            return await interaction.followUp({
+                ...options,
+                content: content,
+                flags: MessageFlags.Ephemeral
+            })
+        }
+    } catch (error: any) {
+        console.error('Error replying ephemeral:', error);
+        return null;
     }
 }
 
@@ -826,7 +831,7 @@ export function splitCode(code: string): { channelCode: string, entryNumber: num
     // code is in the format "[a-zA-Z]*[0-9]+"
     const match = code.match(/^([a-zA-Z]+)(\d+)$/);
     if (!match) {
-       return { channelCode: '', entryNumber: -1}
+        return { channelCode: '', entryNumber: -1 }
     }
     const channelCode = match[1];
     const entryNumber = parseInt(match[2]);
@@ -838,47 +843,47 @@ export function splitCode(code: string): { channelCode: string, entryNumber: num
 }
 
 export function splitIntoChunks(text: string, max: number): string[] {
-  if (max < 2) {
-    throw new Error("`max` must be ≥ 2 so a hyphen can be added on hard splits.");
-  }
-
-  const chunks = [];
-  let i = 0;
-
-  while (i < text.length) {
-    // Take at most `max` characters as a window to inspect
-    const windowEnd = Math.min(i + max, text.length);
-    const window = text.slice(i, windowEnd);
-
-    if (windowEnd === text.length) {
-        // If we reached the end of the text, take the rest
-        chunks.push(window);
-        break; // Exit the loop
+    if (max < 2) {
+        throw new Error("`max` must be ≥ 2 so a hyphen can be added on hard splits.");
     }
 
-    // 1️⃣ Look for the right-most newline inside the window
-    let breakPos = window.lastIndexOf("\n");
+    const chunks = [];
+    let i = 0;
 
-    // 2️⃣ If none, look for the right-most space
-    if (breakPos === -1) breakPos = window.lastIndexOf(" ");
+    while (i < text.length) {
+        // Take at most `max` characters as a window to inspect
+        const windowEnd = Math.min(i + max, text.length);
+        const window = text.slice(i, windowEnd);
 
-    // 3️⃣ If still none *and* we are not at the very end, force-split the word
-    if (breakPos === -1 && windowEnd < text.length) {
-      const hardSplitPos = max - 1;            // leave room for a hyphen
-      chunks.push(window.slice(0, hardSplitPos) + "-");
-      i += hardSplitPos;                        // advance by the piece we kept
-      continue;                                // loop again, same index now points to remainder
+        if (windowEnd === text.length) {
+            // If we reached the end of the text, take the rest
+            chunks.push(window);
+            break; // Exit the loop
+        }
+
+        // 1️⃣ Look for the right-most newline inside the window
+        let breakPos = window.lastIndexOf("\n");
+
+        // 2️⃣ If none, look for the right-most space
+        if (breakPos === -1) breakPos = window.lastIndexOf(" ");
+
+        // 3️⃣ If still none *and* we are not at the very end, force-split the word
+        if (breakPos === -1 && windowEnd < text.length) {
+            const hardSplitPos = max - 1;            // leave room for a hyphen
+            chunks.push(window.slice(0, hardSplitPos) + "-");
+            i += hardSplitPos;                        // advance by the piece we kept
+            continue;                                // loop again, same index now points to remainder
+        }
+
+        // If there was no delimiter but we reached the true end, take the rest
+        if (breakPos === -1) breakPos = window.length;
+
+        chunks.push(window.slice(0, breakPos));
+        i += breakPos;
+
+        // Skip over the delimiter we split on (newline or space)
+        if (text[i] === "\n" || text[i] === " ") i += 1;
     }
 
-    // If there was no delimiter but we reached the true end, take the rest
-    if (breakPos === -1) breakPos = window.length;
-
-    chunks.push(window.slice(0, breakPos));
-    i += breakPos;
-
-    // Skip over the delimiter we split on (newline or space)
-    if (text[i] === "\n" || text[i] === " ") i += 1;
-  }
-
-  return chunks;
+    return chunks;
 }
