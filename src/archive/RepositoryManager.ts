@@ -994,9 +994,18 @@ export class RepositoryManager {
                 if (submission) {
                     // send message to the user
                     const channel = await submission.getSubmissionChannel();
+                    const embed = new EmbedBuilder()
+                        .setTitle(`Comment ${existingComment ? 'Updated' : 'Added'}`)
+                        .setColor(existingComment ? '#ffa500' : '#00ff00')
+                        .setAuthor({
+                            name: newComment.sender.displayName || newComment.sender.username || 'Unknown Author',
+                            iconURL: newComment.sender.iconURL || undefined,
+                        })
+                        .setDescription(newComment.content)
+                        .setTimestamp(newComment.timestamp ? new Date(newComment.timestamp) : undefined);
                     channel.send({
-                        content: `<@${message.author.id}> ${existingComment ? 'edited' : 'added'} a comment to the published post`,
-                        flags: [MessageFlags.SuppressNotifications]
+                        flags: [MessageFlags.SuppressNotifications],
+                        embeds: [embed],
                     });
                 }
             } catch (e: any) {
@@ -1071,9 +1080,18 @@ export class RepositoryManager {
                 if (submission) {
                     // send message to the user
                     const channel = await submission.getSubmissionChannel();
+                    const embed = new EmbedBuilder()
+                        .setTitle(`Comment Deleted`)
+                        .setColor('#ff0000')
+                        .setAuthor({
+                            name: deletedComment.sender.displayName || deletedComment.sender.username || 'Unknown Author',
+                            iconURL: deletedComment.sender.iconURL || undefined,
+                        })
+                        .setDescription(deletedComment.content)
+                        .setTimestamp(deletedComment.timestamp ? new Date(deletedComment.timestamp) : undefined);
                     channel.send({
-                        content: `A comment by <@${message.author.id}> has been deleted from the published post.`,
-                        flags: [MessageFlags.SuppressNotifications]
+                        flags: [MessageFlags.SuppressNotifications],
+                        embeds: [embed]
                     });
                 }
             } catch (e: any) {
