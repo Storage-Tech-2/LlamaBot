@@ -131,14 +131,12 @@ export class SetAttachmentsMenu implements Menu {
     public static async sendAttachmentsMenuAndButton(submission: Submission, interaction: Interaction): Promise<Message> {
         const menu = await new SetAttachmentsMenu().getBuilderOrNull(submission);
         if (menu) {
-            const row = new ActionRowBuilder().addComponents(menu)
-
-            if (submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) === null) {
-                row.addComponents(new SkipAttachmentsButton().getBuilder())
+            const rows = [new ActionRowBuilder().addComponents(menu) as any];
+            if (submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null) {
+                rows.push(new ActionRowBuilder().addComponents(new SkipAttachmentsButton().getBuilder()))
             }
-
-            return replyEphemeral(interaction, `Please choose other attachments (eg: Schematics/WDLs) for the submission`, {
-                components: [row as any]
+            return replyEphemeral(interaction, `Please choose other attachments (eg: Schematics/WDLs) for the submission`,{
+                components: rows
             })
         } else {
             const row = new ActionRowBuilder().addComponents(new SetAttachmentsButton().getBuilder(false));

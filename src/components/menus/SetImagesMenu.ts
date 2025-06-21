@@ -158,14 +158,13 @@ export class SetImagesMenu implements Menu {
     public static async sendImagesMenuAndButton(submission: Submission, interaction: Interaction): Promise<Message> {
         const menu = await new SetImagesMenu().getBuilderOrNull(submission);
         if (menu) {
-            const row = new ActionRowBuilder().addComponents(menu)
-
+            const rows = [new ActionRowBuilder().addComponents(menu) as any];
             if (submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null) {
-                row.addComponents(new SkipImagesButton().getBuilder())
+                rows.push(new ActionRowBuilder().addComponents(new SkipImagesButton().getBuilder()))
             }
 
             return replyEphemeral(interaction, `Please choose images for the submission`,{
-                components: [row as any]
+                components: rows
             })
         } else {
             const row = new ActionRowBuilder().addComponents(new SetAttachmentsButton().getBuilder(false));
