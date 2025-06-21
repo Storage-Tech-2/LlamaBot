@@ -674,7 +674,7 @@ export function isModerator(interaction: Interaction): boolean {
 /**
  * Check if the interaction is from the owner of the thread.
  */
-export function isOwner(interaction: Interaction): boolean {
+export function isAuthor(interaction: Interaction, submission: Submission): boolean {
     if (!interaction.member || !interaction.inGuild() || !interaction.channel) {
         return false
     }
@@ -685,6 +685,17 @@ export function isOwner(interaction: Interaction): boolean {
 
     if (interaction.channel.ownerId === interaction.member.user.id) {
         return true
+    }
+
+    // Check if the interaction is from the author of the submission
+    const authors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS);
+    if (authors && authors.length > 0) {
+        for (const author of authors) {
+            if (author.type === AuthorType.Unknown) continue; // Skip unknown authors
+            if (author.id === interaction.member.user.id) {
+                return true;
+            }
+        }
     }
 
     return false
@@ -744,7 +755,7 @@ export function canEditSubmission(interaction: Interaction, submission: Submissi
         return false;
     }
 
-    if (isOwner(interaction) || isEndorser(interaction, submission.getGuildHolder())) {
+    if (isAuthor(interaction, submission) || isEndorser(interaction, submission.getGuildHolder())) {
         return true;
     }
 
@@ -764,7 +775,7 @@ export function canPublishSubmission(interaction: Interaction, submission: Submi
         return false;
     }
 
-    if (isOwner(interaction)) {
+    if (isAuthor(interaction, submission)) {
         return true;
     }
 
