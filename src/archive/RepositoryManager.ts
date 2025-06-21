@@ -4,7 +4,7 @@ import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
 import { AnyThreadChannel, AttachmentBuilder, ChannelType, EmbedBuilder, ForumChannel, Message, MessageFlags, Snowflake } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
-import { deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors, truncateStringWithEllipsis } from "../utils/Util.js";
+import { deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors, splitCode, truncateStringWithEllipsis } from "../utils/Util.js";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";
 import { Submission } from "../submissions/Submission.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
@@ -448,9 +448,41 @@ export class RepositoryManager {
 
             // Find old entry if it exists
             const existing = await this.findEntryBySubmissionId(submission.getId());
-            const isSameChannel = existing && existing.channelRef.id === archiveChannelId;
-            const newCode = isSameChannel ? existing.entryRef.code : (archiveChannel.getData().code + (++archiveChannel.getData().currentCodeId).toString().padStart(3, '0'));
 
+
+
+            const isSameChannel = existing && existing.channelRef.id === archiveChannelId;
+
+            const reservedCodes = submission.getConfigManager().getConfig(SubmissionConfigs.RESERVED_CODES);
+            // archiveChannel.getData().code + (++archiveChannel.getData().currentCodeId).toString().padStart(3, '0')
+            // check reserved codes
+            let newCode = '';
+            for (const code of reservedCodes) {
+                // get channel code XXX001
+                const {channelCode} = splitCode(code);
+                if (channelCode === archiveChannelRef.code) {
+                    // If the code is reserved, use it
+                    newCode = code;
+                    break;
+                }
+            }
+
+            if (!newCode) {
+                // If no reserved code was found, generate a new code
+                newCode = archiveChannelRef.code + (++archiveChannel.getData().currentCodeId).toString().padStart(3, '0');
+            }
+
+            // Check if the code already exists in the channel
+            const existingCodeEntry = archiveChannel.getData().entries.find(e => e.code === newCode);
+            if (existingCodeEntry && existing &&existing.entryRef.id !== existingCodeEntry.id) {
+                newCode = archiveChannelRef.code + (++archiveChannel.getData().currentCodeId).toString().padStart(3, '0');
+            }
+
+            // Add the new code to the reserved codes if it doesn't already exist
+            if (!reservedCodes.includes(newCode)) {
+                reservedCodes.push(newCode);
+                submission.getConfigManager().setConfig(SubmissionConfigs.RESERVED_CODES, reservedCodes);
+            }
 
 
             const revisionReference = submission.getRevisionsManager().getCurrentRevision();

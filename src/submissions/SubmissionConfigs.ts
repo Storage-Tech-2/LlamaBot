@@ -102,5 +102,10 @@ export const SubmissionConfigs = {
     /**
      * Post
      */
-    POST: new Config<DiscordPostReference | null>("post",null)
+    POST: new Config<DiscordPostReference | null>("post",null),
+
+    /**
+     * Reserved code
+     */
+    RESERVED_CODES: new Config<string[]>("reserved_codes", []),
 }

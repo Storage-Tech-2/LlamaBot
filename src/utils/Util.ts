@@ -821,3 +821,18 @@ export async function reclassifyAuthors(guildHolder: GuildHolder, list: Author[]
         return newAuthor;
     }));
 }
+
+export function splitCode(code: string): { channelCode: string, entryNumber: number } {
+    // code is in the format "[a-zA-Z]*[0-9]+"
+    const match = code.match(/^([a-zA-Z]+)(\d+)$/);
+    if (!match) {
+       return { channelCode: '', entryNumber: -1}
+    }
+    const channelCode = match[1];
+    const entryNumber = parseInt(match[2]);
+    if (isNaN(entryNumber)) {
+        return { channelCode: '', entryNumber: -1 }
+    }
+
+    return { channelCode, entryNumber };
+}
