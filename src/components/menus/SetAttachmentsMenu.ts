@@ -132,7 +132,7 @@ export class SetAttachmentsMenu implements Menu {
         const menu = await new SetAttachmentsMenu().getBuilderOrNull(submission);
         if (menu) {
             const rows = [new ActionRowBuilder().addComponents(menu) as any];
-            if (submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null) {
+            if (submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) === null) {
                 rows.push(new ActionRowBuilder().addComponents(new SkipAttachmentsButton().getBuilder()))
             }
             return replyEphemeral(interaction, `Please choose other attachments (eg: Schematics/WDLs) for the submission`,{
