@@ -53,13 +53,17 @@ export class ArchiveEntry {
         return this.folderPath;
     }
 
+    public getDataPath(): string {
+        return Path.join(this.folderPath, 'data.json');
+    }
+
     public async save(): Promise<void> {
-        const dataPath = Path.join(this.folderPath, 'data.json');
+        const dataPath = this.getDataPath();
         return fs.writeFile(dataPath, JSON.stringify(this.data, null, 2), 'utf-8');
     }
 
     public async load(): Promise<void> {
-        const dataPath = Path.join(this.folderPath, 'data.json');
+        const dataPath = this.getDataPath();
         this.data = JSON.parse(await fs.readFile(dataPath, 'utf-8')) as ArchiveEntryData;
     }
 

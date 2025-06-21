@@ -158,6 +158,14 @@ export class GuildHolder {
         }
     }
 
+    public async handleThreadUpdate(oldThread: AnyThreadChannel, newThread: AnyThreadChannel) {
+        if (newThread.parentId && this.cachedChannelIds.includes(newThread.parentId)) {
+            this.getRepositoryManager().handlePostThreadUpdate(oldThread, newThread).catch(e => {
+                console.error('Error handling post thread update:', e);
+            });
+        }
+    }
+
     public async handleSubmissionMessage(message: Message) {
         const submissionId = message.channel.id
         let submission = await this.submissions.getSubmission(submissionId)

@@ -1125,4 +1125,79 @@ export class RepositoryManager {
         this.lock.release();
     }
 
+    public async handlePostThreadUpdate(oldThread: AnyThreadChannel, thread: AnyThreadChannel) {
+        if (!thread.parent || thread.parent.type !== ChannelType.GuildForum) {
+            return; // No parent, nothing to do
+        }
+        if (!this.git) {
+            throw new Error("Git not initialized");
+        }
+
+        const postId = thread.id;
+        await this.lock.acquire();
+        try {
+            const submissionId = await this.getSubmissionIDByPostID(postId);
+            if (!submissionId) {
+                return;
+            }
+
+            const found = await this.findEntryBySubmissionId(submissionId);
+            if (!found) {
+                return;
+            }
+
+            // get tags from the thread
+            const availableTags = thread.parent.availableTags;
+            const newTags = []
+            for (const tag of thread.appliedTags) {
+                const availableTag = availableTags.find(t => t.id === tag);
+                if (availableTag) {
+                    newTags.push(availableTag);
+                }
+            }
+
+            const oldEntryData = deepClone(found.entry.getData());
+            const entryData = found.entry.getData();
+            entryData.tags = newTags.map(tag => ({
+                id: tag.id,
+                name: tag.name
+            }));
+
+            await found.entry.save();
+            await this.git.add(found.entry.getDataPath());
+
+            // check submission
+            try {
+                const submission = await this.guildHolder.getSubmissionsManager().getSubmission(submissionId);
+                if (submission) {
+                    submission.getConfigManager().setConfig(SubmissionConfigs.TAGS, entryData.tags);
+                    
+                    // send message to the user
+                    const channel = await submission.getSubmissionChannel();
+                    channel.send({
+                        content: `Your submission ${submission.getConfigManager().getConfig(SubmissionConfigs.NAME)} has been updated with new tags: ${entryData.tags.map(t => t.name).join(', ')}`
+                    });
+
+                    await submission.save();
+                    await submission.statusUpdated();
+                }
+                this.guildHolder.logUpdate(oldEntryData, entryData).catch(e => {
+                    console.error("Error logging tag change:", e);
+                });
+            } catch (e: any) {
+                console.error("Error updating submission config:", e.message);
+            }
+
+            await this.git.commit(`Updated tags for ${entryData.code} because thread was updated`);
+            try {
+                await this.push();
+            } catch (e: any) {  
+                console.error("Error pushing to remote:", e.message);
+            }
+        } catch (e) {
+            console.error("Error handling post thread update:", e);
+        }
+        this.lock.release();
+    }
+
 }

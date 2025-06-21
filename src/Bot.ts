@@ -261,6 +261,19 @@ export class Bot {
             }
         })
         
+        this.client.on('threadUpdate', async (oldThread, newThread) => {
+            if (!newThread.isTextBased()) return
+            
+            const guildHolder = this.guilds.get(newThread.guildId)
+            if (!guildHolder) return
+
+            // Handle message in guild
+            try {
+                await guildHolder.handleThreadUpdate(oldThread, newThread)
+            } catch (error) {
+                console.error('Error handling thread update:', error)
+            }
+        });
 
         this.client.on('error', (error) => {
             console.error('Discord client error:', error)
