@@ -213,11 +213,9 @@ export class Mwa implements Command {
         for (const category of categories) {
             await category.fetch(); // Ensure the category is fully fetched
         }
-        // sort by name
+        // sort by position
         categories.sort((a, b) => {
-            if (a.name < b.name) return -1;
-            if (a.name > b.name) return 1;
-            return 0;
+            return a.position - b.position;
         });
         for (const category of categories) {
             indexText.push(`## ${category.name}`);
@@ -229,11 +227,9 @@ export class Mwa implements Command {
             for (const channel of channels) {
                 await channel.fetch();
             }
-            // sort by name
+            // sort by position
             channels.sort((a, b) => {
-                if (a.name < b.name) return -1;
-                if (a.name > b.name) return 1;
-                return 0;
+                return a.position - b.position;
             });
 
             for (const channel of channels) {
