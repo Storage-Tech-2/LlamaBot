@@ -1,6 +1,5 @@
 import { ActionRowBuilder, AttachmentBuilder, EmbedBuilder, Message } from "discord.js";
-import { Submission } from "../submissions/Submission.js";
-import { escapeString, getAuthorsString, getFileKey, getGithubOwnerAndProject } from "../utils/Util.js";
+import { escapeString, getAuthorsString, getGithubOwnerAndProject } from "../utils/Util.js";
 import Path from "path";
 import { Attachment } from "../submissions/Attachment.js";
 import { ArchiveEntryData } from "../archive/ArchiveEntry.js";

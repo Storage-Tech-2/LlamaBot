@@ -195,11 +195,11 @@ export class Submission {
         try {
             const initialRevision = await this.getInitialRevision();
 
-            const embed = await RevisionEmbed.create(this, initialRevision, true);
             const channel = await this.getSubmissionChannel();
-            const message = await channel.send({ embeds: embed.getEmbeds(), components: [embed.getRow() as any] });
-
-            initialRevision.id = message.id; // Set the message ID as the revision ID
+            const messages = await RevisionEmbed.sendRevisionMessages(channel.send, this, initialRevision, true);
+         
+            initialRevision.id = messages[messages.length - 1].id; // Set the last message ID as the revision ID
+            initialRevision.messageIds = messages.map(m => m.id); // Store all message IDs in the revision
 
             await this.getRevisionsManager().createRevision(initialRevision);
             this.getRevisionsManager().setCurrentRevision(initialRevision.id);
@@ -221,6 +221,7 @@ export class Submission {
 
             const revision: Revision = {
                 id: '',
+                messageIds: [],
                 type: RevisionType.Initial,
                 parentRevision: null,
                 timestamp: Date.now(),
@@ -241,6 +242,7 @@ export class Submission {
 
             const revision: Revision = {
                 id: '',
+                messageIds: [],
                 type: RevisionType.Initial,
                 parentRevision: null,
                 timestamp: Date.now(),
@@ -489,6 +491,7 @@ export class Submission {
 
         const newRevisionData: Revision = {
             id: "",
+            messageIds: [],
             type: RevisionType.LLM,
             parentRevision: revision.id,
             timestamp: Date.now(),
@@ -502,13 +505,13 @@ export class Submission {
             content: `<@${message.author.id}> I've edited the submission${isCurrent ? ' and set it as current' : ''}`
         })
 
-        const embed = await RevisionEmbed.create(this, newRevisionData, isCurrent);
-        const messageNew = await message.reply({
-            embeds: embed.getEmbeds(),
-            components: [embed.getRow() as any],
-            flags: MessageFlags.SuppressNotifications
-        })
-        newRevisionData.id = messageNew.id;
+        if (!message.channel.isSendable()) {
+            throw new Error('Cannot send messages in this channel');
+        }
+
+        const messages = await RevisionEmbed.sendRevisionMessages(message.channel.send, this, newRevisionData, isCurrent);
+        newRevisionData.id = messages[messages.length - 1].id; // Set the last message ID as the revision ID
+        newRevisionData.messageIds = messages.map(m => m.id); // Store all message IDs in the revision
         await this.getRevisionsManager().createRevision(newRevisionData);
         if (isCurrent) {
             await this.getRevisionsManager().setCurrentRevision(newRevisionData.id, false);

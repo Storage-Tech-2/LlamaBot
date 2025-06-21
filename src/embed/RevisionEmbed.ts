@@ -1,4 +1,4 @@
-import { ActionRowBuilder, EmbedBuilder } from "discord.js";
+import { ActionRowBuilder, EmbedBuilder, InteractionReplyOptions, Message, MessageCreateOptions, MessageFlags, MessagePayload } from "discord.js";
 import { Submission } from "../submissions/Submission.js";
 import { Revision } from "../submissions/Revision.js";
 import { EditSubmissionButton } from "../components/buttons/EditSubmissionButton.js";
@@ -23,7 +23,38 @@ export class RevisionEmbed {
         return this.row;
     }
 
-    public static async create(submission: Submission, revision: Revision, isCurrent = false): Promise<RevisionEmbed> {
+    public static async sendRevisionMessages(sender: (message: MessageCreateOptions) => Promise<Message>, submission: Submission, revision: Revision, isCurrent = false): Promise<Message[]> {
+        const embed = await RevisionEmbed.create(submission, revision, isCurrent);
+        const embeds = embed.getEmbeds();
+        const row = embed.getRow();
+        const messages: Message[] = [];
+        for (let i = 0; i < embeds.length; i++) {
+            const message = await sender({
+                embeds: [embeds[i]],
+                components: i === embeds.length - 1 ? [row as any] : [],
+                flags: [MessageFlags.SuppressNotifications]
+            });
+            messages.push(message);
+        }
+        return messages;
+    }
+
+    public static async editRevisionMessages(existingMessages: Message[], submission: Submission, revision: Revision, isCurrent = false) {
+        const embed = await RevisionEmbed.create(submission, revision, isCurrent);
+        const embeds = embed.getEmbeds();
+        if (existingMessages.length !== embeds.length) {
+            throw new Error('Number of existing messages does not match number of embeds');
+        }
+        const row = embed.getRow();
+        for (let i = 0; i < embeds.length; i++) {
+            await existingMessages[i].edit({
+                embeds: [embeds[i]],
+                components: i === embeds.length - 1 ? [row as any] : [],
+            });
+        }
+    }
+
+    private static async create(submission: Submission, revision: Revision, isCurrent = false): Promise<RevisionEmbed> {
         // const submissionData = submission.submissionData
 
         let description = ''

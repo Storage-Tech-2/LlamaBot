@@ -19,6 +19,7 @@ export enum RevisionType {
 
 export type Revision = {
     id: Snowflake;
+    messageIds: Snowflake[];
     type: RevisionType;
 
     parentRevision: Snowflake | null;

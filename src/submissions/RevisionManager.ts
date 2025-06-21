@@ -58,18 +58,14 @@ export class RevisionManager {
         const revisionsList = this.getRevisionsList();
         const oldCurrentRevisions = revisionsList.filter(r => r.isCurrent);
         const channel = await this.submission.getSubmissionChannel();
-            
+
         await Promise.all(oldCurrentRevisions.map(async (revision) => {
             const revisionData = await this.getRevisionById(revision.id);
             if (!revisionData) return;
-            const message = await channel.messages.fetch(revisionData.id);
-            if (message) {
-                const embed = await RevisionEmbed.create(this.submission, revisionData, false);
-                await message.edit({
-                    embeds: embed.getEmbeds(),
-                    components: [embed.getRow() as any]
-                });
-            }
+            const messages = await Promise.all(revisionData.messageIds.map(async (messageId) => {
+                return await channel.messages.fetch(messageId);
+            }));
+            await RevisionEmbed.editRevisionMessages(messages, this.submission, revisionData, false);
         }));
 
         for (const revision of revisionsList) {
@@ -80,15 +76,12 @@ export class RevisionManager {
         if (updateCurrent) {
             const revisionData = await this.getRevisionById(id);
             if (!revisionData) return;
-            const message = await channel.messages.fetch(revisionData.id);
-            if (message) {
-                const embed = await RevisionEmbed.create(this.submission, revisionData, true);
-                await message.edit({
-                    embeds: embed.getEmbeds(),
-                    components: [embed.getRow() as any]
-                });
-            }
-        }   
+            const messages = await Promise.all(revisionData.messageIds.map(async (messageId) => {
+                return await channel.messages.fetch(messageId);
+            }));
+
+            await RevisionEmbed.editRevisionMessages(messages, this.submission, revisionData, false);
+        }
     }
 
     public isRevisionCurrent(id: Snowflake): boolean {

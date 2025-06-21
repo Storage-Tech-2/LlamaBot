@@ -84,6 +84,7 @@ export class EditRevisionModal implements Modal {
 
         const newRevisionData: Revision = {
             id: "",
+            messageIds: [],
             type: RevisionType.Manual,
             parentRevision: revision.id,
             timestamp: Date.now(),
@@ -99,13 +100,15 @@ export class EditRevisionModal implements Modal {
             content: `<@${interaction.user.id}> Manually edited the submission${isCurrent ? ' and set it as current' : ''}`
         })
 
-        const embed = await RevisionEmbed.create(submission, newRevisionData, isCurrent);
-        const messageNew = await interaction.followUp({
-            embeds: embed.getEmbeds(),
-            components: [embed.getRow() as any],
-            flags: MessageFlags.SuppressNotifications
-        })
-        newRevisionData.id = messageNew.id;
+        if (!interaction.channel?.isSendable()) {
+            replyEphemeral(interaction, 'Cannot send messages in this channel');
+            return;
+        }
+
+        const messages = await RevisionEmbed.sendRevisionMessages(interaction.channel.send, submission, newRevisionData, isCurrent);
+      
+        newRevisionData.id = messages[messages.length - 1].id; // Use the last message ID as the revision ID
+        newRevisionData.messageIds = messages.map(m => m.id);
         await submission.getRevisionsManager().createRevision(newRevisionData);
         if (isCurrent) {
             await submission.getRevisionsManager().setCurrentRevision(newRevisionData.id, false);
