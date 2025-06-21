@@ -199,6 +199,9 @@ export class Mwa implements Command {
         }
 
         const currentCategories = guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
+       
+        interaction.deferReply();
+
         const allChannels = await guildHolder.getGuild().channels.fetch();
         // get all categories in the guild
 
@@ -216,7 +219,6 @@ export class Mwa implements Command {
             if (a.name > b.name) return 1;
             return 0;
         });
-
         for (const category of categories) {
             indexText.push(`## ${category.name}`);
             const channels = Array.from(allChannels.filter(channel => {
@@ -255,7 +257,7 @@ export class Mwa implements Command {
         }
 
 
-        await replyEphemeral(interaction, 'Index created! Please check the channel for the index.');
+        await interaction.editReply({content: 'Index created! Please check the channel for the index.'});
         // send chunks
         for (const chunk of chunks) {
             await interaction.channel.send(chunk);
