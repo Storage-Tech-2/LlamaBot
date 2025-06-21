@@ -84,6 +84,13 @@ export class SubmissionsManager {
         }
     }
 
+    public removeSubmission(id: Snowflake) {
+        const submission = this.submissions.get(id);
+        if (submission && submission.canJunk()) {
+            this.submissions.delete(id);
+        }
+    }
+
     /**
      * Purges old submissions that have not been accessed in the last 24 hours.
      */

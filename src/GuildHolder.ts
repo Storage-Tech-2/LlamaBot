@@ -9,6 +9,9 @@ import { ArchiveEntryData } from "./archive/ArchiveEntry.js";
 import { getAuthorsString, getChanges, truncateStringWithEllipsis } from "./utils/Util.js";
 import { UserManager } from "./support/UserManager.js";
 import { UserData } from "./support/UserData.js";
+import { SubmissionConfigs } from "./submissions/SubmissionConfigs.js";
+import { SubmissionStatus } from "./submissions/SubmissionStatus.js";
+import fs from "fs/promises";
 
 /**
  * GuildHolder is a class that manages guild-related data.
@@ -164,6 +167,23 @@ export class GuildHolder {
             this.getRepositoryManager().handlePostThreadDelete(thread).catch(e => {
                 console.error('Error handling post thread deletion:', e);
             });
+        }
+
+        // Handle submission thread deletion
+        if (thread.parentId === this.getSubmissionsChannelId()) {
+            const submissionId = thread.id;
+            try {
+                const submission = await this.submissions.getSubmission(submissionId);
+                if (submission && submission.canJunk() && submission.getConfigManager().getConfig(SubmissionConfigs.STATUS) !== SubmissionStatus.ACCEPTED) {
+                    const folder = submission.getFolderPath();
+                    // Delete the submission folder recursively
+                    await fs.rm(folder, { recursive: true, force: true });
+                    // Remove the submission from the submissions manager
+                    await this.submissions.removeSubmission(submissionId);
+                }
+            } catch (e) {
+                console.error('Error handling submission thread deletion:', e);
+            }
         }
     }
 
