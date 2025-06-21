@@ -158,5 +158,4 @@ export class SetTagsMenu implements Menu {
 
         submission.checkReview()
     }
-
 }

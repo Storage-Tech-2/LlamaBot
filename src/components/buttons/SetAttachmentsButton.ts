@@ -32,42 +32,11 @@ export class SetAttachmentsButton implements Button {
         }
 
 
-        const imagesMenu = new SetImagesMenu();
-        const attachmentsMenu = new SetAttachmentsMenu();
-
         const shouldAlsoAskAttachments = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) !== null;
-        const imagesMenuBuilder = await imagesMenu.getBuilderOrNull(submission);
-        const menuBuilder = shouldAlsoAskAttachments ? await attachmentsMenu.getBuilderOrNull(guildHolder, submission) : null;
-
-        if (imagesMenuBuilder) {
-            const row1 = new ActionRowBuilder().addComponents(imagesMenuBuilder)
-            if (submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null) {
-                row1.addComponents(new SkipImagesButton().getBuilder());
-            }
-            await replyEphemeral(interaction, `Please select image attachments for the submission`,
-                {
-                    components: [row1 as any],
-                });
-        } else if (menuBuilder || !shouldAlsoAskAttachments) {
-            const row = new ActionRowBuilder()
-                .addComponents(new SetAttachmentsButton().getBuilder(false));
-            await replyEphemeral(interaction, `No image attachments found! Try uploading images first and then use this button again.`,{
-                components: [row as any]
-            });
+        await SetImagesMenu.sendImagesMenuAndButton(submission, interaction);
+        if (shouldAlsoAskAttachments) {
+            await SetAttachmentsMenu.sendAttachmentsMenuAndButton(submission, interaction);
         }
 
-        if (menuBuilder) {
-            const row2 = new ActionRowBuilder().addComponents(menuBuilder);
-            await replyEphemeral(interaction, `Please select other attachments (Schematics/WDLs) for the submission`,
-                {
-                    components: [row2 as any],
-                });
-        } else if (shouldAlsoAskAttachments) {
-            const row = new ActionRowBuilder()
-                .addComponents(new SetAttachmentsButton().getBuilder(false));
-            await replyEphemeral(interaction, `No attachments found! Try uploading files first and then use this button again.`, {
-                components: [row as any]
-            });
-        }
     }
 }

@@ -1,4 +1,4 @@
-import { ActionRowBuilder, AttachmentBuilder, EmbedBuilder, MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
+import { ActionRowBuilder, AttachmentBuilder, EmbedBuilder, Interaction, Message, MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
 import { canEditSubmission, getFileKey, replyEphemeral } from "../../utils/Util.js";
@@ -8,6 +8,7 @@ import { Image } from "../../submissions/Image.js";
 import path from "path";
 import { SetAttachmentsMenu } from "./SetAttachmentsMenu.js";
 import { SetAttachmentsButton } from "../buttons/SetAttachmentsButton.js";
+import { SkipImagesButton } from "../buttons/SkipImagesButton.js";
 
 export class SetImagesMenu implements Menu {
     getID(): string {
@@ -148,29 +149,37 @@ export class SetImagesMenu implements Menu {
         await submission.statusUpdated();
 
         if (isFirstTime) {
-            const menu = await new SetAttachmentsMenu().getBuilderOrNull(guildHolder, submission);
-            if (menu) {
-                const row = new ActionRowBuilder()
-                    .addComponents(menu)
-                await interaction.followUp({
-                    content: `Please choose other attachments (Schematics/WDLS) for your submission`,
-                    components: [row as any],
-                    flags: MessageFlags.Ephemeral
-                })
-            } else {
-                await interaction.followUp({
-                    content: `No other attachments found! Try uploading files first then press the button below.`,
-                    flags: MessageFlags.Ephemeral,
-                    components: [
-                        new ActionRowBuilder().addComponents(
-                            new SetAttachmentsButton().getBuilder(false)
-                        ) as any
-                    ]
-                });
-            }
+            await SetAttachmentsMenu.sendAttachmentsMenuAndButton(submission, interaction);
         }
 
         submission.checkReview()
+    }
+
+    public static async sendImagesMenuAndButton(submission: Submission, interaction: Interaction): Promise<Message> {
+        const menu = await new SetImagesMenu().getBuilderOrNull(submission);
+        if (menu) {
+            const row = new ActionRowBuilder().addComponents(menu)
+
+            if (submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null) {
+                row.addComponents(new SkipImagesButton().getBuilder())
+            }
+
+            return replyEphemeral(interaction, `Please choose images for the submission`,{
+                components: [row as any]
+            })
+        } else {
+            const row = new ActionRowBuilder().addComponents(new SetAttachmentsButton().getBuilder(false));
+            if (submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null) {
+                row.addComponents(new SkipImagesButton().getBuilder())
+            }
+            return replyEphemeral(interaction,`No images found! Try uploading images first and then press the button below.`,
+            {
+                flags: MessageFlags.Ephemeral,
+                components: [
+                    row as any
+                ]
+            });
+        }
     }
 
 }

@@ -1,10 +1,12 @@
-import { MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
+import { ActionRowBuilder, Interaction, Message, MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
 import { canEditSubmission, escapeString, replyEphemeral } from "../../utils/Util.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Attachment } from "../../submissions/Attachment.js";
+import { SkipAttachmentsButton } from "../buttons/SkipAttachmentsButton.js";
+import { SetAttachmentsButton } from "../buttons/SetAttachmentsButton.js";
 
 export class SetAttachmentsMenu implements Menu {
     getID(): string {
@@ -27,7 +29,7 @@ export class SetAttachmentsMenu implements Menu {
             )
     }
 
-    async getBuilderOrNull(_guildHolder: GuildHolder, submission: Submission): Promise<StringSelectMenuBuilder | null> {
+    async getBuilderOrNull(submission: Submission): Promise<StringSelectMenuBuilder | null> {
         const attachments = await submission.getAttachments()
         const fileAttachments = attachments.filter(attachment => attachment.contentType && attachment.contentType !== 'application/x-msdos-program')
 
@@ -126,4 +128,30 @@ export class SetAttachmentsMenu implements Menu {
         submission.checkReview();
     }
 
+    public static async sendAttachmentsMenuAndButton(submission: Submission, interaction: Interaction): Promise<Message> {
+        const menu = await new SetAttachmentsMenu().getBuilderOrNull(submission);
+        if (menu) {
+            const row = new ActionRowBuilder().addComponents(menu)
+
+            if (submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) === null) {
+                row.addComponents(new SkipAttachmentsButton().getBuilder())
+            }
+
+            return replyEphemeral(interaction, `Please choose other attachments (eg: Schematics/WDLs) for the submission`, {
+                components: [row as any]
+            })
+        } else {
+            const row = new ActionRowBuilder().addComponents(new SetAttachmentsButton().getBuilder(false));
+            if (submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) === null) {
+                row.addComponents(new SkipAttachmentsButton().getBuilder())
+            }
+            return replyEphemeral(interaction, `No attachments found! Try uploading attachments first and then press the button below.`,
+                {
+                    flags: MessageFlags.Ephemeral,
+                    components: [
+                        row as any
+                    ]
+                });
+        }
+    }
 }

@@ -62,7 +62,7 @@ export class SetAuthorsButton implements Button {
         const row2 = new ActionRowBuilder()
             .addComponents(new AddAuthorButton().getBuilder());
         components.push(row2);
-        await replyEphemeral(interaction, `Please select author(s) for the submission`, {
+        await replyEphemeral(interaction, `Please select author(s) for the submission. They will also be able to edit this submission.`, {
             components
         });
     }
