@@ -736,7 +736,14 @@ export class RepositoryManager {
                     }
                 }
 
-                if (comments.length > 0) {
+                if (comments.length > 0 && thread.parent) {
+                    // make webhook
+                    const threadWebhook = await thread.parent.createWebhook({
+                        name: 'LlamaBot Archiver',
+                    });
+
+                    
+
                     for (const comment of comments) {
                         const author = (await reclassifyAuthors(this.guildHolder, [comment.sender]))[0];
                         comment.sender = author;
@@ -757,16 +764,22 @@ export class RepositoryManager {
                             }
                         }
 
-                        const embed = new EmbedBuilder()
-                            .setAuthor({
-                                name: author.displayName || author.username || 'Unknown Author',
-                                iconURL: author.iconURL || undefined,
-                            })
-                            .setDescription(comment.content)
-                            .setTimestamp(comment.timestamp ? new Date(comment.timestamp) : undefined)
+                        // const embed = new EmbedBuilder()
+                        //     .setAuthor({
+                        //         name: author.displayName || author.username || 'Unknown Author',
+                        //         iconURL: author.iconURL || undefined,
+                        //     })
+                        //     .setDescription(comment.content)
+                        //     .setTimestamp(comment.timestamp ? new Date(comment.timestamp) : undefined)
 
-                        const commentMessage = await thread.send({
-                            embeds: [embed],
+                        // const commentMessage = await thread.send({
+                        //     embeds: [embed],
+                        //     files: files,
+                        // });
+                        const commentMessage = await threadWebhook.send({
+                            content: comment.content,
+                            username: author.displayName || author.username || 'Unknown Author',
+                            avatarURL: author.iconURL || undefined,
                             files: files,
                         });
                         comment.id = commentMessage.id;
@@ -774,7 +787,7 @@ export class RepositoryManager {
                     // Save comments back to the file
                     await fs.writeFile(commentsFile, JSON.stringify(comments, null, 2), 'utf-8');
                     await this.git.add(commentsFile);
-
+                    await threadWebhook.delete();
                 }
 
             }
