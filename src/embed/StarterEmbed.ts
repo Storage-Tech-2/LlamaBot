@@ -73,7 +73,7 @@ export class StarterEmbed {
         }
 
         if (images) {
-            description += `:white_check_mark: Chose image attachments: ${images.map(o => o.name).join(", ")}\n`
+            description += `:white_check_mark: Chose image attachments: ${images.length ? images.map(o => o.name).join(', ') : 'No images'}\n`
         } else {
             description += ':three: Choose image attachments\n'
         }
