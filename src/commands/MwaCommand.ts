@@ -72,6 +72,11 @@ export class Mwa implements Command {
             )
             .addSubcommand(subcommand =>
                 subcommand
+                    .setName('makeindex')
+                    .setDescription('Make an index of all archive channels')
+            )
+            .addSubcommand(subcommand =>
+                subcommand
                     .setName('setrepo')
                     .setDescription('Set the GitHub repository for the archive')
                     .addStringOption(option =>
@@ -101,6 +106,8 @@ export class Mwa implements Command {
             this.setHelperRole(guildHolder, interaction)
         } else if (interaction.options.getSubcommand() === 'setrepo') {
             this.setRepo(guildHolder, interaction)
+        } else if (interaction.options.getSubcommand() === 'makeindex') {
+            this.makeIndex(guildHolder, interaction);
         } else {
             await replyEphemeral(interaction, 'Invalid subcommand. Use `/mwa setsubmissions`, `/mwa setlogs`, `/mwa setarchives`, `/mwa setuparchives`, `/mwa setendorseroles`, `/mwa seteditorroles`, `/mwa sethelperrole` or `/mwa setrepo`.');
             return;
@@ -116,7 +123,7 @@ export class Mwa implements Command {
         }
 
         guildHolder.getConfigManager().setConfig(GuildConfigs.GITHUB_REPO_URL, url)
-        await replyEphemeral(interaction, `Successfully set Git repository URL to ${url} and token!`);
+        await replyEphemeral(interaction, `Successfully set Git repository URL to ${url}!`);
         interaction.followUp({
             content: `<@${interaction.user.id}> Set the Git repository to ${url}!`,
         });
@@ -185,6 +192,57 @@ export class Mwa implements Command {
         await replyEphemeral(interaction, `Llamabot will now send updates to ${channel.name}!`);
     }
 
+    async makeIndex(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        if (!interaction.channel || !interaction.channel.isTextBased() || !interaction.inGuild()) {
+            await replyEphemeral(interaction, 'This command can only be used in a text channel.')
+            return;
+        }
+
+        const currentCategories = guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
+        const allChannels = await guildHolder.getGuild().channels.fetch();
+        // get all categories in the guild
+
+        let indexText = '# Archive Index:\n';
+        const categories = allChannels.filter(channel => {
+            return channel && channel.type === ChannelType.GuildCategory && currentCategories.includes(channel.id)
+        });
+
+        for (const category of categories.values()) {
+            if (!category || category.type !== ChannelType.GuildCategory) {
+                continue;
+            }
+
+            indexText += `## ${category.name}`;
+            const channels = allChannels.filter(channel => {
+                return channel && channel.type === ChannelType.GuildForum && channel.parentId === category.id
+            }) as unknown as ForumChannel[];
+
+            for (const channel of channels.values()) {
+                const { code, description } = getCodeAndDescriptionFromTopic(channel.topic || '');
+                indexText += `\n- [${code} ${channel.name}](${channel.url}): ${description || 'No description'}`;
+            }
+        }
+
+        // send text in chunks of 2000 characters
+        const chunks = [];
+        let currentChunk = '';
+        for (const line of indexText.split('\n')) {
+            if ((currentChunk + line + '\n').length > 2000) {
+                chunks.push(currentChunk);
+                currentChunk = '';
+            }
+            currentChunk += line + '\n';
+        }
+        if (currentChunk) {
+            chunks.push(currentChunk);
+        }
+
+        await replyEphemeral(interaction, 'Index created! Please check the channel for the index.');
+        // send chunks
+        for (const chunk of chunks) {
+            await interaction.channel.send(chunk);
+        }
+    }
 
     async setupArchives(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         if (!interaction.channel || !interaction.channel.isTextBased() || !interaction.inGuild()) {
