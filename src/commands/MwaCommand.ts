@@ -202,7 +202,7 @@ export class Mwa implements Command {
         const allChannels = await guildHolder.getGuild().channels.fetch();
         // get all categories in the guild
 
-        let indexText = '# Archive Index:\n';
+        let indexText = ['# Archive Index:'];
         const categories = allChannels.filter(channel => {
             return channel && channel.type === ChannelType.GuildCategory && currentCategories.includes(channel.id)
         });
@@ -212,21 +212,21 @@ export class Mwa implements Command {
                 continue;
             }
 
-            indexText += `## ${category.name}`;
+            indexText.push(`## ${category.name}`);
             const channels = allChannels.filter(channel => {
                 return channel && channel.type === ChannelType.GuildForum && channel.parentId === category.id
             }) as unknown as ForumChannel[];
 
             for (const channel of channels.values()) {
                 const { code, description } = getCodeAndDescriptionFromTopic(channel.topic || '');
-                indexText += `\n- [${code} ${channel.name}](${channel.url}): ${description || 'No description'}`;
+                indexText.push(`- [${code} ${channel.name}](${channel.url}): ${description || 'No description'}`);
             }
         }
 
         // send text in chunks of 2000 characters
         const chunks = [];
         let currentChunk = '';
-        for (const line of indexText.split('\n')) {
+        for (const line of indexText) {
             if ((currentChunk + line + '\n').length > 2000) {
                 chunks.push(currentChunk);
                 currentChunk = '';
@@ -236,6 +236,7 @@ export class Mwa implements Command {
         if (currentChunk) {
             chunks.push(currentChunk);
         }
+        
 
         await replyEphemeral(interaction, 'Index created! Please check the channel for the index.');
         // send chunks
