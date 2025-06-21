@@ -148,7 +148,7 @@ export class SetTagsMenu implements Menu {
                     flags: MessageFlags.Ephemeral,
                     components: [
                         new ActionRowBuilder().addComponents(
-                            await new SetAttachmentsButton().getBuilder(false)
+                            new SetAttachmentsButton().getBuilder(false)
                         ) as any
                     ]
                 });

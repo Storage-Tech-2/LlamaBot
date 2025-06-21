@@ -12,7 +12,7 @@ export class AddAuthorModal implements Modal {
         return "add-author-modal";
     }
 
-    async getBuilder(): Promise<ModalBuilder> {
+    getBuilder(): ModalBuilder {
         const modal = new ModalBuilder()
             .setCustomId(this.getID())
             .setTitle('Add Author Manually')

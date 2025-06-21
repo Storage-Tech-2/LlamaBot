@@ -8,7 +8,7 @@ export class EditSubmissionButton implements Button {
         return "edit-submission-button";
     }
 
-    async getBuilder(): Promise<ButtonBuilder> {
+    getBuilder(): ButtonBuilder {
         return new ButtonBuilder()
             .setCustomId(this.getID())
             .setLabel('Edit Submission')
@@ -33,6 +33,6 @@ export class EditSubmissionButton implements Button {
             return
         }
 
-        await interaction.showModal(await new EditRevisionModal().getBuilder(revision))
+        await interaction.showModal(new EditRevisionModal().getBuilder(revision))
     }
 }

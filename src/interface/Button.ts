@@ -14,7 +14,7 @@ export interface Button {
     /**
      * Returns the button builder
      */
-    getBuilder(...args: any[]): Promise<ButtonBuilder>;
+    getBuilder(...args: any[]): Promise<ButtonBuilder> | ButtonBuilder;
 
     /**
      * Executes the button action.

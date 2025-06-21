@@ -11,7 +11,7 @@ export class SetAttachmentsMenu implements Menu {
         return "set-attachments-menu";
     }
 
-    async getBuilder(fileAttachments: Attachment[], currentFiles: Attachment[]): Promise<StringSelectMenuBuilder> {
+    getBuilder(fileAttachments: Attachment[], currentFiles: Attachment[]): StringSelectMenuBuilder {
         return new StringSelectMenuBuilder()
             .setCustomId(this.getID())
             .setMinValues(0)

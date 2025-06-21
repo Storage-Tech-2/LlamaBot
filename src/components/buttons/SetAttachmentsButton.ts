@@ -11,7 +11,7 @@ export class SetAttachmentsButton implements Button {
         return "set-attachments-button";
     }
 
-    async getBuilder(isSet: boolean): Promise<ButtonBuilder> {
+    getBuilder(isSet: boolean): ButtonBuilder {
         return new ButtonBuilder()
             .setCustomId(this.getID())
             .setLabel(isSet ? "Change Attachments" : "Set Attachments")
@@ -46,7 +46,7 @@ export class SetAttachmentsButton implements Button {
                 });
         } else if (menuBuilder || !shouldAlsoAskAttachments) {
             const row = new ActionRowBuilder()
-                .addComponents(await new SetAttachmentsButton().getBuilder(false));
+                .addComponents(new SetAttachmentsButton().getBuilder(false));
             await replyEphemeral(interaction, `No image attachments found! Try uploading images first and then use this button again.`,{
                 components: [row as any]
             });
@@ -60,7 +60,7 @@ export class SetAttachmentsButton implements Button {
                 });
         } else if (shouldAlsoAskAttachments) {
             const row = new ActionRowBuilder()
-                .addComponents(await new SetAttachmentsButton().getBuilder(false));
+                .addComponents(new SetAttachmentsButton().getBuilder(false));
             await replyEphemeral(interaction, `No attachments found! Try uploading files first and then use this button again.`, {
                 components: [row as any]
             });

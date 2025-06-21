@@ -13,7 +13,7 @@ export class SetAuthorsButton implements Button {
         return "set-authors-button";
     }
 
-    async getBuilder(isSet: boolean): Promise<ButtonBuilder> {
+    getBuilder(isSet: boolean): ButtonBuilder {
         return new ButtonBuilder()
             .setCustomId(this.getID())
             .setLabel(isSet ? 'Change Authors' : 'Let\'s Start!')
@@ -60,7 +60,7 @@ export class SetAuthorsButton implements Button {
             components.push(row1);
         }
         const row2 = new ActionRowBuilder()
-            .addComponents(await new AddAuthorButton().getBuilder());
+            .addComponents(new AddAuthorButton().getBuilder());
         components.push(row2);
         await replyEphemeral(interaction, `Please select author(s) for the submission`, {
             components

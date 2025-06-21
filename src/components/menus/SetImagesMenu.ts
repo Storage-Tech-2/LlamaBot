@@ -14,7 +14,7 @@ export class SetImagesMenu implements Menu {
         return "set-images-menu";
     }
 
-    async getBuilder(imageAttachments: Image[], currentImages: Image[]): Promise<StringSelectMenuBuilder> {
+    getBuilder(imageAttachments: Image[], currentImages: Image[]): StringSelectMenuBuilder {
         return new StringSelectMenuBuilder()
             .setCustomId(this.getID())
             .setMinValues(0)
@@ -163,7 +163,7 @@ export class SetImagesMenu implements Menu {
                     flags: MessageFlags.Ephemeral,
                     components: [
                         new ActionRowBuilder().addComponents(
-                            await new SetAttachmentsButton().getBuilder(false)
+                            new SetAttachmentsButton().getBuilder(false)
                         ) as any
                     ]
                 });

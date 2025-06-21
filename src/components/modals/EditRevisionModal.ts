@@ -10,7 +10,7 @@ export class EditRevisionModal implements Modal {
         return "edit-revision-modal";
     }
 
-    async getBuilder(revision: Revision): Promise<ModalBuilder> {
+    getBuilder(revision: Revision): ModalBuilder {
         const modal = new ModalBuilder()
             .setCustomId(this.getID() + '|' + revision.id)
             .setTitle('Edit Submission')

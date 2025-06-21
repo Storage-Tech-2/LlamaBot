@@ -9,7 +9,7 @@ export class AddAuthorButton implements Button {
         return "add-author-button";
     }
 
-    async getBuilder(): Promise<ButtonBuilder> {
+    getBuilder(): ButtonBuilder {
         return new ButtonBuilder()
             .setCustomId(this.getID())
             .setLabel('Add Author Not In List')
@@ -30,7 +30,7 @@ export class AddAuthorButton implements Button {
         }
 
 
-        const modal = await new AddAuthorModal().getBuilder()
+        const modal = new AddAuthorModal().getBuilder()
         await interaction.showModal(modal);
     }
 

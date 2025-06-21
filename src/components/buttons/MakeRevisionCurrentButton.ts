@@ -9,7 +9,7 @@ export class MakeRevisionCurrentButton implements Button {
         return "make-revision-current";
     }
 
-    async getBuilder(): Promise<ButtonBuilder> {
+    getBuilder(): ButtonBuilder {
         return new ButtonBuilder()
             .setCustomId(this.getID())
             .setLabel('Make Current')

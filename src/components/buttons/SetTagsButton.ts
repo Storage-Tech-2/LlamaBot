@@ -9,7 +9,7 @@ export class SetTagsButton implements Button {
         return "set-tags-button";
     }
 
-    async getBuilder(isSet: boolean): Promise<ButtonBuilder> {
+    getBuilder(isSet: boolean): ButtonBuilder {
         return new ButtonBuilder()
             .setCustomId(this.getID())
             .setLabel(isSet ? "Change Tags" : "Set Tags")

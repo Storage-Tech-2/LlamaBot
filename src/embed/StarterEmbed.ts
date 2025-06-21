@@ -127,22 +127,22 @@ export class StarterEmbed {
         // Post
 
         const row = new ActionRowBuilder()
-            .addComponents(await new SetAuthorsButton().getBuilder(authors !== null))
+            .addComponents(new SetAuthorsButton().getBuilder(authors !== null))
 
         if (authors !== null) {
-            row.addComponents(await new SetArchiveChannelButton().getBuilder(!!archiveChannelID))
+            row.addComponents(new SetArchiveChannelButton().getBuilder(!!archiveChannelID))
 
             if (archiveChannelID) {
-                row.addComponents(await new SetTagsButton().getBuilder(tags !== null))
+                row.addComponents(new SetTagsButton().getBuilder(tags !== null))
 
                 if (tags !== null) {
-                    row.addComponents(await new SetAttachmentsButton().getBuilder(attachments !== null));
+                    row.addComponents(new SetAttachmentsButton().getBuilder(attachments !== null));
                 }
             }
         }
 
         if (submission.isPublishable()) {
-            row.addComponents(await new PublishButton().getBuilder(status === SubmissionStatus.ACCEPTED));
+            row.addComponents(new PublishButton().getBuilder(status === SubmissionStatus.ACCEPTED));
         }
 
         return new StarterEmbed(embed, row);

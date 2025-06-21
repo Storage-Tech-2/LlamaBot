@@ -9,7 +9,7 @@ export class PublishButton implements Button {
         return "publish-button";
     }
 
-    async getBuilder(is_published: boolean): Promise<ButtonBuilder> {
+    getBuilder(is_published: boolean): ButtonBuilder {
         return new ButtonBuilder()
             .setCustomId(this.getID())
             .setLabel(is_published ? 'Republish!' : 'Publish!')

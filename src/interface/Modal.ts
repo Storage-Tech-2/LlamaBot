@@ -14,7 +14,7 @@ export interface Modal {
     /**
      * Returns the modal builder
      */
-    getBuilder(...args: any[]): Promise<ModalBuilder>;
+    getBuilder(...args: any[]): Promise<ModalBuilder> | ModalBuilder;
 
     /**
      * Executes the modal action.

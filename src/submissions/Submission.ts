@@ -337,7 +337,7 @@ export class Submission {
                             content: `<@${channel.ownerId}> Your submission is now ready to be published, but it is currently on hold. Editors must release the hold before it can be published. The reason for the hold is: ${this.getConfigManager().getConfig(SubmissionConfigs.HOLD_REASON) || 'No reason provided.'}`,
                         });
                     } else {
-                        const publishButton = await new PublishButton().getBuilder(false);
+                        const publishButton = new PublishButton().getBuilder(false);
 
                         await channel.send({
                             content: `<@${channel.ownerId}> Congratulations! Your submission is now ready to be published! Click the button below to proceed.`,

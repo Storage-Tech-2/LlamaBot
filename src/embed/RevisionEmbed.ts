@@ -74,10 +74,10 @@ export class RevisionEmbed {
         })
 
         const row = new ActionRowBuilder()
-            .addComponents(await new EditSubmissionButton().getBuilder())
+            .addComponents(new EditSubmissionButton().getBuilder())
 
         if (!isCurrent) {
-            row.addComponents(await new MakeRevisionCurrentButton().getBuilder())
+            row.addComponents(new MakeRevisionCurrentButton().getBuilder())
         }
         //     row.addComponents(await FinalizeButton.getComponent(finalized))
         // }
