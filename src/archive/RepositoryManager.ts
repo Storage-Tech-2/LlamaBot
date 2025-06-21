@@ -1079,9 +1079,30 @@ export class RepositoryManager {
                 }
             }
             comments.splice(deletedCommentIndex, 1);
-            await fs.writeFile(commentsFile, JSON.stringify(comments, null, 2), 'utf-8');
-            await this.git.add(commentsFile).commit(`Deleted ${deletedComment.sender?.displayName}'s comment from ${found.entry.getData().code}`);
 
+            // check if there are any attachments left
+            const hasAnyAttachmentsLeft = comments.some(c => c.attachments.filter(a => a.canDownload).length > 0);
+            if (!hasAnyAttachmentsLeft) {
+                // If no attachments left, delete the comments attachments folder
+                const commentsAttachmentFolder = Path.join(entryPath, 'comments_attachments');
+                for (const file of await fs.readdir(commentsAttachmentFolder)) {
+                    const filePath = Path.join(commentsAttachmentFolder, file);
+                    const stat = await fs.lstat(filePath);
+                    if (stat.isFile()) {
+                        await fs.unlink(filePath);
+                    }
+                }
+                await this.git.rm(commentsAttachmentFolder);
+            }
+
+            if (comments.length === 0) {
+                // If no comments left, delete the comments file
+                await this.git.rm(commentsFile);
+            } else {
+                await fs.writeFile(commentsFile, JSON.stringify(comments, null, 2), 'utf-8');
+                await this.git.add(commentsFile).commit(`Deleted ${deletedComment.sender?.displayName}'s comment from ${found.entry.getData().code}`);
+            }
+            
             // check submission
             try {
                 const submission = await this.guildHolder.getSubmissionsManager().getSubmission(submissionId);
