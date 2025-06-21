@@ -136,7 +136,7 @@ export class GuildHolder {
         }
     }
 
-    public async handleMessageUpdate(oldMessage: Message, newMessage: Message) {
+    public async handleMessageUpdate(_oldMessage: Message, newMessage: Message) {
         // Handle message inside archived post
         if (newMessage.channel.isThread() && newMessage.channel.parentId && this.cachedChannelIds.includes(newMessage.channel.parentId)) {
             this.getRepositoryManager().handlePostOrUpdateMessage(newMessage).catch(e => {

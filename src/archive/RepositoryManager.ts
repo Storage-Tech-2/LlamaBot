@@ -4,7 +4,7 @@ import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
 import { AnyThreadChannel, AttachmentBuilder, ChannelType, EmbedBuilder, ForumChannel, Message, MessageFlags, Snowflake } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
-import { deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getAuthorsString, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors, truncateStringWithEllipsis } from "../utils/Util.js";
+import { deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors, truncateStringWithEllipsis } from "../utils/Util.js";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";
 import { Submission } from "../submissions/Submission.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
@@ -23,6 +23,7 @@ export class RepositoryManager {
     private git?: SimpleGit;
     private configManager: ConfigManager;
     private lock: Lock = new Lock();
+    private ignoreUpdatesFrom: Snowflake[] = [];
     private guildHolder: GuildHolder;
     constructor(guildHolder: GuildHolder, folderPath: string) {
         this.guildHolder = guildHolder;
@@ -77,6 +78,24 @@ export class RepositoryManager {
     getIndexPath() {
         return Path.join(this.folderPath, 'post_to_submission_index.json');
     }
+
+    addToIgnoreUpdatesFrom(id: Snowflake) {
+        if (!this.ignoreUpdatesFrom.includes(id)) {
+            this.ignoreUpdatesFrom.push(id);
+        }
+    }
+
+    removeFromIgnoreUpdatesFrom(id: Snowflake) {
+        const index = this.ignoreUpdatesFrom.indexOf(id);
+        if (index !== -1) {
+            this.ignoreUpdatesFrom.splice(index, 1);
+        }
+    }
+
+    shouldIgnoreUpdates(id: Snowflake): boolean {
+        return this.ignoreUpdatesFrom.includes(id);
+    }
+
 
     async getPostToSubmissionIndex() {
         const filePath = this.getIndexPath();
@@ -410,6 +429,7 @@ export class RepositoryManager {
         if (!this.git) {
             throw new Error("Git not initialized");
         }
+        this.addToIgnoreUpdatesFrom(submission.getId());
         await this.lock.acquire();
         try {
             const archiveChannelId = submission.getConfigManager().getConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID);
@@ -770,15 +790,16 @@ export class RepositoryManager {
             } catch (e: any) {
                 console.error("Error pushing to remote:", e.message);
             }
-            await this.lock.release();
 
             await this.setSubmissionIDForPostID(thread.id, submission.getId());
-
+            this.removeFromIgnoreUpdatesFrom(submission.getId());
+            await this.lock.release();
             return {
                 oldEntryData: existing ? existing.entry.getData() : undefined,
                 newEntryData: entry.getData()
             }
         } catch (e) {
+            this.removeFromIgnoreUpdatesFrom(submission.getId());
             await this.lock.release();
             throw e;
         }
@@ -789,6 +810,7 @@ export class RepositoryManager {
             throw new Error("Git not initialized");
         }
         await this.lock.acquire();
+        this.addToIgnoreUpdatesFrom(submission.getId());
         try {
             // Find archived entry in all channels
             const found = await this.findEntryBySubmissionId(submission.getId());
@@ -842,12 +864,13 @@ export class RepositoryManager {
                 console.error("Error pushing to remote:", e.message);
             }
 
-            this.lock.release();
 
             await this.deleteSubmissionIDForPostID(entryData.post?.threadId || '');
-
+            this.removeFromIgnoreUpdatesFrom(submission.getId());
+            this.lock.release();
             return entryData;
         } catch (e) {
+            this.removeFromIgnoreUpdatesFrom(submission.getId());
             this.lock.release();
             throw e;
         }
@@ -902,14 +925,14 @@ export class RepositoryManager {
         }
 
 
+        const submissionId = await this.getSubmissionIDByPostID(postId);
+        if (!submissionId || this.shouldIgnoreUpdates(submissionId)) {
+            return;
+        }
+
+
         await this.lock.acquire();
         try {
-            const submissionId = await this.getSubmissionIDByPostID(postId);
-
-            if (!submissionId) {
-                return;
-            }
-
 
             const found = await this.findEntryBySubmissionId(submissionId);
             if (!found) {
@@ -1038,13 +1061,13 @@ export class RepositoryManager {
         }
 
         const postId = message.channel.id;
+        const submissionId = await this.getSubmissionIDByPostID(postId);
+        if (!submissionId || this.shouldIgnoreUpdates(submissionId)) {
+            return;
+        }
+
         await this.lock.acquire();
         try {
-            const submissionId = await this.getSubmissionIDByPostID(postId);
-            if (!submissionId) {
-                return;
-            }
-
             const found = await this.findEntryBySubmissionId(submissionId);
             if (!found) {
                 return;
@@ -1102,7 +1125,7 @@ export class RepositoryManager {
                 await fs.writeFile(commentsFile, JSON.stringify(comments, null, 2), 'utf-8');
                 await this.git.add(commentsFile).commit(`Deleted ${deletedComment.sender?.displayName}'s comment from ${found.entry.getData().code}`);
             }
-            
+
             // check submission
             try {
                 const submission = await this.guildHolder.getSubmissionsManager().getSubmission(submissionId);
@@ -1151,13 +1174,14 @@ export class RepositoryManager {
             throw new Error("Git not initialized");
         }
 
+
+        const submissionId = await this.getSubmissionIDByPostID(postId);
+        if (!submissionId || this.shouldIgnoreUpdates(submissionId)) {
+            return;
+        }
+
         await this.lock.acquire();
         try {
-            const submissionId = await this.getSubmissionIDByPostID(postId);
-
-            if (!submissionId) {
-                return;
-            }
 
             const found = await this.findEntryBySubmissionId(submissionId);
             if (!found) {
@@ -1231,7 +1255,7 @@ export class RepositoryManager {
         this.lock.release();
     }
 
-    public async handlePostThreadUpdate(oldThread: AnyThreadChannel, thread: AnyThreadChannel) {
+    public async handlePostThreadUpdate(_oldThread: AnyThreadChannel, thread: AnyThreadChannel) {
         if (!thread.parent || thread.parent.type !== ChannelType.GuildForum) {
             return; // No parent, nothing to do
         }
@@ -1240,12 +1264,14 @@ export class RepositoryManager {
         }
 
         const postId = thread.id;
+        const submissionId = await this.getSubmissionIDByPostID(postId);
+        if (!submissionId || this.shouldIgnoreUpdates(submissionId)) {
+            return;
+        }
+
         await this.lock.acquire();
         try {
-            const submissionId = await this.getSubmissionIDByPostID(postId);
-            if (!submissionId) {
-                return;
-            }
+
 
             const found = await this.findEntryBySubmissionId(submissionId);
             if (!found) {

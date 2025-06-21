@@ -1,4 +1,4 @@
-import { ChannelType, ChatInputCommandInteraction, Client, GatewayIntentBits, SelectMenuInteraction } from "discord.js";
+import { ChatInputCommandInteraction, Client, GatewayIntentBits, SelectMenuInteraction } from "discord.js";
 import { GuildHolder } from "./GuildHolder.js";
 import { LLMQueue } from "./llm/LLMQueue.js";
 import path from "path";
