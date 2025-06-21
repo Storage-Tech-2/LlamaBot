@@ -207,6 +207,9 @@ export class Mwa implements Command {
             return channel && channel.type === ChannelType.GuildCategory && currentCategories.includes(channel.id)
         })) as unknown as CategoryChannel[];
 
+        for (const category of categories) {
+            await category.fetch(); // Ensure the category is fully fetched
+        }
         // sort by name
         categories.sort((a, b) => {
             if (a.name < b.name) return -1;
@@ -219,6 +222,11 @@ export class Mwa implements Command {
             const channels = Array.from(allChannels.filter(channel => {
                 return channel && channel.type === ChannelType.GuildForum && channel.parentId === category.id
             })) as unknown as ForumChannel[];
+
+            // Ensure channels are fully fetched
+            for (const channel of channels) {
+                await channel.fetch();
+            }
             // sort by name
             channels.sort((a, b) => {
                 if (a.name < b.name) return -1;
