@@ -1288,7 +1288,7 @@ export class RepositoryManager {
                 }
             }
 
-            const oldEntryData = deepClone(found.entry.getData());
+            //const oldEntryData = deepClone(found.entry.getData());
             const entryData = found.entry.getData();
             entryData.tags = newTags.map(tag => ({
                 id: tag.id,
@@ -1305,17 +1305,17 @@ export class RepositoryManager {
                     submission.getConfigManager().setConfig(SubmissionConfigs.TAGS, entryData.tags);
 
                     // send message to the user
-                    const channel = await submission.getSubmissionChannel();
-                    channel.send({
-                        content: `The published post and submission has been updated with new tags: ${entryData.tags.map(t => t.name).join(', ')}`
-                    });
+                    // const channel = await submission.getSubmissionChannel();
+                    // channel.send({
+                    //     content: `The published post and submission has been updated with new tags: ${entryData.tags.map(t => t.name).join(', ')}`
+                    // });
 
                     await submission.save();
                     await submission.statusUpdated();
                 }
-                this.guildHolder.logUpdate(oldEntryData, entryData).catch(e => {
-                    console.error("Error logging tag change:", e);
-                });
+                // this.guildHolder.logUpdate(oldEntryData, entryData).catch(e => {
+                //     console.error("Error logging tag change:", e);
+                // });
             } catch (e: any) {
                 console.error("Error updating submission config:", e.message);
             }
