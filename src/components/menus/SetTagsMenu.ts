@@ -134,26 +134,7 @@ export class SetTagsMenu implements Menu {
         }
 
         if (tagsUnset) {
-            const menu = await new SetImagesMenu().getBuilderOrNull(submission);
-            if (menu) {
-                const row = new ActionRowBuilder()
-                    .addComponents(menu).addComponents(new SkipImagesButton().getBuilder())
-                await interaction.followUp({
-                    content: `Please choose images for the submission`,
-                    components: [row as any],
-                    flags: MessageFlags.Ephemeral
-                })
-            } else {
-                await interaction.followUp({
-                    content: `No images found! Try uploading images first and then press the button below.`,
-                    flags: MessageFlags.Ephemeral,
-                    components: [
-                        new ActionRowBuilder().addComponents(
-                            new SetAttachmentsButton().getBuilder(false)
-                        ) as any
-                    ]
-                });
-            }
+            await SetImagesMenu.sendImagesMenuAndButton(submission, interaction);
         }
 
         submission.checkReview()
