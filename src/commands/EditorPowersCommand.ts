@@ -214,6 +214,7 @@ export class EditorPowersCommand implements Command {
                     replyEphemeral(interaction, 'Submission is not publishable yet!');
                     return;
                 }
+                await interaction.deferReply();
                 try {
                     await submission.publish(true);
                 } catch (e: any) {
@@ -221,7 +222,7 @@ export class EditorPowersCommand implements Command {
                     replyEphemeral(interaction, `Failed to publish submission: ${e.message || 'Unknown error'}`);
                     return;
                 }
-                await interaction.reply({
+                await interaction.editReply({
                     content: `<@${interaction.user.id}> has published this submission silently! Please note that the submission has been locked to prevent further edits. Contact an editor if you need to make changes.`,
                 });
                 break;
