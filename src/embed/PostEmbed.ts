@@ -5,6 +5,7 @@ import Path from "path";
 import { Attachment } from "../submissions/Attachment.js";
 import { ArchiveEntryData } from "../archive/ArchiveEntry.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
+import { GuildHolder } from "../GuildHolder.js";
 
 export class PostEmbed {
     private embed: EmbedBuilder;
@@ -23,7 +24,7 @@ export class PostEmbed {
         return this.row;
     }
 
-    public static async createAttachmentUpload(_submission: Submission, _submissionURL: string, _commitID: string, path: string, entryData: ArchiveEntryData): Promise<{ content: string, files: AttachmentBuilder[] }> {
+    public static async createAttachmentUpload(entryFolderPath: string, entryData: ArchiveEntryData): Promise<{ content: string, files: AttachmentBuilder[] }> {
         const files: AttachmentBuilder[] = [];
         const attachments = entryData.attachments;
         attachments.forEach(attachment => {
@@ -32,7 +33,7 @@ export class PostEmbed {
             }
 
             const key = escapeString(attachment.name);
-            const filePath = Path.join(path, attachment.path);
+            const filePath = Path.join(entryFolderPath, attachment.path);
             const file = new AttachmentBuilder(filePath);
             file.setName(key);
             file.setDescription(attachment.description || '');
@@ -44,7 +45,7 @@ export class PostEmbed {
         }
     }
 
-    public static async createAttachmentMessage(submission: Submission, _submissionURL: string, commitID: string, path: string, entryData: ArchiveEntryData, uploadMessage: Message): Promise<{ content: string, files: AttachmentBuilder[] }> {
+    public static async createAttachmentMessage(guildHolder: GuildHolder, commitID: string, entryPathPart: string, entryData: ArchiveEntryData, uploadMessage: Message): Promise<{ content: string, files: AttachmentBuilder[] }> {
         const attachmentURLs = new Map();
         uploadMessage.attachments.forEach(attachment => {
             attachmentURLs.set(attachment.name, attachment.url);
@@ -62,11 +63,11 @@ export class PostEmbed {
             }
         })
 
-        const githubURL = submission.getGuildHolder().getConfigManager().getConfig(GuildConfigs.GITHUB_REPO_URL);
+        const githubURL = guildHolder.getConfigManager().getConfig(GuildConfigs.GITHUB_REPO_URL);
         // parse the URL to get the repo name and owner
         const { owner, project } = getGithubOwnerAndProject(githubURL);
         // construct a raw URL
-        const rawURL = `https://raw.githubusercontent.com/${owner}/${project}/${commitID}/${path}`;
+        const rawURL = `https://raw.githubusercontent.com/${owner}/${project}/${commitID}/${entryPathPart}`;
 
         if (litematics.length) {
             description += '**Litematics:**\n'
@@ -103,7 +104,7 @@ export class PostEmbed {
 
     }
 
-    public static async createInitialMessage(submission: Submission, submissionURL: string, commitID: string, path: string, entryData: ArchiveEntryData): Promise<{ content: string, files: AttachmentBuilder[] }> {
+    public static async createInitialMessage(guildHolder: GuildHolder, entryData: ArchiveEntryData, archivePath: string, entryPathPart: string): Promise<{ content: string, files: AttachmentBuilder[] }> {
         let content = [];
 
         const description = entryData.description;
@@ -133,29 +134,28 @@ export class PostEmbed {
             content.push(`\n**Notes:**\n${notes}`);
         }
 
-        const githubURL = submission.getGuildHolder().getConfigManager().getConfig(GuildConfigs.GITHUB_REPO_URL);
+        const githubURL = guildHolder.getConfigManager().getConfig(GuildConfigs.GITHUB_REPO_URL);
         // parse the URL to get the repo name and owner
         const { owner, project } = getGithubOwnerAndProject(githubURL);
 
+        const submissionThreadID = entryData.id;
+        const submissionsForumID = guildHolder.getConfigManager().getConfig(GuildConfigs.SUBMISSION_CHANNEL_ID);
 
-        const gitURL = `https://github.com/${owner}/${project}/tree/master/${path}`;
-        const commitURL = `https://github.com/${owner}/${project}/commit/${commitID}`;
+        const submissionURL = `https://discord.com/channels/${guildHolder.getGuild().id}/${submissionsForumID}/${submissionThreadID}`;
+
+        const gitURL = `https://github.com/${owner}/${project}/tree/master/${entryPathPart}`;
         content.push(`\n[Submission Thread](${submissionURL})`);
-        content.push(`[Github](${gitURL}) - [Commit](${commitURL})`);
+        content.push(`[Github](${gitURL})`);
         content.push(`Edited on <t:${Math.floor(entryData.timestamp / 1000)}:F>`);
 
         const files: AttachmentBuilder[] = [];
         images.forEach(image => {
-            const key = getFileKey(image, 'png');
-            const path = Path.join(submission.getProcessedImagesFolder(), key);
-            const file = new AttachmentBuilder(path);
-            // Replace ext of image with png
-            let name = image.name.split('.');
-            if (name.length > 1) {
-                name.pop();
+            if (!image.path) {
+                return;
             }
-            name.push('png');
-            file.setName(name.join('.'));
+            const path = Path.join(archivePath, entryPathPart, image.path);
+            const file = new AttachmentBuilder(path);
+            file.setName(image.name);
             file.setDescription(image.description);
             files.push(file);
         });

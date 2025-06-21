@@ -538,12 +538,12 @@ export class RepositoryManager {
             }
 
 
-            const entryFolder = Path.join(channelPath, entryRef.path);
+            const entryFolderPath = Path.join(channelPath, entryRef.path);
             if (existing) {
                 const existingFolder = Path.join(existing.channel.getFolderPath(), existing.entryRef.path);
-                if (existingFolder !== entryFolder) {
+                if (existingFolder !== entryFolderPath) {
                     // If the folder is different, we need to rename the old folder
-                    await this.git.mv(existingFolder, entryFolder);
+                    await this.git.mv(existingFolder, entryFolderPath);
                 }
 
                 if (!isSameChannel) {
@@ -569,11 +569,11 @@ export class RepositoryManager {
                 }
             }
 
-            await fs.mkdir(entryFolder, { recursive: true });
-            const entry = new ArchiveEntry(entryData, entryFolder);
+            await fs.mkdir(entryFolderPath, { recursive: true });
+            const entry = new ArchiveEntry(entryData, entryFolderPath);
 
-            const imageFolder = Path.join(entryFolder, 'images');
-            const attachmentFolder = Path.join(entryFolder, 'attachments');
+            const imageFolder = Path.join(entryFolderPath, 'images');
+            const attachmentFolder = Path.join(entryFolderPath, 'attachments');
 
             // remove all images and attachments that exist in the folder.
             await fs.mkdir(imageFolder, { recursive: true });
@@ -676,8 +676,8 @@ export class RepositoryManager {
                 }
             }
 
-            const path = `${archiveChannelRef.path}/${entryRef.path}`;
-            let message = await PostEmbed.createInitialMessage(submission, submissionChannel.url, '', path, entryData);
+            const entryPathPart = `${archiveChannelRef.path}/${entryRef.path}`;
+            let message = await PostEmbed.createInitialMessage(this.guildHolder, entryData, this.folderPath, entryPathPart);
             let wasThreadCreated = false;
             if (!thread) {
                 thread = await publishChannel.threads.create({
@@ -713,7 +713,7 @@ export class RepositoryManager {
             await archiveChannel.save();
             await this.git.add(archiveChannel.getDataPath());
 
-            await this.git.add(entryFolder);
+            await this.git.add(entryFolderPath);
             await this.git.add(channelPath); // to update currentCodeId and entries
 
 
@@ -723,14 +723,14 @@ export class RepositoryManager {
 
             const commitID = await this.git.revparse('HEAD');
 
-            const attachmentUpload = await PostEmbed.createAttachmentUpload(submission, submissionChannel.url, commitID, entryFolder, entryData);
+            const attachmentUpload = await PostEmbed.createAttachmentUpload(entryFolderPath, entryData);
             const uploadMessage = await submissionChannel.send({
                 content: attachmentUpload.content,
                 files: attachmentUpload.files,
             });
 
-            message = await PostEmbed.createInitialMessage(submission, submissionChannel.url, commitID, path, entryData);
-            const attachmentMessage = await PostEmbed.createAttachmentMessage(submission, submissionChannel.url, commitID, path, entryData, uploadMessage);
+            message = await PostEmbed.createInitialMessage(this.guildHolder, entryData, this.folderPath, entryPathPart);
+            const attachmentMessage = await PostEmbed.createAttachmentMessage(this.guildHolder, commitID, entryPathPart, entryData, uploadMessage);
 
             if (entryData.name !== thread.name) {
                 await thread.edit({
@@ -756,7 +756,7 @@ export class RepositoryManager {
 
 
             if (wasThreadCreated) { // check if there are comments to post
-                const commentsFile = Path.join(entryFolder, 'comments.json');
+                const commentsFile = Path.join(entryFolderPath, 'comments.json');
                 let comments: ArchiveComment[] = [];
                 try {
                     comments = JSON.parse(await fs.readFile(commentsFile, 'utf-8')) as ArchiveComment[];
@@ -786,7 +786,7 @@ export class RepositoryManager {
                                 if (!attachment.canDownload || !attachment.path || attachment.contentType === 'discord') {
                                     continue; // Skip attachments that cannot be downloaded or have no path
                                 }
-                                const attachmentPath = Path.join(entryFolder, attachment.path);
+                                const attachmentPath = Path.join(entryFolderPath, attachment.path);
                                 if (await fs.access(attachmentPath).then(() => true).catch(() => false)) {
                                     const file = new AttachmentBuilder(attachmentPath);
                                     file.setName(attachment.name);
@@ -1491,8 +1491,32 @@ export class RepositoryManager {
             // Update authors and endorsers
             newData.authors = newAuthors;
             newData.endorsers = newEndorsers;
-
             await entry.save();
+
+            if (newData.post) {
+                // Update the post with new authors and endorsers
+                const publishForum = await this.guildHolder.getGuild().channels.fetch(newData.post.forumId);
+                if (publishForum && publishForum.type === ChannelType.GuildForum) {
+                    const thread = await publishForum.threads.fetch(newData.post.threadId);
+                    if (thread) {
+                        const message = await thread.messages.fetch(newData.post.messageId);
+                        if (message) {
+
+                            // get entryPathPart folderpath/entrypathpart
+                            let entryPathPart = Path.relative(this.folderPath, entry.getFolderPath());
+                            // if starts with a slash, remove it
+                            if (entryPathPart.startsWith('/')) {
+                                entryPathPart = entryPathPart.substring(1);
+                            } else if (entryPathPart.startsWith('./')) {
+                                entryPathPart = entryPathPart.substring(2);
+                            }
+                            await message.edit({
+                                content: (await PostEmbed.createInitialMessage(this.guildHolder, newData, this.folderPath, entryPathPart)).content,
+                            });
+                        }
+                    }
+                }
+            }
             this.lock.release();
             return true; // Authors updated successfully
         } catch (e: any) {
