@@ -4,7 +4,7 @@ import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
 import { AnyThreadChannel, AttachmentBuilder, ChannelType, EmbedBuilder, ForumChannel, Message, MessageFlags, Snowflake } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
-import { deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors, splitCode, truncateStringWithEllipsis } from "../utils/Util.js";
+import { areObjectsIdentical, deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors, splitCode, truncateStringWithEllipsis } from "../utils/Util.js";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";
 import { Submission } from "../submissions/Submission.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
@@ -1407,6 +1407,98 @@ export class RepositoryManager {
             }
         }
         return entries;
+    }
+
+    public async updateEntryAuthorsTask() {
+        if (!this.git) {
+            throw new Error("Git not initialized");
+        }
+        const channelRefs = this.getChannelReferences().slice(); // Copy to avoid mutation during iteration
+        const modifiedPaths: string[] = [];
+        for (const channelRef of channelRefs) {
+            const channelPath = Path.join(this.folderPath, channelRef.path);
+            const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
+            const entries = archiveChannel.getData().entries.slice(); // Copy to avoid mutation during iteration
+            for (const entryRef of entries) {
+                const entryPath = Path.join(channelPath, entryRef.path);
+                const entry = await ArchiveEntry.fromFolder(entryPath);
+                let modified = false;
+                try {
+                    modified = await this.updateEntryAuthors(entry);
+                } catch (e: any) {
+                    console.error(`Error updating authors for entry ${entryRef.name} in channel ${archiveChannel.getData().name}:`, e.message);
+                }
+
+                if (modified) {
+                    modifiedPaths.push(entry.getDataPath());
+                }
+
+            }
+
+        }
+
+        if (modifiedPaths.length > 0) {
+            await this.lock.acquire();
+            try {
+                await this.git.add(modifiedPaths);
+                await this.git.commit(`Updated authors for ${modifiedPaths.length} entries`);
+                try {
+                    await this.push();
+                } catch (e: any) {
+                    console.error("Error pushing to remote:", e.message);
+                }
+            }
+            catch (e: any) {
+                console.error("Error committing updated authors:", e.message);
+            }
+            finally {
+                this.lock.release();
+            }
+        }
+    }
+
+    async updateEntryAuthors(entry: ArchiveEntry): Promise<boolean> {
+        if (!this.git) {
+            return false;
+        }
+
+        const entryData = deepClone(entry.getData());
+        const newAuthors = await reclassifyAuthors(this.guildHolder, entryData.authors);
+        const newEndorsers = await reclassifyAuthors(this.guildHolder, entryData.endorsers);
+
+        // check if they have changed
+        const authorsChanged = !areObjectsIdentical(entryData.authors, newAuthors);
+        const endorsersChanged = !areObjectsIdentical(entryData.endorsers, newEndorsers);
+        if (!authorsChanged && !endorsersChanged) {
+            return false; // No changes, nothing to do
+        }
+
+        // Acquire lock
+        await this.lock.acquire();
+        try {
+            // Read entry again
+            await entry.load();
+
+            // Check if the entry is still valid
+            const newData = entry.getData();
+            const authorsValid = areObjectsIdentical(newData.authors, entryData.authors);
+            const endorsersValid = areObjectsIdentical(newData.endorsers, entryData.endorsers);
+            if (!authorsValid || !endorsersValid) {
+                console.warn(`Entry ${entryData.code} has been modified by another process, skipping author update.`);
+                return false; // Entry has been modified, skip this update
+            }
+
+            // Update authors and endorsers
+            newData.authors = newAuthors;
+            newData.endorsers = newEndorsers;
+
+            await entry.save();
+            this.lock.release();
+            return true; // Authors updated successfully
+        } catch (e: any) {
+            this.lock.release();
+            throw e;
+        }
     }
 
 }

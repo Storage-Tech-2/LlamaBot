@@ -302,6 +302,9 @@ export class GuildHolder {
         if (now - this.lastDayLoop >= 24 * 60 * 60 * 1000) { // Every 24 hours
             this.lastDayLoop = now;
             await this.purgeThanksBuffer();
+            await this.getRepositoryManager().updateEntryAuthorsTask().catch(e => {
+                console.error('Error updating entry authors:', e);
+            });
         }
     }
 
