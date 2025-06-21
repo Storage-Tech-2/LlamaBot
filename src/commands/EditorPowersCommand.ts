@@ -70,6 +70,11 @@ export class EditorPowersCommand implements Command {
                             .setRequired(false)
                     )
             )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('publishsilently')
+                    .setDescription('Publish a submission without an archive-updates message')
+            );
 
         return data;
     }
@@ -204,7 +209,22 @@ export class EditorPowersCommand implements Command {
                 });
                 break;
             }
-
+            case 'publishsilently':
+                if (!submission.isPublishable()) {
+                    replyEphemeral(interaction, 'Submission is not publishable yet!');
+                    return;
+                }
+                try {
+                    await submission.publish(true);
+                } catch (e: any) {
+                    console.error(e);
+                    replyEphemeral(interaction, `Failed to publish submission: ${e.message || 'Unknown error'}`);
+                    return;
+                }
+                await interaction.reply({
+                    content: `<@${interaction.user.id}> has published this submission silently! Please note that the submission has been locked to prevent further edits. Contact an editor if you need to make changes.`,
+                });
+                break;
             default:
                 replyEphemeral(interaction, 'Unknown subcommand');
                 return;

@@ -579,7 +579,7 @@ export class Submission {
         return attachments
     }
 
-    public async publish() {
+    public async publish(silent: boolean = false) {
         if (this.publishLock) {
             throw new Error('Publish is already in progress');
         }
@@ -599,11 +599,13 @@ export class Submission {
         }
 
 
-        try {
-            await this.guildHolder.logUpdate(oldEntryData, newEntryData);
-        } catch (error) {
-            this.publishLock = false;
-            throw error;
+        if (!silent) {
+            try {
+                await this.guildHolder.logUpdate(oldEntryData, newEntryData);
+            } catch (error) {
+                this.publishLock = false;
+                throw error;
+            }
         }
 
         this.getConfigManager().setConfig(SubmissionConfigs.POST, newEntryData.post);
