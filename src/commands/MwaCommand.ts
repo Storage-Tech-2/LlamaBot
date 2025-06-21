@@ -281,7 +281,7 @@ export class Mwa implements Command {
                     return existingTag;
                 }
                 return t;
-            });
+            }).concat(tags);
             await channel.setAvailableTags(newTags)
             await channel.setDefaultReactionEmoji({
                 name: '👍',
