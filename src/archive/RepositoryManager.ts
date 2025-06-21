@@ -997,6 +997,7 @@ export class RepositoryManager {
                     const channel = await submission.getSubmissionChannel();
                     const embed = new EmbedBuilder()
                         .setTitle(`Comment ${existingComment ? 'Updated' : 'Added'}`)
+                        .setURL(message.url)
                         .setColor(existingComment ? '#ffa500' : '#00ff00')
                         .setAuthor({
                             name: newComment.sender.displayName || newComment.sender.username || 'Unknown Author',
