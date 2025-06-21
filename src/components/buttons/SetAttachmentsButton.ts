@@ -5,6 +5,7 @@ import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
 import { SetAttachmentsMenu } from "../menus/SetAttachmentsMenu.js";
 import { SetImagesMenu } from "../menus/SetImagesMenu.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
+import { SkipImagesButton } from "./SkipImagesButton.js";
 
 export class SetAttachmentsButton implements Button {
     getID(): string {
@@ -39,7 +40,10 @@ export class SetAttachmentsButton implements Button {
         const menuBuilder = shouldAlsoAskAttachments ? await attachmentsMenu.getBuilderOrNull(guildHolder, submission) : null;
 
         if (imagesMenuBuilder) {
-            const row1 = new ActionRowBuilder().addComponents(imagesMenuBuilder);
+            const row1 = new ActionRowBuilder().addComponents(imagesMenuBuilder)
+            if (submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null) {
+                row1.addComponents(new SkipImagesButton().getBuilder());
+            }
             await replyEphemeral(interaction, `Please select image attachments for the submission`,
                 {
                     components: [row1 as any],

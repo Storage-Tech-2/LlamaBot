@@ -6,6 +6,8 @@ import { SetArchiveChannelButton } from "./SetArchiveChannelButton.js";
 import { SetAttachmentsButton } from "./SetAttachmentsButton.js";
 import { SetAuthorsButton } from "./SetAuthorsButton.js";
 import { SetTagsButton } from "./SetTagsButton.js";
+import { SkipAttachmentsButton } from "./SkipAttachmentsButton.js";
+import { SkipImagesButton } from "./SkipImagesButton.js";
 
 export function getButtons() {
     const Buttons = [
@@ -16,7 +18,9 @@ export function getButtons() {
         new EditSubmissionButton(),
         new MakeRevisionCurrentButton(),
         new AddAuthorButton(),
-        new PublishButton()
+        new PublishButton(),
+        new SkipImagesButton(),
+        new SkipAttachmentsButton()
     ];
     return Buttons;
 }

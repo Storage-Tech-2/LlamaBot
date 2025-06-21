@@ -121,7 +121,7 @@ export class AddAuthorModal implements Modal {
 
         await SetAuthorsButton.sendAuthorsMenuAndButton(guildHolder, submission, interaction);
 
-        submission.statusUpdated();
+        await submission.statusUpdated();
 
         if (isFirstTime) {
             const row = new ActionRowBuilder()

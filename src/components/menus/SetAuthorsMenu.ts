@@ -135,7 +135,7 @@ export class SetAuthorsMenu implements Menu {
                 content: `<@${interaction.user.id}> ${str.join(' and ')} to authors`,
                 flags: [MessageFlags.SuppressNotifications]
             });
-            submission.statusUpdated()
+            await submission.statusUpdated()
         }
 
         if (isFirstTime) {
@@ -222,7 +222,7 @@ export class SetAuthorsMenu implements Menu {
                 content: `<@${interaction.user.id}> ${str.join(' and ')} to authors`,
                 flags: [MessageFlags.SuppressNotifications]
             });
-            submission.statusUpdated()
+            await submission.statusUpdated()
         }
 
         if (isFirstTime) {

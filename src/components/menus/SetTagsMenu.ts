@@ -6,6 +6,7 @@ import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { SetImagesMenu } from "./SetImagesMenu.js";
 import { SetAttachmentsButton } from "../buttons/SetAttachmentsButton.js";
+import { SkipImagesButton } from "../buttons/SkipImagesButton.js";
 
 export class SetTagsMenu implements Menu {
     getID(): string {
@@ -129,14 +130,14 @@ export class SetTagsMenu implements Menu {
 
         if (str.length) {
             await interaction.reply(`<@${interaction.user.id}> ${str.join(' and ')} to tags`)
-            submission.statusUpdated()
+            await submission.statusUpdated()
         }
 
         if (tagsUnset) {
             const menu = await new SetImagesMenu().getBuilderOrNull(submission);
             if (menu) {
                 const row = new ActionRowBuilder()
-                    .addComponents(menu)
+                    .addComponents(menu).addComponents(new SkipImagesButton().getBuilder())
                 await interaction.followUp({
                     content: `Please choose images for the submission`,
                     components: [row as any],

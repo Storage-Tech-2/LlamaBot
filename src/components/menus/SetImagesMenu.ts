@@ -145,7 +145,7 @@ export class SetImagesMenu implements Menu {
             files
         })
 
-        submission.statusUpdated();
+        await submission.statusUpdated();
 
         if (isFirstTime) {
             const menu = await new SetAttachmentsMenu().getBuilderOrNull(guildHolder, submission);
