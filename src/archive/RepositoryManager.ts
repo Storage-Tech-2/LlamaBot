@@ -1499,7 +1499,7 @@ export class RepositoryManager {
                 if (publishForum && publishForum.type === ChannelType.GuildForum) {
                     const thread = await publishForum.threads.fetch(newData.post.threadId);
                     if (thread) {
-                        const message = await thread.messages.fetch(newData.post.messageId);
+                        const message = await thread.fetchStarterMessage();
                         if (message) {
 
                             // get entryPathPart folderpath/entrypathpart
