@@ -78,6 +78,17 @@ export class Submission {
             const message = await channel.send({ embeds: [starterEmbed.getEmbed()], components: [starterEmbed.getRow() as any] })
             message.pin()
             this.config.setConfig(SubmissionConfigs.STATUS_MESSAGE_ID, message.id);
+
+            // set new tag
+            if (channel.parentId) {
+                const forumChannel = await this.guildHolder.getGuild().channels.fetch(channel.parentId);
+                if (forumChannel && forumChannel.type === ChannelType.GuildForum) {
+                    const newTag = forumChannel.availableTags.find(tag => tag.name === SubmissionTagNames.NEW);
+                    if (newTag) {
+                        await channel.setAppliedTags([newTag.id]);
+                    }
+                }
+            }
         }
     }
 
