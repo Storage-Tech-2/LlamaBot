@@ -197,7 +197,7 @@ export class Submission {
 
             const embed = await RevisionEmbed.create(this, initialRevision, true);
             const channel = await this.getSubmissionChannel();
-            const message = await channel.send({ embeds: [embed.getEmbed()], components: [embed.getRow() as any] });
+            const message = await channel.send({ embeds: embed.getEmbeds(), components: [embed.getRow() as any] });
 
             initialRevision.id = message.id; // Set the message ID as the revision ID
 
@@ -504,7 +504,7 @@ export class Submission {
 
         const embed = await RevisionEmbed.create(this, newRevisionData, isCurrent);
         const messageNew = await message.reply({
-            embeds: [embed.getEmbed()],
+            embeds: embed.getEmbeds(),
             components: [embed.getRow() as any],
             flags: MessageFlags.SuppressNotifications
         })

@@ -101,7 +101,7 @@ export class EditRevisionModal implements Modal {
 
         const embed = await RevisionEmbed.create(submission, newRevisionData, isCurrent);
         const messageNew = await interaction.followUp({
-            embeds: [embed.getEmbed()],
+            embeds: embed.getEmbeds(),
             components: [embed.getRow() as any],
             flags: MessageFlags.SuppressNotifications
         })

@@ -4,19 +4,19 @@ import { Revision } from "../submissions/Revision.js";
 import { EditSubmissionButton } from "../components/buttons/EditSubmissionButton.js";
 import { MakeRevisionCurrentButton } from "../components/buttons/MakeRevisionCurrentButton.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
-import { getAuthorsString } from "../utils/Util.js";
+import { getAuthorsString, splitIntoChunks } from "../utils/Util.js";
 
 export class RevisionEmbed {
-    private embed: EmbedBuilder;
+    private embeds: EmbedBuilder[];
     private row: ActionRowBuilder;
 
-    constructor(embed: EmbedBuilder, row: ActionRowBuilder) {
-        this.embed = embed;
+    constructor(embeds: EmbedBuilder[], row: ActionRowBuilder) {
+        this.embeds = embeds;
         this.row = row;
     }
 
-    public getEmbed(): EmbedBuilder {
-        return this.embed;
+    public getEmbeds(): EmbedBuilder[] {
+        return this.embeds;
     }
 
     public getRow(): ActionRowBuilder {
@@ -25,17 +25,7 @@ export class RevisionEmbed {
 
     public static async create(submission: Submission, revision: Revision, isCurrent = false): Promise<RevisionEmbed> {
         // const submissionData = submission.submissionData
-        const embed = new EmbedBuilder()
-        // const files = []
-        //   if (submissionData?.image?.processed) {
-        //     const file = new AttachmentBuilder(submissionData.image.processed)
-        //     embed
-        //       .setImage('attachment://processed.png')
-        //     files.push(file)
-        //   }
 
-        embed.setColor(isCurrent ? '#0099ff' : '#ff9900')
-        embed.setTitle(`Submission Draft${isCurrent ? ' (Current)' : ''}`)
         let description = ''
 
         // Check name
@@ -67,11 +57,24 @@ export class RevisionEmbed {
             description += revision.notes
         }
 
-        embed.setDescription(description)
+        const chunks = splitIntoChunks(description, 4096);
+        const embeds = chunks.map((chunk, index) => {
+            const embed = new EmbedBuilder()
+            embed.setColor(isCurrent ? '#0099ff' : '#ff9900')
+            if (index === 0) {
+                embed.setTitle(`Submission Draft${isCurrent ? ' (Current)' : ''}`)
+            } else {
+                embed.setTitle(`Submission Draft (Part ${index + 1})${isCurrent ? ' (Current)' : ''}`)
+            }
+            embed.setDescription(chunk)
+            if (index === chunks.length - 1) {
+                embed.setFooter({
+                    text: 'This is a draft submission. Reply to this message with instructions to update it.'
+                })
+            }
+            return embed;
+        });
 
-        embed.setFooter({
-            text: 'This is a draft submission. Reply to this message with instructions to update it.'
-        })
 
         const row = new ActionRowBuilder()
             .addComponents(new EditSubmissionButton().getBuilder())
@@ -82,7 +85,7 @@ export class RevisionEmbed {
         //     row.addComponents(await FinalizeButton.getComponent(finalized))
         // }
 
-        return new RevisionEmbed(embed, row);
+        return new RevisionEmbed(embeds, row);
     }
 
 }

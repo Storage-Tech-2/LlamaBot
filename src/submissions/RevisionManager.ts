@@ -66,7 +66,7 @@ export class RevisionManager {
             if (message) {
                 const embed = await RevisionEmbed.create(this.submission, revisionData, false);
                 await message.edit({
-                    embeds: [embed.getEmbed()],
+                    embeds: embed.getEmbeds(),
                     components: [embed.getRow() as any]
                 });
             }
@@ -84,7 +84,7 @@ export class RevisionManager {
             if (message) {
                 const embed = await RevisionEmbed.create(this.submission, revisionData, true);
                 await message.edit({
-                    embeds: [embed.getEmbed()],
+                    embeds: embed.getEmbeds(),
                     components: [embed.getRow() as any]
                 });
             }
