@@ -604,7 +604,7 @@ export class RepositoryManager {
                 const sourcePath = Path.join(submission.getAttachmentFolder(), getFileKey(attachment));
                 const destPath = Path.join(attachmentFolder, newKey);
                 attachment.path = `attachments/${newKey}`;
-                attachment.name = destKey; // Update the name to the new key
+                attachment.name = newKey; // Update the name to the new key
                 if (!attachment.canDownload) {
                     await fs.writeFile(destPath, attachment.url || '', 'utf-8');
                 } else {
