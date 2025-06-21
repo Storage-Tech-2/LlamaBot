@@ -45,7 +45,7 @@ export class PostEmbed {
         }
     }
 
-    public static async createAttachmentMessage(guildHolder: GuildHolder, commitID: string, entryPathPart: string, entryData: ArchiveEntryData, uploadMessage: Message): Promise<{ content: string, files: AttachmentBuilder[] }> {
+    public static async createAttachmentMessage(guildHolder: GuildHolder, entryData: ArchiveEntryData, branchName: string, entryPathPart: string, uploadMessage: Message): Promise<{ content: string, files: AttachmentBuilder[] }> {
         const attachmentURLs = new Map();
         uploadMessage.attachments.forEach(attachment => {
             attachmentURLs.set(attachment.name, attachment.url);
@@ -67,7 +67,7 @@ export class PostEmbed {
         // parse the URL to get the repo name and owner
         const { owner, project } = getGithubOwnerAndProject(githubURL);
         // construct a raw URL
-        const rawURL = `https://raw.githubusercontent.com/${owner}/${project}/${commitID}/${entryPathPart}`;
+        const rawURL = `https://raw.githubusercontent.com/${owner}/${project}/refs/heads/${branchName}/${entryPathPart}`;
 
         if (litematics.length) {
             description += '**Litematics:**\n'

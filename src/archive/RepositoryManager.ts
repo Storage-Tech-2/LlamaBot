@@ -4,7 +4,7 @@ import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
 import { AnyThreadChannel, AttachmentBuilder, ChannelType, EmbedBuilder, ForumChannel, Message, MessageFlags, Snowflake } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
-import { areObjectsIdentical, deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors, splitCode, truncateStringWithEllipsis } from "../utils/Util.js";
+import { areObjectsIdentical, deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";
 import { Submission } from "../submissions/Submission.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
@@ -459,7 +459,7 @@ export class RepositoryManager {
             let newCode = '';
             for (const code of reservedCodes) {
                 // get channel code XXX001
-                const {channelCode} = splitCode(code);
+                const { channelCode } = splitCode(code);
                 if (channelCode === archiveChannelRef.code) {
                     // If the code is reserved, use it
                     newCode = code;
@@ -474,7 +474,7 @@ export class RepositoryManager {
 
             // Check if the code already exists in the channel
             const existingCodeEntry = archiveChannel.getData().entries.find(e => e.code === newCode);
-            if (existingCodeEntry && existing &&existing.entryRef.id !== existingCodeEntry.id) {
+            if (existingCodeEntry && existing && existing.entryRef.id !== existingCodeEntry.id) {
                 newCode = archiveChannelRef.code + (++archiveChannel.getData().currentCodeId).toString().padStart(3, '0');
             }
 
@@ -565,7 +565,25 @@ export class RepositoryManager {
                         }
                     }
                 } else {
-                    entryData.post = existing.entry.getData().post;
+                    // Check if images are the same
+                    const existingImages = existing.entry.getData().images;
+                    const newImages = entryData.images;
+                    if (areObjectsIdentical(existingImages, newImages)) { // no problem
+                        entryData.post = existing.entry.getData().post;
+                    } else {
+                        // If images are different, we need to delete the thread
+                        const post = existing.entry.getData().post;
+                        if (post) {
+                            const publishForumId = post.forumId;
+                            const publishForum = await submission.getGuildHolder().getGuild().channels.fetch(publishForumId);
+                            if (publishForum && publishForum.type === ChannelType.GuildForum) {
+                                const thread = await publishForum.threads.fetch(post.threadId);
+                                if (thread) {
+                                    await thread.delete('Entry images updated');
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -671,13 +689,25 @@ export class RepositoryManager {
                 entryData.post = {
                     forumId: publishChannelId,
                     threadId: '',
-                    messageId: '',
+                    continuingMessageIds: [],
                     threadURL: '',
                 }
             }
 
+            // First, upload attachments
             const entryPathPart = `${archiveChannelRef.path}/${entryRef.path}`;
-            let message = await PostEmbed.createInitialMessage(this.guildHolder, entryData, this.folderPath, entryPathPart);
+            const attachmentUpload = await PostEmbed.createAttachmentUpload(entryFolderPath, entryData);
+            const uploadMessage = await submissionChannel.send({
+                content: attachmentUpload.content,
+                files: attachmentUpload.files,
+            });
+            const branchName = await this.git.branchLocal().then(branch => branch.current);
+            const attachmentMessage = await PostEmbed.createAttachmentMessage(this.guildHolder, entryData, branchName, entryPathPart, uploadMessage);
+
+            // Next, create the post
+            const message = await PostEmbed.createInitialMessage(this.guildHolder, entryData, this.folderPath, entryPathPart);
+            const messageChunks = splitIntoChunks(message.content, 2000);
+
             let wasThreadCreated = false;
             if (!thread) {
                 thread = await publishChannel.threads.create({
@@ -696,42 +726,6 @@ export class RepositoryManager {
                 await thread.setAppliedTags(entryData.tags.map(tag => tag.id).filter(tagId => publishChannel.availableTags.some(t => t.id === tagId)));
             }
 
-            let attachmentMessageInstance;
-            if (entryData.post.attachmentMessageId) {
-                attachmentMessageInstance = await thread.messages.fetch(entryData.post.attachmentMessageId);
-            }
-
-            if (!attachmentMessageInstance) {
-                attachmentMessageInstance = await thread.send({
-                    content: `pending...`,
-                    flags: [MessageFlags.SuppressEmbeds]
-                });
-                entryData.post.attachmentMessageId = attachmentMessageInstance.id;
-            }
-
-            await entry.save();
-            await archiveChannel.save();
-            await this.git.add(archiveChannel.getDataPath());
-
-            await this.git.add(entryFolderPath);
-            await this.git.add(channelPath); // to update currentCodeId and entries
-
-
-            // Now post to discord
-
-            // First, upload attachments
-
-            const commitID = await this.git.revparse('HEAD');
-
-            const attachmentUpload = await PostEmbed.createAttachmentUpload(entryFolderPath, entryData);
-            const uploadMessage = await submissionChannel.send({
-                content: attachmentUpload.content,
-                files: attachmentUpload.files,
-            });
-
-            message = await PostEmbed.createInitialMessage(this.guildHolder, entryData, this.folderPath, entryPathPart);
-            const attachmentMessage = await PostEmbed.createAttachmentMessage(this.guildHolder, commitID, entryPathPart, entryData, uploadMessage);
-
             if (entryData.name !== thread.name) {
                 await thread.edit({
                     name: entryData.code + ' ' + entryData.name
@@ -743,19 +737,92 @@ export class RepositoryManager {
                 throw new Error('Initial message not found in thread');
             }
 
-            await initialMessage.edit({
-                content: message.content,
-                flags: [MessageFlags.SuppressEmbeds],
-            });
+            // Detect if thread needs to be refreshed
+            const continuingMessageIds = entryData.post.continuingMessageIds || [];
+            const shouldRefreshThread = messageChunks.length > 1 + continuingMessageIds.length;
+            if (shouldRefreshThread) {
+                // Delete all previous messages in the thread that are not part of the continuing messages
+                for (let i = 0; i < 100; i++) {
+                    const messages = await thread.messages.fetch({ limit: 100 });
+                    let deletedCount = 0;
+                    for (const message of messages.values()) {
+                        if (message.id !== initialMessage.id && !continuingMessageIds.includes(message.id)) {
+                            await message.delete();
+                            deletedCount++;
+                        }
+                    }
+                    if (deletedCount === 0) {
+                        break; // No more messages to delete
+                    }
+                }
+                entryData.post.attachmentMessageId = ''; // Reset attachment message ID to force re-creation
+            }
 
+            // Delete excess messages if they exist
+            if (continuingMessageIds.length > messageChunks.length - 1) {
+                const excessMessageIds = continuingMessageIds.slice(messageChunks.length - 1);
+                for (const messageId of excessMessageIds) {
+                    try {
+                        const messageInstance = await thread.messages.fetch(messageId);
+                        if (messageInstance) {
+                            await messageInstance.delete();
+                        }
+                    } catch (e: any) {
+                        console.error(`Error deleting message ${messageId} in thread ${thread.id}:`, e.message);
+                    }
+                }
+                continuingMessageIds.splice(messageChunks.length - 1); // Keep only the messages that are still needed
+            }
 
-            await attachmentMessageInstance.edit({
-                content: attachmentMessage.content,
-                flags: [MessageFlags.SuppressEmbeds]
-            });
+            // Create new messages if needed
+            for (let i = continuingMessageIds.length; i < messageChunks.length - 1; i++) {
+                const message = await thread.send({
+                    content: 'Pending...',
+                    flags: [MessageFlags.SuppressEmbeds]
+                });
+                entryData.post.continuingMessageIds.push(message.id);
+            }
 
+            // Update the initial message with the first chunk
+            if (messageChunks.length > 0) {
+                await initialMessage.edit({
+                    content: messageChunks[0],
+                    flags: [MessageFlags.SuppressEmbeds]
+                });
+            }
 
-            if (wasThreadCreated) { // check if there are comments to post
+            // If there are more chunks, send them as separate messages
+            for (let i = 1; i < messageChunks.length; i++) {
+                const messageId = entryData.post.continuingMessageIds[i - 1];
+                const message = await thread.messages.fetch(messageId);
+                if (!message) {
+                    throw new Error(`Message with ID ${messageId} not found in thread ${thread.id}`);
+                }
+                await message.edit({
+                    content: messageChunks[i],
+                    flags: [MessageFlags.SuppressEmbeds]
+                });
+            }
+
+            let attachmentMessageInstance;
+            if (entryData.post.attachmentMessageId) {
+                attachmentMessageInstance = await thread.messages.fetch(entryData.post.attachmentMessageId);
+            }
+
+            if (attachmentMessageInstance) {
+                await attachmentMessageInstance.edit({
+                    content: attachmentMessage.content,
+                    flags: [MessageFlags.SuppressEmbeds]
+                });
+            } else {
+                attachmentMessageInstance = await thread.send({
+                    content: attachmentMessage.content,
+                    flags: [MessageFlags.SuppressEmbeds]
+                });
+                entryData.post.attachmentMessageId = attachmentMessageInstance.id;
+            }
+
+            if (wasThreadCreated || shouldRefreshThread) { // check if there are comments to post
                 const commentsFile = Path.join(entryFolderPath, 'comments.json');
                 let comments: ArchiveComment[] = [];
                 try {
@@ -774,7 +841,7 @@ export class RepositoryManager {
                         name: 'LlamaBot Archiver'
                     });
 
-                    
+
 
                     for (const comment of comments) {
                         const author = (await reclassifyAuthors(this.guildHolder, [comment.sender]))[0];
@@ -796,18 +863,6 @@ export class RepositoryManager {
                             }
                         }
 
-                        // const embed = new EmbedBuilder()
-                        //     .setAuthor({
-                        //         name: author.displayName || author.username || 'Unknown Author',
-                        //         iconURL: author.iconURL || undefined,
-                        //     })
-                        //     .setDescription(comment.content)
-                        //     .setTimestamp(comment.timestamp ? new Date(comment.timestamp) : undefined)
-
-                        // const commentMessage = await thread.send({
-                        //     embeds: [embed],
-                        //     files: files,
-                        // });
                         const commentMessage = await threadWebhook.send({
                             content: truncateStringWithEllipsis(comment.content, 2000),
                             username: author.displayName || author.username || 'Unknown Author',
@@ -825,11 +880,21 @@ export class RepositoryManager {
 
             }
 
+            await entry.save();
+            await archiveChannel.save();
+            await this.git.add(archiveChannel.getDataPath());
+
+            await this.git.add(entryFolderPath);
+            await this.git.add(channelPath); // to update currentCodeId and entries
+
+
             if (existing) {
                 await this.git.commit(`${entryData.code}: ${generateCommitMessage(existing.entry.getData(), entryData)}`);
             } else {
                 await this.git.commit(`Added entry ${entryData.name} (${entryData.code}) to channel ${archiveChannel.getData().name} (${archiveChannel.getData().code})`);
             }
+
+
 
             try {
                 await this.push();

@@ -10,7 +10,7 @@ export type DiscordPostReference = {
     forumId: Snowflake;
     threadId: Snowflake;
     threadURL: string;
-    messageId: Snowflake;
+    continuingMessageIds: Snowflake[];
     attachmentMessageId?: Snowflake;
 }
 

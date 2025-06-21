@@ -836,3 +836,49 @@ export function splitCode(code: string): { channelCode: string, entryNumber: num
 
     return { channelCode, entryNumber };
 }
+
+export function splitIntoChunks(text: string, max: number): string[] {
+  if (max < 2) {
+    throw new Error("`max` must be ≥ 2 so a hyphen can be added on hard splits.");
+  }
+
+  const chunks = [];
+  let i = 0;
+
+  while (i < text.length) {
+    // Take at most `max` characters as a window to inspect
+    const windowEnd = Math.min(i + max, text.length);
+    const window = text.slice(i, windowEnd);
+
+    if (windowEnd === text.length) {
+        // If we reached the end of the text, take the rest
+        chunks.push(window);
+        break; // Exit the loop
+    }
+
+    // 1️⃣ Look for the right-most newline inside the window
+    let breakPos = window.lastIndexOf("\n");
+
+    // 2️⃣ If none, look for the right-most space
+    if (breakPos === -1) breakPos = window.lastIndexOf(" ");
+
+    // 3️⃣ If still none *and* we are not at the very end, force-split the word
+    if (breakPos === -1 && windowEnd < text.length) {
+      const hardSplitPos = max - 1;            // leave room for a hyphen
+      chunks.push(window.slice(0, hardSplitPos) + "-");
+      i += hardSplitPos;                        // advance by the piece we kept
+      continue;                                // loop again, same index now points to remainder
+    }
+
+    // If there was no delimiter but we reached the true end, take the rest
+    if (breakPos === -1) breakPos = window.length;
+
+    chunks.push(window.slice(0, breakPos));
+    i += breakPos;
+
+    // Skip over the delimiter we split on (newline or space)
+    if (text[i] === "\n" || text[i] === " ") i += 1;
+  }
+
+  return chunks;
+}
