@@ -80,7 +80,7 @@ export class RevisionManager {
                 return await channel.messages.fetch(messageId);
             }));
 
-            await RevisionEmbed.editRevisionMessages(messages, this.submission, revisionData, false);
+            await RevisionEmbed.editRevisionMessages(messages, this.submission, revisionData, true);
         }
     }
 
