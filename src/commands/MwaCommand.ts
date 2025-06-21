@@ -205,7 +205,7 @@ export class Mwa implements Command {
         let indexText = ['# Archive Index:'];
         const categories = Array.from(allChannels.filter(channel => {
             return channel && channel.type === ChannelType.GuildCategory && currentCategories.includes(channel.id)
-        })) as unknown as CategoryChannel[];
+        }).values()) as unknown as CategoryChannel[];
 
         for (const category of categories) {
             await category.fetch(); // Ensure the category is fully fetched
@@ -221,7 +221,7 @@ export class Mwa implements Command {
             indexText.push(`## ${category.name}`);
             const channels = Array.from(allChannels.filter(channel => {
                 return channel && channel.type === ChannelType.GuildForum && channel.parentId === category.id
-            })) as unknown as ForumChannel[];
+            }).values()) as unknown as ForumChannel[];
 
             // Ensure channels are fully fetched
             for (const channel of channels) {
