@@ -105,7 +105,7 @@ export class EditRevisionModal implements Modal {
             return;
         }
 
-        const messages = await RevisionEmbed.sendRevisionMessages(interaction.channel.send, submission, newRevisionData, isCurrent);
+        const messages = await RevisionEmbed.sendRevisionMessages(interaction.channel, submission, newRevisionData, isCurrent);
       
         newRevisionData.id = messages[messages.length - 1].id; // Use the last message ID as the revision ID
         newRevisionData.messageIds = messages.map(m => m.id);

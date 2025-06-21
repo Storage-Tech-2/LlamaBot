@@ -196,7 +196,7 @@ export class Submission {
             const initialRevision = await this.getInitialRevision();
 
             const channel = await this.getSubmissionChannel();
-            const messages = await RevisionEmbed.sendRevisionMessages(channel.send, this, initialRevision, true);
+            const messages = await RevisionEmbed.sendRevisionMessages(channel, this, initialRevision, true);
          
             initialRevision.id = messages[messages.length - 1].id; // Set the last message ID as the revision ID
             initialRevision.messageIds = messages.map(m => m.id); // Store all message IDs in the revision
@@ -509,7 +509,7 @@ export class Submission {
             throw new Error('Cannot send messages in this channel');
         }
 
-        const messages = await RevisionEmbed.sendRevisionMessages(message.channel.send, this, newRevisionData, isCurrent);
+        const messages = await RevisionEmbed.sendRevisionMessages(message.channel, this, newRevisionData, isCurrent);
         newRevisionData.id = messages[messages.length - 1].id; // Set the last message ID as the revision ID
         newRevisionData.messageIds = messages.map(m => m.id); // Store all message IDs in the revision
         await this.getRevisionsManager().createRevision(newRevisionData);

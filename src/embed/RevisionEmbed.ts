@@ -1,4 +1,4 @@
-import { ActionRowBuilder, EmbedBuilder, InteractionReplyOptions, Message, MessageCreateOptions, MessageFlags, MessagePayload } from "discord.js";
+import { ActionRowBuilder, Channel, EmbedBuilder, InteractionReplyOptions, Message, MessageCreateOptions, MessageFlags, MessagePayload, TextBasedChannel } from "discord.js";
 import { Submission } from "../submissions/Submission.js";
 import { Revision } from "../submissions/Revision.js";
 import { EditSubmissionButton } from "../components/buttons/EditSubmissionButton.js";
@@ -23,13 +23,16 @@ export class RevisionEmbed {
         return this.row;
     }
 
-    public static async sendRevisionMessages(sender: (message: MessageCreateOptions) => Promise<Message>, submission: Submission, revision: Revision, isCurrent = false): Promise<Message[]> {
+    public static async sendRevisionMessages(channel: Channel, submission: Submission, revision: Revision, isCurrent = false): Promise<Message[]> {
+        if (!channel.isSendable()) {
+            throw new Error('Channel is not sendable');
+        }
         const embed = await RevisionEmbed.create(submission, revision, isCurrent);
         const embeds = embed.getEmbeds();
         const row = embed.getRow();
         const messages: Message[] = [];
         for (let i = 0; i < embeds.length; i++) {
-            const message = await sender({
+            const message = await channel.send({
                 embeds: [embeds[i]],
                 components: i === embeds.length - 1 ? [row as any] : [],
                 flags: [MessageFlags.SuppressNotifications]
