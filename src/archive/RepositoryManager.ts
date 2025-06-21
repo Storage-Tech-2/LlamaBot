@@ -4,7 +4,7 @@ import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
 import { AnyThreadChannel, AttachmentBuilder, ChannelType, EmbedBuilder, ForumChannel, Message, MessageFlags, Snowflake } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
-import { deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getAuthorsString, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors } from "../utils/Util.js";
+import { deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getAuthorsString, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors, truncateStringWithEllipsis } from "../utils/Util.js";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";
 import { Submission } from "../submissions/Submission.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
@@ -1003,6 +1003,12 @@ export class RepositoryManager {
                         })
                         .setDescription(newComment.content)
                         .setTimestamp(newComment.timestamp ? new Date(newComment.timestamp) : undefined);
+                    if (newComment.attachments.length > 0) {
+                        embed.addFields({
+                            name: 'Attachments',
+                            value: truncateStringWithEllipsis(newComment.attachments.map(a => a.name).join(', '), 1024)
+                        });
+                    }
                     channel.send({
                         flags: [MessageFlags.SuppressNotifications],
                         embeds: [embed],
@@ -1088,7 +1094,13 @@ export class RepositoryManager {
                             iconURL: deletedComment.sender.iconURL || undefined,
                         })
                         .setDescription(deletedComment.content)
-                        .setTimestamp(deletedComment.timestamp ? new Date(deletedComment.timestamp) : undefined);
+                        .setTimestamp();
+                    if (deletedComment.attachments.length > 0) {
+                        embed.addFields({
+                            name: 'Attachments',
+                            value: truncateStringWithEllipsis(deletedComment.attachments.map(a => a.name).join(', '), 1024)
+                        });
+                    }
                     channel.send({
                         flags: [MessageFlags.SuppressNotifications],
                         embeds: [embed]
