@@ -894,7 +894,7 @@ export class RepositoryManager {
 
 
 
-    public async handlePostMessage(message: Message) {
+    public async handlePostOrUpdateMessage(message: Message) {
         const postId = message.channel.id;
 
         if (!this.git) {
@@ -935,8 +935,20 @@ export class RepositoryManager {
                 await fs.writeFile(commentsFile, JSON.stringify([], null, 2), 'utf-8');
             }
 
+            // Check if the comment already exists
+            const existingCommentIndex = comments.findIndex(c => c.id === message.id);
+            const existingComment = existingCommentIndex !== -1 ? comments[existingCommentIndex] : null;
+            const commentsAttachmentFolder = Path.join(entryPath, 'comments_attachments');
+            if (existingComment && existingComment.attachments.length > 0) {
+                for (const attachment of existingComment.attachments) {
+                    const attachmentPath = Path.join(commentsAttachmentFolder, getFileKey(attachment));
+                    if (attachment.canDownload && !attachments.some(a => a.id === attachment.id)) {
+                        await this.git.rm(attachmentPath);
+                    }
+                }
+            }
+
             if (attachments.length > 0) {
-                const commentsAttachmentFolder = Path.join(entryPath, 'comments_attachments');
                 await fs.mkdir(commentsAttachmentFolder, { recursive: true });
                 await processAttachments(attachments, commentsAttachmentFolder, false);
                 for (const attachment of attachments) {
@@ -946,7 +958,6 @@ export class RepositoryManager {
                         await this.git.add(attachmentPath);
                     }
                 }
-
             }
 
             const newComment: ArchiveComment = {
@@ -961,10 +972,37 @@ export class RepositoryManager {
                 attachments: attachments,
                 timestamp: Date.now()
             }
-            comments.push(newComment);
+
+            if (existingComment) {
+                // Update existing comment
+                comments[existingCommentIndex] = newComment;
+            } else {
+                // Add new comment
+                comments.push(newComment);
+            }
             await fs.writeFile(commentsFile, JSON.stringify(comments, null, 2), 'utf-8');
             await this.git.add(commentsFile);
-            await this.git.commit(`Added ${message.member?.displayName}'s comment to ${found.entry.getData().code}`);
+            if (existingComment) {
+                await this.git.commit(`Updated comment by ${message.member?.displayName} on ${found.entry.getData().code}`);
+            } else {
+                await this.git.commit(`Added ${message.member?.displayName}'s comment to ${found.entry.getData().code}`);
+            }
+
+            // check submission
+            try {
+                const submission = await this.guildHolder.getSubmissionsManager().getSubmission(submissionId);
+                if (submission) {
+                    // send message to the user
+                    const channel = await submission.getSubmissionChannel();
+                    channel.send({
+                        content: `<@${message.author.id}> ${existingComment ? 'edited' : 'added'} a comment to the published post`,
+                        flags: [MessageFlags.SuppressNotifications]
+                    });
+                }
+            } catch (e: any) {
+                console.error("Error updating submission:", e.message);
+            }
+
             try {
                 await this.push();
             } catch (e: any) {
@@ -975,7 +1013,6 @@ export class RepositoryManager {
         }
         this.lock.release();
     }
-
 
     public async handlePostMessageDelete(message: Message) {
 
@@ -1027,6 +1064,22 @@ export class RepositoryManager {
             comments.splice(deletedCommentIndex, 1);
             await fs.writeFile(commentsFile, JSON.stringify(comments, null, 2), 'utf-8');
             await this.git.add(commentsFile).commit(`Deleted ${deletedComment.sender?.displayName}'s comment from ${found.entry.getData().code}`);
+
+            // check submission
+            try {
+                const submission = await this.guildHolder.getSubmissionsManager().getSubmission(submissionId);
+                if (submission) {
+                    // send message to the user
+                    const channel = await submission.getSubmissionChannel();
+                    channel.send({
+                        content: `A comment by <@${message.author.id}> has been deleted from the published post.`,
+                        flags: [MessageFlags.SuppressNotifications]
+                    });
+                }
+            } catch (e: any) {
+                console.error("Error updating submission:", e.message);
+            }
+
             try {
                 await this.push();
             } catch (e: any) {
@@ -1089,7 +1142,7 @@ export class RepositoryManager {
             await this.deleteSubmissionIDForPostID(postId);
             // Commit the removal
             await this.git.commit(`Force deleted ${found.entry.getData().code} ${found.entry.getData().name} from channel ${found.channel.getData().name} (${found.channel.getData().code})`);
-            
+
             // check submission
             try {
                 const submission = await this.guildHolder.getSubmissionsManager().getSubmission(submissionId);
@@ -1101,7 +1154,7 @@ export class RepositoryManager {
                     // send message to the user
                     const channel = await submission.getSubmissionChannel();
                     channel.send({
-                        content: `Your submission ${submission.getConfigManager().getConfig(SubmissionConfigs.NAME)} has been forcibly retracted because the thread was deleted.`
+                        content: `Notice: The published post has been forcibly retracted because the thread was deleted.`
                     });
 
                     await submission.save();
@@ -1171,11 +1224,11 @@ export class RepositoryManager {
                 const submission = await this.guildHolder.getSubmissionsManager().getSubmission(submissionId);
                 if (submission) {
                     submission.getConfigManager().setConfig(SubmissionConfigs.TAGS, entryData.tags);
-                    
+
                     // send message to the user
                     const channel = await submission.getSubmissionChannel();
                     channel.send({
-                        content: `Your submission ${submission.getConfigManager().getConfig(SubmissionConfigs.NAME)} has been updated with new tags: ${entryData.tags.map(t => t.name).join(', ')}`
+                        content: `The published post and submission has been updated with new tags: ${entryData.tags.map(t => t.name).join(', ')}`
                     });
 
                     await submission.save();
@@ -1191,7 +1244,7 @@ export class RepositoryManager {
             await this.git.commit(`Updated tags for ${entryData.code} because thread was updated`);
             try {
                 await this.push();
-            } catch (e: any) {  
+            } catch (e: any) {
                 console.error("Error pushing to remote:", e.message);
             }
         } catch (e) {

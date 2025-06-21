@@ -127,7 +127,16 @@ export class GuildHolder {
 
         // Handle message inside archived post
         if (message.channel.isThread() && message.channel.parentId && this.cachedChannelIds.includes(message.channel.parentId)) {
-            this.getRepositoryManager().handlePostMessage(message).catch(e => {
+            this.getRepositoryManager().handlePostOrUpdateMessage(message).catch(e => {
+                console.error('Error handling post message:', e);
+            });
+        }
+    }
+
+    public async handleMessageUpdate(oldMessage: Message, newMessage: Message) {
+        // Handle message inside archived post
+        if (newMessage.channel.isThread() && newMessage.channel.parentId && this.cachedChannelIds.includes(newMessage.channel.parentId)) {
+            this.getRepositoryManager().handlePostOrUpdateMessage(newMessage).catch(e => {
                 console.error('Error handling post message:', e);
             });
         }

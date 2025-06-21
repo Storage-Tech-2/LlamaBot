@@ -231,6 +231,22 @@ export class Bot {
         })
 
 
+        this.client.on('messageUpdate', async (oldMessage, newMessage) => {
+            if (newMessage.author.bot) return
+            if (!oldMessage.inGuild() ||  !newMessage.inGuild()) return
+            
+            const guildHolder = this.guilds.get(newMessage.guildId)
+            if (!guildHolder) return
+
+            // Handle message in guild
+            try {
+                await guildHolder.handleMessageUpdate(oldMessage, newMessage)
+            } catch (error) {
+                console.error('Error handling message update:', error)
+            }
+        });
+
+
         this.client.on('messageDelete', async (message) => {
             if (!message.author) return
             if (!message.inGuild()) return
