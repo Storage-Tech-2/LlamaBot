@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, InteractionContextType, ChannelType, ActionRowBuilder, ForumChannel, GuildForumTag, ForumLayoutType, SortOrderType, Snowflake } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, InteractionContextType, ChannelType, ActionRowBuilder, ForumChannel, GuildForumTag, ForumLayoutType, SortOrderType, Snowflake, CategoryChannel } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { getCodeAndDescriptionFromTopic, replyEphemeral } from "../utils/Util.js";
@@ -203,21 +203,30 @@ export class Mwa implements Command {
         // get all categories in the guild
 
         let indexText = ['# Archive Index:'];
-        const categories = allChannels.filter(channel => {
+        const categories = Array.from(allChannels.filter(channel => {
             return channel && channel.type === ChannelType.GuildCategory && currentCategories.includes(channel.id)
+        })) as unknown as CategoryChannel[];
+
+        // sort by name
+        categories.sort((a, b) => {
+            if (a.name < b.name) return -1;
+            if (a.name > b.name) return 1;
+            return 0;
         });
 
-        for (const category of categories.values()) {
-            if (!category || category.type !== ChannelType.GuildCategory) {
-                continue;
-            }
-
+        for (const category of categories) {
             indexText.push(`## ${category.name}`);
-            const channels = allChannels.filter(channel => {
+            const channels = Array.from(allChannels.filter(channel => {
                 return channel && channel.type === ChannelType.GuildForum && channel.parentId === category.id
-            }) as unknown as ForumChannel[];
+            })) as unknown as ForumChannel[];
+            // sort by name
+            channels.sort((a, b) => {
+                if (a.name < b.name) return -1;
+                if (a.name > b.name) return 1;
+                return 0;
+            });
 
-            for (const channel of channels.values()) {
+            for (const channel of channels) {
                 const { code, description } = getCodeAndDescriptionFromTopic(channel.topic || '');
                 indexText.push(`- [${code} ${channel.name}](${channel.url}): ${description || 'No description'}`);
             }
@@ -236,7 +245,7 @@ export class Mwa implements Command {
         if (currentChunk) {
             chunks.push(currentChunk);
         }
-        
+
 
         await replyEphemeral(interaction, 'Index created! Please check the channel for the index.');
         // send chunks
