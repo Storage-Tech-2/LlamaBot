@@ -29,7 +29,7 @@ export class SetAttachmentsMenu implements Menu {
 
     async getBuilderOrNull(_guildHolder: GuildHolder, submission: Submission): Promise<StringSelectMenuBuilder | null> {
         const attachments = await submission.getAttachments()
-        const fileAttachments = attachments.filter(attachment => attachment.contentType)
+        const fileAttachments = attachments.filter(attachment => attachment.contentType && attachment.contentType !== 'application/x-msdos-program')
 
         if (!fileAttachments.length) {
             return null; // No file attachments available
