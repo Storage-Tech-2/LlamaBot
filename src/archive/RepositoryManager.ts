@@ -739,7 +739,7 @@ export class RepositoryManager {
                 if (comments.length > 0 && thread.parent) {
                     // make webhook
                     const threadWebhook = await thread.parent.createWebhook({
-                        name: 'LlamaBot Archiver',
+                        name: 'LlamaBot Archiver'
                     });
 
                     
@@ -781,6 +781,7 @@ export class RepositoryManager {
                             username: author.displayName || author.username || 'Unknown Author',
                             avatarURL: author.iconURL || undefined,
                             files: files,
+                            threadId: thread.id,
                         });
                         comment.id = commentMessage.id;
                     }
