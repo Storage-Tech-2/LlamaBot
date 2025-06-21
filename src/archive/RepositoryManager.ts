@@ -966,7 +966,8 @@ export class RepositoryManager {
                     type: AuthorType.DiscordInGuild,
                     id: message.author.id,
                     username: message.author.username,
-                    displayName: message.member?.displayName || undefined
+                    displayName: message.member?.displayName || undefined,
+                    iconURL: message.author.displayAvatarURL()
                 },
                 content: content,
                 attachments: attachments,
