@@ -784,7 +784,7 @@ export class RepositoryManager {
             }
 
             entryData.post.continuingMessageIds = continuingMessageIds;
-            
+
             // Update the initial message with the first chunk
             if (messageChunks.length > 0) {
                 await initialMessage.edit({
@@ -1577,8 +1577,10 @@ export class RepositoryManager {
                             } else if (entryPathPart.startsWith('./')) {
                                 entryPathPart = entryPathPart.substring(2);
                             }
+                            const content = (await PostEmbed.createInitialMessage(this.guildHolder, newData, this.folderPath, entryPathPart)).content;
+                            const split = splitIntoChunks(content, 2000);
                             await message.edit({
-                                content: (await PostEmbed.createInitialMessage(this.guildHolder, newData, this.folderPath, entryPathPart)).content,
+                                content: split[0],
                             });
                         }
                     }
