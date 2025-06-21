@@ -262,12 +262,7 @@ export class Mwa implements Command {
                 emoji: { name: '✅' }
             },
             {
-                name: 'Quite Novel',
-                emoji: { name: '😋' },
-                moderated: true
-            },
-            {
-                name: 'A+ Excellent',
+                name: 'Recommended',
                 emoji: { name: '⭐' },
                 moderated: true
             }
@@ -286,7 +281,7 @@ export class Mwa implements Command {
                     return existingTag;
                 }
                 return t;
-            }).concat(tags);
+            });
             await channel.setAvailableTags(newTags)
             await channel.setDefaultReactionEmoji({
                 name: '👍',
