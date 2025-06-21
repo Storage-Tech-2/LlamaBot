@@ -777,7 +777,7 @@ export class RepositoryManager {
                         //     files: files,
                         // });
                         const commentMessage = await threadWebhook.send({
-                            content: comment.content,
+                            content: truncateStringWithEllipsis(comment.content, 2000),
                             username: author.displayName || author.username || 'Unknown Author',
                             avatarURL: author.iconURL || undefined,
                             files: files,
