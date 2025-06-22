@@ -72,7 +72,7 @@ export function makeEntryReadMe(
 
             const imageAttachments = comment.attachments.filter(attachment => attachment.contentType.startsWith('image/'));
             if (imageAttachments.length > 0) {
-                text.push(imageAttachments.map(attachment => `<img alt="${escapeString(attachment.name)}" src="${encodeURI(attachment.path || '')}?raw=1" height=\"150px\"" : ""}>`).join('\n') + '\n');
+                text.push(imageAttachments.map(attachment => `<img alt="${escapeString(attachment.name)}" src="${encodeURI(attachment.path || '')}?raw=1" height="150px">`).join('\n') + '\n');
             }
 
             if (comment.attachments.length > imageAttachments.length) {
