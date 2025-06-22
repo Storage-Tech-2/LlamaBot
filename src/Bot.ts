@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, Client, GatewayIntentBits, SelectMenuInteraction } from "discord.js";
+import { ChatInputCommandInteraction, Client, Events, GatewayIntentBits, Partials, SelectMenuInteraction } from "discord.js";
 import { GuildHolder } from "./GuildHolder.js";
 import { LLMQueue } from "./llm/LLMQueue.js";
 import path from "path";
@@ -143,19 +143,19 @@ export class Bot {
     }
 
     setupListeners(secrets: Secrets) {
-        this.client.on('guildCreate', (guild) => {
+        this.client.on(Events.GuildCreate, (guild) => {
             console.log(`Joined guild: ${guild.name} (${guild.id})`)
             const holder = this.guilds.get(guild.id) ?? new GuildHolder(this, guild);
             this.guilds.set(guild.id, holder);
             deployCommands(this.commands, holder, secrets)
         })
 
-        this.client.on('guildDelete', (guild) => {
+        this.client.on(Events.GuildDelete, (guild) => {
             console.log(`Left guild: ${guild.name} (${guild.id})`)
             this.guilds.delete(guild.id)
         })
 
-        this.client.on('interactionCreate', async (interaction) => {
+        this.client.on(Events.InteractionCreate, async (interaction) => {
             if (!interaction.inGuild()) {
                 replyEphemeral(interaction, 'Cannot use outside of guild!')
                 return;
@@ -215,7 +215,7 @@ export class Bot {
             }
         })
 
-        this.client.on('messageCreate', async (message) => {
+        this.client.on(Events.MessageCreate, async (message) => {
             if (message.author.bot) return
             if (!message.inGuild()) return
 
@@ -231,7 +231,7 @@ export class Bot {
         })
 
 
-        this.client.on('messageUpdate', async (oldMessage, newMessage) => {
+        this.client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
             if (newMessage.author.bot) return
             if (!oldMessage.inGuild() ||  !newMessage.inGuild()) return
             
@@ -247,7 +247,7 @@ export class Bot {
         });
 
 
-        this.client.on('messageDelete', async (message) => {
+        this.client.on(Events.MessageDelete, async (message) => {
             if (!message.author) return
             if (!message.inGuild()) return
 
@@ -262,7 +262,7 @@ export class Bot {
             }
         })
 
-        this.client.on('threadDelete', async (thread) => {
+        this.client.on(Events.ThreadDelete, async (thread) => {
             if (!thread.isTextBased()) return
             
 
@@ -277,7 +277,7 @@ export class Bot {
             }
         })
         
-        this.client.on('threadUpdate', async (oldThread, newThread) => {
+        this.client.on(Events.ThreadUpdate, async (oldThread, newThread) => {
             if (!newThread.isTextBased()) return
             
             const guildHolder = this.guilds.get(newThread.guildId)

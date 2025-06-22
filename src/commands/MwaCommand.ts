@@ -333,6 +333,8 @@ export class Mwa implements Command {
             for (const editorRole of editorRoles) {
                 await permissions.edit(editorRole, {
                     SendMessagesInThreads: true,
+                    ManageThreads: true,
+                    ManageMessages: true,
                 })
             }
         }
