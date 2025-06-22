@@ -1457,7 +1457,7 @@ export class RepositoryManager {
                             message += `Removed tags **${removedTags.map(t => t.name).join(', ')}**`;
                         }
                     }
-                    channel.send({
+                    await channel.send({
                         content: message + ' from the post.',
                     });
 
