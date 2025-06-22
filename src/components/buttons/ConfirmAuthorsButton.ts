@@ -76,6 +76,11 @@ export class ConfirmAuthorsButton implements Button {
                 flags: [MessageFlags.SuppressNotifications]
             });
             await submission.statusUpdated()
+        } else {
+            await interaction.reply({
+                content: `<@${interaction.user.id}> set zero authors`,
+                flags: [MessageFlags.SuppressNotifications]
+            });
         }
 
         const row = new ActionRowBuilder()
