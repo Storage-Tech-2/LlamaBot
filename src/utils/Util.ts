@@ -431,13 +431,13 @@ export function getAuthorsString(authors: Author[] | null): string {
         return 'No authors';
     }
     return authors.map(author => {
-        const name = author.displayName || author.username;
+        const name = author.displayName || author.username || 'Unknown';
         if (author.type === AuthorType.DiscordInGuild) {
             return `<@${author.id}>`;
         } else if (author.type === AuthorType.DiscordExternal) {
-            return `${name} (<@${author.id}>)`;
+            return `${escapeDiscordString(name)} (<@${author.id}>)`;
         } else {
-            return name;
+            return escapeDiscordString(name);
         }
     }).join(', ');
 }
@@ -899,4 +899,17 @@ export function extractUserIdsFromText(text: string): Snowflake[] {
         }
     }
     return userIds;
+}
+
+export function escapeDiscordString(str: string): string {
+    if (!str) return '';
+    return str
+        .replace(/\\/g, '\\\\') // Escape backslashes
+        .replace(/`/g, '\\`')   // Escape backticks
+        .replace(/_/g, '\\_')   // Escape underscores
+        .replace(/\*/g, '\\*')   // Escape asterisks
+        .replace(/~/g, '\\~')   // Escape tildes
+        .replace(/>/g, '\\>')   // Escape greater than
+        .replace(/</g, '\\<')   // Escape less than
+        .replace(/!/g, '\\!');  // Escape exclamation marks
 }
