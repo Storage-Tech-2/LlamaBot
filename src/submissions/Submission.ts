@@ -66,6 +66,12 @@ export class Submission {
         if (!channel) {
             throw new Error('Channel not found')
         }
+
+        // check if archived
+        if (channel.isThread() && channel.archived) {
+            await channel.setArchived(false);
+        }
+        
         return channel as TextThreadChannel;
     }
 

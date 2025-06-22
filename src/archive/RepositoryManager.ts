@@ -688,6 +688,10 @@ export class RepositoryManager {
             let thread;
             if (entryData.post) {
                 thread = await publishChannel.threads.fetch(entryData.post.threadId);
+                // unarchive the thread if it exists
+                if (thread && thread.archived) {
+                    await thread.setArchived(false);
+                }
             } else {
                 entryData.post = {
                     forumId: publishChannelId,
@@ -1601,6 +1605,9 @@ export class RepositoryManager {
                 if (publishForum && publishForum.type === ChannelType.GuildForum) {
                     const thread = await publishForum.threads.fetch(newData.post.threadId);
                     if (thread) {
+                        if (thread.archived) {
+                            await thread.setArchived(false); // Unarchive the thread to update it
+                        }
                         const message = await thread.fetchStarterMessage();
                         if (message) {
 
