@@ -128,8 +128,8 @@ export class Submission {
             const request = new LLMRequest(1, prompt);
             this.extractionResults = this.guildHolder.getBot().llmQueue.addRequest(request);
             await this.extractionResults.getResponse();
-        } catch (error) {
-            console.error('Error getting LLM response:', error);
+        } catch (error: any) {
+            console.error('Error getting LLM response:', error.message);
         }
 
         this.checkReview();
