@@ -16,6 +16,7 @@ import { simpleGit, SimpleGit } from "simple-git";
 import { ArchiveComment } from "./ArchiveComments.js";
 import { Author, AuthorType } from "../submissions/Author.js";
 import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
+import { makeEntryReadMe } from "./ReadMeMaker.js";
 
 
 export class RepositoryManager {
@@ -326,8 +327,10 @@ export class RepositoryManager {
                 }
 
                 // Save the entry
+                await this.git.add(entry.getDataPath());
                 await entry.save();
                 newEntries.push(newEntryRef);
+                await this.git.add(await this.updateEntryReadme(entry));
             }
 
             channelInstance.getData().name = channel.name;
@@ -882,13 +885,15 @@ export class RepositoryManager {
 
             }
 
+
             await entry.save();
             await archiveChannel.save();
             await this.git.add(archiveChannel.getDataPath());
 
+            await this.git.add(await this.updateEntryReadme(entry));
+
             await this.git.add(entryFolderPath);
             await this.git.add(channelPath); // to update currentCodeId and entries
-
 
             if (existing) {
                 await this.git.commit(`${entryData.code}: ${generateCommitMessage(existing.entry.getData(), entryData)}`);
@@ -1122,6 +1127,8 @@ export class RepositoryManager {
             }
             await fs.writeFile(commentsFile, JSON.stringify(comments, null, 2), 'utf-8');
             await this.git.add(commentsFile);
+            await this.git.add(await this.updateEntryReadme(found.entry));
+
             if (existingComment) {
                 await this.git.commit(`Updated comment by ${message.member?.displayName} on ${found.entry.getData().code}`);
             } else {
@@ -1239,8 +1246,11 @@ export class RepositoryManager {
                 await this.git.rm(commentsFile);
             } else {
                 await fs.writeFile(commentsFile, JSON.stringify(comments, null, 2), 'utf-8');
-                await this.git.add(commentsFile).commit(`Deleted ${deletedComment.sender?.displayName}'s comment from ${found.entry.getData().code}`);
+                await this.git.add(commentsFile);
             }
+
+            await this.git.add(await this.updateEntryReadme(found.entry));
+            await this.git.commit(`Deleted ${deletedComment.sender?.displayName}'s comment from ${found.entry.getData().code}`);
 
             // check submission
             try {
@@ -1416,7 +1426,7 @@ export class RepositoryManager {
 
             await found.entry.save();
             await this.git.add(found.entry.getDataPath());
-
+            await this.git.add(await this.updateEntryReadme(found.entry));
             // check submission
             try {
                 const submission = await this.guildHolder.getSubmissionsManager().getSubmission(submissionId);
@@ -1592,6 +1602,28 @@ export class RepositoryManager {
             this.lock.release();
             throw e;
         }
+    }
+
+    async updateEntryReadme(entry: ArchiveEntry): Promise<string> {
+        const entryData = entry.getData();
+        const readmePath = Path.join(entry.getFolderPath(), 'README.md');
+
+        // Generate the README content
+        let comments: ArchiveComment[] = [];
+        const commentsFile = Path.join(entry.getFolderPath(), 'comments.json');
+        try {
+            comments = JSON.parse(await fs.readFile(commentsFile, 'utf-8')) as
+                ArchiveComment[];
+        } catch (e: any) {
+            if (e.code !== 'ENOENT') {
+                console.error("Error reading comments file:", e);
+            }
+        }
+        const readmeContent = makeEntryReadMe(entryData, comments);
+
+        // Write the README file
+        await fs.writeFile(readmePath, readmeContent, 'utf-8');
+        return readmePath
     }
 
 }
