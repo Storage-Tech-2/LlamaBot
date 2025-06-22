@@ -18,6 +18,7 @@ import { GuildConfigs } from '../config/GuildConfigs.js'
 import { Submission } from '../submissions/Submission.js'
 import { SubmissionConfigs } from '../submissions/SubmissionConfigs.js'
 import { Tag } from '../submissions/Tag.js'
+import { SubmissionStatus } from '../submissions/SubmissionStatus.js'
 
 export function getItemsFromArray<T extends (Button | Menu | Modal | Command)>(itemArray: T[]): Map<string, T> {
     const items = new Map()
@@ -776,7 +777,7 @@ export function canPublishSubmission(interaction: Interaction, submission: Submi
         return true;
     }
 
-    if (submission.getConfigManager().getConfig(SubmissionConfigs.ON_HOLD) || submission.getConfigManager().getConfig(SubmissionConfigs.IS_LOCKED)) {
+    if (submission.getConfigManager().getConfig(SubmissionConfigs.ON_HOLD) || (submission.getConfigManager().getConfig(SubmissionConfigs.STATUS) !== SubmissionStatus.WAITING && submission.getConfigManager().getConfig(SubmissionConfigs.IS_LOCKED))) {
         return false;
     }
 
