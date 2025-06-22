@@ -27,6 +27,7 @@ export class AddAuthorButton implements Button {
             !canEditSubmission(interaction, submission)
         ) {
             replyEphemeral(interaction, 'You do not have permission to use this!')
+            return;
         }
 
 

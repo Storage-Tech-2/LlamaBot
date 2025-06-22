@@ -43,17 +43,19 @@ export class SetAuthorsMenu implements Menu {
                 if (message && message.content) {
                     const users = extractUserIdsFromText(message.content);
                     for (const userId of users) {
-                        // try to fetch
-                        const user = await guildHolder.getBot().client.users.fetch(userId).catch(() => null);
-                        if (user) {
-                            const existingAuthor = currentAuthors.find(a => a.id === user.id);
-                            if (!existingAuthor) {
-                                currentAuthors.push({
-                                    type: AuthorType.DiscordExternal,
-                                    id: user.id,
-                                });
-                            }
+
+                        if (currentAuthors.some(author => author.id === userId)) {
+                            continue; // Skip if user is already in the list
                         }
+
+                        if (currentAuthors.length >= 25) {
+                            break; // Limit to 25 authors
+                        }
+
+                        currentAuthors.push({
+                            type: AuthorType.DiscordExternal,
+                            id: userId
+                        });
                     }
                 }
             }
@@ -93,37 +95,6 @@ export class SetAuthorsMenu implements Menu {
 
         const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) === null;
         const currentAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
-
-
-        // if (isFirstTime) {
-        //     const message = await (await submission.getSubmissionChannel()).fetchStarterMessage();
-        //     if (message && message.content) {
-        //         const users = extractUserIdsFromText(message.content);
-        //         for (const userId of users) {
-        //             // try to fetch from member first
-        //             const member = await guildHolder.getGuild().members.fetch(userId).catch(() => null);
-        //             if (member) {
-        //                 currentAuthors.push({
-        //                     type: AuthorType.DiscordInGuild,
-        //                     id: member.id,
-        //                     username: member.user.username,
-        //                     displayName: member.displayName,
-        //                     iconURL: member.user.displayAvatarURL()
-        //                 });
-        //             } else {
-        //                 const user = await guildHolder.getBot().client.users.fetch(userId).catch(() => null);
-        //                 if (user) {
-        //                     currentAuthors.push({
-        //                         type: AuthorType.DiscordExternal,
-        //                         id: user.id,
-        //                         username: user.username,
-        //                         iconURL: user.displayAvatarURL(),
-        //                     });
-        //                 } // dont do anything otherwise
-        //             }
-        //         }
-        //     }
-        // }
 
         const newAuthors = (await Promise.all(interaction.values.map(async (id) => {
             let user = await guildHolder.getGuild().members.fetch(id).catch(() => null);

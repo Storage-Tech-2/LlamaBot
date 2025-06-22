@@ -1,4 +1,5 @@
 import { AddAuthorButton } from "./AddAuthorButton.js";
+import { ConfirmAuthorsButton } from "./ConfirmAuthorsButton.js";
 import { EditSubmissionButton } from "./EditSubmissionButton.js";
 import { MakeRevisionCurrentButton } from "./MakeRevisionCurrentButton.js";
 import { PublishButton } from "./PublishButton.js";
@@ -20,7 +21,8 @@ export function getButtons() {
         new AddAuthorButton(),
         new PublishButton(),
         new SkipImagesButton(),
-        new SkipAttachmentsButton()
+        new SkipAttachmentsButton(),
+        new ConfirmAuthorsButton(),
     ];
     return Buttons;
 }

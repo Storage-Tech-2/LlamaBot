@@ -7,6 +7,7 @@ import { AddAuthorButton } from "./AddAuthorButton.js";
 import { Submission } from "../../submissions/Submission.js";
 import { AuthorType } from "../../submissions/Author.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
+import { ConfirmAuthorsButton } from "./ConfirmAuthorsButton.js";
 
 export class SetAuthorsButton implements Button {
     getID(): string {
@@ -44,6 +45,8 @@ export class SetAuthorsButton implements Button {
             .addComponents(await new SetAuthorsMenu().getBuilder(guildHolder, submission, false));
         components.push(row);
 
+        const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) === null;
+
         // Update existing authors
         const updatedAuthors =  await reclassifyAuthors(guildHolder, submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || []);
         if (updatedAuthors.length > 0) {
@@ -59,8 +62,11 @@ export class SetAuthorsButton implements Button {
                 .addComponents(await new SetAuthorsMenu().getBuilder(guildHolder, submission, true));
             components.push(row1);
         }
-        const row2 = new ActionRowBuilder()
-            .addComponents(new AddAuthorButton().getBuilder());
+        const row2 = new ActionRowBuilder();
+        if (isFirstTime) {
+            row2.addComponents(new ConfirmAuthorsButton().getBuilder());
+        }
+        row2.addComponents(new AddAuthorButton().getBuilder());
         components.push(row2);
         await replyEphemeral(interaction, `Please select author(s) for the submission. They will also be able to edit this submission.`, {
             components
