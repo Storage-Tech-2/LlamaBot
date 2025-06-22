@@ -4,7 +4,7 @@ import { ArchiveComment } from "./ArchiveComments.js";
 import { ArchiveEntryData } from "./ArchiveEntry.js";
 
 function formatAttachment(attachment: Attachment): string {
-    if (attachment.contentType === 'litematic' && attachment.litematic) {
+    if (attachment.litematic) {
         return `- [${attachment.name}](${encodeURI(attachment.path || '')}?raw=1): MC ${attachment.litematic.version}, Size ${attachment.litematic.size} blocks`;
     } else if (attachment.contentType === 'mediafire') {
         return `- [${attachment.name}](${attachment.url}): Mediafire link`;
