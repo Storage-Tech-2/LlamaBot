@@ -199,7 +199,7 @@ export class Mwa implements Command {
         }
 
         const currentCategories = guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
-       
+
         interaction.deferReply();
 
         const allChannels = await guildHolder.getGuild().channels.fetch();
@@ -253,7 +253,7 @@ export class Mwa implements Command {
         }
 
 
-        await interaction.editReply({content: 'Index created! Please check the channel for the index.'});
+        await interaction.editReply({ content: 'Index created! Please check the channel for the index.' });
         // send chunks
         for (const chunk of chunks) {
             await interaction.channel.send(chunk);
@@ -284,7 +284,7 @@ export class Mwa implements Command {
         const tags = submissionChannel.availableTags.filter(tag => {
             return !SubmissionTags.some(t => t.name === tag.name)
         })
-        const newTags = SubmissionTags.map((t)=>{
+        const newTags = SubmissionTags.map((t) => {
             const existingTag = submissionChannel.availableTags.find(tag => tag.name === t.name);
             if (existingTag) {
                 return existingTag;
@@ -307,6 +307,9 @@ export class Mwa implements Command {
             return channel && channel.type === ChannelType.GuildCategory && currentCategories.includes(channel.id)
         });
 
+        const endorserRoles = guildHolder.getConfigManager().getConfig(GuildConfigs.ENDORSE_ROLE_IDS);
+        const editorRoles = guildHolder.getConfigManager().getConfig(GuildConfigs.EDITOR_ROLE_IDS);
+
         for (const category of categories.values()) {
             // set permissions
             if (category.type !== ChannelType.GuildCategory) {
@@ -320,6 +323,18 @@ export class Mwa implements Command {
                 CreatePrivateThreads: false,
                 CreatePublicThreads: false,
             })
+
+            for (const endorserRole of endorserRoles) {
+                await permissions.edit(endorserRole, {
+                    SendMessagesInThreads: true,
+                })
+            }
+
+            for (const editorRole of editorRoles) {
+                await permissions.edit(editorRole, {
+                    SendMessagesInThreads: true,
+                })
+            }
         }
 
         // get all channels in categories
@@ -353,7 +368,7 @@ export class Mwa implements Command {
             const tags = channel.availableTags.filter(tag => {
                 return !basicTags.some(t => t.name === tag.name)
             })
-            const newTags = basicTags.map((t)=>{
+            const newTags = basicTags.map((t) => {
                 const existingTag = channel.availableTags.find(tag => tag.name === t.name);
                 if (existingTag) {
                     return existingTag;
