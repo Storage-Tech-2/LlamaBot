@@ -1458,7 +1458,7 @@ export class RepositoryManager {
                         }
                     }
                     await channel.send({
-                        content: message + ' from the post.',
+                        content: message + (removedTags.length > 0 ? ' from the post.' : ' to the post.'),
                     });
 
                     await submission.save();
