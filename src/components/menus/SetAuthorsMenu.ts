@@ -85,11 +85,11 @@ export class SetAuthorsMenu implements Menu {
             return {
                 type: AuthorType.DiscordInGuild,
                 id: user.id,
-                name: user.user.username,
+                username: user.user.username,
                 displayName: user.displayName,
                 iconURL: user.displayAvatarURL()
             }
-        }))).filter(author => author !== null) as Author[];
+        }))).filter(author => author !== null);
 
         const added: Author[] = [];
         const removed: Author[] = [];
@@ -172,10 +172,9 @@ export class SetAuthorsMenu implements Menu {
             const existingAuthor = currentAuthors.find(a => a.type === AuthorType.Unknown && a.username === name);
             return existingAuthor || {
                 type: AuthorType.Unknown,
-                id: null, // No ID for unknown authors
-                name: name
+                username: name
             }
-        }))).filter(author => author !== null) as Author[];
+        }))).filter(author => author !== null);
 
         const added: Author[] = [];
         const removed: Author[] = [];
