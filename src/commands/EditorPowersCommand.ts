@@ -222,8 +222,10 @@ export class EditorPowersCommand implements Command {
                     replyEphemeral(interaction, `Failed to publish submission: ${e.message || 'Unknown error'}`);
                     return;
                 }
+                const url = submission.getConfigManager().getConfig(SubmissionConfigs.POST)?.threadURL;
+              
                 await interaction.editReply({
-                    content: `<@${interaction.user.id}> has published this submission silently! Please note that the submission has been locked to prevent further edits. Contact an editor if you need to make changes.`,
+                    content: `<@${interaction.user.id}> has published this submission silently! ${url}\nNote that the submission has been locked to prevent further edits. Contact an editor if you need to make changes.`,
                 });
                 break;
             default:
