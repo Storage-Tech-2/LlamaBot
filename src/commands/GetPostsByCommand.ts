@@ -40,7 +40,8 @@ export class GetPostsByCommand implements Command {
 
     async execute(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction): Promise<void> {
         if (
-            !interaction.inGuild()
+            !interaction.inGuild() ||
+            !interaction.channel
         ) {
             await replyEphemeral(interaction, 'This command can only be used in a forum channel.')
             return;
@@ -99,7 +100,7 @@ export class GetPostsByCommand implements Command {
             // send chunks
             for (const chunk of chunks) {
                 if (interaction.replied) {
-                    await interaction.followUp({ content: chunk });
+                    await interaction.channel.send({ content: chunk });
                 } else {
                     await interaction.reply({ content: chunk });
                 }
