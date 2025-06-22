@@ -9,14 +9,18 @@ export class LLMResponseFuture {
 
     constructor(promise: Promise<LLMResponse>) {
         this.status = LLMResponseStatus.InProgress;
-        this.promise = promise.then((response) => {
-            this.status = LLMResponseStatus.Success;
-            this.promise = undefined; // Clear the promise after resolution
-            this.result = response;
-        }).catch((error) => {
-            this.status = LLMResponseStatus.Error;
-            this.error = error;
-            this.promise = undefined; // Clear the promise after rejection
+        this.promise = new Promise((resolve, reject) => {
+            promise.then((response) => {
+                this.status = LLMResponseStatus.Success;
+                this.promise = undefined; // Clear the promise after resolution
+                this.result = response;
+                resolve();
+            }).catch((error) => {
+                this.status = LLMResponseStatus.Error;
+                this.error = error;
+                this.promise = undefined; // Clear the promise after rejection
+                reject(error);
+            });
         });
     }
 
