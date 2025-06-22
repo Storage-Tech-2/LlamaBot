@@ -1457,9 +1457,12 @@ export class RepositoryManager {
                             message += `Removed tags **${removedTags.map(t => t.name).join(', ')}**`;
                         }
                     }
-                    await channel.send({
-                        content: message + (removedTags.length > 0 ? ' from the post.' : ' to the post.'),
-                    });
+
+                    if (addedTags.length > 0 && removedTags.length > 0) {
+                        await channel.send({
+                            content: message + (removedTags.length > 0 ? ' from the post.' : ' to the post.'),
+                        });
+                    }
 
                     await submission.save();
                     await submission.statusUpdated();
