@@ -28,7 +28,7 @@ export function makeEntryReadMe(
 
     if (entryData.images.length > 0) {
         const image = entryData.images[0];
-        text.push(`<img alt="${escapeString(image.name)}" src="${encodeURI(image.path || '')}?raw=1"${(image.height || 200) > 300 ? " height=\"300px\"" : ""}>`)
+        text.push(`<img alt="${escapeString(image.name)}" src="${encodeURI(image.path || '')}?raw=1"${(image.height || 200) > 300 ? " height=\"300px\"" : ""}>\n`)
     }
 
     text.push(`**Authors:** *${entryData.authors.map(o => o.displayName || o.username).join(",")}*\n`);
