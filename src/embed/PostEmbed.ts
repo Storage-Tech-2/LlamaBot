@@ -1,5 +1,5 @@
 import { ActionRowBuilder, AttachmentBuilder, EmbedBuilder, Message } from "discord.js";
-import { escapeString, getAuthorsString, getGithubOwnerAndProject } from "../utils/Util.js";
+import { areObjectsIdentical, escapeString, getAuthorsString, getGithubOwnerAndProject } from "../utils/Util.js";
 import Path from "path";
 import { Attachment } from "../submissions/Attachment.js";
 import { ArchiveEntryData } from "../archive/ArchiveEntry.js";
@@ -115,9 +115,16 @@ export class PostEmbed {
 
 
         content.push(`**Authors:** ${getAuthorsString(authors)}`);
-        content.push(`**Endorsed by:** ${getAuthorsString(entryData.endorsers)}\n`);
+
+        // check if authors and endorsers are the same
+        if (entryData.authors.length === entryData.endorsers.length &&
+            entryData.authors.every(author => entryData.endorsers.some(endorser => areObjectsIdentical(author, endorser)))) {
+            // if they are the same, do not show endorsers
+        } else {
+            content.push(`**Endorsed by:** ${getAuthorsString(entryData.endorsers)}`);
+        }
        
-        content.push(description);
+        content.push('\n' + description);
 
         if (features.length) {
             content.push('\n**Features:**');
