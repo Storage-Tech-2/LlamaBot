@@ -142,7 +142,7 @@ export class PostEmbed {
 
         const submissionURL = `https://discord.com/channels/${guildHolder.getGuild().id}/${submissionThreadID}`;
 
-        const gitURL = `https://github.com/${owner}/${project}/tree/master/${entryPathPart}`;
+        const gitURL = `https://github.com/${owner}/${project}/tree/master/${entryPathPart}#readme`;
         content.push(`\n[Submission Thread](${submissionURL})`);
         content.push(`[Github](${gitURL})`);
         content.push(`Edited on <t:${Math.floor(entryData.timestamp / 1000)}:F>`);
