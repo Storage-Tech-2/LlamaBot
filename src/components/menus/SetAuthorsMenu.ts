@@ -150,7 +150,7 @@ export class SetAuthorsMenu implements Menu {
             await submission.statusUpdated()
         } else {
             await interaction.reply({
-                content: `<@${interaction.user.id}> set zero authors`,
+                content: `<@${interaction.user.id}> did not change authors`,
                 flags: [MessageFlags.SuppressNotifications]
             });
         }
