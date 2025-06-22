@@ -28,12 +28,12 @@ export function makeEntryReadMe(
 
     if (entryData.images.length > 0) {
         const image = entryData.images[0];
-        text.push(`<img alt="${escapeString(image.name)}" src="${encodeURI(image.path || '')}?raw=1"${(image.height || 200) > 300 ? " height=\"300px\"" : ""}>\n`)
+        text.push(`<img alt="${escapeString(image.name)}" src="${encodeURI(image.path || '')}?raw=1"${(image.height || 200) > 300 ? " height=\"300px\"" : ""}>\n\n`)
     }
 
-    text.push(`**Authors:** *${entryData.authors.map(o => o.displayName || o.username).join(",")}*\n`);
-    text.push(`**Endorsed by:** *${entryData.endorsers.map(o => o.displayName || o.username).join(",")}*\n`);
-    text.push(`**Tags:** *${entryData.tags.map(o => o.name).join(",")}*\n`);
+    text.push(`**Authors:** *${entryData.authors.map(o => o.displayName || o.username).join(", ")}*\n\n`);
+    text.push(`**Endorsed by:** *${entryData.endorsers.map(o => o.displayName || o.username).join(", ")}*\n\n`);
+    text.push(`**Tags:** *${entryData.tags.map(o => o.name).join(", ")}*\n`);
     text.push(`\n`);
     text.push(`${entryData.description}\n`);
 
@@ -54,7 +54,7 @@ export function makeEntryReadMe(
 
     if (entryData.images.length > 1) {
         text.push(`\n## Other Images\n`);
-        text.push(entryData.images.slice(1).map(image => `<img src="${encodeURI(image.path || '')}?raw=1"${(image.height || 200) > 300 ? " height=\"300px\"" : ""}>`).join('\n') + '\n');
+        text.push(entryData.images.slice(1).map(image => `<img src="${encodeURI(image.path || '')}?raw=1"${(image.height || 200) > 300 ? " height=\"300px\"" : ""}>`).join('\n\n') + '\n');
     }
 
     if (entryData.attachments.length > 0) {
@@ -72,7 +72,7 @@ export function makeEntryReadMe(
 
             const imageAttachments = comment.attachments.filter(attachment => attachment.contentType.startsWith('image/'));
             if (imageAttachments.length > 0) {
-                text.push(imageAttachments.map(attachment => `<img alt="${escapeString(attachment.name)}" src="${encodeURI(attachment.path || '')}?raw=1" height="150px">`).join('\n') + '\n');
+                text.push(imageAttachments.map(attachment => `<img alt="${escapeString(attachment.name)}" src="${encodeURI(attachment.path || '')}?raw=1" height="150px">`).join('\n\n') + '\n');
             }
 
             if (comment.attachments.length > imageAttachments.length) {
