@@ -4,7 +4,7 @@ import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
 import { AnyThreadChannel, AttachmentBuilder, ChannelType, EmbedBuilder, ForumChannel, Message, MessageFlags, Snowflake } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
-import { areObjectsIdentical, deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
+import { areObjectsIdentical, deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getChangeIDs, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";
 import { Submission } from "../submissions/Submission.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
@@ -571,7 +571,7 @@ export class RepositoryManager {
                     // Check if images are the same
                     const existingImages = existing.entry.getData().images;
                     const newImages = entryData.images;
-                    if (areObjectsIdentical(existingImages, newImages)) { // no problem
+                    if (!getChangeIDs(existingImages, newImages)) { // no problem
                         entryData.post = existing.entry.getData().post;
                     } else {
                         // If images are different, we need to delete the thread
