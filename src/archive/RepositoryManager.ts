@@ -1417,7 +1417,7 @@ export class RepositoryManager {
                 }
             }
 
-            //const oldEntryData = deepClone(found.entry.getData());
+            const oldEntryData = deepClone(found.entry.getData());
             const entryData = found.entry.getData();
             entryData.tags = newTags.map(tag => ({
                 id: tag.id,
@@ -1434,10 +1434,32 @@ export class RepositoryManager {
                     submission.getConfigManager().setConfig(SubmissionConfigs.TAGS, entryData.tags);
 
                     // send message to the user
-                    // const channel = await submission.getSubmissionChannel();
-                    // channel.send({
-                    //     content: `The published post and submission has been updated with new tags: ${entryData.tags.map(t => t.name).join(', ')}`
-                    // });
+                    const channel = await submission.getSubmissionChannel();
+                    const addedTags = entryData.tags.filter(t => !oldEntryData.tags.some(ot => ot.id === t.id));
+                    const removedTags = oldEntryData.tags.filter(t => !entryData.tags.some(nt => nt.id === t.id));
+
+                    let message = ``;
+                    if (addedTags.length > 0) {
+                        if (addedTags.length === 1) {
+                            message += `Added tag **${addedTags[0].name}**`;
+                        } else {
+                            message += `Added tags **${addedTags.map(t => t.name).join(', ')}**`;
+                        }
+                    }
+
+                    if (removedTags.length > 0) {
+                        if (message.length > 0) {
+                            message += `, `;
+                        }
+                        if (removedTags.length === 1) {
+                            message += `Removed tag **${removedTags[0].name}**`;
+                        } else {
+                            message += `Removed tags **${removedTags.map(t => t.name).join(', ')}**`;
+                        }
+                    }
+                    channel.send({
+                        content: message + ' from the post.',
+                    });
 
                     await submission.save();
                     await submission.statusUpdated();
