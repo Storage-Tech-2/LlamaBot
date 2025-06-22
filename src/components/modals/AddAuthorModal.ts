@@ -1,7 +1,7 @@
 import { ActionRowBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
-import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
+import { canEditSubmission, extractUserIdsFromText, reclassifyAuthors, replyEphemeral } from "../../utils/Util.js";
 import { Author, AuthorType } from "../../submissions/Author.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { SetAuthorsButton } from "../buttons/SetAuthorsButton.js";
@@ -96,7 +96,32 @@ export class AddAuthorModal implements Modal {
 
         const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) === null;
 
-        const currentAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
+        let currentAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
+        if (isFirstTime) {
+            const message = await (await submission.getSubmissionChannel()).fetchStarterMessage();
+            if (message && message.content) {
+                const users = extractUserIdsFromText(message.content);
+                for (const userId of users) {
+
+                    if (currentAuthors.some(author => author.id === userId)) {
+                        continue; // Skip if user is already in the list
+                    }
+
+                    if (currentAuthors.length >= 25) {
+                        break; // Limit to 25 authors
+                    }
+
+                    currentAuthors.push({
+                        type: AuthorType.DiscordExternal,
+                        id: userId
+                    });
+                }
+            }
+            currentAuthors = (await reclassifyAuthors(guildHolder, currentAuthors)).filter(author => {
+                return author.type !== AuthorType.Unknown;
+            });
+        }
+
         if (currentAuthors.some(a => {
             if (a.id && author.id) {
                 return a.id === author.id;
@@ -126,7 +151,7 @@ export class AddAuthorModal implements Modal {
         if (isFirstTime) {
             const row = new ActionRowBuilder()
                 .addComponents(await new SetArchiveCategoryMenu().getBuilder(guildHolder))
-            await replyEphemeral(interaction,`Please select an archive category for your submission`,{
+            await replyEphemeral(interaction, `Please select an archive category for your submission`, {
                 components: [row as any],
             })
         }
