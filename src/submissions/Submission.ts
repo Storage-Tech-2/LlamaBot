@@ -185,7 +185,7 @@ export class Submission {
             return;
         }
 
-        if (!this.extractionResults || this.extractionResults.getStatus() === LLMResponseStatus.InProgress) {
+        if (this.extractionResults && this.extractionResults.getStatus() === LLMResponseStatus.InProgress) {
             return; // Wait for extraction to complete
         }
 
