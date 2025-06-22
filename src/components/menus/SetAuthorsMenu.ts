@@ -148,6 +148,11 @@ export class SetAuthorsMenu implements Menu {
                 flags: [MessageFlags.SuppressNotifications]
             });
             await submission.statusUpdated()
+        } else {
+            await interaction.reply({
+                content: `<@${interaction.user.id}> set zero authors`,
+                flags: [MessageFlags.SuppressNotifications]
+            });
         }
 
         if (isFirstTime) {
