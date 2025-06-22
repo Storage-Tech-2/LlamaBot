@@ -76,7 +76,7 @@ export function makeEntryReadMe(
             }
 
             if (comment.attachments.length > imageAttachments.length) {
-                text.push(`**Other attachments:**\n`);
+                text.push(`\n**Other attachments:**\n`);
                 text.push(comment.attachments.filter(attachment => !attachment.contentType.startsWith('image/') && attachment.canDownload).map(attachment => {
                     return formatAttachment(attachment);
                 }).join('\n') + '\n');
