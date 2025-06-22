@@ -240,7 +240,7 @@ export class SetAuthorsMenu implements Menu {
             }
         }
 
-        if (added.length === 0 && removed.length === 0) {
+        if (!isFirstTime && added.length === 0 && removed.length === 0) {
             replyEphemeral(interaction, 'No changes made to authors');
             return;
         }
