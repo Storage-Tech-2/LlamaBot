@@ -94,26 +94,14 @@ export class SetAuthorsMenu implements Menu {
         }
 
         const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) === null;
-        const currentAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
+        let currentAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
 
-        const newAuthors = (await Promise.all(interaction.values.map(async (id) => {
-            let user = await guildHolder.getGuild().members.fetch(id).catch(() => null);
-            if (!user) {
-                const current = currentAuthors.find(a => a.id === id);
-                if (current) {
-                    return current; // Keep the current author if the user is not found
-                } else {
-                    return null;
-                }
-            }
+        const newAuthors = await reclassifyAuthors(submission.getGuildHolder(), interaction.values.map((id) => {
             return {
                 type: AuthorType.DiscordInGuild,
-                id: user.id,
-                username: user.user.username,
-                displayName: user.displayName,
-                iconURL: user.displayAvatarURL()
+                id: id
             }
-        }))).filter(author => author !== null);
+        }));
 
         const added: Author[] = [];
         const removed: Author[] = [];
@@ -190,32 +178,7 @@ export class SetAuthorsMenu implements Menu {
         }
 
         const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) === null;
-        let currentAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
-
-        if (isFirstTime) {
-            const message = await (await submission.getSubmissionChannel()).fetchStarterMessage();
-            if (message && message.content) {
-                const users = extractUserIdsFromText(message.content);
-                for (const userId of users) {
-
-                    if (currentAuthors.some(author => author.id === userId)) {
-                        continue; // Skip if user is already in the list
-                    }
-
-                    if (currentAuthors.length >= 25) {
-                        break; // Limit to 25 authors
-                    }
-
-                    currentAuthors.push({
-                        type: AuthorType.DiscordExternal,
-                        id: userId
-                    });
-                }
-            }
-            currentAuthors = (await reclassifyAuthors(guildHolder, currentAuthors)).filter(author => {
-                return author.type !== AuthorType.Unknown;
-            });
-        }
+        const currentAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
 
         const newAuthors = interaction.values.map((name) => {
             const existingAuthor = currentAuthors.find(a => a.type === AuthorType.Unknown && a.username === name);
@@ -240,7 +203,7 @@ export class SetAuthorsMenu implements Menu {
             }
         }
 
-        if (!isFirstTime && added.length === 0 && removed.length === 0) {
+        if (added.length === 0 && removed.length === 0) {
             replyEphemeral(interaction, 'No changes made to authors');
             return;
         }
