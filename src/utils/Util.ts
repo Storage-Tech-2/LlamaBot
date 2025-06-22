@@ -887,3 +887,16 @@ export function splitIntoChunks(text: string, max: number): string[] {
 
     return chunks;
 }
+
+export function extractUserIdsFromText(text: string): Snowflake[] {
+    const userIds: Snowflake[] = [];
+    const regex = /<@!?(\d{17,19})>/g; // Matches <@123456789012345678> or <@!123456789012345678>
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+        const userId = match[1]; // The first capturing group contains the user ID
+        if (userId && !userIds.includes(userId)) {
+            userIds.push(userId as Snowflake);
+        }
+    }
+    return userIds;
+}

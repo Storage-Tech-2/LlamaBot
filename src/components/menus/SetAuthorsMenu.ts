@@ -1,7 +1,7 @@
 import { ActionRowBuilder, MessageFlags, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, UserSelectMenuBuilder, UserSelectMenuInteraction } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
+import { canEditSubmission, extractUserIdsFromText, replyEphemeral } from "../../utils/Util.js";
 import { Author, AuthorType } from "../../submissions/Author.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
@@ -36,6 +36,28 @@ export class SetAuthorsMenu implements Menu {
                     return opt;
                 }))
         } else {
+
+
+            if (submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) === null) {
+                const message = await (await submission.getSubmissionChannel()).fetchStarterMessage();
+                if (message && message.content) {
+                    const users = extractUserIdsFromText(message.content);
+                    for (const userId of users) {
+                        // try to fetch
+                        const user = await guildHolder.getBot().client.users.fetch(userId).catch(() => null);
+                        if (user) {
+                            const existingAuthor = currentAuthors.find(a => a.id === user.id);
+                            if (!existingAuthor) {
+                                currentAuthors.push({
+                                    type: AuthorType.DiscordExternal,
+                                    id: user.id,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
             // get list of users
             const userSize = Math.max(guildHolder.getGuild().members.cache.size, currentAuthors.length);
             return new UserSelectMenuBuilder()
@@ -71,6 +93,37 @@ export class SetAuthorsMenu implements Menu {
 
         const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) === null;
         const currentAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
+
+
+        // if (isFirstTime) {
+        //     const message = await (await submission.getSubmissionChannel()).fetchStarterMessage();
+        //     if (message && message.content) {
+        //         const users = extractUserIdsFromText(message.content);
+        //         for (const userId of users) {
+        //             // try to fetch from member first
+        //             const member = await guildHolder.getGuild().members.fetch(userId).catch(() => null);
+        //             if (member) {
+        //                 currentAuthors.push({
+        //                     type: AuthorType.DiscordInGuild,
+        //                     id: member.id,
+        //                     username: member.user.username,
+        //                     displayName: member.displayName,
+        //                     iconURL: member.user.displayAvatarURL()
+        //                 });
+        //             } else {
+        //                 const user = await guildHolder.getBot().client.users.fetch(userId).catch(() => null);
+        //                 if (user) {
+        //                     currentAuthors.push({
+        //                         type: AuthorType.DiscordExternal,
+        //                         id: user.id,
+        //                         username: user.username,
+        //                         iconURL: user.displayAvatarURL(),
+        //                     });
+        //                 } // dont do anything otherwise
+        //             }
+        //         }
+        //     }
+        // }
 
         const newAuthors = (await Promise.all(interaction.values.map(async (id) => {
             let user = await guildHolder.getGuild().members.fetch(id).catch(() => null);
@@ -196,7 +249,7 @@ export class SetAuthorsMenu implements Menu {
             return;
         }
 
-       added.forEach(author => {
+        added.forEach(author => {
             currentAuthors.push(author);
         });
         removed.forEach(author => {
