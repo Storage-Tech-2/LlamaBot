@@ -1,7 +1,7 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, MessageFlags } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Button } from "../../interface/Button.js";
-import { canEditSubmission, extractUserIdsFromText, reclassifyAuthors, replyEphemeral } from "../../utils/Util.js";
+import { canEditSubmission, extractUserIdsFromText, getAuthorsString, reclassifyAuthors, replyEphemeral } from "../../utils/Util.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Author, AuthorType } from "../../submissions/Author.js";
 import { SetArchiveCategoryMenu } from "../menus/SetArchiveCategoryMenu.js";
@@ -67,7 +67,7 @@ export class ConfirmAuthorsButton implements Button {
 
         const str = [];
         if (currentAuthors.length) {
-            str.push('added ' + currentAuthors.map(a => a.username).join(', '));
+            str.push('added ' + getAuthorsString(currentAuthors));
         }
 
         if (str.length) {

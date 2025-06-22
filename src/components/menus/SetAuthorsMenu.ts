@@ -1,7 +1,7 @@
 import { ActionRowBuilder, MessageFlags, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, UserSelectMenuBuilder, UserSelectMenuInteraction } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { canEditSubmission, extractUserIdsFromText, replyEphemeral } from "../../utils/Util.js";
+import { canEditSubmission, extractUserIdsFromText, getAuthorsString, replyEphemeral } from "../../utils/Util.js";
 import { Author, AuthorType } from "../../submissions/Author.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
@@ -148,10 +148,10 @@ export class SetAuthorsMenu implements Menu {
 
         const str = [];
         if (added.length) {
-            str.push('added ' + added.map(a => `<@${a.id}>`).join(', '));
+            str.push('added ' +  getAuthorsString(added));
         }
         if (removed.length) {
-            str.push('removed ' + removed.map(a => `<@${a.id}>`).join(', '));
+            str.push('removed ' + getAuthorsString(removed));
         }
 
         if (str.length) {
