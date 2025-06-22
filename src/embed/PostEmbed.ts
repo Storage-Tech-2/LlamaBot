@@ -138,9 +138,9 @@ export class PostEmbed {
         const { owner, project } = getGithubOwnerAndProject(githubURL);
 
         const submissionThreadID = entryData.id;
-        const submissionsForumID = guildHolder.getConfigManager().getConfig(GuildConfigs.SUBMISSION_CHANNEL_ID);
+       // const submissionsForumID = guildHolder.getConfigManager().getConfig(GuildConfigs.SUBMISSION_CHANNEL_ID);
 
-        const submissionURL = `https://discord.com/channels/${guildHolder.getGuild().id}/${submissionsForumID}/${submissionThreadID}`;
+        const submissionURL = `https://discord.com/channels/${guildHolder.getGuild().id}/${submissionThreadID}`;
 
         const gitURL = `https://github.com/${owner}/${project}/tree/master/${entryPathPart}`;
         content.push(`\n[Submission Thread](${submissionURL})`);
