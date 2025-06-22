@@ -27,7 +27,7 @@ export class EditRevisionModal implements Modal {
             .setLabel('Features:')
             .setStyle(TextInputStyle.Paragraph)
             .setValue(revision.features.map(o => "- " + o).join('\n'))
-            .setRequired(true)
+            .setRequired(false)
 
         const authorsInput = new TextInputBuilder()
             .setCustomId('consInput')
