@@ -114,7 +114,9 @@ export class PostEmbed {
         const images = entryData.images;
 
 
-        content.push(`**Authors:** ${getAuthorsString(authors)}`);
+        if (authors.length > 0) {
+            content.push(`**Authors:** ${getAuthorsString(authors)}`);
+        }
 
         // check if authors and endorsers are the same
         if (entryData.authors.length === entryData.endorsers.length &&
