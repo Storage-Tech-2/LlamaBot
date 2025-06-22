@@ -68,7 +68,7 @@ export async function replyEphemeral(interaction: any, content: string, options 
 export function getAttachmentsFromMessage(message: Message, attachments: Attachment[] = []): Attachment[] {
     if (message.content.length > 0) {
         // Find all URLs in the message
-        const urls = message.content.match(/https?:\/\/[^\s]+/g)
+        const urls = message.content.match(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g)
         if (urls) {
             urls.forEach(url => {
                 // Check if mediafire
