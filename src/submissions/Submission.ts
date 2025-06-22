@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ChannelType, Message, MessageFlags, MessageReferenceType, Snowflake, TextThreadChannel } from "discord.js";
+import { ActionRowBuilder, ChannelType, Message, MessageReferenceType, Snowflake, TextThreadChannel } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
@@ -85,7 +85,9 @@ export class Submission {
                 if (forumChannel && forumChannel.type === ChannelType.GuildForum) {
                     const newTag = forumChannel.availableTags.find(tag => tag.name === SubmissionTagNames.NEW);
                     if (newTag) {
-                        await channel.setAppliedTags([newTag.id]);
+                        const tags = channel.appliedTags || [];
+                        tags.push(newTag?.id || '');
+                        await channel.setAppliedTags(tags);
                     }
                 }
             }
@@ -197,7 +199,7 @@ export class Submission {
 
             const channel = await this.getSubmissionChannel();
             const messages = await RevisionEmbed.sendRevisionMessages(channel, this, initialRevision, true);
-         
+
             initialRevision.id = messages[messages.length - 1].id; // Set the last message ID as the revision ID
             initialRevision.messageIds = messages.map(m => m.id); // Store all message IDs in the revision
 
