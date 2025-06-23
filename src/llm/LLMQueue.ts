@@ -82,6 +82,7 @@ export class LLMQueue {
             // Resolve the promise with the response
             request.resolve(response);
         } catch (error: any) {
+            request.reject(error);
             console.error('Error processing LLM request:', error.message);
         } finally {
             this._processing = false;
