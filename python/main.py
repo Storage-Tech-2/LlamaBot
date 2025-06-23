@@ -81,7 +81,18 @@ def generate(req: GenerateRequest):
                                    f"Choose one of {list(GENERATORS)}.")
 
     # 1️⃣ Build the concrete prompt
-    prompt = req.input_text
+    schema_file = SCHEMA_MAP[mode]
+    schema_path = SCHEMA_DIR / schema_file
+    if not schema_path.exists():
+        raise HTTPException(status_code=500,
+                            detail=f"Schema file '{schema_file}' not found.")
+    schema_str = ""
+    with open(schema_path, "r", encoding="utf-8") as f:
+        schema_str = f.read()
+    prompt = f"""You are a world class AI assistant that extracts data from text in JSON format with a strict schema. You will be given a prompt that contains a text input, and you will return a JSON object that matches the schema. The schema is defined as follows:
+{schema_str}
+
+{req.input_text}"""
 
     # 2️⃣ Call the model + constrained decoding
     try:

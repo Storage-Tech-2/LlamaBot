@@ -2,12 +2,9 @@
     "title": "Submission",
     "type": "object",
     "properties": {
-        "authors": {
-            "type": "array",
-            "items": {
-                "type": "string"
-            },
-            "description": "A list of authors of the device."
+        "description": {
+            "type": "string",
+            "description": "A description of the device."
         },
         "features": {
             "type": "array",
@@ -21,21 +18,16 @@
             "items": {
                 "type": "string"
             },
-            "description": "A list of cons/downsides of the device."
-        },
-        "description": {
-            "type": "string",
-            "description": "A description of the device."
+            "description": "Optional list of considerations/downsides of the device."
         },
         "notes": {
             "type": "string",
-            "description": "Any additional notes about the device."
+            "description": "Optional notes about the device."
         }
     },
     "required": [
         "name",
-        "authors",
-        "features",
-        "description"
+        "description",
+        "features"
     ]
 }
