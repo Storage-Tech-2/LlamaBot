@@ -130,7 +130,7 @@ export class LLMQueue {
                     input_text: prompt
                 },
                 timeout: {
-                    request: 30000 // 30 seconds
+                    request: 60000 // 60 seconds
                 }
             }).json();
             return response as LLMResponse;
