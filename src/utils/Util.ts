@@ -924,3 +924,18 @@ export function escapeDiscordString(str: string): string {
         .replace(/</g, '\\<')   // Escape less than
         .replace(/!/g, '\\!');  // Escape exclamation marks
 }
+
+export function truncateFileName(fileName: string, maxLength: number): string {
+    if (fileName.length <= maxLength) {
+        return fileName;
+    }
+    const extension = Path.extname(fileName);
+    const baseName = Path.basename(fileName, extension);
+    const truncatedBaseName = baseName.slice(0, Math.max(0,maxLength - extension.length - 3)); // Leave space for "..."
+    let newName = `${truncatedBaseName}...${extension}`;
+    if (newName.length > maxLength) {
+        // If the truncated name is still too long, truncate further
+        newName = newName.slice(0, maxLength);
+    }
+    return newName;
+}

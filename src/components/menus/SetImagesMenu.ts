@@ -1,7 +1,7 @@
 import { ActionRowBuilder, AttachmentBuilder, EmbedBuilder, Interaction, Message, MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { canEditSubmission, getFileKey, replyEphemeral } from "../../utils/Util.js";
+import { canEditSubmission, getFileKey, replyEphemeral, truncateFileName } from "../../utils/Util.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Image } from "../../submissions/Image.js";
@@ -23,7 +23,7 @@ export class SetImagesMenu implements Menu {
             .setPlaceholder('Select images')
             .addOptions(
                 imageAttachments.map(image => {
-                    return new StringSelectMenuOptionBuilder().setLabel(image.name)
+                    return new StringSelectMenuOptionBuilder().setLabel(truncateFileName(image.name, 100))
                         .setValue(image.id)
                         .setDescription(image.description)
                         .setDefault(currentImages.some(img => img.id === image.id))
