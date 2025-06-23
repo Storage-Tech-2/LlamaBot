@@ -75,7 +75,7 @@ export function getAttachmentsFromMessage(message: Message, attachments: Attachm
                 // Check if mediafire
                 // https://www.mediafire.com/file/idjbw9lc1kt4obj/1_17_Crafter-r2.zip/file
                 // https://www.mediafire.com/folder/5ajiire4a6cs5/Scorpio+MIS
-                if (url.startsWith('https://www.mediafire.com/file/') || url.startsWith('https://mediafire.com/folder/')) {
+                if (url.startsWith('https://www.mediafire.com/file/') || url.startsWith('https://www.mediafire.com/folder/')) {
                     const id = url.split('/')[4]
                     const name = url.split('/')[5]
                     // check if duplicate
