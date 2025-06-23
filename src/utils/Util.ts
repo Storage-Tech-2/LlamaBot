@@ -218,7 +218,12 @@ export async function processImages(images: Image[], download_folder: string, pr
         }
 
         const downloadPath = Path.join(download_folder, getFileKey(image));
-        const imageData = await got(image.url, { responseType: 'buffer' })
+        let imageData;
+        try {
+            imageData = await got(image.url, { responseType: 'buffer' });
+        } catch (error) {
+            throw new Error(`Failed to download image ${image.name} at ${image.url}, try reuploading the file directly to the thread.`);
+        }
         await fs.writeFile(downloadPath, imageData.body);
         const s = await sharp(downloadPath)
             .trim()
@@ -284,8 +289,12 @@ export async function processAttachments(attachments: Attachment[], attachments_
 
             // If the attachment already exists, skip download
             if (!await fs.access(attachmentPath).then(() => true).catch(() => false)) {
-                const attachmentData = await got(attachment.url, { responseType: 'buffer' });
-                await fs.writeFile(attachmentPath, attachmentData.body);
+                try {
+                    const attachmentData = await got(attachment.url, { responseType: 'buffer' });
+                    await fs.writeFile(attachmentPath, attachmentData.body);
+                } catch (error) {
+                    throw new Error(`Failed to download attachment ${attachment.name} at ${attachment.url}, try reuploading the file directly to the thread.`);
+                }
             }
 
             if (ext === 'litematic') {

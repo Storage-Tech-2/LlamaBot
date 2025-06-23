@@ -71,7 +71,7 @@ export class Submission {
         if (channel.isThread() && channel.archived) {
             await channel.setArchived(false);
         }
-        
+
         return channel as TextThreadChannel;
     }
 
@@ -275,9 +275,9 @@ export class Submission {
             const downloadFolder = Path.join(this.folderPath, 'downloaded_images');
             await processImages(images, downloadFolder, processedFolder);
             this.imagesProcessing = false;
-        } catch (error) {
+        } catch (error: any) {
             this.imagesProcessing = false;
-            console.error('Error processing images:', error);
+            console.error('Error processing images:', error.message);
             throw error;
         }
     }
@@ -293,9 +293,9 @@ export class Submission {
             const attachmentsFolder = this.getAttachmentFolder();
             await processAttachments(attachments, attachmentsFolder);
             this.attachmentsProcessing = false;
-        } catch (error) {
+        } catch (error: any) {
             this.attachmentsProcessing = false;
-            console.error('Error processing attachments:', error);
+            console.error('Error processing attachments:', error.message);
             throw error;
         }
     }
