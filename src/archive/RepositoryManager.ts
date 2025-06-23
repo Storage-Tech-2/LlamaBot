@@ -1462,7 +1462,7 @@ export class RepositoryManager {
                         }
                     }
 
-                    if (addedTags.length > 0 && removedTags.length > 0) {
+                    if (addedTags.length > 0 || removedTags.length > 0) {
                         await channel.send({
                             content: message + (removedTags.length > 0 ? ' from the post.' : ' to the post.'),
                         });
