@@ -9,10 +9,6 @@
             },
             "description": "A list of authors of the device."
         },
-        "description": {
-            "type": "string",
-            "description": "A description of the device."
-        },
         "features": {
             "type": "array",
             "items": {
@@ -27,6 +23,10 @@
             },
             "description": "A list of cons/downsides of the device."
         },
+        "description": {
+            "type": "string",
+            "description": "A description of the device."
+        },
         "notes": {
             "type": "string",
             "description": "Any additional notes about the device."
@@ -34,8 +34,8 @@
     },
     "required": [
         "name",
-        "description",
         "authors",
-        "features"
+        "features",
+        "description"
     ]
 }
