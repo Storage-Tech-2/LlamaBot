@@ -23,7 +23,7 @@ export class SetImagesMenu implements Menu {
             .setPlaceholder('Select images')
             .addOptions(
                 imageAttachments.map(image => {
-                    return new StringSelectMenuOptionBuilder().setLabel(truncateFileName(image.name, 100))
+                    return new StringSelectMenuOptionBuilder().setLabel(truncateFileName(image.name, 50))
                         .setValue(image.id)
                         .setDescription(image.description)
                         .setDefault(currentImages.some(img => img.id === image.id))

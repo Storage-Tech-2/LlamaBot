@@ -21,7 +21,7 @@ export class SetAttachmentsMenu implements Menu {
             .setPlaceholder('Select files')
             .addOptions(
                 fileAttachments.map(file => {
-                    return new StringSelectMenuOptionBuilder().setLabel(truncateFileName(file.name, 100))
+                    return new StringSelectMenuOptionBuilder().setLabel(truncateFileName(file.name, 50))
                         .setValue(file.id)
                         .setDescription(file.description.substring(0, 100))
                         .setDefault(currentFiles.some(att => att.id === file.id))
