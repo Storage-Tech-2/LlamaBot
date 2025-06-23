@@ -335,6 +335,7 @@ export class Mwa implements Command {
                     SendMessagesInThreads: true,
                     ManageThreads: true,
                     ManageMessages: true,
+                    ManageChannels: true,
                 })
             }
         }
