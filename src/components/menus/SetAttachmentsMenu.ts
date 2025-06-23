@@ -75,8 +75,13 @@ export class SetAttachmentsMenu implements Menu {
         await interaction.deferReply()
         try {
             await submission.processAttachments()
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error processing attachments:', error)
+            await interaction.editReply({
+                content: 'Failed to process attachments: ' + error.message,
+                flags: MessageFlags.SuppressEmbeds
+            });
+            return;
         }
 
         submission.save()

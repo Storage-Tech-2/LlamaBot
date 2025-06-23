@@ -120,9 +120,9 @@ export class SetImagesMenu implements Menu {
         await interaction.deferReply()
         try {
             await submission.processImages();
-        } catch (error) {
-            console.error('Error processing image:', error)
-            interaction.editReply('Error processing image. Please try again later.')
+        } catch (error: any) {
+            console.error('Error processing image:', error.message)
+            interaction.editReply('Error processing image: ' + error.message);
             return
         }
 
