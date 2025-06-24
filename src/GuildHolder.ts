@@ -115,7 +115,9 @@ export class GuildHolder {
     public async handleMessage(message: Message) {
 
         // Check if message contains "thanks" or "thank you"
-        if (message.reference && message.content.match(/\b(thanks|thank you|thank u)[!\.]?\b/i)) {
+        // /\b(thanks|thank you|thank u)[!\.]?\b/i
+        // don't if theres a no before it
+        if (message.reference && message.content.match(/\b(?:no\s+)?(?:thanks|thank you|thank u)[!\.]?\b/i)) {
             this.handleThanksMessage(message).catch(e => {
                 console.error('Error handling thanks message:', e);
             });

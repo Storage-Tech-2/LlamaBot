@@ -92,7 +92,8 @@ export class Bot {
                 GatewayIntentBits.Guilds,
                 GatewayIntentBits.GuildMessages,
                 GatewayIntentBits.MessageContent,
-                GatewayIntentBits.GuildMembers
+                GatewayIntentBits.GuildMembers,
+                GatewayIntentBits.GuildModeration
             ]
         });
     }
