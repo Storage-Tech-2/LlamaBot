@@ -65,6 +65,8 @@ export class SetAttachmentsMenu implements Menu {
             return
         }
 
+        await interaction.deferReply()
+
         const attachments = await submission.getAttachments()
         // const currentAttachments = submission.submissionData.attachments || []
         const newAttachments = interaction.values.map(id => {
@@ -72,7 +74,6 @@ export class SetAttachmentsMenu implements Menu {
         }).filter(o => !!o);
 
         submission.getConfigManager().setConfig(SubmissionConfigs.ATTACHMENTS, newAttachments);
-        await interaction.deferReply()
         try {
             await submission.processAttachments()
         } catch (error: any) {
