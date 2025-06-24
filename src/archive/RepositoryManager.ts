@@ -17,8 +17,6 @@ import { ArchiveComment } from "./ArchiveComments.js";
 import { Author, AuthorType } from "../submissions/Author.js";
 import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
 import { makeEntryReadMe } from "./ReadMeMaker.js";
-
-
 export class RepositoryManager {
     private folderPath: string;
     private git?: SimpleGit;
@@ -1681,6 +1679,24 @@ export class RepositoryManager {
         // Write the README file
         await fs.writeFile(readmePath, readmeContent, 'utf-8');
         return readmePath
+    }
+
+    public async getArchiveStats(): Promise<{numPosts: number, numSubmissions: number}>  {
+        let numPosts = 0;
+        
+        const channelRefs = this.getChannelReferences();
+        for (const channelRef of channelRefs) {
+            const channelPath = Path.join(this.folderPath, channelRef.path);
+            const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
+            numPosts += archiveChannel.getData().entries.length;
+        }
+
+        const numSubmissions = (await this.guildHolder.getSubmissionsManager().getSubmissionsList()).length;
+
+        return {
+            numPosts,
+            numSubmissions
+        };
     }
 
 }

@@ -84,6 +84,19 @@ export class SubmissionsManager {
         }
     }
 
+    public async getSubmissionsList(): Promise<Snowflake[]> {
+        const folder = this.storagePath;
+        try {
+            const files = await fs.readdir(folder);
+            const submissions = files.filter(file => file.match(/^\d+$/)); // Match only numeric folder names
+            return submissions as Snowflake[];
+        }
+        catch (error) {
+            console.error('Error reading submissions directory:', error);
+            return [];
+        }
+    }
+
     public removeSubmission(id: Snowflake) {
         const submission = this.submissions.get(id);
         if (submission && submission.canJunk()) {
