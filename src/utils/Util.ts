@@ -763,7 +763,7 @@ export function canEditSubmission(interaction: Interaction, submission: Submissi
         return false;
     }
 
-    if (isAdmin(interaction) || isModerator(interaction) || isEditor(interaction, submission.getGuildHolder())) {
+    if (isAdmin(interaction) || isModerator(interaction) || isEditor(interaction, submission.getGuildHolder()) || isEndorser(interaction, submission.getGuildHolder())) {
         return true;
     }
 
@@ -771,7 +771,7 @@ export function canEditSubmission(interaction: Interaction, submission: Submissi
         return false;
     }
 
-    if (isAuthor(interaction, submission) || isEndorser(interaction, submission.getGuildHolder())) {
+    if (isAuthor(interaction, submission)) {
         return true;
     }
 

@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
-import { isEditor, isModerator, replyEphemeral } from "../utils/Util.js";
+import { isEditor, isEndorser, isModerator, replyEphemeral } from "../utils/Util.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
 
@@ -88,8 +88,11 @@ export class EditorPowersCommand implements Command {
         }
 
         // Check if user has endorse role
+
+        const subcommand = interaction.options.getSubcommand();
         if (
-            !isEditor(interaction, guildHolder) && !isModerator(interaction)
+            (!isEditor(interaction, guildHolder) && !isModerator(interaction)) &&
+            (subcommand !== 'unlock' || !isEndorser(interaction, guildHolder))
         ) {
             replyEphemeral(interaction, 'You do not have permission to use this command!');
             return;
@@ -102,7 +105,6 @@ export class EditorPowersCommand implements Command {
             return;
         }
 
-        const subcommand = interaction.options.getSubcommand();
         switch (subcommand) {
             case 'clearendorsements':
                 const endorsements = submission.getConfigManager().getConfig(SubmissionConfigs.ENDORSERS);
