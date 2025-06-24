@@ -1421,8 +1421,36 @@ export class RepositoryManager {
                 }
             }
 
-            const oldEntryData = deepClone(found.entry.getData());
             const entryData = found.entry.getData();
+
+            const addedTags = [];
+            const removedTags = []
+            const modifiedTags = [];
+
+            for (const tag of newTags) {
+                const existingTag = entryData.tags.find(t => t.id === tag.id);
+                if (existingTag) {
+                    if (existingTag.name !== tag.name) {
+                        modifiedTags.push(tag);
+                    }
+                } else {
+                    addedTags.push(tag);
+                }
+            }
+
+            for (const tag of entryData.tags) {
+                const existingTag = newTags.find(t => t.id === tag.id);
+                if (!existingTag) {
+                    removedTags.push(tag);
+                }
+            }
+
+            if (addedTags.length === 0 && removedTags.length === 0 && modifiedTags.length === 0) {
+                // No tags changed, nothing to do
+                this.lock.release();
+                return;
+            }
+
             entryData.tags = newTags.map(tag => ({
                 id: tag.id,
                 name: tag.name
@@ -1439,8 +1467,6 @@ export class RepositoryManager {
 
                     // send message to the user
                     const channel = await submission.getSubmissionChannel();
-                    const addedTags = entryData.tags.filter(t => !oldEntryData.tags.some(ot => ot.id === t.id));
-                    const removedTags = oldEntryData.tags.filter(t => !entryData.tags.some(nt => nt.id === t.id));
 
                     let message = ``;
                     if (addedTags.length > 0) {
@@ -1466,10 +1492,9 @@ export class RepositoryManager {
                         await channel.send({
                             content: message + (removedTags.length > 0 ? ' from the post.' : ' to the post.'),
                         });
+                        await submission.save();
+                        await submission.statusUpdated();
                     }
-
-                    await submission.save();
-                    await submission.statusUpdated();
                 }
                 // this.guildHolder.logUpdate(oldEntryData, entryData).catch(e => {
                 //     console.error("Error logging tag change:", e);
