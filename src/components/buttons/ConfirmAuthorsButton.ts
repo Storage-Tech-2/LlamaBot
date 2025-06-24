@@ -83,7 +83,6 @@ export class ConfirmAuthorsButton implements Button {
                 flags: [MessageFlags.SuppressNotifications]
             });
         }
-
         const blacklist = guildHolder.getConfigManager().getConfig(GuildConfigs.BLACKLISTED_USERS);
         const blacklistedAuthors = blacklist.filter(entry => {
             return currentAuthors.some(b => areAuthorsSame(b, entry.author));
@@ -93,16 +92,18 @@ export class ConfirmAuthorsButton implements Button {
                 return `- ${getAuthorsString([entry.author])}: ${entry.reason || 'No reason provided'}`;
             }).join('\n');
             const split = splitIntoChunks(msg, 2000);
-
-            await interaction.reply({
-                content: split[0],
-                flags: [MessageFlags.SuppressNotifications]
-            });
             for (let i = 1; i < split.length; i++) {
-                await interaction.followUp({
-                    content: split[i],
-                    flags: [MessageFlags.SuppressNotifications]
-                });
+                if (interaction.replied) {
+                    await interaction.reply({
+                        content: split[0],
+                        flags: [MessageFlags.SuppressNotifications]
+                    });
+                } else {
+                    await interaction.followUp({
+                        content: split[i],
+                        flags: [MessageFlags.SuppressNotifications]
+                    });
+                }
             }
         }
 
