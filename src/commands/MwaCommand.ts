@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, InteractionContextType, ChannelType, ActionRowBuilder, ForumChannel, GuildForumTag, ForumLayoutType, SortOrderType, Snowflake, CategoryChannel } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
-import { getCodeAndDescriptionFromTopic, replyEphemeral } from "../utils/Util.js";
+import { areAuthorsSame, getAuthorFromIdentifier, getAuthorsString, getCodeAndDescriptionFromTopic, replyEphemeral, splitIntoChunks } from "../utils/Util.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { SetArchiveCategoriesMenu } from "../components/menus/SetArchiveCategoriesMenu.js";
 import { SetEndorseRolesMenu } from "../components/menus/SetEndorseRolesMenu.js";
@@ -77,6 +77,39 @@ export class Mwa implements Command {
             )
             .addSubcommand(subcommand =>
                 subcommand
+                    .setName('blacklistadd')
+                    .setDescription('Add a user to the do-not-archive list')
+                    .addStringOption(option =>
+                        option
+                            .setName('user')
+                            .setDescription('User name or id to add to the do-not-archive list')
+                            .setRequired(true)
+                    )
+                    .addStringOption(option =>
+                        option
+                            .setName('reason')
+                            .setDescription('Reason for blacklisting the user')
+                            .setRequired(false)
+                    )
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('blacklistremove')
+                    .setDescription('Remove a user from the do-not-archive list')
+                    .addStringOption(option =>
+                        option
+                            .setName('user')
+                            .setDescription('User name or id to remove from the do-not-archive list')
+                            .setRequired(true)
+                    )
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('blacklistlist')
+                    .setDescription('List all users in the do-not-archive list')
+            )
+            .addSubcommand(subcommand =>
+                subcommand
                     .setName('setrepo')
                     .setDescription('Set the GitHub repository for the archive')
                     .addStringOption(option =>
@@ -108,9 +141,90 @@ export class Mwa implements Command {
             this.setRepo(guildHolder, interaction)
         } else if (interaction.options.getSubcommand() === 'makeindex') {
             this.makeIndex(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'blacklistadd') {
+            this.addToBlacklist(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'blacklistremove') {
+            this.removeFromBlacklist(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'blacklistlist') {
+            this.listBlacklist(guildHolder, interaction);
         } else {
             await replyEphemeral(interaction, 'Invalid subcommand. Use `/mwa setsubmissions`, `/mwa setlogs`, `/mwa setarchives`, `/mwa setuparchives`, `/mwa setendorseroles`, `/mwa seteditorroles`, `/mwa sethelperrole` or `/mwa setrepo`.');
             return;
+        }
+    }
+
+    async addToBlacklist(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const identifier = interaction.options.getString('user');
+        if (!identifier) {
+            await replyEphemeral(interaction, 'Invalid user identifier');
+            return;
+        }
+
+        const reason = interaction.options.getString('reason') || 'No reason provided';
+
+        const author = await getAuthorFromIdentifier(guildHolder, identifier);
+        if (!author) {
+            await replyEphemeral(interaction, `Invalid identifier: ${identifier}. Please provide a valid Discord ID or username.`);
+            return;
+        }
+
+        const blacklistedUsers = guildHolder.getConfigManager().getConfig(GuildConfigs.BLACKLISTED_USERS);
+        if (blacklistedUsers.some(user => areAuthorsSame(user.author, author))) {
+            await replyEphemeral(interaction, `User ${getAuthorsString([author])} is already in the do-not-archive list.`);
+            return;
+        }
+
+        blacklistedUsers.push({ author, reason });
+        guildHolder.getConfigManager().setConfig(GuildConfigs.BLACKLISTED_USERS, blacklistedUsers);
+
+        interaction.reply({
+            content: `Successfully added ${getAuthorsString([author])} to the do-not-archive list for reason: ${reason}`,
+        });
+    }
+
+    async removeFromBlacklist(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const identifier = interaction.options.getString('user');
+        if (!identifier) {
+            await replyEphemeral(interaction, 'Invalid user identifier');
+            return;
+        }
+
+        const author = await getAuthorFromIdentifier(guildHolder, identifier);
+        if (!author) {
+            await replyEphemeral(interaction, `Invalid identifier: ${identifier}. Please provide a valid Discord ID or username.`);
+            return;
+        }
+
+        const blacklistedUsers = guildHolder.getConfigManager().getConfig(GuildConfigs.BLACKLISTED_USERS);
+        const index = blacklistedUsers.findIndex(user => areAuthorsSame(user.author, author));
+        if (index === -1) {
+            await replyEphemeral(interaction, `User ${getAuthorsString([author])} is not in the do-not-archive list.`);
+            return;
+        }
+
+        blacklistedUsers.splice(index, 1);
+        guildHolder.getConfigManager().setConfig(GuildConfigs.BLACKLISTED_USERS, blacklistedUsers);
+
+        interaction.reply({
+            content: `Successfully removed ${getAuthorsString([author])} from the do-not-archive list.`,
+        });
+    }
+
+    async listBlacklist(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const blacklistedUsers = guildHolder.getConfigManager().getConfig(GuildConfigs.BLACKLISTED_USERS);
+        if (blacklistedUsers.length === 0) {
+            await replyEphemeral(interaction, 'The do-not-archive list is empty.');
+            return;
+        }
+
+        const response = `## Current Do-Not-Archive user list:\n` + blacklistedUsers.map(user => {
+            return `- ${getAuthorsString([user.author])}: ${user.reason}`;
+        }).join('\n');
+
+        const chunks = splitIntoChunks(response, 2000);
+        await interaction.reply({  content: chunks[0] });
+        for (let i = 1; i < chunks.length; i++) {
+            await interaction.followUp({ content: chunks[i] });
         }
     }
 

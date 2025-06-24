@@ -931,11 +931,55 @@ export function truncateFileName(fileName: string, maxLength: number): string {
     }
     const extension = Path.extname(fileName);
     const baseName = Path.basename(fileName, extension);
-    const truncatedBaseName = baseName.slice(0, Math.max(0,maxLength - extension.length - 3)); // Leave space for "..."
+    const truncatedBaseName = baseName.slice(0, Math.max(0, maxLength - extension.length - 3)); // Leave space for "..."
     let newName = `${truncatedBaseName}...${extension}`;
     if (newName.length > maxLength) {
         // If the truncated name is still too long, truncate further
         newName = newName.slice(0, maxLength);
     }
     return newName;
+}
+
+export async function getAuthorFromIdentifier(guildHolder: GuildHolder, identifier: string): Promise<Author | null> {
+    // check if identifier is a valid Discord ID
+    const isId = /^\d{17,19}$/.test(identifier) || (identifier.startsWith('<@') && identifier.endsWith('>'));
+    const author: Author = {
+        type: AuthorType.Unknown,
+        username: identifier,
+    }
+    if (isId) {
+        const userId = identifier.replace(/<@!?/, '').replace(/>/, '');
+        const user = await guildHolder.getBot().client.users.fetch(userId).catch(() => null);
+        if (!user) {
+            return null; // User not found
+        }
+
+        author.id = user.id;
+        author.username = user.username;
+        author.displayName = user.username;
+        author.iconURL = user.displayAvatarURL();
+        author.type = AuthorType.DiscordInGuild;
+    }
+    return author;
+}
+
+export function areAuthorsSame(
+    author1: Author | null,
+    author2: Author | null,
+): boolean {
+    if (!author1 && !author2) return true; // Both are null
+    if (!author1 || !author2) return false; // One is null, the other is not
+
+    // Compare IDs and types
+    if (author1.id === author2.id) {
+        return true;
+    }
+
+    // if they are not unknown, then retun false
+    if (author1.type !== AuthorType.Unknown && author2.type !== AuthorType.Unknown) {
+        return false;
+    }
+
+    // compare usernames
+    return author1.username === author2.username;
 }

@@ -1,5 +1,6 @@
 import { Snowflake } from "discord.js";
 import { Config } from "./ConfigManager.js";
+import { Author } from "../submissions/Author.js";
 
 export const GuildConfigs = {
     /**
@@ -52,4 +53,9 @@ export const GuildConfigs = {
      * Helper role threshold
      */
     HELPER_ROLE_THRESHOLD: new Config<number>("helperRoleThreshold", 5),
+
+    /**
+     * User blacklist
+     */
+    BLACKLISTED_USERS: new Config<{author: Author, reason: string}[]>("blacklistedUsers", []),
 }

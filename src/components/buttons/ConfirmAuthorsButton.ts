@@ -1,10 +1,11 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, MessageFlags } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Button } from "../../interface/Button.js";
-import { canEditSubmission, extractUserIdsFromText, getAuthorsString, reclassifyAuthors, replyEphemeral } from "../../utils/Util.js";
+import { areAuthorsSame, canEditSubmission, extractUserIdsFromText, getAuthorsString, reclassifyAuthors, replyEphemeral, splitIntoChunks } from "../../utils/Util.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Author, AuthorType } from "../../submissions/Author.js";
 import { SetArchiveCategoryMenu } from "../menus/SetArchiveCategoryMenu.js";
+import { GuildConfigs } from "../../config/GuildConfigs.js";
 
 export class ConfirmAuthorsButton implements Button {
     getID(): string {
@@ -81,6 +82,28 @@ export class ConfirmAuthorsButton implements Button {
                 content: `<@${interaction.user.id}> set zero authors`,
                 flags: [MessageFlags.SuppressNotifications]
             });
+        }
+
+        const blacklist = guildHolder.getConfigManager().getConfig(GuildConfigs.BLACKLISTED_USERS);
+        const blacklistedAuthors = blacklist.filter(entry => {
+            return currentAuthors.some(b => areAuthorsSame(b, entry.author));
+        });
+        if (blacklistedAuthors.length > 0) {
+            const msg = `Warning: The following authors are on the Do-not-archive list:\n` + blacklistedAuthors.map(entry => {
+                return `- ${getAuthorsString([entry.author])}: ${entry.reason || 'No reason provided'}`;
+            }).join('\n');
+            const split = splitIntoChunks(msg, 2000);
+
+            await interaction.reply({
+                content: split[0],
+                flags: [MessageFlags.SuppressNotifications]
+            });
+            for (let i = 1; i < split.length; i++) {
+                await interaction.followUp({
+                    content: split[i],
+                    flags: [MessageFlags.SuppressNotifications]
+                });
+            }
         }
 
         const row = new ActionRowBuilder()

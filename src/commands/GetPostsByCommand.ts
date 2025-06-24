@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
-import { replyEphemeral } from "../utils/Util.js";
+import { getAuthorFromIdentifier, replyEphemeral } from "../utils/Util.js";
 import { Author, AuthorType } from "../submissions/Author.js";
 
 export class GetPostsByCommand implements Command {
@@ -52,24 +52,10 @@ export class GetPostsByCommand implements Command {
         if (subcommand === 'author' || subcommand === 'endorser') {
             const identifier = interaction.options.getString(subcommand, true);
             // check if identifier is a valid Discord ID
-            const isId = /^\d{17,19}$/.test(identifier) || (identifier.startsWith('<@') && identifier.endsWith('>'));
-            const author:Author = {
-                type: AuthorType.Unknown,
-                username: identifier,
-            }
-            if (isId) {
-                const userId = identifier.replace(/<@!?/, '').replace(/>/, '');
-                const user = await guildHolder.getBot().client.users.fetch(userId).catch(() => null);
-                if (!user) {
-                    await replyEphemeral(interaction, `User not found! Please check the ID or mention.`);
-                    return;
-                }
-
-                author.id = user.id;
-                author.username = user.username;
-                author.displayName = user.username;
-                author.iconURL = user.displayAvatarURL();
-                author.type = AuthorType.DiscordInGuild;
+            const author = await getAuthorFromIdentifier(guildHolder, identifier);
+            if (!author) {
+                await replyEphemeral(interaction, `Invalid identifier: ${identifier}. Please provide a valid Discord ID or username.`);
+                return;
             }
 
             const entries = await guildHolder.getRepositoryManager().getEntriesByAuthor(author, subcommand === 'endorser');

@@ -1,11 +1,12 @@
 import { ActionRowBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
-import { canEditSubmission, extractUserIdsFromText, reclassifyAuthors, replyEphemeral } from "../../utils/Util.js";
+import { areAuthorsSame, canEditSubmission, extractUserIdsFromText, getAuthorsString, reclassifyAuthors, replyEphemeral, splitIntoChunks } from "../../utils/Util.js";
 import { Author, AuthorType } from "../../submissions/Author.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { SetAuthorsButton } from "../buttons/SetAuthorsButton.js";
 import { SetArchiveCategoryMenu } from "../menus/SetArchiveCategoryMenu.js";
+import { GuildConfigs } from "../../config/GuildConfigs.js";
 
 export class AddAuthorModal implements Modal {
     getID(): string {
@@ -142,6 +143,27 @@ export class AddAuthorModal implements Modal {
             flags: MessageFlags.SuppressNotifications
         });
 
+        const blacklist = guildHolder.getConfigManager().getConfig(GuildConfigs.BLACKLISTED_USERS);
+        const blacklistedAuthors = blacklist.filter(entry => {
+            return currentAuthors.some(b => areAuthorsSame(b, entry.author));
+        });
+        if (blacklistedAuthors.length > 0) {
+            const msg = `Warning: The following authors are on the Do-not-archive list:\n` + blacklistedAuthors.map(entry => {
+                return `- ${getAuthorsString([entry.author])}: ${entry.reason || 'No reason provided'}`;
+            }).join('\n');
+            const split = splitIntoChunks(msg, 2000);
+
+            await interaction.reply({
+                content: split[0],
+                flags: [MessageFlags.SuppressNotifications]
+            });
+            for (let i = 1; i < split.length; i++) {
+                await interaction.followUp({
+                    content: split[i],
+                    flags: [MessageFlags.SuppressNotifications]
+                });
+            }
+        }
 
 
         await SetAuthorsButton.sendAuthorsMenuAndButton(guildHolder, submission, interaction);
