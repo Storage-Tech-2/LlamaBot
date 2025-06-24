@@ -233,6 +233,12 @@ export class GuildHolder {
 
         // Check if the sender and receiver are the same
         if (thanksSenderID === thanksRecieverID) {
+                 const embed = new EmbedBuilder()
+                .setColor(0x00FF00) // Green color for thank you message
+                .setTitle(`Good Job!`)
+                .setDescription(`Self-appreciation is great, but we won't give you a point for it. :heart:`)
+                .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
+            await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
             return;
         }
 
