@@ -32,7 +32,7 @@ export class SetHelperRoleMenu implements Menu {
         
         guildHolder.getConfigManager().setConfig(GuildConfigs.HELPER_ROLE_ID, roles.first()?.id || '');
         interaction.reply({
-            content: `<@${interaction.user.id}> Modified the endorsement roles to: ${roles.first()?.name || 'None'}`,
+            content: `<@${interaction.user.id}> Modified the helper roles to: ${roles.first()?.name || 'None'}`,
         });
     }
 
