@@ -1,61 +1,6 @@
 import { Prompt } from "./Prompt.js";
 
-const prompt_template = `
-Create a JSON object containing the description and a list of features extracted from a given text. Cons and notes are optional but should be included if present.
-
-Example:
-
-Input:
-*By @RedGrosso, with help from @Walter and @MoonyResearched, based on design by @InspectorTalon and @RaPsCaLLioN1138*
-
-A simple multi-item-sorter storage system.
-
-* Slice is very compact (5x9x2)
-* Can sort one item stack every 24gts (up to 21x hopper speed)
-* Sorts both 64 & 16 stackables
-* Unstackables are sent to their own output
-
-Cons:
-* Noisy
-* Each category is limited to 1x hopper speed.
-* Extremely large, continuous input to a single category can cause items to be incorrectly sent to unsorted.
-
-Additional Credits:
-* Chest-Minecart Input: @KikuGie & @Philgoodinator
-* Shulker box Unloader: @Christone & @javi
-* Cart Yeeter: @C5, @Inspector Talon, et al.
-
-Output:
-{
-  "authors": [
-    "@RedGrosso",
-    "@Walter",
-    "@MoonyResearched",
-    "@InspectorTalon",
-    "@RaPsCaLLioN1138",
-    "@KikuGie",
-    "@Philgoodinator",
-    "@Christone",
-    "@javi",
-    "@C5"
-  ],
-  "description": "A simple multi-item-sorter storage system.",
-  "features": [
-    "Slice is very compact (5x9x2)",
-    "Can sort one item stack every 24gts (up to 21x hopper speed)",
-    "Sorts both 64 & 16 stackables",
-    "Unstackables are sent to their own output",
-    "Boxes are automatically unloaded"
-  ],
-  "cons": [
-    "Noisy",
-    "Each category is limited to 1x hopper speed.",
-    "Extremely large, continuous input to a single category can cause items to be incorrectly sent to unsorted."
-  ],
-  "notes": "Chest-Minecart Input: @KikuGie & @Philgoodinator. Shulker box Unloader: @Christone & @javi. Cart Yeeter: @C5, @Inspector Talon, et al."
-}
-
-Now, extract the JSON object from the following text:
+const prompt_template = `Now, extract the JSON object from the following text:
 {{input}}`;
 
 export class ExtractionPrompt implements Prompt {
