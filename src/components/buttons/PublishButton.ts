@@ -52,7 +52,7 @@ export class PublishButton implements Button {
         const url = submission.getConfigManager().getConfig(SubmissionConfigs.POST)?.threadURL;
               
         await interaction.followUp({
-            content: `Submission published successfully! ${url}\nNote: The submission has been locked to prevent further edits. Please contact an editor if you need to make changes.`,
+            content: `Submission published successfully! ${url}\nNote: The submission has been locked to prevent further edits. Please contact an editor/endorser if you need to make changes.`,
         });
     }
 
