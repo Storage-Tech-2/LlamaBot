@@ -113,14 +113,17 @@ export class GuildHolder {
      * Handles a message received in the guild.
      */
     public async handleMessage(message: Message) {
-
-        // Check if message contains "thanks" or "thank you"
-        // /\b(thanks|thank you|thank u)[!\.]?\b/i
-        // don't if theres a no before it
-        if (message.reference && message.content.match(/\b(?:no\s+)?(?:thanks|thank you|thank u)[!\.]?\b/i)) {
-            this.handleThanksMessage(message).catch(e => {
-                console.error('Error handling thanks message:', e);
-            });
+        if (message.reference) {
+            // Check if message contains "thanks" or "thank you"
+            // /\b(thanks|thank you|thank u)[!\.]?\b/i
+            // don't if theres a no before it
+            const words = message.content.split(/\s+/).map(word => word.toLowerCase().trim().replace(/[^a-z0-9]/gi, ''));
+            const thankIndex = words.findIndex(word => word === 'thanks' || word === 'thank' || word === 'thankyou' || word === 'thanku');
+            if (thankIndex !== -1 && (thankIndex === 0 || words[thankIndex - 1] !== 'no')) {
+                this.handleThanksMessage(message).catch(e => {
+                    console.error('Error handling thanks message:', e);
+                });
+            }
         }
 
         // Handle submissions
