@@ -244,6 +244,12 @@ export class GuildHolder {
 
         // Check if the receiver is a bot
         if (originalMessage.author.bot) {
+            const embed = new EmbedBuilder()
+                .setColor(0x00FF00) // Green color for thank you message
+                .setTitle(`Thank you too!`)
+                .setDescription(`We appreciate your gratitude, but as a large language model, I am not a person so I cannot give you points.`)
+                .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
+            await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
             return;
         }
 
