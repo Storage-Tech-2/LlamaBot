@@ -93,7 +93,7 @@ export class ConfirmAuthorsButton implements Button {
             }).join('\n');
             const split = splitIntoChunks(msg, 2000);
             for (let i = 0; i < split.length; i++) {
-                if (interaction.replied) {
+                if (!interaction.replied) {
                     await interaction.reply({
                         content: split[0],
                         flags: [MessageFlags.SuppressNotifications]
