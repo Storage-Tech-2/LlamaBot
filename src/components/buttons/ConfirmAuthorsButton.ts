@@ -92,7 +92,7 @@ export class ConfirmAuthorsButton implements Button {
                 return `- ${getAuthorsString([entry.author])}: ${entry.reason || 'No reason provided'}`;
             }).join('\n');
             const split = splitIntoChunks(msg, 2000);
-            for (let i = 1; i < split.length; i++) {
+            for (let i = 0; i < split.length; i++) {
                 if (interaction.replied) {
                     await interaction.reply({
                         content: split[0],
