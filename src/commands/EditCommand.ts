@@ -113,7 +113,7 @@ export class EditCommand implements Command {
                     return;
                 }
                 const publishButton = new PublishButton().getBuilder(submission.getConfigManager().getConfig(SubmissionConfigs.STATUS) === SubmissionStatus.ACCEPTED);
-                await interaction.channel.send({
+                await interaction.reply({
                     content: `Congratulations! Your submission is now ready to be published! Click the button below to proceed.`,
                     components: [(new ActionRowBuilder().addComponents(publishButton)) as any]
                 });
