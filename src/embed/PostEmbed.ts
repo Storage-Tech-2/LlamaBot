@@ -1,5 +1,5 @@
 import { ActionRowBuilder, AttachmentBuilder, EmbedBuilder, Message } from "discord.js";
-import { areObjectsIdentical, escapeString, getAuthorsString, getGithubOwnerAndProject } from "../utils/Util.js";
+import { areObjectsIdentical, escapeDiscordString, escapeString, getAuthorsString, getGithubOwnerAndProject } from "../utils/Util.js";
 import Path from "path";
 import { Attachment } from "../submissions/Attachment.js";
 import { ArchiveEntryData } from "../archive/ArchiveEntry.js";
@@ -80,17 +80,17 @@ export class PostEmbed {
             description += '**Other files:**\n'
             others.forEach(attachment => {
                 if (attachment.contentType === 'mediafire') {
-                    description += `- [${attachment.name}](${attachment.url}): Mediafire link\n`
+                    description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Mediafire link\n`
                     return;
                 } else if (attachment.contentType === 'youtube') {
-                    description += `- [${attachment.name}](${attachment.url}): YouTube link\n`
+                    description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube video\n`
                     return;
                 } else if (attachment.canDownload) {
                     const url = attachmentURLs.get(attachment.name) || attachment.url;
                     description += `- ${url} [Github](${rawURL}/${attachment.path}): Discord link\n`
                     return;
                 } else {
-                    description += `- [${escapeString(attachment.name)}](${attachment.url}): ContentType ${attachment.contentType}\n`
+                    description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): ContentType ${attachment.contentType}\n`
                     return;
                 }
             })
