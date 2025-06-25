@@ -28,7 +28,7 @@ export class SetTagsMenu implements Menu {
         return new StringSelectMenuBuilder()
             .setCustomId(this.getID())
             .setMinValues(0)
-            .setMaxValues(Math.min(tags.length, 25))
+            .setMaxValues(Math.min(tags.length, 5))
             .setPlaceholder('Select tags')
             .addOptions(
                 Array.from(tags).map(tag => {

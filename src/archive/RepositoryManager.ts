@@ -722,13 +722,13 @@ export class RepositoryManager {
                         flags: [MessageFlags.SuppressEmbeds]
                     },
                     name: entryData.code + ' ' + entryData.name,
-                    appliedTags: entryData.tags.map(tag => tag.id).filter(tagId => publishChannel.availableTags.some(t => t.id === tagId)),
+                    appliedTags: entryData.tags.map(tag => tag.id).filter(tagId => publishChannel.availableTags.some(t => t.id === tagId)).slice(0,5),
                 })
                 entryData.post.threadId = thread.id;
                 entryData.post.threadURL = thread.url;
                 wasThreadCreated = true;
             } else {
-                await thread.setAppliedTags(entryData.tags.map(tag => tag.id).filter(tagId => publishChannel.availableTags.some(t => t.id === tagId)));
+                await thread.setAppliedTags(entryData.tags.map(tag => tag.id).filter(tagId => publishChannel.availableTags.some(t => t.id === tagId)).slice(0,5));
             }
 
             if (entryData.name !== thread.name) {
