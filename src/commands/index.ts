@@ -1,3 +1,4 @@
+import { EditCommand } from "./EditCommand.js";
 import { EditorPowersCommand } from "./EditorPowersCommand.js";
 import { EndorseCommand } from "./EndorseCommand.js";
 import { GetPostCommand } from "./GetPostCommand.js";
@@ -13,7 +14,8 @@ export function getCommands() {
         new GetPostCommand(),
         new GetThanksCommand(),
         new GetPostsByCommand(),
-        new GetStatsCommand()
+        new GetStatsCommand(),
+        new EditCommand()
     ];
     return Commands;
 }
