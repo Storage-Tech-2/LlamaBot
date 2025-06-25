@@ -1,4 +1,4 @@
-import { ActionRowBuilder, MessageFlags, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, UserSelectMenuBuilder, UserSelectMenuInteraction } from "discord.js";
+import { ActionRowBuilder, Interaction, Message, MessageFlags, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, UserSelectMenuBuilder, UserSelectMenuInteraction } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
 import { areAuthorsSame, canEditSubmission, extractUserIdsFromText, getAuthorsString, reclassifyAuthors, replyEphemeral, splitIntoChunks } from "../../utils/Util.js";
@@ -7,6 +7,8 @@ import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { SetArchiveCategoryMenu } from "./SetArchiveCategoryMenu.js";
 import { GuildConfigs } from "../../config/GuildConfigs.js";
+import { ConfirmAuthorsButton } from "../buttons/ConfirmAuthorsButton.js";
+import { AddAuthorButton } from "../buttons/AddAuthorButton.js";
 
 export class SetAuthorsMenu implements Menu {
     getID(): string {
@@ -301,6 +303,41 @@ export class SetAuthorsMenu implements Menu {
         }
 
         submission.checkReview()
+    }
+    
+    public static async sendAuthorsMenuAndButton(submission: Submission, interaction: Interaction): Promise<Message> {
+        const guildHolder = submission.getGuildHolder();
+        const components = [];
+        const row = new ActionRowBuilder()
+            .addComponents(await new SetAuthorsMenu().getBuilder(guildHolder, submission, false));
+        components.push(row);
+
+        const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) === null;
+
+        // Update existing authors
+        const updatedAuthors =  await reclassifyAuthors(guildHolder, submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || []);
+        if (updatedAuthors.length > 0) {
+            submission.getConfigManager().setConfig(SubmissionConfigs.AUTHORS, updatedAuthors);
+        }
+
+        // get authors
+        const currentAuthors = (submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || []).filter(author => {
+            return author.type === AuthorType.Unknown || author.type === AuthorType.DiscordDeleted;
+        });
+        if (currentAuthors.length > 0) {
+            const row1 = new ActionRowBuilder()
+                .addComponents(await new SetAuthorsMenu().getBuilder(guildHolder, submission, true));
+            components.push(row1);
+        }
+        const row2 = new ActionRowBuilder();
+        if (isFirstTime) {
+            row2.addComponents(new ConfirmAuthorsButton().getBuilder());
+        }
+        row2.addComponents(new AddAuthorButton().getBuilder());
+        components.push(row2);
+        return replyEphemeral(interaction, `Please select author(s) for the submission. They will also be able to edit this submission.`, {
+            components
+        });
     }
 
 }

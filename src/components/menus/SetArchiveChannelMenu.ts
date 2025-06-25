@@ -97,14 +97,7 @@ export class SetArchiveChannelMenu implements Menu {
         await submission.statusUpdated();
 
         if (!currentChannel) {
-            const component = await new SetTagsMenu().getBuilder(guildHolder, canSetPrivilegedTags(interaction, submission), submission);
-            const row = new ActionRowBuilder()
-                .addComponents(component);
-            await interaction.followUp({
-                content: `Please select tags`,
-                components: [row as any],
-                flags: MessageFlags.Ephemeral
-            })
+            await SetTagsMenu.sendTagsMenu(submission, interaction);
         }
 
         submission.checkReview()

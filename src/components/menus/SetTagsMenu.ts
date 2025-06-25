@@ -1,4 +1,4 @@
-import { ForumChannel, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
+import { ActionRowBuilder, ForumChannel, Interaction, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
 import { canEditSubmission, canSetPrivilegedTags, replyEphemeral } from "../../utils/Util.js";
@@ -135,5 +135,18 @@ export class SetTagsMenu implements Menu {
         }
 
         submission.checkReview()
+    }
+
+
+    public static async sendTagsMenu(submission: Submission, interaction: Interaction) {
+        const guildHolder = submission.getGuildHolder();
+        const isMod = canSetPrivilegedTags(interaction, submission);
+        const tagsMenu = new SetTagsMenu();
+        const menuBuilder = await tagsMenu.getBuilder(guildHolder, isMod, submission);
+        const row = new ActionRowBuilder().addComponents(menuBuilder);
+
+        await replyEphemeral(interaction, `Please select tag(s) for the submission`, {
+            components: [row as any],
+        });
     }
 }

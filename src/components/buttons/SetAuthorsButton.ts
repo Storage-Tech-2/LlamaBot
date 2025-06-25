@@ -36,40 +36,7 @@ export class SetAuthorsButton implements Button {
             return;
         }
 
-        SetAuthorsButton.sendAuthorsMenuAndButton(guildHolder, submission, interaction);
+        SetAuthorsMenu.sendAuthorsMenuAndButton(submission, interaction);
     }
 
-    public static async sendAuthorsMenuAndButton(guildHolder: GuildHolder, submission: Submission, interaction: Interaction) {
-        const components = [];
-        const row = new ActionRowBuilder()
-            .addComponents(await new SetAuthorsMenu().getBuilder(guildHolder, submission, false));
-        components.push(row);
-
-        const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) === null;
-
-        // Update existing authors
-        const updatedAuthors =  await reclassifyAuthors(guildHolder, submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || []);
-        if (updatedAuthors.length > 0) {
-            submission.getConfigManager().setConfig(SubmissionConfigs.AUTHORS, updatedAuthors);
-        }
-
-        // get authors
-        const currentAuthors = (submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || []).filter(author => {
-            return author.type === AuthorType.Unknown || author.type === AuthorType.DiscordDeleted;
-        });
-        if (currentAuthors.length > 0) {
-            const row1 = new ActionRowBuilder()
-                .addComponents(await new SetAuthorsMenu().getBuilder(guildHolder, submission, true));
-            components.push(row1);
-        }
-        const row2 = new ActionRowBuilder();
-        if (isFirstTime) {
-            row2.addComponents(new ConfirmAuthorsButton().getBuilder());
-        }
-        row2.addComponents(new AddAuthorButton().getBuilder());
-        components.push(row2);
-        await replyEphemeral(interaction, `Please select author(s) for the submission. They will also be able to edit this submission.`, {
-            components
-        });
-    }
 }

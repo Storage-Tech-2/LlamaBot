@@ -28,13 +28,6 @@ export class SetTagsButton implements Button {
             return;
         }
         
-        const isMod = canSetPrivilegedTags(interaction, submission);
-        const tagsMenu = new SetTagsMenu();
-        const menuBuilder = await tagsMenu.getBuilder(guildHolder, isMod, submission);
-        const row = new ActionRowBuilder().addComponents(menuBuilder);
-
-        await replyEphemeral(interaction, `Please select tag(s) for the submission`, {
-            components: [row as any],
-        });
+        SetTagsMenu.sendTagsMenu(submission, interaction)
     }
 }
