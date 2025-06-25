@@ -6,7 +6,7 @@ import { GuildConfigs } from "./config/GuildConfigs.js";
 import { SubmissionsManager } from "./submissions/SubmissionsManager.js";
 import { RepositoryManager } from "./archive/RepositoryManager.js";
 import { ArchiveEntryData } from "./archive/ArchiveEntry.js";
-import { getAuthorsString, getChanges, truncateStringWithEllipsis } from "./utils/Util.js";
+import { escapeDiscordString, getAuthorsString, getChanges, truncateStringWithEllipsis } from "./utils/Util.js";
 import { UserManager } from "./support/UserManager.js";
 import { UserData } from "./support/UserData.js";
 import { SubmissionConfigs } from "./submissions/SubmissionConfigs.js";
@@ -477,7 +477,7 @@ export class GuildHolder {
             if (changes.considerations) fields.push({ name: 'Considerations', value: `*${oldEntryData.considerations.length} considerations* → *${newEntryData.considerations.length} considerations*` });
             if (changes.notes) fields.push({ name: 'Notes', value: `*${oldEntryData.notes.length} characters* → *${newEntryData.notes.length} characters*` });
             if (changes.images) fields.push({ name: 'Images', value: `*${oldEntryData.images.length} images* → *${newEntryData.images.length} images*` });
-            if (changes.attachments) fields.push({ name: 'Attachments', value: `*${oldEntryData.attachments.length} attachments* → *${newEntryData.attachments.length} attachments*` });
+            if (changes.attachments) fields.push({ name: 'Attachments', value: `*${oldEntryData.attachments.map(o=>escapeDiscordString(o.name)).join(", ")} attachments* → *${newEntryData.attachments.map(o=>escapeDiscordString(o.name)).join(", ")} attachments*` });
             embed.addFields(fields);
             embed.setColor(0xFFFF00); // Yellow for update
         }
