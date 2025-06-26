@@ -119,6 +119,23 @@ export class Mwa implements Command {
                             .setRequired(true)
                     )
             )
+
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('republisheverything')
+                    .setDescription('Republish all posts in the archive')
+                    .addBooleanOption(option =>
+                        option
+                            .setName('silent')
+                            .setDescription('Whether to suppress archive update messages')
+                            .setRequired(true)
+                    )
+                    .addBooleanOption(option =>
+                        option
+                            .setName('replace')
+                            .setDescription('Force remaking each thread for image reprocessing')
+                    )
+            )
         return data;
     }
 
@@ -542,5 +559,11 @@ export class Mwa implements Command {
         }
 
         await interaction.editReply('Archives setup complete! Please check the channels for the new tags and settings.');
+    }
+
+    async republishEverything(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        // Get all entries from the archive
+        
+
     }
 }
