@@ -226,7 +226,7 @@ export class EditorPowersCommand implements Command {
                     await submission.publish(true, refresh);
                 } catch (e: any) {
                     console.error(e);
-                    interaction.editReply(interaction, `Failed to publish submission: ${e.message || 'Unknown error'}`);
+                    interaction.editReply(`Failed to publish submission: ${e.message || 'Unknown error'}`);
                     return;
                 }
                 const url = submission.getConfigManager().getConfig(SubmissionConfigs.POST)?.threadURL;
