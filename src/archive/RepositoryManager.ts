@@ -2,7 +2,7 @@ import { GuildHolder } from "../GuildHolder.js";
 import fs from "fs/promises";
 import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
-import { AnyThreadChannel, AttachmentBuilder, ChannelType, EmbedBuilder, ForumChannel, GuildTextBasedChannel, Message, MessageFlags, Snowflake } from "discord.js";
+import { AnyThreadChannel, AttachmentBuilder, ChannelType, ChatInputCommandInteraction, EmbedBuilder, ForumChannel, GuildTextBasedChannel, Message, MessageFlags, Snowflake } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
 import { areObjectsIdentical, deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getChangeIDs, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";
@@ -511,67 +511,67 @@ export class RepositoryManager {
                 post: undefined
             });
 
+            if (!submissionChannel || !entryData) {
+                throw new Error("Failed to get submission channel or entry data");
+            }
+            const result = await this.addOrUpdateEntryFromData(submission.getGuildHolder(), entryData, archiveChannelId, forceNew, async (entryData, imageFolder, attachmentFolder) => {
+                // Copy over all attachments and images
+                for (const image of entryData.images) {
+                    const sourcePath = Path.join(submission.getProcessedImagesFolder(), getFileKey(image, 'png'));
+                    const dest = image.name.split('.');
+                    if (dest.length > 1) {
+                        dest.pop();
+                    }
+                    const destKeyOrig = escapeString(dest.join(''));
+                    let destKey = destKeyOrig;
+
+                    // Check for duplicate file names
+                    for (let i = 1; i < 15; i++) {
+                        if (await fs.access(Path.join(imageFolder, `${destKey}.png`)).then(() => true).catch(() => false)) {
+                            destKey = `${destKeyOrig}_${i}`;
+                        }
+                    }
+
+                    const destPath = Path.join(imageFolder, `${destKey}.png`);
+                    await fs.copyFile(sourcePath, destPath);
+                    image.path = `images/${destKey}.png`;
+                    image.name = destKey + '.png'; // Update the name to the new key
+                }
+
+                for (const attachment of entryData.attachments) {
+                    const dest = attachment.name.split('.');
+                    let ext = dest.length > 1 ? escapeString(dest.pop() || '') : '';
+                    if (!attachment.canDownload) {
+                        ext = 'url';
+                    }
+
+                    const destKeyOrig = entryData.code + '_' + escapeString(dest.join(''));
+                    let destKey = destKeyOrig;
+                    for (let i = 1; i < 15; i++) {
+                        if (await fs.access(Path.join(attachmentFolder, `${destKey}${ext ? '.' + ext : ''}`)).then(() => true).catch(() => false)) {
+                            destKey = `${destKeyOrig}_${i}`;
+                        }
+                    }
+
+                    const newKey = `${destKey}${ext ? '.' + ext : ''}`;
+                    const sourcePath = Path.join(submission.getAttachmentFolder(), getFileKey(attachment));
+                    const destPath = Path.join(attachmentFolder, newKey);
+                    attachment.path = `attachments/${newKey}`;
+                    attachment.name = newKey; // Update the name to the new key
+                    if (!attachment.canDownload) {
+                        await fs.writeFile(destPath, attachment.url || '', 'utf-8');
+                    } else {
+                        await fs.copyFile(sourcePath, destPath);
+                    }
+                }
+
+            });
             this.lock.release();
+            return result;
         } catch (e: any) {
             await this.lock.release();
             throw e;
         }
-
-        if (!submissionChannel || !entryData) {
-            throw new Error("Failed to get submission channel or entry data");
-        }
-        return this.addOrUpdateEntryFromData(submission.getGuildHolder(), entryData, archiveChannelId, forceNew, async (entryData, imageFolder, attachmentFolder) => {
-            // Copy over all attachments and images
-            for (const image of entryData.images) {
-                const sourcePath = Path.join(submission.getProcessedImagesFolder(), getFileKey(image, 'png'));
-                const dest = image.name.split('.');
-                if (dest.length > 1) {
-                    dest.pop();
-                }
-                const destKeyOrig = escapeString(dest.join(''));
-                let destKey = destKeyOrig;
-
-                // Check for duplicate file names
-                for (let i = 1; i < 15; i++) {
-                    if (await fs.access(Path.join(imageFolder, `${destKey}.png`)).then(() => true).catch(() => false)) {
-                        destKey = `${destKeyOrig}_${i}`;
-                    }
-                }
-
-                const destPath = Path.join(imageFolder, `${destKey}.png`);
-                await fs.copyFile(sourcePath, destPath);
-                image.path = `images/${destKey}.png`;
-                image.name = destKey + '.png'; // Update the name to the new key
-            }
-
-            for (const attachment of entryData.attachments) {
-                const dest = attachment.name.split('.');
-                let ext = dest.length > 1 ? escapeString(dest.pop() || '') : '';
-                if (!attachment.canDownload) {
-                    ext = 'url';
-                }
-
-                const destKeyOrig = entryData.code + '_' + escapeString(dest.join(''));
-                let destKey = destKeyOrig;
-                for (let i = 1; i < 15; i++) {
-                    if (await fs.access(Path.join(attachmentFolder, `${destKey}${ext ? '.' + ext : ''}`)).then(() => true).catch(() => false)) {
-                        destKey = `${destKeyOrig}_${i}`;
-                    }
-                }
-
-                const newKey = `${destKey}${ext ? '.' + ext : ''}`;
-                const sourcePath = Path.join(submission.getAttachmentFolder(), getFileKey(attachment));
-                const destPath = Path.join(attachmentFolder, newKey);
-                attachment.path = `attachments/${newKey}`;
-                attachment.name = newKey; // Update the name to the new key
-                if (!attachment.canDownload) {
-                    await fs.writeFile(destPath, attachment.url || '', 'utf-8');
-                } else {
-                    await fs.copyFile(sourcePath, destPath);
-                }
-            }
-
-        });
     }
 
 
@@ -584,59 +584,77 @@ export class RepositoryManager {
         }
 
         this.addToIgnoreUpdatesFrom(newEntryData.id);
-        await this.lock.acquire();
-        try {
-            if (!archiveChannelId) {
-                throw new Error("Submission does not have an archive channel set");
+
+        if (!archiveChannelId) {
+            throw new Error("Submission does not have an archive channel set");
+        }
+
+
+        const archiveChannelRef = this.getChannelReferences().find(c => c.id === archiveChannelId);
+        if (!archiveChannelRef) {
+            throw new Error("Archive channel reference not found");
+        }
+
+        const archiveChannelDiscord = await guildHolder.getGuild().channels.fetch(archiveChannelId).catch(() => null);
+        if (!archiveChannelDiscord || archiveChannelDiscord.type !== ChannelType.GuildForum) {
+            throw new Error('Archive channel not found or is not a forum channel');
+        }
+
+        const uploadChannel = await guildHolder.getGuild().channels.fetch(newEntryData.id).catch(() => null);
+        if (!uploadChannel || !uploadChannel.isTextBased()) {
+            throw new Error('Upload channel not found or is not text based');
+        }
+
+        const channelPath = Path.join(this.folderPath, archiveChannelRef.path);
+        const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
+
+
+        // Find old entry if it exists
+        const existing = await this.findEntryBySubmissionId(newEntryData.id);
+        const isSameChannel = existing && existing.channelRef.id === archiveChannelId;
+
+        const entryRef: ArchiveEntryReference = {
+            id: newEntryData.id,
+            name: newEntryData.name,
+            code: newEntryData.code,
+            timestamp: newEntryData.timestamp,
+            path: `${newEntryData.code}_${escapeString(newEntryData.name) || ''}`,
+        }
+
+        const entryFolderPath = Path.join(channelPath, entryRef.path);
+        if (existing) {
+            const existingFolder = Path.join(existing.channel.getFolderPath(), existing.entryRef.path);
+            if (existingFolder !== entryFolderPath) {
+                // If the folder is different, we need to rename the old folder
+                await this.git.mv(existingFolder, entryFolderPath);
             }
 
+            if (!isSameChannel) {
+                // If the channel is different, we need to remove the old entry from the old channel
+                existing.channel.getData().entries.splice(existing.entryIndex, 1);
+                await existing.channel.save();
+                await this.git.add(existing.channel.getDataPath());
 
-            const archiveChannelRef = this.getChannelReferences().find(c => c.id === archiveChannelId);
-            if (!archiveChannelRef) {
-                throw new Error("Archive channel reference not found");
-            }
-
-            const archiveChannelDiscord = await guildHolder.getGuild().channels.fetch(archiveChannelId).catch(() => null);
-            if (!archiveChannelDiscord || archiveChannelDiscord.type !== ChannelType.GuildForum) {
-                throw new Error('Archive channel not found or is not a forum channel');
-            }
-
-            const uploadChannel = await guildHolder.getGuild().channels.fetch(newEntryData.id).catch(() => null);
-            if (!uploadChannel || !uploadChannel.isTextBased()) {
-                throw new Error('Upload channel not found or is not text based');
-            }
-
-            const channelPath = Path.join(this.folderPath, archiveChannelRef.path);
-            const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
-
-
-            // Find old entry if it exists
-            const existing = await this.findEntryBySubmissionId(newEntryData.id);
-            const isSameChannel = existing && existing.channelRef.id === archiveChannelId;
-
-            const entryRef: ArchiveEntryReference = {
-                id: newEntryData.id,
-                name: newEntryData.name,
-                code: newEntryData.code,
-                timestamp: newEntryData.timestamp,
-                path: `${newEntryData.code}_${escapeString(newEntryData.name) || ''}`,
-            }
-
-            const entryFolderPath = Path.join(channelPath, entryRef.path);
-            if (existing) {
-                const existingFolder = Path.join(existing.channel.getFolderPath(), existing.entryRef.path);
-                if (existingFolder !== entryFolderPath) {
-                    // If the folder is different, we need to rename the old folder
-                    await this.git.mv(existingFolder, entryFolderPath);
+                // Also remove old discord post if it exists
+                const post = existing.entry.getData().post;
+                if (post) {
+                    const publishForumId = post.forumId;
+                    const publishForum = await guildHolder.getGuild().channels.fetch(publishForumId).catch(() => null);
+                    if (publishForum && publishForum.type === ChannelType.GuildForum) {
+                        const thread = await publishForum.threads.fetch(post.threadId).catch(() => null);
+                        if (thread) {
+                            await thread.delete('Entry moved to a different channel');
+                        }
+                    }
                 }
-
-                if (!isSameChannel) {
-                    // If the channel is different, we need to remove the old entry from the old channel
-                    existing.channel.getData().entries.splice(existing.entryIndex, 1);
-                    await existing.channel.save();
-                    await this.git.add(existing.channel.getDataPath());
-
-                    // Also remove old discord post if it exists
+            } else {
+                // Check if images are the same
+                const existingImages = existing.entry.getData().images;
+                const newImages = newEntryData.images;
+                if (!getChangeIDs(existingImages, newImages) && !forceNew) { // no problem
+                    newEntryData.post = existing.entry.getData().post;
+                } else {
+                    // If images are different, we need to delete the thread
                     const post = existing.entry.getData().post;
                     if (post) {
                         const publishForumId = post.forumId;
@@ -644,315 +662,291 @@ export class RepositoryManager {
                         if (publishForum && publishForum.type === ChannelType.GuildForum) {
                             const thread = await publishForum.threads.fetch(post.threadId).catch(() => null);
                             if (thread) {
-                                await thread.delete('Entry moved to a different channel');
-                            }
-                        }
-                    }
-                } else {
-                    // Check if images are the same
-                    const existingImages = existing.entry.getData().images;
-                    const newImages = newEntryData.images;
-                    if (!getChangeIDs(existingImages, newImages) && !forceNew) { // no problem
-                        newEntryData.post = existing.entry.getData().post;
-                    } else {
-                        // If images are different, we need to delete the thread
-                        const post = existing.entry.getData().post;
-                        if (post) {
-                            const publishForumId = post.forumId;
-                            const publishForum = await guildHolder.getGuild().channels.fetch(publishForumId).catch(() => null);
-                            if (publishForum && publishForum.type === ChannelType.GuildForum) {
-                                const thread = await publishForum.threads.fetch(post.threadId).catch(() => null);
-                                if (thread) {
-                                    await thread.delete('Entry images updated');
-                                }
+                                await thread.delete('Entry images updated');
                             }
                         }
                     }
                 }
             }
-
-            await fs.mkdir(entryFolderPath, { recursive: true });
-           
-            const entry = new ArchiveEntry(newEntryData, entryFolderPath);
-
-            const imageFolder = Path.join(entryFolderPath, 'images');
-            const attachmentFolder = Path.join(entryFolderPath, 'attachments');
-
-            // remove all images and attachments that exist in the folder.
-            await fs.mkdir(imageFolder, { recursive: true });
-            await fs.mkdir(attachmentFolder, { recursive: true });
-
-            for (const file of await fs.readdir(imageFolder)) {
-                const filePath = Path.join(imageFolder, file);
-                const stat = await fs.lstat(filePath);
-                if (stat.isFile()) {
-                    await fs.unlink(filePath);
-                }
-            }
-            for (const file of await fs.readdir(attachmentFolder)) {
-                const filePath = Path.join(attachmentFolder, file);
-                const stat = await fs.lstat(filePath);
-                if (stat.isFile()) {
-                    await fs.unlink(filePath);
-                }
-            }
-
-            await moveAttachments(newEntryData, imageFolder, attachmentFolder);
-
-            if (existing && isSameChannel) {
-                archiveChannel.getData().entries[existing.entryIndex] = entryRef;
-            } else {
-                // New entry
-                archiveChannel.getData().entries.push(entryRef);
-            }
-
-            let thread;
-            if (newEntryData.post && newEntryData.post.threadId) {
-                thread = await archiveChannelDiscord.threads.fetch(newEntryData.post.threadId).catch(() => null);
-                // unarchive the thread if it exists
-                if (thread && thread.archived) {
-                    await thread.setArchived(false);
-                }
-            } else {
-                newEntryData.post = {
-                    forumId: archiveChannelId,
-                    threadId: '',
-                    continuingMessageIds: [],
-                    threadURL: '',
-                }
-            }
-
-            // First, upload attachments
-            const entryPathPart = `${archiveChannelRef.path}/${entryRef.path}`;
-            const attachmentUpload = await PostEmbed.createAttachmentUpload(entryFolderPath, newEntryData);
-
-            const uploadMessage = await uploadChannel.send({
-                content: attachmentUpload.content,
-                files: attachmentUpload.files,
-            });
-            const branchName = await this.git.branchLocal().then(branch => branch.current);
-            const attachmentMessage = await PostEmbed.createAttachmentMessage(this.guildHolder, newEntryData, branchName, entryPathPart, uploadMessage);
-
-            // Next, create the post
-            const message = await PostEmbed.createInitialMessage(this.guildHolder, newEntryData, this.folderPath);
-            const messageChunks = splitIntoChunks(message, 2000);
-
-            let wasThreadCreated = false;
-            if (!thread) {
-                const files = await PostEmbed.createImageFiles(this.guildHolder, newEntryData, this.folderPath, entryPathPart);
-                thread = await archiveChannelDiscord.threads.create({
-                    message: {
-                        content: `Pending...`,
-                        files: files.files,
-                        flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications]
-                    },
-                    name: newEntryData.code + ' ' + newEntryData.name,
-                    appliedTags: newEntryData.tags.map(tag => tag.id).filter(tagId => archiveChannelDiscord.availableTags.some(t => t.id === tagId)).slice(0, 5),
-                })
-
-                // delete old files
-                for (const file of files.paths) {
-                    await fs.unlink(file).catch(() => { });
-                }
-
-                newEntryData.post.threadId = thread.id;
-                newEntryData.post.threadURL = thread.url;
-                wasThreadCreated = true;
-            } else {
-                await thread.setAppliedTags(newEntryData.tags.map(tag => tag.id).filter(tagId => archiveChannelDiscord.availableTags.some(t => t.id === tagId)).slice(0, 5));
-            }
-
-            if (newEntryData.name !== thread.name) {
-                await thread.edit({
-                    name: newEntryData.code + ' ' + newEntryData.name
-                })
-            }
-
-            const initialMessage = await thread.fetchStarterMessage();
-            if (!initialMessage) {
-                throw new Error('Initial message not found in thread');
-            }
-
-            // Detect if thread needs to be refreshed
-            const continuingMessageIds = newEntryData.post.continuingMessageIds || [];
-            const shouldRefreshThread = messageChunks.length > 1 + continuingMessageIds.length;
-            if (shouldRefreshThread) {
-                // Delete all previous messages in the thread that are not part of the continuing messages
-                for (let i = 0; i < 100; i++) {
-                    const messages = await thread.messages.fetch({ limit: 100 });
-                    let deletedCount = 0;
-                    for (const message of messages.values()) {
-                        if (message.id !== initialMessage.id && !continuingMessageIds.includes(message.id)) {
-                            await message.delete();
-                            deletedCount++;
-                        }
-                    }
-                    if (deletedCount === 0) {
-                        break; // No more messages to delete
-                    }
-                }
-                newEntryData.post.attachmentMessageId = ''; // Reset attachment message ID to force re-creation
-            }
-
-            // Delete excess messages if they exist
-            if (continuingMessageIds.length > messageChunks.length - 1) {
-                const excessMessageIds = continuingMessageIds.slice(messageChunks.length - 1);
-                for (const messageId of excessMessageIds) {
-                    try {
-                        const messageInstance = await thread.messages.fetch(messageId).catch(() => null);
-                        if (messageInstance) {
-                            await messageInstance.delete();
-                        }
-                    } catch (e: any) {
-                        console.error(`Error deleting message ${messageId} in thread ${thread.id}:`, e.message);
-                    }
-                }
-                continuingMessageIds.splice(messageChunks.length - 1); // Keep only the messages that are still needed
-            }
-
-            // Create new messages if needed
-            for (let i = continuingMessageIds.length; i < messageChunks.length - 1; i++) {
-                const message = await thread.send({
-                    content: 'Pending...',
-                    flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications]
-                });
-                newEntryData.post.continuingMessageIds.push(message.id);
-            }
-
-            newEntryData.post.continuingMessageIds = continuingMessageIds;
-
-            // Update the initial message with the first chunk
-            if (messageChunks.length > 0) {
-                await initialMessage.edit({
-                    content: messageChunks[0],
-                    flags: [MessageFlags.SuppressEmbeds]
-                });
-            }
-
-            // If there are more chunks, send them as separate messages
-            for (let i = 1; i < messageChunks.length; i++) {
-                const messageId = newEntryData.post.continuingMessageIds[i - 1];
-                const message = await thread.messages.fetch(messageId).catch(() => null);
-                if (!message) {
-                    throw new Error(`Message with ID ${messageId} not found in thread ${thread.id}`);
-                }
-                await message.edit({
-                    content: messageChunks[i],
-                    flags: [MessageFlags.SuppressEmbeds]
-                });
-            }
-
-            let attachmentMessageInstance;
-            if (newEntryData.post.attachmentMessageId) {
-                attachmentMessageInstance = await thread.messages.fetch(newEntryData.post.attachmentMessageId).catch(() => null);
-            }
-
-            if (attachmentMessageInstance) {
-                await attachmentMessageInstance.edit({
-                    content: attachmentMessage.content,
-                    flags: [MessageFlags.SuppressEmbeds]
-                });
-            } else {
-                attachmentMessageInstance = await thread.send({
-                    content: attachmentMessage.content,
-                    flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications]
-                });
-                newEntryData.post.attachmentMessageId = attachmentMessageInstance.id;
-            }
-
-            if (wasThreadCreated || shouldRefreshThread) { // check if there are comments to post
-                const commentsFile = Path.join(entryFolderPath, 'comments.json');
-                let comments: ArchiveComment[] = [];
-                try {
-                    comments = JSON.parse(await fs.readFile(commentsFile, 'utf-8')) as ArchiveComment[];
-                }
-                catch (e: any) {
-                    if (e.code !== 'ENOENT') {
-                        console.error("Error reading comments file:", e);
-                        throw e;
-                    }
-                }
-
-                if (comments.length > 0 && thread.parent) {
-                    // make webhook
-                    const threadWebhook = await thread.parent.createWebhook({
-                        name: 'LlamaBot Archiver'
-                    });
-
-
-
-                    for (const comment of comments) {
-                        const author = (await reclassifyAuthors(this.guildHolder, [comment.sender]))[0];
-                        comment.sender = author;
-
-                        const files: AttachmentBuilder[] = [];
-                        if (comment.attachments.length > 0) {
-                            for (const attachment of comment.attachments) {
-                                if (!attachment.canDownload || !attachment.path || attachment.contentType === 'discord') {
-                                    continue; // Skip attachments that cannot be downloaded or have no path
-                                }
-                                const attachmentPath = Path.join(entryFolderPath, attachment.path);
-                                if (await fs.access(attachmentPath).then(() => true).catch(() => false)) {
-                                    const file = new AttachmentBuilder(attachmentPath);
-                                    file.setName(attachment.name);
-                                    file.setDescription(attachment.description || '');
-                                    files.push(file);
-                                }
-                            }
-                        }
-
-                        const commentMessage = await threadWebhook.send({
-                            content: truncateStringWithEllipsis(comment.content, 2000),
-                            username: author.displayName || author.username || 'Unknown Author',
-                            avatarURL: author.iconURL || undefined,
-                            files: files,
-                            threadId: thread.id,
-                            flags: [MessageFlags.SuppressNotifications]
-                        });
-                        comment.id = commentMessage.id;
-                    }
-                    // Save comments back to the file
-                    await fs.writeFile(commentsFile, JSON.stringify(comments, null, 2), 'utf-8');
-                    await this.git.add(commentsFile);
-                    await threadWebhook.delete();
-                }
-
-            }
-
-
-            await entry.save();
-            await archiveChannel.save();
-            await this.git.add(archiveChannel.getDataPath());
-
-            await this.git.add(await this.updateEntryReadme(entry));
-
-            await this.git.add(entryFolderPath);
-            await this.git.add(channelPath); // to update currentCodeId and entries
-
-            if (existing) {
-                await this.git.commit(`${newEntryData.code}: ${generateCommitMessage(existing.entry.getData(), newEntryData)}`);
-            } else {
-                await this.git.commit(`Added entry ${newEntryData.name} (${newEntryData.code}) to channel ${archiveChannel.getData().name} (${archiveChannel.getData().code})`);
-            }
-
-            try {
-                await this.push();
-            } catch (e: any) {
-                console.error("Error pushing to remote:", e.message);
-            }
-
-            await this.setSubmissionIDForPostID(thread.id, newEntryData.id);
-            this.removeFromIgnoreUpdatesFrom(newEntryData.id);
-            await this.lock.release();
-            return {
-                oldEntryData: existing ? existing.entry.getData() : undefined,
-                newEntryData: entry.getData()
-            }
-        } catch (e) {
-            this.removeFromIgnoreUpdatesFrom(newEntryData.id);
-            await this.lock.release();
-            throw e;
         }
+
+        await fs.mkdir(entryFolderPath, { recursive: true });
+
+        const entry = new ArchiveEntry(newEntryData, entryFolderPath);
+
+        const imageFolder = Path.join(entryFolderPath, 'images');
+        const attachmentFolder = Path.join(entryFolderPath, 'attachments');
+
+        // remove all images and attachments that exist in the folder.
+        await fs.mkdir(imageFolder, { recursive: true });
+        await fs.mkdir(attachmentFolder, { recursive: true });
+
+        for (const file of await fs.readdir(imageFolder)) {
+            const filePath = Path.join(imageFolder, file);
+            const stat = await fs.lstat(filePath);
+            if (stat.isFile()) {
+                await fs.unlink(filePath);
+            }
+        }
+        for (const file of await fs.readdir(attachmentFolder)) {
+            const filePath = Path.join(attachmentFolder, file);
+            const stat = await fs.lstat(filePath);
+            if (stat.isFile()) {
+                await fs.unlink(filePath);
+            }
+        }
+
+        await moveAttachments(newEntryData, imageFolder, attachmentFolder);
+
+        if (existing && isSameChannel) {
+            archiveChannel.getData().entries[existing.entryIndex] = entryRef;
+        } else {
+            // New entry
+            archiveChannel.getData().entries.push(entryRef);
+        }
+
+        let thread;
+        if (newEntryData.post && newEntryData.post.threadId) {
+            thread = await archiveChannelDiscord.threads.fetch(newEntryData.post.threadId).catch(() => null);
+            // unarchive the thread if it exists
+            if (thread && thread.archived) {
+                await thread.setArchived(false);
+            }
+        } else {
+            newEntryData.post = {
+                forumId: archiveChannelId,
+                threadId: '',
+                continuingMessageIds: [],
+                threadURL: '',
+            }
+        }
+
+        // First, upload attachments
+        const entryPathPart = `${archiveChannelRef.path}/${entryRef.path}`;
+        const attachmentUpload = await PostEmbed.createAttachmentUpload(entryFolderPath, newEntryData);
+
+        const uploadMessage = await uploadChannel.send({
+            content: attachmentUpload.content,
+            files: attachmentUpload.files,
+        });
+        const branchName = await this.git.branchLocal().then(branch => branch.current);
+        const attachmentMessage = await PostEmbed.createAttachmentMessage(this.guildHolder, newEntryData, branchName, entryPathPart, uploadMessage);
+
+        // Next, create the post
+        const message = await PostEmbed.createInitialMessage(this.guildHolder, newEntryData, this.folderPath);
+        const messageChunks = splitIntoChunks(message, 2000);
+
+        let wasThreadCreated = false;
+        if (!thread) {
+            const files = await PostEmbed.createImageFiles(this.guildHolder, newEntryData, this.folderPath, entryPathPart);
+            thread = await archiveChannelDiscord.threads.create({
+                message: {
+                    content: `Pending...`,
+                    files: files.files,
+                    flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications]
+                },
+                name: newEntryData.code + ' ' + newEntryData.name,
+                appliedTags: newEntryData.tags.map(tag => tag.id).filter(tagId => archiveChannelDiscord.availableTags.some(t => t.id === tagId)).slice(0, 5),
+            })
+
+            // delete old files
+            for (const file of files.paths) {
+                await fs.unlink(file).catch(() => { });
+            }
+
+            newEntryData.post.threadId = thread.id;
+            newEntryData.post.threadURL = thread.url;
+            wasThreadCreated = true;
+        } else {
+            await thread.setAppliedTags(newEntryData.tags.map(tag => tag.id).filter(tagId => archiveChannelDiscord.availableTags.some(t => t.id === tagId)).slice(0, 5));
+        }
+
+        if (newEntryData.name !== thread.name) {
+            await thread.edit({
+                name: newEntryData.code + ' ' + newEntryData.name
+            })
+        }
+
+        const initialMessage = await thread.fetchStarterMessage();
+        if (!initialMessage) {
+            throw new Error('Initial message not found in thread');
+        }
+
+        // Detect if thread needs to be refreshed
+        const continuingMessageIds = newEntryData.post.continuingMessageIds || [];
+        const shouldRefreshThread = messageChunks.length > 1 + continuingMessageIds.length;
+        if (shouldRefreshThread) {
+            // Delete all previous messages in the thread that are not part of the continuing messages
+            for (let i = 0; i < 100; i++) {
+                const messages = await thread.messages.fetch({ limit: 100 });
+                let deletedCount = 0;
+                for (const message of messages.values()) {
+                    if (message.id !== initialMessage.id && !continuingMessageIds.includes(message.id)) {
+                        await message.delete();
+                        deletedCount++;
+                    }
+                }
+                if (deletedCount === 0) {
+                    break; // No more messages to delete
+                }
+            }
+            newEntryData.post.attachmentMessageId = ''; // Reset attachment message ID to force re-creation
+        }
+
+        // Delete excess messages if they exist
+        if (continuingMessageIds.length > messageChunks.length - 1) {
+            const excessMessageIds = continuingMessageIds.slice(messageChunks.length - 1);
+            for (const messageId of excessMessageIds) {
+                try {
+                    const messageInstance = await thread.messages.fetch(messageId).catch(() => null);
+                    if (messageInstance) {
+                        await messageInstance.delete();
+                    }
+                } catch (e: any) {
+                    console.error(`Error deleting message ${messageId} in thread ${thread.id}:`, e.message);
+                }
+            }
+            continuingMessageIds.splice(messageChunks.length - 1); // Keep only the messages that are still needed
+        }
+
+        // Create new messages if needed
+        for (let i = continuingMessageIds.length; i < messageChunks.length - 1; i++) {
+            const message = await thread.send({
+                content: 'Pending...',
+                flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications]
+            });
+            newEntryData.post.continuingMessageIds.push(message.id);
+        }
+
+        newEntryData.post.continuingMessageIds = continuingMessageIds;
+
+        // Update the initial message with the first chunk
+        if (messageChunks.length > 0) {
+            await initialMessage.edit({
+                content: messageChunks[0],
+                flags: [MessageFlags.SuppressEmbeds]
+            });
+        }
+
+        // If there are more chunks, send them as separate messages
+        for (let i = 1; i < messageChunks.length; i++) {
+            const messageId = newEntryData.post.continuingMessageIds[i - 1];
+            const message = await thread.messages.fetch(messageId).catch(() => null);
+            if (!message) {
+                throw new Error(`Message with ID ${messageId} not found in thread ${thread.id}`);
+            }
+            await message.edit({
+                content: messageChunks[i],
+                flags: [MessageFlags.SuppressEmbeds]
+            });
+        }
+
+        let attachmentMessageInstance;
+        if (newEntryData.post.attachmentMessageId) {
+            attachmentMessageInstance = await thread.messages.fetch(newEntryData.post.attachmentMessageId).catch(() => null);
+        }
+
+        if (attachmentMessageInstance) {
+            await attachmentMessageInstance.edit({
+                content: attachmentMessage.content,
+                flags: [MessageFlags.SuppressEmbeds]
+            });
+        } else {
+            attachmentMessageInstance = await thread.send({
+                content: attachmentMessage.content,
+                flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications]
+            });
+            newEntryData.post.attachmentMessageId = attachmentMessageInstance.id;
+        }
+
+        if (wasThreadCreated || shouldRefreshThread) { // check if there are comments to post
+            const commentsFile = Path.join(entryFolderPath, 'comments.json');
+            let comments: ArchiveComment[] = [];
+            try {
+                comments = JSON.parse(await fs.readFile(commentsFile, 'utf-8')) as ArchiveComment[];
+            }
+            catch (e: any) {
+                if (e.code !== 'ENOENT') {
+                    console.error("Error reading comments file:", e);
+                    throw e;
+                }
+            }
+
+            if (comments.length > 0 && thread.parent) {
+                // make webhook
+                const threadWebhook = await thread.parent.createWebhook({
+                    name: 'LlamaBot Archiver'
+                });
+
+
+
+                for (const comment of comments) {
+                    const author = (await reclassifyAuthors(this.guildHolder, [comment.sender]))[0];
+                    comment.sender = author;
+
+                    const files: AttachmentBuilder[] = [];
+                    if (comment.attachments.length > 0) {
+                        for (const attachment of comment.attachments) {
+                            if (!attachment.canDownload || !attachment.path || attachment.contentType === 'discord') {
+                                continue; // Skip attachments that cannot be downloaded or have no path
+                            }
+                            const attachmentPath = Path.join(entryFolderPath, attachment.path);
+                            if (await fs.access(attachmentPath).then(() => true).catch(() => false)) {
+                                const file = new AttachmentBuilder(attachmentPath);
+                                file.setName(attachment.name);
+                                file.setDescription(attachment.description || '');
+                                files.push(file);
+                            }
+                        }
+                    }
+
+                    const commentMessage = await threadWebhook.send({
+                        content: truncateStringWithEllipsis(comment.content, 2000),
+                        username: author.displayName || author.username || 'Unknown Author',
+                        avatarURL: author.iconURL || undefined,
+                        files: files,
+                        threadId: thread.id,
+                        flags: [MessageFlags.SuppressNotifications]
+                    });
+                    comment.id = commentMessage.id;
+                }
+                // Save comments back to the file
+                await fs.writeFile(commentsFile, JSON.stringify(comments, null, 2), 'utf-8');
+                await this.git.add(commentsFile);
+                await threadWebhook.delete();
+            }
+
+        }
+
+
+        await entry.save();
+        await archiveChannel.save();
+        await this.git.add(archiveChannel.getDataPath());
+
+        await this.git.add(await this.updateEntryReadme(entry));
+
+        await this.git.add(entryFolderPath);
+        await this.git.add(channelPath); // to update currentCodeId and entries
+
+        if (existing) {
+            await this.git.commit(`${newEntryData.code}: ${generateCommitMessage(existing.entry.getData(), newEntryData)}`);
+        } else {
+            await this.git.commit(`Added entry ${newEntryData.name} (${newEntryData.code}) to channel ${archiveChannel.getData().name} (${archiveChannel.getData().code})`);
+        }
+
+        try {
+            await this.push();
+        } catch (e: any) {
+            console.error("Error pushing to remote:", e.message);
+        }
+
+        await this.setSubmissionIDForPostID(thread.id, newEntryData.id);
+        this.removeFromIgnoreUpdatesFrom(newEntryData.id);
+        return {
+            oldEntryData: existing ? existing.entry.getData() : undefined,
+            newEntryData: entry.getData()
+        }
+
     }
     async retractEntry(submission: Submission, reason: string): Promise<ArchiveEntryData> {
         if (!this.git) {
@@ -1726,6 +1720,48 @@ export class RepositoryManager {
             numPosts,
             numSubmissions
         };
+    }
+
+    public async republishAllEntries(silent: boolean, replace: boolean, interaction: ChatInputCommandInteraction): Promise<void> {
+
+        if (!this.git) {
+            throw new Error("Git not initialized");
+        }
+
+        const channel = interaction.channel;
+        if (!channel || channel.type !== ChannelType.GuildText) {
+            throw new Error("Interaction channel is not a text channel");
+        }
+
+        await this.lock.acquire();
+        try {
+            const channelRefs = this.getChannelReferences();
+            for (const channelRef of channelRefs) {
+                const channelPath = Path.join(this.folderPath, channelRef.path);
+                const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
+                for (const entryRef of archiveChannel.getData().entries) {
+                    const entryPath = Path.join(channelPath, entryRef.path);
+                    const entry = await ArchiveEntry.fromFolder(entryPath);
+                    const entryData = entry.getData();
+                    if (!entryData.post) {
+                        channel.send({ content: `Entry ${entryData.code} does not have a post, skipping.` });
+                    } else {
+                        try {
+                            const result = await this.addOrUpdateEntryFromData(this.guildHolder, entryData, entryData.post.forumId, replace, async () => { });
+                            channel.send({ content: `Entry ${entryData.code} republished: ${result.newEntryData.post?.threadURL}` });
+                        } catch (e: any) {
+                            channel.send({ content: `Error republishing entry ${entryData.code}: ${e.message}` });
+                        }
+                    }
+                }
+            }
+
+            this.lock.release();
+        } catch (e) {
+            this.lock.release();
+            throw e;
+        }
+
     }
 
 }
