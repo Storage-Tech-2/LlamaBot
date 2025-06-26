@@ -258,14 +258,16 @@ export async function processImages(images: Image[], download_folder: string, pr
 export async function processImageForDiscord(file_path: string, num_images: number, image_idx: number): Promise<string> {
     const output_path = file_path + '.discord.png';
     let newWidth = 386 * 2;
-    let newHeight = 258 * 2 - 40;
+    let newHeight = 258 * 2;
     let padding = 0;
 
     if (num_images === 1) { // Single image, use larger size
         padding = 80;
+        newHeight = newHeight - padding;
     } else if (num_images === 2) { // Two images, width is half
         newWidth = Math.floor(newWidth / 2) - 30;
         padding = 80;
+        newHeight = newHeight - padding;
     } else if (num_images === 3) { // Three images
         if (image_idx === 0) { // First image is large
             newWidth = 2 * Math.floor(newWidth / 3) - 30;
