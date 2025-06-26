@@ -262,10 +262,10 @@ export async function processImageForDiscord(file_path: string, num_images: numb
     let padding = 0;
 
     if (num_images === 1) { // Single image, use larger size
-        padding = 40;
+        padding = 80;
     } else if (num_images === 2) { // Two images, width is half
         newWidth = Math.floor(newWidth / 2) - 30;
-        padding = 40;
+        padding = 80;
     } else if (num_images === 3) { // Three images
         if (image_idx === 0) { // First image is large
             newWidth = 2 * Math.floor(newWidth / 3) - 30;
