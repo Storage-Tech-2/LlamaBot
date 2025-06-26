@@ -228,10 +228,11 @@ export async function processImages(images: Image[], download_folder: string, pr
         const s = await sharp(downloadPath)
             .trim()
             .resize({
-                width: 800,
-                height: 800,
-                fit: 'inside',
-                withoutEnlargement: true
+                width: 386 * 2,
+                height: 258 * 2,
+                fit: 'fill',
+                withoutEnlargement: true,
+                background: { r: 0, g: 0, b: 0, alpha: 0 }
             })
             // .extend({
             //     top: 20,
