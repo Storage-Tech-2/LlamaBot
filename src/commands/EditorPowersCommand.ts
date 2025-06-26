@@ -74,6 +74,10 @@ export class EditorPowersCommand implements Command {
                 subcommand
                     .setName('publishsilently')
                     .setDescription('Publish a submission without an archive-updates message')
+                    .addBooleanOption(option =>
+                        option.setName('refresh')
+                            .setDescription('Force remaking the post thread entirely')
+                    )
             );
 
         return data;
@@ -175,7 +179,7 @@ export class EditorPowersCommand implements Command {
                     return;
                 }
                 const reason = interaction.options.getString('reason') || '';
-               
+
                 interaction.deferReply();
 
                 submission.getConfigManager().setConfig(SubmissionConfigs.RETRACTION_REASON, reason);
@@ -216,16 +220,17 @@ export class EditorPowersCommand implements Command {
                     replyEphemeral(interaction, 'Submission is not publishable yet!');
                     return;
                 }
+                const refresh = interaction.options.getBoolean('refresh') || false;
                 await interaction.deferReply();
                 try {
-                    await submission.publish(true);
+                    await submission.publish(true, refresh);
                 } catch (e: any) {
                     console.error(e);
                     replyEphemeral(interaction, `Failed to publish submission: ${e.message || 'Unknown error'}`);
                     return;
                 }
                 const url = submission.getConfigManager().getConfig(SubmissionConfigs.POST)?.threadURL;
-              
+
                 await interaction.editReply({
                     content: `<@${interaction.user.id}> has published this submission silently! ${url}\nNote that the submission has been locked to prevent further edits. Contact an editor/endorser if you need to make changes.`,
                 });

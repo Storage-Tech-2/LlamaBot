@@ -601,7 +601,7 @@ export class Submission {
         return attachments
     }
 
-    public async publish(silent: boolean = false) {
+    public async publish(silent: boolean = false, force: boolean = false) {
         if (this.publishLock) {
             throw new Error('Publish is already in progress');
         }
@@ -612,7 +612,7 @@ export class Submission {
         let oldEntryData, newEntryData;
 
         try {
-            const dt = await this.guildHolder.getRepositoryManager().addOrUpdateEntry(this);
+            const dt = await this.guildHolder.getRepositoryManager().addOrUpdateEntry(this, false);
             oldEntryData = dt.oldEntryData;
             newEntryData = dt.newEntryData;
         } catch (error) {

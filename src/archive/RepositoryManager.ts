@@ -425,7 +425,7 @@ export class RepositoryManager {
         return null;
     }
 
-    async addOrUpdateEntry(submission: Submission): Promise<{ oldEntryData?: ArchiveEntryData, newEntryData: ArchiveEntryData }> {
+    async addOrUpdateEntry(submission: Submission, forceNew: boolean): Promise<{ oldEntryData?: ArchiveEntryData, newEntryData: ArchiveEntryData }> {
 
         if (!this.git) {
             throw new Error("Git not initialized");
@@ -569,7 +569,7 @@ export class RepositoryManager {
                     // Check if images are the same
                     const existingImages = existing.entry.getData().images;
                     const newImages = entryData.images;
-                    if (!getChangeIDs(existingImages, newImages)) { // no problem
+                    if (!getChangeIDs(existingImages, newImages) && !forceNew) { // no problem
                         entryData.post = existing.entry.getData().post;
                     } else {
                         // If images are different, we need to delete the thread
