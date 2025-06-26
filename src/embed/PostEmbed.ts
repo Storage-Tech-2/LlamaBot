@@ -190,7 +190,7 @@ export class PostEmbed {
             const file = new AttachmentBuilder(newPath === null ? path : newPath);
             file.setName(image.name);
             file.setDescription(image.description);
-            return file;
+            files.push(file);
         }));
 
         return {
