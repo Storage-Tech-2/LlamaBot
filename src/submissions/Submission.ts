@@ -612,7 +612,7 @@ export class Submission {
         let oldEntryData, newEntryData;
 
         try {
-            const dt = await this.guildHolder.getRepositoryManager().addOrUpdateEntry(this, false);
+            const dt = await this.guildHolder.getRepositoryManager().addOrUpdateEntry(this, force);
             oldEntryData = dt.oldEntryData;
             newEntryData = dt.newEntryData;
         } catch (error) {
