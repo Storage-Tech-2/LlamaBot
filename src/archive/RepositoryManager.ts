@@ -596,12 +596,12 @@ export class RepositoryManager {
                 throw new Error("Archive channel reference not found");
             }
 
-            const archiveChannelDiscord = await guildHolder.getGuild().channels.fetch(archiveChannelId);
+            const archiveChannelDiscord = await guildHolder.getGuild().channels.fetch(archiveChannelId).catch(() => null);
             if (!archiveChannelDiscord || archiveChannelDiscord.type !== ChannelType.GuildForum) {
                 throw new Error('Archive channel not found or is not a forum channel');
             }
 
-            const uploadChannel = await guildHolder.getGuild().channels.fetch(newEntryData.id);
+            const uploadChannel = await guildHolder.getGuild().channels.fetch(newEntryData.id).catch(() => null);
             if (!uploadChannel || !uploadChannel.isTextBased()) {
                 throw new Error('Upload channel not found or is not text based');
             }
@@ -640,9 +640,9 @@ export class RepositoryManager {
                     const post = existing.entry.getData().post;
                     if (post) {
                         const publishForumId = post.forumId;
-                        const publishForum = await guildHolder.getGuild().channels.fetch(publishForumId);
+                        const publishForum = await guildHolder.getGuild().channels.fetch(publishForumId).catch(() => null);
                         if (publishForum && publishForum.type === ChannelType.GuildForum) {
-                            const thread = await publishForum.threads.fetch(post.threadId);
+                            const thread = await publishForum.threads.fetch(post.threadId).catch(() => null);
                             if (thread) {
                                 await thread.delete('Entry moved to a different channel');
                             }
@@ -659,9 +659,9 @@ export class RepositoryManager {
                         const post = existing.entry.getData().post;
                         if (post) {
                             const publishForumId = post.forumId;
-                            const publishForum = await guildHolder.getGuild().channels.fetch(publishForumId);
+                            const publishForum = await guildHolder.getGuild().channels.fetch(publishForumId).catch(() => null);
                             if (publishForum && publishForum.type === ChannelType.GuildForum) {
-                                const thread = await publishForum.threads.fetch(post.threadId);
+                                const thread = await publishForum.threads.fetch(post.threadId).catch(() => null);
                                 if (thread) {
                                     await thread.delete('Entry images updated');
                                 }
@@ -708,7 +708,7 @@ export class RepositoryManager {
 
             let thread;
             if (newEntryData.post && newEntryData.post.threadId) {
-                thread = await archiveChannelDiscord.threads.fetch(newEntryData.post.threadId);
+                thread = await archiveChannelDiscord.threads.fetch(newEntryData.post.threadId).catch(() => null);
                 // unarchive the thread if it exists
                 if (thread && thread.archived) {
                     await thread.setArchived(false);
@@ -799,7 +799,7 @@ export class RepositoryManager {
                 const excessMessageIds = continuingMessageIds.slice(messageChunks.length - 1);
                 for (const messageId of excessMessageIds) {
                     try {
-                        const messageInstance = await thread.messages.fetch(messageId);
+                        const messageInstance = await thread.messages.fetch(messageId).catch(() => null);
                         if (messageInstance) {
                             await messageInstance.delete();
                         }
@@ -832,7 +832,7 @@ export class RepositoryManager {
             // If there are more chunks, send them as separate messages
             for (let i = 1; i < messageChunks.length; i++) {
                 const messageId = newEntryData.post.continuingMessageIds[i - 1];
-                const message = await thread.messages.fetch(messageId);
+                const message = await thread.messages.fetch(messageId).catch(() => null);
                 if (!message) {
                     throw new Error(`Message with ID ${messageId} not found in thread ${thread.id}`);
                 }
@@ -844,7 +844,7 @@ export class RepositoryManager {
 
             let attachmentMessageInstance;
             if (newEntryData.post.attachmentMessageId) {
-                attachmentMessageInstance = await thread.messages.fetch(newEntryData.post.attachmentMessageId);
+                attachmentMessageInstance = await thread.messages.fetch(newEntryData.post.attachmentMessageId).catch(() => null);
             }
 
             if (attachmentMessageInstance) {
@@ -1034,11 +1034,11 @@ export class RepositoryManager {
         }
 
         const publishForumId = entryData.post.forumId;
-        const publishForum = await submission.getGuildHolder().getGuild().channels.fetch(publishForumId);
+        const publishForum = await submission.getGuildHolder().getGuild().channels.fetch(publishForumId).catch(() => null);
         if (!publishForum || publishForum.type !== ChannelType.GuildForum) {
             return; // Publish forum not found or is not a forum channel
         }
-        const thread = await publishForum.threads.fetch(entryData.post.threadId);
+        const thread = await publishForum.threads.fetch(entryData.post.threadId).catch(() => null);
         if (!thread) {
             return; // Thread not found in publish forum
         }
@@ -1653,9 +1653,9 @@ export class RepositoryManager {
 
             if (newData.post) {
                 // Update the post with new authors and endorsers
-                const publishForum = await this.guildHolder.getGuild().channels.fetch(newData.post.forumId);
+                const publishForum = await this.guildHolder.getGuild().channels.fetch(newData.post.forumId).catch(() => null);
                 if (publishForum && publishForum.type === ChannelType.GuildForum) {
-                    const thread = await publishForum.threads.fetch(newData.post.threadId);
+                    const thread = await publishForum.threads.fetch(newData.post.threadId).catch(() => null);
                     if (thread) {
                         if (thread.archived) {
                             await thread.setArchived(false); // Unarchive the thread to update it
