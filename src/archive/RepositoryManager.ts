@@ -520,32 +520,7 @@ export class RepositoryManager {
         if (!submissionChannel || !entryData) {
             throw new Error("Failed to get submission channel or entry data");
         }
-        return this.addOrUpdateEntryFromData(submission.getGuildHolder(), entryData, archiveChannelId, forceNew, async (entryData, entryFolderPath) => {
-
-            await fs.mkdir(entryFolderPath, { recursive: true });
-
-            const imageFolder = Path.join(entryFolderPath, 'images');
-            const attachmentFolder = Path.join(entryFolderPath, 'attachments');
-
-            // remove all images and attachments that exist in the folder.
-            await fs.mkdir(imageFolder, { recursive: true });
-            await fs.mkdir(attachmentFolder, { recursive: true });
-
-            for (const file of await fs.readdir(imageFolder)) {
-                const filePath = Path.join(imageFolder, file);
-                const stat = await fs.lstat(filePath);
-                if (stat.isFile()) {
-                    await fs.unlink(filePath);
-                }
-            }
-            for (const file of await fs.readdir(attachmentFolder)) {
-                const filePath = Path.join(attachmentFolder, file);
-                const stat = await fs.lstat(filePath);
-                if (stat.isFile()) {
-                    await fs.unlink(filePath);
-                }
-            }
-
+        return this.addOrUpdateEntryFromData(submission.getGuildHolder(), entryData, archiveChannelId, forceNew, async (entryData, imageFolder, attachmentFolder) => {
             // Copy over all attachments and images
             for (const image of entryData.images) {
                 const sourcePath = Path.join(submission.getProcessedImagesFolder(), getFileKey(image, 'png'));
@@ -600,7 +575,7 @@ export class RepositoryManager {
     }
 
 
-    async addOrUpdateEntryFromData(guildHolder: GuildHolder, newEntryData: ArchiveEntryData, archiveChannelId: Snowflake, forceNew: boolean, moveAttachments: (entryData: ArchiveEntryData, entryPath: string) => Promise<void>): Promise<{ oldEntryData?: ArchiveEntryData, newEntryData: ArchiveEntryData }> {
+    async addOrUpdateEntryFromData(guildHolder: GuildHolder, newEntryData: ArchiveEntryData, archiveChannelId: Snowflake, forceNew: boolean, moveAttachments: (entryData: ArchiveEntryData, imageFolder: string, attachmentFolder: string) => Promise<void>): Promise<{ oldEntryData?: ArchiveEntryData, newEntryData: ArchiveEntryData }> {
         // clone entryData
         newEntryData = deepClone(newEntryData);
 
@@ -697,7 +672,7 @@ export class RepositoryManager {
             }
 
             await fs.mkdir(entryFolderPath, { recursive: true });
-            await moveAttachments(newEntryData, entryFolderPath);
+           
             const entry = new ArchiveEntry(newEntryData, entryFolderPath);
 
             const imageFolder = Path.join(entryFolderPath, 'images');
@@ -721,6 +696,8 @@ export class RepositoryManager {
                     await fs.unlink(filePath);
                 }
             }
+
+            await moveAttachments(newEntryData, imageFolder, attachmentFolder);
 
             if (existing && isSameChannel) {
                 archiveChannel.getData().entries[existing.entryIndex] = entryRef;
