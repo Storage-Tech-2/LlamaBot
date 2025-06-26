@@ -274,19 +274,43 @@ export async function processImages(images: Image[], download_folder: string, pr
 }
 
 
-export async function processImageForDiscord(file_path: string): Promise<string> {
+export async function processImageForDiscord(file_path: string, num_images: number, image_idx: number): Promise<string> {
     const output_path = file_path + '.discord.png';
+    let newWidth = 386 * 2;
+    let newHeight = 258 * 2 - 40;
+    let padding = 0;
+
+    if (num_images === 1) { // Single image, use larger size
+        padding = 40;
+    } else if (num_images === 2) { // Two images, width is half
+        newWidth = Math.floor(newWidth / 2) - 10;
+    } else if (num_images === 3) { // Three images
+        if (image_idx === 0) { // First image is large
+            newWidth = 2 * Math.floor(newWidth / 3) - 10;
+            newHeight = newHeight;
+        } else { // Other two images are small
+            newWidth = Math.floor(newWidth / 3) - 10;
+            newHeight = Math.floor(newHeight / 2) - 10;
+         
+        }
+        padding = 0;
+    } else if (num_images === 4) { // Four images, all are small
+        newWidth = Math.floor(newWidth / 2) - 10;
+        newHeight = Math.floor(newHeight / 2) - 10;
+        padding = 0;
+    }
+
     const s = await sharp(file_path)
         .trim()
-        .resize({
-            width: 386 * 2,
-            height: 258 * 2 - 40,
+        .resize({   
+            width: newWidth,
+            height: newHeight,
             fit: 'contain',
             // withoutEnlargement: true,
             background: { r: 0, g: 0, b: 0, alpha: 0 }
         })
         .extend({
-            bottom: 40,
+            bottom: padding,
             background: { r: 0, g: 0, b: 0, alpha: 0 }
         })
         .toFormat('png')

@@ -172,17 +172,17 @@ export class PostEmbed {
         //             throw error;
         //         }
         //    }
-        const images = entryData.images;
+        const images = entryData.images.filter(i => i.path);
         const paths = [];
         const files: AttachmentBuilder[] = [];
-        await Promise.all(images.map(async (image) => {
+        await Promise.all(images.map(async (image, i) => {
             if (!image.path) {
                 return null
             }
             const path = Path.join(archivePath, entryPathPart, image.path);
             let newPath = null;
             try {
-                newPath = await processImageForDiscord(path);
+                newPath = await processImageForDiscord(path, images.length, i);
                 paths.push(newPath);
             } catch (error: any) {
                 console.error('Error processing image for discord:', error.message);
