@@ -213,9 +213,9 @@ export async function processImages(images: Image[], download_folder: string, pr
     await Promise.all(images.map(async image => {
         const processedPath = Path.join(processed_folder, getFileKey(image, 'png'));
         // If the processed image already exists, skip processing
-        if (await fs.access(processedPath).then(() => true).catch(() => false)) {
-            return;
-        }
+        // if (await fs.access(processedPath).then(() => true).catch(() => false)) {
+        //     return;
+        // }
 
         const downloadPath = Path.join(download_folder, getFileKey(image));
         let imageData;
