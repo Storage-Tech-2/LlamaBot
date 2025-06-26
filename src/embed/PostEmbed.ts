@@ -173,7 +173,7 @@ export class PostEmbed {
         //         }
         //    }
         const images = entryData.images.filter(i => i.path);
-        const paths = [];
+        const paths: string = [];
         const files: AttachmentBuilder[] = [];
         await Promise.all(images.map(async (image, i) => {
             if (!image.path) {
@@ -195,7 +195,7 @@ export class PostEmbed {
 
         return {
             files: files,
-            paths: images.map(i => i.path || '').filter(p => p !== '')
+            paths: paths
         }
     }
 }
