@@ -225,26 +225,7 @@ export async function processImages(images: Image[], download_folder: string, pr
             throw new Error(`Failed to download image ${image.name} at ${image.url}, try reuploading the file directly to the thread.`);
         }
         await fs.writeFile(downloadPath, imageData.body);
-        let s;
-        if (forDiscord) {
-
-            s = await sharp(downloadPath)
-                .trim()
-                .resize({
-                    width: 386 * 2,
-                    height: 258 * 2 - 40,
-                    fit: 'contain',
-                    // withoutEnlargement: true,
-                    background: { r: 0, g: 0, b: 0, alpha: 0 }
-                })
-                .extend({
-                    bottom: 40,
-                    background: { r: 0, g: 0, b: 0, alpha: 0 }
-                })
-                .toFormat('png')
-                .toFile(processedPath);
-        } else {
-            s = await sharp(downloadPath)
+        const s = await sharp(downloadPath)
                 .trim()
                 .resize({
                     width: 800,
@@ -254,7 +235,7 @@ export async function processImages(images: Image[], download_folder: string, pr
                 })
                 .toFormat('png')
                 .toFile(processedPath);
-        }
+        
 
         image.width = s.width;
         image.height = s.height;
@@ -282,21 +263,20 @@ export async function processImageForDiscord(file_path: string, num_images: numb
 
     if (num_images === 1) { // Single image, use larger size
         padding = 40;
-    } else if (num_images === 2) { // Two images, width is half
-        newWidth = Math.floor(newWidth / 2) - 10;
-    } else if (num_images === 3) { // Three images
-        if (image_idx === 0) { // First image is large
-            newWidth = 2 * Math.floor(newWidth / 3) - 10;
-            newHeight = newHeight;
-        } else { // Other two images are small
-            newWidth = Math.floor(newWidth / 3) - 10;
-            newHeight = Math.floor(newHeight / 2) - 10;
-         
-        }
-        padding = 0;
-    } else if (num_images === 4) { // Four images, all are small
-        newWidth = Math.floor(newWidth / 2) - 10;
-        newHeight = Math.floor(newHeight / 2) - 10;
+    // } else if (num_images === 2) { // Two images, width is half
+    //     newWidth = Math.floor(newWidth / 2) - 10;
+    // } else if (num_images === 3) { // Three images
+    //     if (image_idx === 0) { // First image is large
+    //         newWidth = 2 * Math.floor(newWidth / 3) - 10;
+    //         newHeight = newHeight;
+    //     } else { // Other two images are small
+    //         newWidth = Math.floor(newWidth / 3) - 10;
+    //         newHeight = Math.floor(newHeight / 2) - 10;
+    //     }
+    //     padding = 0;
+    // } else if (num_images === 4) { // Four images, all are small
+    //     padding = 0;
+    } else { // More than four images, all are tiny
         padding = 0;
     }
 
