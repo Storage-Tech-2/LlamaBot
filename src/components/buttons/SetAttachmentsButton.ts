@@ -1,11 +1,10 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle } from "discord.js";
+import { ButtonBuilder, ButtonInteraction, ButtonStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Button } from "../../interface/Button.js";
 import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
 import { SetAttachmentsMenu } from "../menus/SetAttachmentsMenu.js";
 import { SetImagesMenu } from "../menus/SetImagesMenu.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
-import { SkipImagesButton } from "./SkipImagesButton.js";
 
 export class SetAttachmentsButton implements Button {
     getID(): string {

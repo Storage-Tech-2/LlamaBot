@@ -710,20 +710,27 @@ export class RepositoryManager {
             const attachmentMessage = await PostEmbed.createAttachmentMessage(this.guildHolder, entryData, branchName, entryPathPart, uploadMessage);
 
             // Next, create the post
-            const message = await PostEmbed.createInitialMessage(this.guildHolder, entryData, this.folderPath, entryPathPart);
-            const messageChunks = splitIntoChunks(message.content, 2000);
+            const message = await PostEmbed.createInitialMessage(this.guildHolder, entryData, this.folderPath);
+            const messageChunks = splitIntoChunks(message, 2000);
 
             let wasThreadCreated = false;
             if (!thread) {
+                const files = await PostEmbed.createImageFiles(this.guildHolder, entryData, this.folderPath, entryPathPart);
                 thread = await publishChannel.threads.create({
                     message: {
                         content: `Pending...`,
-                        files: message.files,
+                        files: files.files,
                         flags: [MessageFlags.SuppressEmbeds]
                     },
                     name: entryData.code + ' ' + entryData.name,
                     appliedTags: entryData.tags.map(tag => tag.id).filter(tagId => publishChannel.availableTags.some(t => t.id === tagId)).slice(0,5),
                 })
+
+                // delete old files
+                for (const file of files.paths) {
+                    await fs.unlink(file).catch(() => { });
+                }
+
                 entryData.post.threadId = thread.id;
                 entryData.post.threadURL = thread.url;
                 wasThreadCreated = true;
@@ -1642,7 +1649,7 @@ export class RepositoryManager {
                             } else if (entryPathPart.startsWith('./')) {
                                 entryPathPart = entryPathPart.substring(2);
                             }
-                            const content = (await PostEmbed.createInitialMessage(this.guildHolder, newData, this.folderPath, entryPathPart)).content;
+                            const content = (await PostEmbed.createInitialMessage(this.guildHolder, newData, this.folderPath));
                             const split = splitIntoChunks(content, 2000);
                             await message.edit({
                                 content: split[0],

@@ -1,5 +1,5 @@
 import { ActionRowBuilder, AttachmentBuilder, EmbedBuilder, Message } from "discord.js";
-import { areObjectsIdentical, escapeDiscordString, escapeString, getAuthorsString, getGithubOwnerAndProject } from "../utils/Util.js";
+import { areObjectsIdentical, escapeDiscordString, escapeString, getAuthorsString, getGithubOwnerAndProject, processImageForDiscord } from "../utils/Util.js";
 import Path from "path";
 import { Attachment } from "../submissions/Attachment.js";
 import { ArchiveEntryData } from "../archive/ArchiveEntry.js";
@@ -49,7 +49,7 @@ export class PostEmbed {
         uploadMessage.attachments.forEach(attachment => {
             attachmentURLs.set(attachment.name, attachment.url);
         });
-        
+
         const litematics: Attachment[] = []
         const others: Attachment[] = []
         const attachments = entryData.attachments;
@@ -103,7 +103,7 @@ export class PostEmbed {
 
     }
 
-    public static async createInitialMessage(guildHolder: GuildHolder, entryData: ArchiveEntryData, archivePath: string, entryPathPart: string): Promise<{ content: string, files: AttachmentBuilder[] }> {
+    public static async createInitialMessage(guildHolder: GuildHolder, entryData: ArchiveEntryData, entryPathPart: string): Promise<string> {
         let content = [];
 
         const description = entryData.description;
@@ -125,7 +125,7 @@ export class PostEmbed {
         } else {
             content.push(`**Endorsed by:** ${getAuthorsString(entryData.endorsers)}`);
         }
-       
+
         content.push('\n' + description);
 
         if (features.length) {
@@ -147,7 +147,7 @@ export class PostEmbed {
         const { owner, project } = getGithubOwnerAndProject(githubURL);
 
         const submissionThreadID = entryData.id;
-       // const submissionsForumID = guildHolder.getConfigManager().getConfig(GuildConfigs.SUBMISSION_CHANNEL_ID);
+        // const submissionsForumID = guildHolder.getConfigManager().getConfig(GuildConfigs.SUBMISSION_CHANNEL_ID);
 
         const submissionURL = `https://discord.com/channels/${guildHolder.getGuild().id}/${submissionThreadID}`;
 
@@ -156,23 +156,47 @@ export class PostEmbed {
         content.push(`[Github](${gitURL})`);
         content.push(`Edited on <t:${Math.floor(entryData.timestamp / 1000)}:F>`);
 
-        const files: AttachmentBuilder[] = [];
-        images.forEach(image => {
-            if (!image.path) {
-                return;
-            }
-            const path = Path.join(archivePath, entryPathPart, image.path);
-            const file = new AttachmentBuilder(path);
-            file.setName(image.name);
-            file.setDescription(image.description);
-            files.push(file);
-        });
-
-        return {
-            content: content.join('\n'),
-            files: files
-        };
+        return content.join('\n');
     }
 
+    public static async createImageFiles(guildHolder: GuildHolder, entryData: ArchiveEntryData, archivePath: string, entryPathPart: string): Promise<{files: AttachmentBuilder[], paths: string[]}> {
+        //   try {
+        //             const images = this.config.getConfig(SubmissionConfigs.IMAGES) || [];
+        //             const processedFolder = this.getProcessedImagesFolder();
+        //             const downloadFolder = Path.join(this.folderPath, 'downloaded_images');
+        //             await processImages(images, downloadFolder, processedFolder, false);
+        //             this.imagesProcessing = false;
+        //         } catch (error: any) {
+        //             this.imagesProcessing = false;
+        //             console.error('Error processing images:', error.message);
+        //             throw error;
+        //         }
+        //    }
+        const images = entryData.images;
+        const paths = [];
+        const files: AttachmentBuilder[] = [];
+        await Promise.all(images.map(async (image) => {
+            if (!image.path) {
+                return null
+            }
+            const path = Path.join(archivePath, entryPathPart, image.path);
+            let newPath = null;
+            try {
+                newPath = await processImageForDiscord(path);
+                paths.push(newPath);
+            } catch (error: any) {
+                console.error('Error processing image for discord:', error.message);
+            }
+            const file = new AttachmentBuilder(newPath === null ? path : newPath);
+            file.setName(image.name);
+            file.setDescription(image.description);
+            return file;
+        }));
+
+        return {
+            files: files,
+            paths: images.map(i => i.path || '').filter(p => p !== '')
+        }
+    }
 }
 

@@ -273,6 +273,28 @@ export async function processImages(images: Image[], download_folder: string, pr
 
 }
 
+
+export async function processImageForDiscord(file_path: string): Promise<string> {
+    const output_path = file_path + '.discord.png';
+    const s = await sharp(file_path)
+        .trim()
+        .resize({
+            width: 386 * 2,
+            height: 258 * 2 - 40,
+            fit: 'contain',
+            // withoutEnlargement: true,
+            background: { r: 0, g: 0, b: 0, alpha: 0 }
+        })
+        .extend({
+            bottom: 40,
+            background: { r: 0, g: 0, b: 0, alpha: 0 }
+        })
+        .toFormat('png')
+        .toFile(output_path);
+
+    return output_path;
+}
+
 export async function processAttachments(attachments: Attachment[], attachments_folder: string, remove_old: boolean = true): Promise<Attachment[]> {
     // Check if the folder exists, if not, create it
     if (attachments.length > 0) {

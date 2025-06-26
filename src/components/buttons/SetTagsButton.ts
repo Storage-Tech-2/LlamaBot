@@ -1,7 +1,7 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle } from "discord.js";
+import { ButtonBuilder, ButtonInteraction, ButtonStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Button } from "../../interface/Button.js";
-import { canEditSubmission, canSetPrivilegedTags, replyEphemeral } from "../../utils/Util.js";
+import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
 import { SetTagsMenu } from "../menus/SetTagsMenu.js";
 
 export class SetTagsButton implements Button {

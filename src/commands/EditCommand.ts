@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType, ActionRowBuilder } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
-import { canEditSubmission, isEditor, isEndorser, isModerator, replyEphemeral } from "../utils/Util.js";
+import { canEditSubmission, replyEphemeral } from "../utils/Util.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
 import { SetAuthorsMenu } from "../components/menus/SetAuthorsMenu.js";
