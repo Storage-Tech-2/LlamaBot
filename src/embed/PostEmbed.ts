@@ -111,7 +111,6 @@ export class PostEmbed {
         const considerations = entryData.considerations;
         const notes = entryData.notes;
         const authors = entryData.authors;
-        const images = entryData.images;
 
 
         if (authors.length > 0) {
@@ -159,7 +158,7 @@ export class PostEmbed {
         return content.join('\n');
     }
 
-    public static async createImageFiles(guildHolder: GuildHolder, entryData: ArchiveEntryData, archivePath: string, entryPathPart: string): Promise<{files: AttachmentBuilder[], paths: string[]}> {
+    public static async createImageFiles(entryData: ArchiveEntryData, archivePath: string, entryPathPart: string): Promise<{files: AttachmentBuilder[], paths: string[]}> {
         //   try {
         //             const images = this.config.getConfig(SubmissionConfigs.IMAGES) || [];
         //             const processedFolder = this.getProcessedImagesFolder();

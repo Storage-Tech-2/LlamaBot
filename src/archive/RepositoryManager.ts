@@ -738,7 +738,7 @@ export class RepositoryManager {
 
         let wasThreadCreated = false;
         if (!thread) {
-            const files = await PostEmbed.createImageFiles(this.guildHolder, newEntryData, this.folderPath, entryPathPart);
+            const files = await PostEmbed.createImageFiles(newEntryData, this.folderPath, entryPathPart);
             thread = await archiveChannelDiscord.threads.create({
                 message: {
                     content: `Pending...`,
@@ -1722,7 +1722,7 @@ export class RepositoryManager {
         };
     }
 
-    public async republishAllEntries(silent: boolean, replace: boolean, interaction: ChatInputCommandInteraction): Promise<void> {
+    public async republishAllEntries(_silent: boolean, replace: boolean, interaction: ChatInputCommandInteraction): Promise<void> {
 
         if (!this.git) {
             throw new Error("Git not initialized");

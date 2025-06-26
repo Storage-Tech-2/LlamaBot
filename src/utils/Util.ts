@@ -184,7 +184,7 @@ export function getFileKey(file: Attachment | Image, new_ext: string = '') {
     return `${escapedPrefix}${escapedExt}`;
 }
 
-export async function processImages(images: Image[], download_folder: string, processed_folder: string, forDiscord: boolean): Promise<Image[]> {
+export async function processImages(images: Image[], download_folder: string, processed_folder: string): Promise<Image[]> {
     if (images.length > 0) {
         // Check if the folders exist, if not, create them
         if (!await fs.access(download_folder).then(() => true).catch(() => false)) {
@@ -294,7 +294,7 @@ export async function processImageForDiscord(file_path: string, num_images: numb
         newWidth = Math.floor(newWidth * scale);
     }
 
-    const s = await sharp(file_path)
+    await sharp(file_path)
         .trim()
         .resize({   
             width: newWidth,
