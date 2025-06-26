@@ -233,13 +233,13 @@ export async function processImages(images: Image[], download_folder: string, pr
                 fit: 'inside',
                 withoutEnlargement: true
             })
-            .extend({
-                top: 20,
-                bottom: 20,
-                left: 20,
-                right: 20,
-                background: { r: 0, g: 0, b: 0, alpha: 0 }
-            })
+            // .extend({
+            //     top: 20,
+            //     bottom: 20,
+            //     left: 20,
+            //     right: 20,
+            //     background: { r: 0, g: 0, b: 0, alpha: 0 }
+            // })
             .toFormat('png')
             .toFile(processedPath);
 
