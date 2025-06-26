@@ -136,6 +136,16 @@ export class Mwa implements Command {
                             .setDescription('Force remaking each thread for image reprocessing')
                     )
             )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('closeposts')
+                    .setDescription('Close all open threads in the archive')
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('closesubmissions')
+                    .setDescription('Close all open threads in submissions')
+            )
         return data;
     }
 
@@ -166,6 +176,10 @@ export class Mwa implements Command {
             this.listBlacklist(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'republisheverything') {
             this.republishEverything(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'closeposts') {
+            this.closeEverythingPosts(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'closesubmissions') {
+            this.closeEverythingSubmissions(guildHolder, interaction);
         } else {
             await replyEphemeral(interaction, 'Invalid subcommand. Use `/mwa setsubmissions`, `/mwa setlogs`, `/mwa setarchives`, `/mwa setuparchives`, `/mwa setendorseroles`, `/mwa seteditorroles`, `/mwa sethelperrole` or `/mwa setrepo`.');
             return;
@@ -241,7 +255,7 @@ export class Mwa implements Command {
         }).join('\n');
 
         const chunks = splitIntoChunks(response, 2000);
-        await interaction.reply({  content: chunks[0] });
+        await interaction.reply({ content: chunks[0] });
         for (let i = 1; i < chunks.length; i++) {
             await interaction.followUp({ content: chunks[i] });
         }
@@ -567,17 +581,66 @@ export class Mwa implements Command {
         // Get all entries from the archive
         const silent = interaction.options.getBoolean('silent') || false;
         const replace = interaction.options.getBoolean('replace') || false;
-        await interaction.deferReply();
+        await interaction.reply('Starting to republish all entries. This may take a while depending on the size of the archive. You will be notified when it is complete.');
         try {
             await guildHolder.getRepositoryManager().republishAllEntries(silent, replace, interaction);
         } catch (error) {
             console.error('Error republishing all entries:', error);
-            await interaction.editReply('An error occurred while republishing all entries. Please check the console for details.');
+            await interaction.followUp('An error occurred while republishing all entries. Please check the console for details.');
             return;
         }
 
-        await interaction.editReply('Republishing all entries complete! Please check the channels for the new posts.');
+        await interaction.followUp(`<@${interaction.user.id}> Republishing all entries complete!`);
+    }
 
+    async closeEverythingPosts(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
 
+        await interaction.reply('Starting to close all threads. This may take a while depending on the number of open threads. You will be notified when it is complete.');
+
+        const currentCategories = guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
+        const allchannels = await guildHolder.getGuild().channels.fetch()
+        // get all channels in categories
+        const channels = allchannels.filter(channel => {
+            return channel && channel.type === ChannelType.GuildForum && channel.parentId && currentCategories.includes(channel.parentId)
+        }) as unknown as ForumChannel[];
+
+        for (const channel of channels.values()) {
+            const threads = await channel.threads.fetchActive();
+            for (const thread of threads.threads.values()) {
+                try {
+                    await thread.setArchived(true, 'Closing thread as part of closeEverything command');
+                } catch (error) {
+                    console.error(`Error closing thread ${thread.name} (${thread.id}):`, error);
+                }
+            }
+        }
+
+        await interaction.followUp(`<@${interaction.user.id}> Closing all threads complete!`);
+    }
+
+    async closeEverythingSubmissions(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+
+        const submissionChannelId = guildHolder.getConfigManager().getConfig(GuildConfigs.SUBMISSION_CHANNEL_ID);
+        if (!submissionChannelId) {
+            await interaction.followUp('Submission channel is not set. Please set it using `/mwa setsubmissions` command.');
+            return;
+        }
+        const submissionChannel = await guildHolder.getGuild().channels.fetch(submissionChannelId);
+        if (!submissionChannel || submissionChannel.type !== ChannelType.GuildForum) {
+            await interaction.followUp('Submission channel is not a valid forum channel. Please set it using `/mwa setsubmissions` command.');
+            return;
+        }
+
+        await interaction.reply('Starting to close all submission channels. This may take a while depending on the number of open submissions. You will be notified when it is complete.');
+
+        const threads = await submissionChannel.threads.fetchActive();
+        for (const thread of threads.threads.values()) {
+            try {
+                await thread.setArchived(true, 'Closing submission as part of closeEverything command');
+            } catch (error) {
+                console.error(`Error closing submission ${thread.name} (${thread.id}):`, error);
+            }
+        }
+        await interaction.followUp(`<@${interaction.user.id}> Closing all submissions complete!`);
     }
 }
