@@ -263,21 +263,32 @@ export async function processImageForDiscord(file_path: string, num_images: numb
 
     if (num_images === 1) { // Single image, use larger size
         padding = 40;
-    // } else if (num_images === 2) { // Two images, width is half
-    //     newWidth = Math.floor(newWidth / 2) - 10;
-    // } else if (num_images === 3) { // Three images
-    //     if (image_idx === 0) { // First image is large
-    //         newWidth = 2 * Math.floor(newWidth / 3) - 10;
-    //         newHeight = newHeight;
-    //     } else { // Other two images are small
-    //         newWidth = Math.floor(newWidth / 3) - 10;
-    //         newHeight = Math.floor(newHeight / 2) - 10;
-    //     }
-    //     padding = 0;
-    // } else if (num_images === 4) { // Four images, all are small
-    //     padding = 0;
+    } else if (num_images === 2) { // Two images, width is half
+        newWidth = Math.floor(newWidth / 2) - 10;
+    } else if (num_images === 3) { // Three images
+        if (image_idx === 0) { // First image is large
+            newWidth = 2 * Math.floor(newWidth / 3) - 10;
+            newHeight = newHeight;
+        } else { // Other two images are small
+            newWidth = Math.floor(newWidth / 3) - 10;
+            newHeight = Math.floor(newHeight / 2) - 10;
+        }
+        padding = 0;
+    } else if (num_images === 4) { // Four images, all are small
+        padding = 0;
     } else { // More than four images, all are tiny
         padding = 0;
+    }
+
+    // Scale so that largest dimension is 800px
+    if (newWidth > newHeight) {
+        const scale = 800 / newWidth;
+        newWidth = 800;
+        newHeight = Math.floor(newHeight * scale);
+    } else {
+        const scale = 800 / newHeight;
+        newHeight = 800;
+        newWidth = Math.floor(newWidth * scale);
     }
 
     const s = await sharp(file_path)
