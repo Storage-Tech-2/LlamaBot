@@ -231,7 +231,7 @@ export async function processImages(images: Image[], download_folder: string, pr
                 width: 386 * 2,
                 height: 258 * 2,
                 fit: 'fill',
-                withoutEnlargement: true,
+               // withoutEnlargement: true,
                 background: { r: 0, g: 0, b: 0, alpha: 0 }
             })
             // .extend({
