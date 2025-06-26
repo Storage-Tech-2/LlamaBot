@@ -574,6 +574,8 @@ export class Mwa implements Command {
             return;
         }
 
+        await interaction.editReply('Republishing all entries complete! Please check the channels for the new posts.');
+
 
     }
 }
