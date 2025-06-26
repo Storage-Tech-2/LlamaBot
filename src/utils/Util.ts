@@ -184,7 +184,7 @@ export function getFileKey(file: Attachment | Image, new_ext: string = '') {
     return `${escapedPrefix}${escapedExt}`;
 }
 
-export async function processImages(images: Image[], download_folder: string, processed_folder: string): Promise<Image[]> {
+export async function processImages(images: Image[], download_folder: string, processed_folder: string, forDiscord: boolean): Promise<Image[]> {
     if (images.length > 0) {
         // Check if the folders exist, if not, create them
         if (!await fs.access(download_folder).then(() => true).catch(() => false)) {
@@ -225,24 +225,36 @@ export async function processImages(images: Image[], download_folder: string, pr
             throw new Error(`Failed to download image ${image.name} at ${image.url}, try reuploading the file directly to the thread.`);
         }
         await fs.writeFile(downloadPath, imageData.body);
-        const s = await sharp(downloadPath)
-            .trim()
-            .resize({
-                width: 386 * 2,
-                height: 258 * 2,
-                fit: 'contain',
-               // withoutEnlargement: true,
-                background: { r: 0, g: 0, b: 0, alpha: 0 }
-            })
-            // .extend({
-            //     top: 20,
-            //     bottom: 20,
-            //     left: 20,
-            //     right: 20,
-            //     background: { r: 0, g: 0, b: 0, alpha: 0 }
-            // })
-            .toFormat('png')
-            .toFile(processedPath);
+        let s;
+        if (forDiscord) {
+
+            s = await sharp(downloadPath)
+                .trim()
+                .resize({
+                    width: 386 * 2,
+                    height: 258 * 2 - 40,
+                    fit: 'contain',
+                    // withoutEnlargement: true,
+                    background: { r: 0, g: 0, b: 0, alpha: 0 }
+                })
+                .extend({
+                    bottom: 40,
+                    background: { r: 0, g: 0, b: 0, alpha: 0 }
+                })
+                .toFormat('png')
+                .toFile(processedPath);
+        } else {
+            s = await sharp(downloadPath)
+                .trim()
+                .resize({
+                    width: 800,
+                    height: 800,
+                    fit: 'inside',
+                    withoutEnlargement: true,
+                })
+                .toFormat('png')
+                .toFile(processedPath);
+        }
 
         image.width = s.width;
         image.height = s.height;

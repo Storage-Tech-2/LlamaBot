@@ -273,7 +273,7 @@ export class Submission {
             const images = this.config.getConfig(SubmissionConfigs.IMAGES) || [];
             const processedFolder = this.getProcessedImagesFolder();
             const downloadFolder = Path.join(this.folderPath, 'downloaded_images');
-            await processImages(images, downloadFolder, processedFolder);
+            await processImages(images, downloadFolder, processedFolder, false);
             this.imagesProcessing = false;
         } catch (error: any) {
             this.imagesProcessing = false;
