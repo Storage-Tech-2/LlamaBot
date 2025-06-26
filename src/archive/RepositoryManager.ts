@@ -720,7 +720,7 @@ export class RepositoryManager {
                     message: {
                         content: `Pending...`,
                         files: files.files,
-                        flags: [MessageFlags.SuppressEmbeds]
+                        flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications]
                     },
                     name: entryData.code + ' ' + entryData.name,
                     appliedTags: entryData.tags.map(tag => tag.id).filter(tagId => publishChannel.availableTags.some(t => t.id === tagId)).slice(0,5),
@@ -790,7 +790,7 @@ export class RepositoryManager {
             for (let i = continuingMessageIds.length; i < messageChunks.length - 1; i++) {
                 const message = await thread.send({
                     content: 'Pending...',
-                    flags: [MessageFlags.SuppressEmbeds]
+                    flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications]
                 });
                 entryData.post.continuingMessageIds.push(message.id);
             }
@@ -831,7 +831,7 @@ export class RepositoryManager {
             } else {
                 attachmentMessageInstance = await thread.send({
                     content: attachmentMessage.content,
-                    flags: [MessageFlags.SuppressEmbeds]
+                    flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications]
                 });
                 entryData.post.attachmentMessageId = attachmentMessageInstance.id;
             }
@@ -883,6 +883,7 @@ export class RepositoryManager {
                             avatarURL: author.iconURL || undefined,
                             files: files,
                             threadId: thread.id,
+                            flags: [MessageFlags.SuppressNotifications]
                         });
                         comment.id = commentMessage.id;
                     }
