@@ -563,7 +563,17 @@ export class Mwa implements Command {
 
     async republishEverything(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         // Get all entries from the archive
-        
+        const silent = interaction.options.getBoolean('silent') || false;
+        const replace = interaction.options.getBoolean('replace') || false;
+        await interaction.deferReply();
+        try {
+            await guildHolder.getRepositoryManager().republishAllEntries(silent, replace, interaction);
+        } catch (error) {
+            console.error('Error republishing all entries:', error);
+            await interaction.editReply('An error occurred while republishing all entries. Please check the console for details.');
+            return;
+        }
+
 
     }
 }
