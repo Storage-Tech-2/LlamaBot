@@ -38,7 +38,7 @@ export function makeEntryReadMe(
     }
     text.push(`**Tags:** *${entryData.tags.map(o => o.name).join(", ")}*\n\n`);
     if (entryData.post) {
-        text.push(`**Original Post:** [View on Discord](${entryData.post.threadURL})\n\n`);
+        text.push(`**Original post:** [View on Discord](${entryData.post.threadURL})\n\n`);
     }
 
     text.push(`${entryData.description}\n`);
