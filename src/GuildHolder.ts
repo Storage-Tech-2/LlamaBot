@@ -113,6 +113,16 @@ export class GuildHolder {
      * Handles a message received in the guild.
      */
     public async handleMessage(message: Message) {
+
+        const match = message.content.match(/(isn'?t|not)?\bunload\bsafe\b/i);
+        if (match) {
+            const isNegated = match[1] !== undefined;
+            if (!isNegated) {
+                // Reply with "Nothing is unload safe."
+                await message.reply('Nothing here is unload safe. Never assume anything redstone is unload safe.');
+            }
+        }
+
         if (message.reference) {
             // Check if message contains "thanks" or "thank you"
             // /\b(thanks|thank you|thank u)[!\.]?\b/i
