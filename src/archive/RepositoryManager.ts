@@ -1767,6 +1767,8 @@ export class RepositoryManager {
                         continue;
                     }
 
+                    submission.getConfigManager().setConfig(SubmissionConfigs.POST, result?.newEntryData.post || null);
+
                     // Get channel
                     const submissionChannel = await submission.getSubmissionChannel(true);
                     const wasArchived = submissionChannel.archived;
