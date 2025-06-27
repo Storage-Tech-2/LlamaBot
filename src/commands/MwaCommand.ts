@@ -146,6 +146,11 @@ export class Mwa implements Command {
                     .setName('closesubmissions')
                     .setDescription('Close all open threads in submissions')
             )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('updatesubmissionsstatus')
+                    .setDescription('Update the status of all submissions based on their archive status')
+            )
         return data;
     }
 
@@ -180,6 +185,8 @@ export class Mwa implements Command {
             this.closeEverythingPosts(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'closesubmissions') {
             this.closeEverythingSubmissions(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'updatesubmissionsstatus') {
+            this.updateAllSubmissionsStatus(guildHolder, interaction);
         } else {
             await replyEphemeral(interaction, 'Invalid subcommand. Use `/mwa setsubmissions`, `/mwa setlogs`, `/mwa setarchives`, `/mwa setuparchives`, `/mwa setendorseroles`, `/mwa seteditorroles`, `/mwa sethelperrole` or `/mwa setrepo`.');
             return;
@@ -643,4 +650,34 @@ export class Mwa implements Command {
         }
         await interaction.followUp(`<@${interaction.user.id}> Closing all submissions complete!`);
     }
+
+     async updateAllSubmissionsStatus(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        await interaction.reply('Starting to update status of all submissions. This may take a while depending on the number of submissions. You will be notified when it is complete.');
+
+        const submissionsById = await guildHolder.getSubmissionsManager().getSubmissionsList();
+        for (const submissionID of submissionsById) {
+            const submission = await guildHolder.getSubmissionsManager().getSubmission(submissionID);
+            if (!submission) {
+                await interaction.followUp(`Submission with ID ${submissionID} not found, skipping.`);
+                continue;
+            }
+
+            const channel = await submission.getSubmissionChannel(true);
+            const isArchived = channel.archived;
+
+
+            try {
+                await submission.statusUpdated();
+            } catch (error) {
+                console.error(`Error updating status for submission ${submissionID}:`, error);
+                await interaction.followUp(`Error updating status for submission ${submissionID}, check console for details.`);
+            }
+
+            if (isArchived) {
+                // rearchive the channel
+                await channel.setArchived(true, 'Re-archiving channel after status update');
+            }
+        }
+
+     }
 }
