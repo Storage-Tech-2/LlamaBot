@@ -243,7 +243,7 @@ export class GuildHolder {
 
         // Check if the sender and receiver are the same
         if (thanksSenderID === thanksRecieverID) {
-                 const embed = new EmbedBuilder()
+            const embed = new EmbedBuilder()
                 .setColor(0x00FF00) // Green color for thank you message
                 .setTitle(`Good Job!`)
                 .setDescription(`Self-appreciation is great, but we won't give you a point for it. :heart:`)
@@ -254,12 +254,15 @@ export class GuildHolder {
 
         // Check if the receiver is a bot
         if (originalMessage.author.bot) {
-            const embed = new EmbedBuilder()
-                .setColor(0x00FF00) // Green color for thank you message
-                .setTitle(`Thank you too!`)
-                .setDescription(`We appreciate your gratitude, but as a large language model, I am not a person so I cannot give you points.`)
-                .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
-            await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
+            // If the bot is the Storage Tech Bot itself
+            if (originalMessage.author.id === this.getBot().client.user?.id) {
+                const embed = new EmbedBuilder()
+                    .setColor(0x00FF00) // Green color for thank you message
+                    .setTitle(`Thank you too!`)
+                    .setDescription(`We appreciate your gratitude, but as a large language model, I am not a person so I cannot give you points.`)
+                    .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
+                await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
+            }
             return;
         }
 
@@ -487,7 +490,7 @@ export class GuildHolder {
             if (changes.considerations) fields.push({ name: 'Considerations', value: `*${oldEntryData.considerations.length} considerations* → *${newEntryData.considerations.length} considerations*` });
             if (changes.notes) fields.push({ name: 'Notes', value: `*${oldEntryData.notes.length} characters* → *${newEntryData.notes.length} characters*` });
             if (changes.images) fields.push({ name: 'Images', value: `*${oldEntryData.images.length} images* → *${newEntryData.images.length} images*` });
-            if (changes.attachments) fields.push({ name: 'Attachments', value: `*${oldEntryData.attachments.map(o=>escapeDiscordString(o.name)).join(", ")} attachments* → *${newEntryData.attachments.map(o=>escapeDiscordString(o.name)).join(", ")} attachments*` });
+            if (changes.attachments) fields.push({ name: 'Attachments', value: `*${oldEntryData.attachments.map(o => escapeDiscordString(o.name)).join(", ")} attachments* → *${newEntryData.attachments.map(o => escapeDiscordString(o.name)).join(", ")} attachments*` });
             embed.addFields(fields);
             embed.setColor(0xFFFF00); // Yellow for update
         }
