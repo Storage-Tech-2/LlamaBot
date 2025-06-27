@@ -73,7 +73,7 @@ export class SetAuthorsMenu implements Menu {
         }
 
         const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) === null;
-        let currentAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
+        let currentAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || (await submission.getPotentialAuthorsFromMessageContent());
 
         const newAuthors = await reclassifyAuthors(submission.getGuildHolder(), interaction.values.map((id) => {
             return {
@@ -85,7 +85,7 @@ export class SetAuthorsMenu implements Menu {
         const added: Author[] = [];
         const removed: Author[] = [];
         for (const author of newAuthors) {
-            if (!currentAuthors.some(a => a.id === author.id)) {
+            if (isFirstTime || !currentAuthors.some(a => a.id === author.id)) {
                 added.push(author);
             }
         }
