@@ -541,7 +541,7 @@ export class RepositoryManager {
                     if (dest.length > 1) {
                         dest.pop();
                     }
-                    const destKeyOrig = escapeString(dest.join(''));
+                    const destKeyOrig = escapeString(dest.join('.'));
                     let destKey = destKeyOrig;
 
                     // Check for duplicate file names
@@ -564,7 +564,7 @@ export class RepositoryManager {
                         ext = 'url';
                     }
 
-                    const destKeyOrig = entryData.code + '_' + escapeString(dest.join(''));
+                    const destKeyOrig = entryData.code + '_' + escapeString(dest.join('.'));
                     let destKey = destKeyOrig;
                     for (let i = 1; i < 15; i++) {
                         if (await fs.access(Path.join(attachmentFolder, `${destKey}${ext ? '.' + ext : ''}`)).then(() => true).catch(() => false)) {
@@ -735,7 +735,7 @@ export class RepositoryManager {
         const attachmentMessage = await PostEmbed.createAttachmentMessage(this.guildHolder, newEntryData, branchName, entryPathPart, uploadMessage);
 
         // Next, create the post
-        const message = PostEmbed.createInitialMessage(this.guildHolder, newEntryData, this.folderPath);
+        const message = PostEmbed.createInitialMessage(this.guildHolder, newEntryData, entryPathPart);
         const messageChunks = splitIntoChunks(message, 2000);
 
         let wasThreadCreated = false;
@@ -1708,7 +1708,7 @@ export class RepositoryManager {
                             } else if (entryPathPart.startsWith('./')) {
                                 entryPathPart = entryPathPart.substring(2);
                             }
-                            const content = PostEmbed.createInitialMessage(this.guildHolder, newData, this.folderPath);
+                            const content = PostEmbed.createInitialMessage(this.guildHolder, newData, entryPathPart);
                             const split = splitIntoChunks(content, 2000);
                             await message.edit({
                                 content: split[0],
