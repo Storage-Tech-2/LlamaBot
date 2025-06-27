@@ -624,12 +624,6 @@ export class RepositoryManager {
             throw new Error('Upload channel not found or is not text based');
         }
 
-        let uploadArchived = false;
-        if (uploadChannel.isThread() && uploadChannel.archived) {
-            uploadArchived = true;
-            await uploadChannel.setArchived(false);
-        }
-
         const channelPath = Path.join(this.folderPath, archiveChannelRef.path);
         const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
 
@@ -695,6 +689,12 @@ export class RepositoryManager {
             }
         }
 
+        let attachmentChanged = false;
+        if (existing && getChangeIDs(existing.entry.getData().attachments, newEntryData.attachments)) {
+            attachmentChanged = true;
+            newEntryData.post = undefined; // reset post info if attachments changed
+        }
+
         await fs.mkdir(entryFolderPath, { recursive: true });
 
         const entry = new ArchiveEntry(newEntryData, entryFolderPath);
@@ -726,17 +726,34 @@ export class RepositoryManager {
                 threadId: '',
                 continuingMessageIds: [],
                 threadURL: '',
+                uploadMessageId: '',
             }
         }
+        // uploadMessageId
 
         // First, upload attachments
         const entryPathPart = `${archiveChannelRef.path}/${entryRef.path}`;
         const attachmentUpload = await PostEmbed.createAttachmentUpload(entryFolderPath, newEntryData);
 
-        const uploadMessage = await uploadChannel.send({
-            content: attachmentUpload.content,
-            files: attachmentUpload.files,
-        });
+        let uploadMessage;
+        if (newEntryData.post && newEntryData.post.uploadMessageId) {
+            uploadMessage = await uploadChannel.messages.fetch(newEntryData.post.uploadMessageId).catch(() => null);
+        }
+
+        let uploadArchived = false;
+        if (!uploadMessage) {
+            if (uploadChannel.isThread() && uploadChannel.archived) {
+                uploadArchived = true;
+                await uploadChannel.setArchived(false);
+            }
+
+            uploadMessage = await uploadChannel.send({
+                content: attachmentUpload.content,
+                files: attachmentUpload.files,
+            });
+            newEntryData.post.uploadMessageId = uploadMessage.id;
+        }
+
         const branchName = await this.git.branchLocal().then(branch => branch.current);
         const attachmentMessage = await PostEmbed.createAttachmentMessage(this.guildHolder, newEntryData, branchName, entryPathPart, uploadMessage);
 
@@ -1780,7 +1797,7 @@ export class RepositoryManager {
         };
     }
 
-    public async republishAllEntries(_silent: boolean, replace: boolean, interaction: ChatInputCommandInteraction): Promise<void> {
+    public async republishAllEntries(doChannel: ForumChannel | null, replace: boolean, interaction: ChatInputCommandInteraction): Promise<void> {
 
         if (!this.git) {
             throw new Error("Git not initialized");
@@ -1797,6 +1814,9 @@ export class RepositoryManager {
             for (const channelRef of channelRefs) {
                 const channelPath = Path.join(this.folderPath, channelRef.path);
                 const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
+                if (doChannel && archiveChannel.getData().id !== doChannel.id) {
+                    continue;
+                }
                 for (const entryRef of archiveChannel.getData().entries) {
                     const entryPath = Path.join(channelPath, entryRef.path);
                     const entry = await ArchiveEntry.fromFolder(entryPath);

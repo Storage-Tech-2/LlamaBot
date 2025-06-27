@@ -126,11 +126,10 @@ export class Mwa implements Command {
                 subcommand
                     .setName('republisheverything')
                     .setDescription('Republish all posts in the archive')
-                    .addBooleanOption(option =>
+                    .addChannelOption(option =>
                         option
-                            .setName('silent')
-                            .setDescription('Whether to suppress archive update messages')
-                            .setRequired(true)
+                            .setName('channel')
+                            .setDescription('Which channel to republish in (defaults to every channel)')
                     )
                     .addBooleanOption(option =>
                         option
@@ -588,11 +587,25 @@ export class Mwa implements Command {
 
     async republishEverything(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         // Get all entries from the archive
-        const silent = interaction.options.getBoolean('silent') || false;
+        const channelInfo = interaction.options.getChannel('channel');
+        const channel = channelInfo ? await guildHolder.getGuild().channels.fetch(channelInfo.id) : null;
+        if (channel && (channel.type !== ChannelType.GuildForum)) {
+            await replyEphemeral(interaction, 'Channel must be a forum channel.');
+            return;
+        }
+
+        if (channel && channel.type === ChannelType.GuildForum) {
+            const currentCategories = guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
+            if (!channel.parentId || !currentCategories.includes(channel.parentId)) {
+                await replyEphemeral(interaction, 'Channel must be in an archive category.');
+                return;
+            }
+        }
+        
         const replace = interaction.options.getBoolean('replace') || false;
         await interaction.reply('Starting to republish all entries. This may take a while depending on the size of the archive. You will be notified when it is complete.');
         try {
-            await guildHolder.getRepositoryManager().republishAllEntries(silent, replace, interaction);
+            await guildHolder.getRepositoryManager().republishAllEntries(channel, replace, interaction);
         } catch (error) {
             console.error('Error republishing all entries:', error);
             await interaction.followUp('An error occurred while republishing all entries. Please check the console for details.');
