@@ -4,7 +4,7 @@ import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
 import { AnyThreadChannel, AttachmentBuilder, ChannelType, ChatInputCommandInteraction, EmbedBuilder, ForumChannel, GuildTextBasedChannel, Message, MessageFlags, Snowflake } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
-import { areObjectsIdentical, deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getChangeIDs, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
+import { areAuthorsSame, areObjectsIdentical, deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getChangeIDs, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";
 import { Submission } from "../submissions/Submission.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
@@ -1570,7 +1570,40 @@ export class RepositoryManager {
         if (!this.git) {
             throw new Error("Git not initialized");
         }
+
+        // First, collect authors
+        const authors: Author[] = [];
+
         const channelRefs = this.getChannelReferences().slice(); // Copy to avoid mutation during iteration
+        for (const channelRef of channelRefs) {
+            const channelPath = Path.join(this.folderPath, channelRef.path);
+            const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
+            const entries = archiveChannel.getData().entries.slice(); // Copy to avoid mutation during iteration
+            for (const entryRef of entries) {
+                const entryPath = Path.join(channelPath, entryRef.path);
+                const entry = await ArchiveEntry.fromFolder(entryPath);
+                const entryData = entry.getData();
+                for (const author of entryData.authors) {
+                    if (!authors.some(a => areAuthorsSame(a, author))) {
+                        authors.push(author);
+                    }
+                }
+                for (const endorser of entryData.endorsers) {
+                    if (!authors.some(a => areAuthorsSame(a, endorser))) {
+                        authors.push(endorser);
+                    }
+                }
+            }
+        }
+
+        const reclassified = [];
+        const chunkSize = 10;
+        for (let i = 0; i < authors.length; i += chunkSize) {
+            const chunk = authors.slice(i, i + chunkSize);
+            const reclassifiedChunk = await reclassifyAuthors(this.guildHolder, chunk);
+            reclassified.push(...reclassifiedChunk);
+        }
+
         const modifiedPaths: string[] = [];
         for (const channelRef of channelRefs) {
             const channelPath = Path.join(this.folderPath, channelRef.path);
@@ -1581,7 +1614,7 @@ export class RepositoryManager {
                 const entry = await ArchiveEntry.fromFolder(entryPath);
                 let modified = false;
                 try {
-                    modified = await this.updateEntryAuthors(entry);
+                    modified = await this.updateEntryAuthors(entry, reclassified);
                 } catch (e: any) {
                     console.error(`Error updating authors for entry ${entryRef.name} in channel ${archiveChannel.getData().name}:`, e.message);
                 }
@@ -1589,9 +1622,7 @@ export class RepositoryManager {
                 if (modified) {
                     modifiedPaths.push(entry.getDataPath());
                 }
-
             }
-
         }
 
         if (modifiedPaths.length > 0) {
@@ -1614,14 +1645,21 @@ export class RepositoryManager {
         }
     }
 
-    async updateEntryAuthors(entry: ArchiveEntry): Promise<boolean> {
+    async updateEntryAuthors(entry: ArchiveEntry, updatedAuthors: Author[]): Promise<boolean> {
         if (!this.git) {
             return false;
         }
 
         const entryData = deepClone(entry.getData());
-        const newAuthors = await reclassifyAuthors(this.guildHolder, entryData.authors);
-        const newEndorsers = await reclassifyAuthors(this.guildHolder, entryData.endorsers);
+        const newAuthors = entryData.authors.map(author => {
+            const updatedAuthor = updatedAuthors.find(a => areAuthorsSame(a, author));
+            return updatedAuthor || author;
+        });
+
+        const newEndorsers = entryData.endorsers.map(endorser => {
+            const updatedAuthor = updatedAuthors.find(a => areAuthorsSame(a, endorser));
+            return updatedAuthor || endorser;
+        });
 
         // check if they have changed
         const authorsChanged = !areObjectsIdentical(entryData.authors, newAuthors);
