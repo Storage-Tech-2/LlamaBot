@@ -743,11 +743,7 @@ export class RepositoryManager {
             newEntryData.post.threadURL = '';
             newEntryData.post.continuingMessageIds = [];
             newEntryData.post.attachmentMessageId = '';
-        } else {
-            newEntryData.post.threadId = thread.id;
-            newEntryData.post.threadURL = thread.url;
         }
-
         // uploadMessageId
 
         // First, upload attachments
@@ -803,6 +799,9 @@ export class RepositoryManager {
         } else {
             await thread.setAppliedTags(newEntryData.tags.map(tag => tag.id).filter(tagId => archiveChannelDiscord.availableTags.some(t => t.id === tagId)).slice(0, 5));
         }
+
+        newEntryData.post.threadId = thread.id;
+        newEntryData.post.threadURL = thread.url;
 
         if (newEntryData.name !== thread.name) {
             await thread.edit({
