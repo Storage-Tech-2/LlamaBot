@@ -735,7 +735,7 @@ export class RepositoryManager {
         const attachmentMessage = await PostEmbed.createAttachmentMessage(this.guildHolder, newEntryData, branchName, entryPathPart, uploadMessage);
 
         // Next, create the post
-        const message = await PostEmbed.createInitialMessage(this.guildHolder, newEntryData, this.folderPath);
+        const message = PostEmbed.createInitialMessage(this.guildHolder, newEntryData, this.folderPath);
         const messageChunks = splitIntoChunks(message, 2000);
 
         let wasThreadCreated = false;
@@ -1708,7 +1708,7 @@ export class RepositoryManager {
                             } else if (entryPathPart.startsWith('./')) {
                                 entryPathPart = entryPathPart.substring(2);
                             }
-                            const content = (await PostEmbed.createInitialMessage(this.guildHolder, newData, this.folderPath));
+                            const content = PostEmbed.createInitialMessage(this.guildHolder, newData, this.folderPath);
                             const split = splitIntoChunks(content, 2000);
                             await message.edit({
                                 content: split[0],

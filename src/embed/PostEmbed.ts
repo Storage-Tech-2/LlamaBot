@@ -103,7 +103,7 @@ export class PostEmbed {
 
     }
 
-    public static async createInitialMessage(guildHolder: GuildHolder, entryData: ArchiveEntryData, entryPathPart: string): Promise<string> {
+    public static createInitialMessage(guildHolder: GuildHolder, entryData: ArchiveEntryData, entryPathPart: string): string {
         let content = [];
 
         const description = entryData.description;
