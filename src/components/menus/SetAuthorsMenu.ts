@@ -101,15 +101,19 @@ export class SetAuthorsMenu implements Menu {
             return;
         }
 
-        added.forEach(author => {
-            currentAuthors.push(author);
-        });
-        removed.forEach(author => {
-            const index = currentAuthors.findIndex(a => a.id === author.id);
-            if (index !== -1) {
-                currentAuthors.splice(index, 1);
-            }
-        });
+        if (isFirstTime) {
+            currentAuthors = newAuthors;
+        } else {
+            added.forEach(author => {
+                currentAuthors.push(author);
+            });
+            removed.forEach(author => {
+                const index = currentAuthors.findIndex(a => a.id === author.id);
+                if (index !== -1) {
+                    currentAuthors.splice(index, 1);
+                }
+            });
+        }
 
         submission.getConfigManager().setConfig(SubmissionConfigs.AUTHORS, currentAuthors);
 
@@ -280,7 +284,7 @@ export class SetAuthorsMenu implements Menu {
 
         submission.checkReview()
     }
-    
+
     public static async sendAuthorsMenuAndButton(submission: Submission, interaction: Interaction): Promise<Message> {
         const guildHolder = submission.getGuildHolder();
         const components = [];
@@ -291,7 +295,7 @@ export class SetAuthorsMenu implements Menu {
         const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) === null;
 
         // Update existing authors
-        const updatedAuthors =  await reclassifyAuthors(guildHolder, submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || []);
+        const updatedAuthors = await reclassifyAuthors(guildHolder, submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || []);
         if (updatedAuthors.length > 0) {
             submission.getConfigManager().setConfig(SubmissionConfigs.AUTHORS, updatedAuthors);
         }
