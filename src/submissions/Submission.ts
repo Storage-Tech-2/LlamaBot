@@ -656,7 +656,7 @@ export class Submission {
                 }
 
                 currentAuthors.push({
-                    type: AuthorType.DiscordExternal,
+                    type: AuthorType.DiscordInGuild,
                     id: userId
                 });
             }
@@ -664,7 +664,7 @@ export class Submission {
 
         if (currentAuthors.length === 0) { // add the owner as author if no authors found
             currentAuthors.push({
-                type: AuthorType.DiscordExternal,
+                type: AuthorType.DiscordInGuild,
                 id: channel.ownerId
             });
         }
