@@ -711,16 +711,16 @@ export class RepositoryManager {
         if (existing) {
             const existingData = existing.entry.getData();
             if (getChangeIDs(existingData.attachments, newEntryData.attachments)) {
-                newEntryData.post.attachmentMessageId = undefined;
+                newEntryData.post.uploadMessageId = undefined;
             } else if (existingData.post) {
-                newEntryData.post.attachmentMessageId = existingData.post.attachmentMessageId;
+                newEntryData.post.uploadMessageId = existingData.post.uploadMessageId;
             } else {
-                newEntryData.post.attachmentMessageId = undefined;
+                newEntryData.post.uploadMessageId = undefined;
             }
         } else {
-             newEntryData.post.attachmentMessageId = undefined;
+             newEntryData.post.uploadMessageId = undefined;
         }
-        
+
         await fs.mkdir(entryFolderPath, { recursive: true });
 
         const entry = new ArchiveEntry(newEntryData, entryFolderPath);
