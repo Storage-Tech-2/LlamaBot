@@ -73,7 +73,7 @@ export class SetAuthorsMenu implements Menu {
         }
 
         const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) === null;
-        let currentAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || (await submission.getPotentialAuthorsFromMessageContent());
+        let currentAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || (await submission.getPotentialAuthorsFromMessageContent(true));
 
         const newAuthors = await reclassifyAuthors(submission.getGuildHolder(), interaction.values.map((id) => {
             return {
