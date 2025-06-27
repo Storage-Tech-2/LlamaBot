@@ -8,7 +8,7 @@ import { LLMResponseFuture } from "../llm/LLMResponseFuture.js";
 import { LLMResponseStatus } from "../llm/LLMResponseStatus.js";
 import { LLMRequest } from "../llm/LLMRequest.js";
 import { ExtractionPrompt } from "../llm/prompts/ExtractionPrompt.js";
-import { getAllAttachments, processAttachments, processImages, reclassifyAuthors } from "../utils/Util.js";
+import { extractUserIdsFromText, getAllAttachments, processAttachments, processImages, reclassifyAuthors } from "../utils/Util.js";
 import { Attachment } from "./Attachment.js";
 import { RevisionManager } from "./RevisionManager.js";
 import { Revision, RevisionType } from "./Revision.js";
@@ -17,6 +17,7 @@ import { ModificationPrompt } from "../llm/prompts/ModificationPrompt.js";
 import { SubmissionStatus } from "./SubmissionStatus.js";
 import { PublishButton } from "../components/buttons/PublishButton.js";
 import { SubmissionTagNames, SubmissionTags } from "./SubmissionTags.js";
+import { Author, AuthorType } from "./Author.js";
 
 export class Submission {
     private guildHolder: GuildHolder;
@@ -636,6 +637,43 @@ export class Submission {
         this.getConfigManager().setConfig(SubmissionConfigs.LOCK_REASON, 'Auto-locked after publish. Please contact an editor/endorser to unlock it if needed.');
         await this.statusUpdated();
         this.publishLock = false;
+    }
+
+    public async getPotentialAuthorsFromMessageContent(doFetch: boolean = false): Promise<Author[]> {
+        const channel = await this.getSubmissionChannel(true);
+        const message = await channel.fetchStarterMessage();
+        let currentAuthors: Author[] = [];
+        if (message && message.content) {
+            const users = extractUserIdsFromText(message.content);
+            for (const userId of users) {
+
+                if (currentAuthors.some(author => author.id === userId)) {
+                    continue; // Skip if user is already in the list
+                }
+
+                if (currentAuthors.length >= 25) {
+                    break; // Limit to 25 authors
+                }
+
+                currentAuthors.push({
+                    type: AuthorType.DiscordExternal,
+                    id: userId
+                });
+            }
+        }
+
+        if (currentAuthors.length === 0) { // add the owner as author if no authors found
+            currentAuthors.push({
+                type: AuthorType.DiscordExternal,
+                id: channel.ownerId
+            });
+        }
+
+        if (doFetch) {
+            currentAuthors = await reclassifyAuthors(this.guildHolder, currentAuthors);
+        }
+
+        return currentAuthors;
     }
 
     public async retract() {

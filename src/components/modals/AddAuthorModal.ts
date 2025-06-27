@@ -1,7 +1,7 @@
 import { ActionRowBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
-import { areAuthorsSame, canEditSubmission, extractUserIdsFromText, getAuthorsString, reclassifyAuthors, replyEphemeral, splitIntoChunks } from "../../utils/Util.js";
+import { areAuthorsSame, canEditSubmission, getAuthorsString, reclassifyAuthors, replyEphemeral, splitIntoChunks } from "../../utils/Util.js";
 import { Author, AuthorType } from "../../submissions/Author.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { SetArchiveCategoryMenu } from "../menus/SetArchiveCategoryMenu.js";
@@ -61,7 +61,7 @@ export class AddAuthorModal implements Modal {
         const name = interaction.fields.getTextInputValue('nameInput');
         const userId = interaction.fields.getTextInputValue('idInput') || null;
 
-        const author: Author = {
+        let author: Author = {
             type: AuthorType.Unknown,
             id: userId || undefined,
             username: name || 'Unknown'
@@ -78,57 +78,19 @@ export class AddAuthorModal implements Modal {
         }
 
         if (userId) {
-            const user = await guildHolder.getBot().client.users.fetch(userId);
-            if (!user) {
+            author.type = AuthorType.DiscordExternal;
+            author.id = userId;
+            author = (await reclassifyAuthors(guildHolder, [author]))[0];
+            if (author.type === AuthorType.Unknown) {
                 replyEphemeral(interaction, 'User not found. Please provide a valid Discord User ID or leave it empty.');
                 return;
-            }
-            author.username = user.username; // Use the username if available, otherwise use the provided name
-            const member = await guildHolder.getGuild().members.fetch(userId).catch(() => null);
-            if (member) {
-                author.type = AuthorType.DiscordInGuild;
-                author.displayName = member.displayName;
-                author.iconURL = member.displayAvatarURL();
-            } else {
-                author.type = AuthorType.DiscordExternal;
-                author.iconURL = user.displayAvatarURL();
             }
         }
 
         const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) === null;
-
-        let currentAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
-        if (isFirstTime) {
-            const message = await (await submission.getSubmissionChannel()).fetchStarterMessage();
-            if (message && message.content) {
-                const users = extractUserIdsFromText(message.content);
-                for (const userId of users) {
-
-                    if (currentAuthors.some(author => author.id === userId)) {
-                        continue; // Skip if user is already in the list
-                    }
-
-                    if (currentAuthors.length >= 25) {
-                        break; // Limit to 25 authors
-                    }
-
-                    currentAuthors.push({
-                        type: AuthorType.DiscordExternal,
-                        id: userId
-                    });
-                }
-            }
-            currentAuthors = (await reclassifyAuthors(guildHolder, currentAuthors)).filter(author => {
-                return author.type !== AuthorType.Unknown;
-            });
-        }
-
+        let currentAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || (await submission.getPotentialAuthorsFromMessageContent())
         if (currentAuthors.some(a => {
-            if (a.id && author.id) {
-                return a.id === author.id;
-            } else {
-                return a.username === author.username && a.type === author.type;
-            }
+            return areAuthorsSame(a, author);
         })) {
             replyEphemeral(interaction, 'This author is already in the list!');
             return;

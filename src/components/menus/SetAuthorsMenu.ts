@@ -1,7 +1,7 @@
 import { ActionRowBuilder, Interaction, Message, MessageFlags, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, UserSelectMenuBuilder, UserSelectMenuInteraction } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { areAuthorsSame, canEditSubmission, extractUserIdsFromText, getAuthorsString, reclassifyAuthors, replyEphemeral, splitIntoChunks } from "../../utils/Util.js";
+import { areAuthorsSame, canEditSubmission, getAuthorsString, reclassifyAuthors, replyEphemeral, splitIntoChunks } from "../../utils/Util.js";
 import { Author, AuthorType } from "../../submissions/Author.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
@@ -16,7 +16,7 @@ export class SetAuthorsMenu implements Menu {
     }
 
     async getBuilder(guildHolder: GuildHolder, submission: Submission, isExtra: boolean): Promise<UserSelectMenuBuilder | StringSelectMenuBuilder> {
-        const currentAuthors = (submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || []).filter(author => {
+        const currentAuthors = (submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || (isExtra ? [] : await submission.getPotentialAuthorsFromMessageContent())).filter(author => {
             if (author.type === AuthorType.Unknown || author.type === AuthorType.DiscordDeleted) {
                 return isExtra;
             } else {
@@ -39,30 +39,6 @@ export class SetAuthorsMenu implements Menu {
                     return opt;
                 }))
         } else {
-
-
-            if (submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) === null) {
-                const message = await (await submission.getSubmissionChannel()).fetchStarterMessage();
-                if (message && message.content) {
-                    const users = extractUserIdsFromText(message.content);
-                    for (const userId of users) {
-
-                        if (currentAuthors.some(author => author.id === userId)) {
-                            continue; // Skip if user is already in the list
-                        }
-
-                        if (currentAuthors.length >= 25) {
-                            break; // Limit to 25 authors
-                        }
-
-                        currentAuthors.push({
-                            type: AuthorType.DiscordExternal,
-                            id: userId
-                        });
-                    }
-                }
-            }
-
             // get list of users
             const userSize = Math.max(guildHolder.getGuild().members.cache.size, currentAuthors.length);
             return new UserSelectMenuBuilder()

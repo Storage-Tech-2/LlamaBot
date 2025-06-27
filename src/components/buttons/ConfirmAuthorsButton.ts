@@ -1,7 +1,7 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, MessageFlags } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Button } from "../../interface/Button.js";
-import { areAuthorsSame, canEditSubmission, extractUserIdsFromText, getAuthorsString, reclassifyAuthors, replyEphemeral, splitIntoChunks } from "../../utils/Util.js";
+import { areAuthorsSame, canEditSubmission, getAuthorsString, reclassifyAuthors, replyEphemeral, splitIntoChunks } from "../../utils/Util.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Author, AuthorType } from "../../submissions/Author.js";
 import { SetArchiveCategoryMenu } from "../menus/SetArchiveCategoryMenu.js";
@@ -38,31 +38,10 @@ export class ConfirmAuthorsButton implements Button {
             return;
         }
 
-        const message = await (await submission.getSubmissionChannel()).fetchStarterMessage();
-        let currentAuthors: Author[] = [];
-        if (message && message.content) {
-            const users = extractUserIdsFromText(message.content);
-            for (const userId of users) {
-
-                if (currentAuthors.some(author => author.id === userId)) {
-                    continue; // Skip if user is already in the list
-                }
-
-                if (currentAuthors.length >= 25) {
-                    break; // Limit to 25 authors
-                }
-
-                currentAuthors.push({
-                    type: AuthorType.DiscordExternal,
-                    id: userId
-                });
-            }
-        }
-
+        let currentAuthors: Author[] = await submission.getPotentialAuthorsFromMessageContent();
         currentAuthors = (await reclassifyAuthors(guildHolder, currentAuthors)).filter(author => {
             return author.type !== AuthorType.Unknown
         });
-
         submission.getConfigManager().setConfig(SubmissionConfigs.AUTHORS, currentAuthors);
 
 
