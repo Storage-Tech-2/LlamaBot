@@ -36,8 +36,11 @@ export function makeEntryReadMe(
     if (entryData.endorsers.length > 0) {
         text.push(`**Endorsed by:** *${entryData.endorsers.map(o => o.displayName || o.username).join(", ")}*\n\n`);
     }
-    text.push(`**Tags:** *${entryData.tags.map(o => o.name).join(", ")}*\n`);
-    text.push(`\n`);
+    text.push(`**Tags:** *${entryData.tags.map(o => o.name).join(", ")}*\n\n`);
+    if (entryData.post) {
+        text.push(`**Original Post:** [View on Discord](${entryData.post.threadURL})\n\n`);
+    }
+
     text.push(`${entryData.description}\n`);
 
     if (entryData.features.length > 0) {
