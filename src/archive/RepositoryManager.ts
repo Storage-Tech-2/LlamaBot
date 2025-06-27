@@ -689,9 +689,7 @@ export class RepositoryManager {
             }
         }
 
-        let attachmentChanged = false;
         if (existing && getChangeIDs(existing.entry.getData().attachments, newEntryData.attachments)) {
-            attachmentChanged = true;
             newEntryData.post = undefined; // reset post info if attachments changed
         }
 

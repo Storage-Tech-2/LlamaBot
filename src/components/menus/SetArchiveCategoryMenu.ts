@@ -1,4 +1,4 @@
-import { ActionRowBuilder, CategoryChannel, ChannelType, Collection, ForumChannel, Snowflake, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
+import { ActionRowBuilder, ChannelType, Snowflake, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
 import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
