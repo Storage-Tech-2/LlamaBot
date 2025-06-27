@@ -41,8 +41,8 @@ export class SetArchiveCategoryMenu implements Menu {
             .addOptions(
                 Array.from(categoryChannels.values()).map(channel => {
 
-                    const categoryChannels = channels.filter(channel => {
-                        return channel && channel.type === ChannelType.GuildForum && channel.parentId === channel.id
+                    const categoryChannels = channels.filter(channel2 => {
+                        return channel2 && channel2.type === ChannelType.GuildForum && channel2.parentId === channel.id
                     }).map(channel => {
                         if (!channel || channel.type !== ChannelType.GuildForum) {
                             throw new Error('Channel not found');
