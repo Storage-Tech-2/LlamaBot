@@ -624,6 +624,12 @@ export class RepositoryManager {
             throw new Error('Upload channel not found or is not text based');
         }
 
+        let uploadArchived = false;
+        if (uploadChannel.isThread() && uploadChannel.archived) {
+            uploadArchived = true;
+            await uploadChannel.setArchived(false);
+        }
+
         const channelPath = Path.join(this.folderPath, archiveChannelRef.path);
         const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
 
@@ -922,6 +928,10 @@ export class RepositoryManager {
 
         if (wasArchived) {
             await thread.setArchived(true, 'Thread was previously archived');
+        }
+
+        if (uploadArchived && uploadChannel.isThread()) {
+            await uploadChannel.setArchived(true, 'Upload thread was previously archived');
         }
 
         await entry.save();

@@ -52,7 +52,7 @@ export class Submission {
      */
     public async init() {
         // Set initial config values
-        const channel = await this.getSubmissionChannel();
+        const channel = await this.getSubmissionChannel(true);
         this.config.setConfig(SubmissionConfigs.NAME, channel.name);
         this.config.setConfig(SubmissionConfigs.SUBMISSION_THREAD_ID, channel.id);
         this.config.setConfig(SubmissionConfigs.SUBMISSION_THREAD_URL, channel.url);
