@@ -530,7 +530,7 @@ export class Mwa implements Command {
                 name: '👍',
                 id: null
             })
-            await channel.setDefaultForumLayout(ForumLayoutType.ListView)
+           // await channel.setDefaultForumLayout(ForumLayoutType.ListView)
             await channel.setDefaultSortOrder(SortOrderType.CreationDate)
 
             // check if topic exists
