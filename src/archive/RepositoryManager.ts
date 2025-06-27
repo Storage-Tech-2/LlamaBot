@@ -585,6 +585,13 @@ export class RepositoryManager {
                 }
 
             });
+
+            try {
+                await this.push();
+            } catch (e: any) {
+                console.error("Error pushing to remote:", e.message);
+            }
+
             this.lock.release();
             return result;
         } catch (e: any) {
@@ -718,7 +725,7 @@ export class RepositoryManager {
                 newEntryData.post.uploadMessageId = undefined;
             }
         } else {
-             newEntryData.post.uploadMessageId = undefined;
+            newEntryData.post.uploadMessageId = undefined;
         }
 
         await fs.mkdir(entryFolderPath, { recursive: true });
@@ -990,12 +997,6 @@ export class RepositoryManager {
             await this.git.commit(`${newEntryData.code}: ${generateCommitMessage(existing.entry.getData(), newEntryData)}`);
         } else {
             await this.git.commit(`Added entry ${newEntryData.name} (${newEntryData.code}) to channel ${archiveChannel.getData().name} (${archiveChannel.getData().code})`);
-        }
-
-        try {
-            await this.push();
-        } catch (e: any) {
-            console.error("Error pushing to remote:", e.message);
         }
 
         await this.setSubmissionIDForPostID(thread.id, newEntryData.id);
@@ -1887,6 +1888,13 @@ export class RepositoryManager {
                     }
                 }
             }
+
+            try {
+                await this.push();
+            } catch (e: any) {
+                console.error("Error pushing to remote:", e.message);
+            }
+
             this.lock.release();
         } catch (e) {
             this.lock.release();
