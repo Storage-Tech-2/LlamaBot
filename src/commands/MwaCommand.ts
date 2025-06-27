@@ -9,6 +9,7 @@ import { SubmissionTags } from "../submissions/SubmissionTags.js";
 import { SetEditorRolesMenu } from "../components/menus/SetEditorRolesMenu.js";
 import { SetHelperRoleMenu } from "../components/menus/SetHelperRoleMenu.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
+import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
 
 export class Mwa implements Command {
     getID(): string {
@@ -642,7 +643,16 @@ export class Mwa implements Command {
         await interaction.reply('Starting to close all submission channels. This may take a while depending on the number of open submissions. You will be notified when it is complete.');
 
         const threads = await submissionChannel.threads.fetchActive();
+        const blacklist = [SubmissionStatus.NEW, SubmissionStatus.WAITING, SubmissionStatus.NEED_ENDORSEMENT];
         for (const thread of threads.threads.values()) {
+
+            const id = thread.id;
+            const submission = await guildHolder.getSubmissionsManager().getSubmission(id);
+            if (submission && blacklist.includes(submission.getConfigManager().getConfig(SubmissionConfigs.STATUS))) {
+                // Dont archive if status is in blacklist
+                continue;
+            }
+
             try {
                 await thread.setArchived(true, 'Closing submission as part of closeEverything command');
             } catch (error) {
