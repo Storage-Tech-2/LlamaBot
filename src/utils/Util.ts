@@ -1074,7 +1074,7 @@ export async function refreshAttachments(
     const expiringAttachments = attachmentObjects.filter(obj => {
         const url = obj.url;
         if (!url) return false; // No URL provided
-        
+
         // Check if discord cdn
         if (!url.startsWith('https://cdn.discordapp.com/attachments/')) {
             return false; // Not a Discord CDN URL
@@ -1092,7 +1092,7 @@ export async function refreshAttachments(
 
     // api/v9/attachments/refresh-urls
     if (expiringAttachments.length > 0) {
-        const result = await bot.client.rest.post('/api/v9/attachments/refresh-urls', {
+        const result = await bot.client.rest.post('/attachments/refresh-urls', {
             body: {
                 attachment_urls: expiringAttachments.map(a => a.url)
             },
