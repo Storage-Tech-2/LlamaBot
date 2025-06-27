@@ -8,6 +8,7 @@ import { SetEndorseRolesMenu } from "../components/menus/SetEndorseRolesMenu.js"
 import { SubmissionTags } from "../submissions/SubmissionTags.js";
 import { SetEditorRolesMenu } from "../components/menus/SetEditorRolesMenu.js";
 import { SetHelperRoleMenu } from "../components/menus/SetHelperRoleMenu.js";
+import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 
 export class Mwa implements Command {
     getID(): string {
@@ -665,6 +666,11 @@ export class Mwa implements Command {
             const channel = await submission.getSubmissionChannel(true);
             const isArchived = channel.archived;
 
+            // try get post entry
+            const entry = await guildHolder.getRepositoryManager().findEntryBySubmissionId(submissionID);
+            if (entry) {
+                submission.getConfigManager().setConfig(SubmissionConfigs.POST, entry.entry.getData().post);
+            }
 
             try {
                 await submission.statusUpdated();
