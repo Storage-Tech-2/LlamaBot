@@ -119,7 +119,7 @@ export class GuildHolder {
             const isNegated = match[1] !== undefined;
             if (!isNegated) {
                 // Reply with "Nothing is unload safe."
-                await message.reply('Nothing here is unload safe. Never assume anything redstone is unload safe.');
+                await message.reply('Nothing here is unload safe. Never assume anything redstone is unload safe. Have a good day!');
             }
         }
 
