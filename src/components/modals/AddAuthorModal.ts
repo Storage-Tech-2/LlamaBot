@@ -7,6 +7,7 @@ import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { SetAuthorsButton } from "../buttons/SetAuthorsButton.js";
 import { SetArchiveCategoryMenu } from "../menus/SetArchiveCategoryMenu.js";
 import { GuildConfigs } from "../../config/GuildConfigs.js";
+import { SetAuthorsMenu } from "../menus/SetAuthorsMenu.js";
 
 export class AddAuthorModal implements Modal {
     getID(): string {
@@ -168,7 +169,7 @@ export class AddAuthorModal implements Modal {
         }
 
 
-        await SetAuthorsButton.sendAuthorsMenuAndButton(guildHolder, submission, interaction);
+        await SetAuthorsMenu.sendAuthorsMenuAndButton(submission, interaction);
 
         await submission.statusUpdated();
 
