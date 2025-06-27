@@ -1704,6 +1704,7 @@ export class RepositoryManager {
                 if (publishForum && publishForum.type === ChannelType.GuildForum) {
                     const thread = await publishForum.threads.fetch(newData.post.threadId).catch(() => null);
                     if (thread) {
+                        let wasArchived = thread.archived;
                         if (thread.archived) {
                             await thread.setArchived(false); // Unarchive the thread to update it
                         }
@@ -1723,6 +1724,10 @@ export class RepositoryManager {
                             await message.edit({
                                 content: split[0],
                             });
+                        }
+
+                        if (wasArchived) {
+                            await thread.setArchived(true, 'Re-archiving thread after author update');
                         }
                     }
                 }
