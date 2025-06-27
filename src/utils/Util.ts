@@ -226,16 +226,16 @@ export async function processImages(images: Image[], download_folder: string, pr
         }
         await fs.writeFile(downloadPath, imageData.body);
         const s = await sharp(downloadPath)
-                .trim()
-                .resize({
-                    width: 800,
-                    height: 800,
-                    fit: 'inside',
-                    withoutEnlargement: true,
-                })
-                .toFormat('png')
-                .toFile(processedPath);
-        
+            .trim()
+            .resize({
+                width: 800,
+                height: 800,
+                fit: 'inside',
+                withoutEnlargement: true,
+            })
+            .toFormat('png')
+            .toFile(processedPath);
+
 
         image.width = s.width;
         image.height = s.height;
@@ -255,32 +255,37 @@ export async function processImages(images: Image[], download_folder: string, pr
 }
 
 
-export async function processImageForDiscord(file_path: string, num_images: number, image_idx: number): Promise<string> {
+export async function processImageForDiscord(file_path: string, num_images: number, image_idx: number, isGalleryView: boolean): Promise<string> {
     const output_path = file_path + '.discord.png';
     let newWidth = 386 * 2;
     let newHeight = 258 * 2;
     let padding = 0;
 
-    if (num_images === 1) { // Single image, use larger size
-        padding = 60;
-        newHeight = newHeight - padding;
-    } else if (num_images === 2) { // Two images, width is half
-        newWidth = Math.floor(newWidth / 2) - 30;
-        padding = 60;
-        newHeight = newHeight - padding;
-    } else if (num_images === 3) { // Three images
-        if (image_idx === 0) { // First image is large
-            newWidth = 2 * Math.floor(newWidth / 3) - 30;
-            newHeight = newHeight;
-        } else { // Other two images are small
-            newWidth = Math.floor(newWidth / 3) - 30;
-            newHeight = Math.floor(newHeight / 2) - 30;
+    if (isGalleryView) {
+        if (num_images === 1) { // Single image, use larger size
+            padding = 60;
+            newHeight = newHeight - padding;
+        } else if (num_images === 2) { // Two images, width is half
+            newWidth = Math.floor(newWidth / 2) - 30;
+            padding = 60;
+            newHeight = newHeight - padding;
+        } else if (num_images === 3) { // Three images
+            if (image_idx === 0) { // First image is large
+                newWidth = 2 * Math.floor(newWidth / 3) - 30;
+                newHeight = newHeight;
+            } else { // Other two images are small
+                newWidth = Math.floor(newWidth / 3) - 30;
+                newHeight = Math.floor(newHeight / 2) - 30;
+            }
+            padding = 0;
+        } else if (num_images === 4) { // Four images, all are small
+            padding = 0;
+        } else { // More than four images, all are tiny
+            padding = 0;
         }
-        padding = 0;
-    } else if (num_images === 4) { // Four images, all are small
-        padding = 0;
-    } else { // More than four images, all are tiny
-        padding = 0;
+    } else { // not gallery view, use 1:1 aspect ratio
+        newWidth = 800;
+        newHeight = 800;
     }
 
     // Scale so that largest dimension is 800px
@@ -296,7 +301,7 @@ export async function processImageForDiscord(file_path: string, num_images: numb
 
     await sharp(file_path)
         .trim()
-        .resize({   
+        .resize({
             width: newWidth,
             height: newHeight,
             fit: 'contain',
