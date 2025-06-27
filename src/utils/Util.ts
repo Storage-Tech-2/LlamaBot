@@ -2,7 +2,7 @@ import { Command } from '../interface/Command.js'
 import { Button } from '../interface/Button.js'
 import { Menu } from '../interface/Menu.js'
 import { Modal } from '../interface/Modal.js'
-import { Secrets } from '../Bot.js'
+import { Bot, Secrets } from '../Bot.js'
 import { Interaction, Message, MessageFlags, PermissionFlagsBits, REST, Routes, Snowflake, TextBasedChannel, TextThreadChannel } from 'discord.js'
 import { GuildHolder } from '../GuildHolder.js'
 import { Attachment } from '../submissions/Attachment.js'
@@ -184,7 +184,7 @@ export function getFileKey(file: Attachment | Image, new_ext: string = '') {
     return `${escapedPrefix}${escapedExt}`;
 }
 
-export async function processImages(images: Image[], download_folder: string, processed_folder: string): Promise<Image[]> {
+export async function processImages(images: Image[], download_folder: string, processed_folder: string, bot: Bot): Promise<Image[]> {
     if (images.length > 0) {
         // Check if the folders exist, if not, create them
         if (!await fs.access(download_folder).then(() => true).catch(() => false)) {
@@ -210,7 +210,10 @@ export async function processImages(images: Image[], download_folder: string, pr
         }
     }));
 
-    await Promise.all(images.map(async image => {
+    const imageURLs = images.map(image => image.url);
+    const refreshedURLs = await refreshAttachments(imageURLs, bot);
+
+    await Promise.all(images.map(async (image,i) => {
         const processedPath = Path.join(processed_folder, getFileKey(image, 'png'));
         // If the processed image already exists, skip processing
         if (await fs.access(processedPath).then(() => true).catch(() => false)) {
@@ -220,7 +223,7 @@ export async function processImages(images: Image[], download_folder: string, pr
         const downloadPath = Path.join(download_folder, getFileKey(image));
         let imageData;
         try {
-            imageData = await got(image.url, { responseType: 'buffer' });
+            imageData = await got(refreshedURLs[i], { responseType: 'buffer' });
         } catch (error) {
             throw new Error(`Failed to download image ${image.name} at ${image.url}, try reuploading the file directly to the thread.`);
         }
@@ -322,7 +325,7 @@ export async function processImageForDiscord(file_path: string, num_images: numb
     return output_path;
 }
 
-export async function processAttachments(attachments: Attachment[], attachments_folder: string, remove_old: boolean = true): Promise<Attachment[]> {
+export async function processAttachments(attachments: Attachment[], attachments_folder: string, bot: Bot, remove_old: boolean = true): Promise<Attachment[]> {
     // Check if the folder exists, if not, create it
     if (attachments.length > 0) {
         if (!await fs.access(attachments_folder).then(() => true).catch(() => false)) {
@@ -346,6 +349,12 @@ export async function processAttachments(attachments: Attachment[], attachments_
             }
         }));
     }
+
+
+
+    const attachmentURLs = attachments.map(a => a.url);
+    const attachmentURLsRefreshed = await refreshAttachments(attachmentURLs, bot);
+
 
     // Process each attachment
     await Promise.all(attachments.map(async attachment => {
@@ -1051,4 +1060,44 @@ export function areAuthorsSame(
 
     // compare usernames
     return author1.username === author2.username;
+}
+
+export async function refreshAttachments(
+    attachmentURLs: string[],
+    bot: Bot
+): Promise<string[]> {
+    if (!attachmentURLs || attachmentURLs.length === 0) {
+        return [];
+    }
+
+    const attachmentObjects: { url: string }[] = attachmentURLs.map(url => ({ url }));
+    const expiringAttachments = attachmentObjects.filter(obj => {
+        const url = obj.url;
+        if (!url) return false; // No URL provided
+        
+        // Check if discord cdn
+        if (!url.startsWith('https://cdn.discordapp.com/attachments/')) {
+            return false; // Not a Discord CDN URL
+        }
+        // get the `ex` parameter from the URL
+        const urlObj = new URL(url);
+        const exParam = urlObj.searchParams.get('ex');
+        if (!exParam) return false; // No expiration parameter
+        if (parseInt(exParam, 16) * 1000 > Date.now()) { // If the expiration is in the future, keep it
+            return !(urlObj.searchParams.get("is") && urlObj.searchParams.get("hm"))
+        }
+        // check other parameters
+        return true;
+    });
+
+    // api/v9/attachments/refresh-urls
+    if (expiringAttachments.length > 0) {
+        const result = await bot.client.rest.post('/api/v9/attachments/refresh-urls', {
+            body: {
+                attachment_urls: expiringAttachments.map(a => a.url)
+            },
+        });
+        console.log(result);
+    }
+    return attachmentObjects.map(obj => obj.url);
 }

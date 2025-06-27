@@ -1178,7 +1178,7 @@ export class RepositoryManager {
 
             if (attachments.length > 0) {
                 await fs.mkdir(commentsAttachmentFolder, { recursive: true });
-                await processAttachments(attachments, commentsAttachmentFolder, false);
+                await processAttachments(attachments, commentsAttachmentFolder, this.guildHolder.getBot(), false);
                 for (const attachment of attachments) {
                     const attachmentPath = Path.join(commentsAttachmentFolder, getFileKey(attachment));
                     if (attachment.canDownload) {
