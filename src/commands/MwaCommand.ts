@@ -679,5 +679,7 @@ export class Mwa implements Command {
             }
         }
 
+        await interaction.followUp(`<@${interaction.user.id}> Updating status of all submissions complete!`);
+
      }
 }
