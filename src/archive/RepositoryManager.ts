@@ -641,6 +641,8 @@ export class RepositoryManager {
         }
 
         const entryFolderPath = Path.join(channelPath, entryRef.path);
+
+        let wasArchived = false;
         if (existing) {
             const existingFolder = Path.join(existing.channel.getFolderPath(), existing.entryRef.path);
             if (existingFolder !== entryFolderPath) {
@@ -662,6 +664,9 @@ export class RepositoryManager {
                     if (publishForum && publishForum.type === ChannelType.GuildForum) {
                         const thread = await publishForum.threads.fetch(post.threadId).catch(() => null);
                         if (thread) {
+                            if (thread.archived) {
+                                wasArchived = true;
+                            }
                             await thread.delete('Entry moved to a different channel');
                         }
                     }
@@ -681,6 +686,9 @@ export class RepositoryManager {
                         if (publishForum && publishForum.type === ChannelType.GuildForum) {
                             const thread = await publishForum.threads.fetch(post.threadId).catch(() => null);
                             if (thread) {
+                                if (thread.archived) {
+                                    wasArchived = true;
+                                }
                                 await thread.delete('Entry images updated');
                             }
                         }
@@ -710,7 +718,6 @@ export class RepositoryManager {
         }
 
         let thread;
-        let wasArchived = false;
         if (newEntryData.post && newEntryData.post.threadId) {
             thread = await archiveChannelDiscord.threads.fetch(newEntryData.post.threadId).catch(() => null);
             // unarchive the thread if it exists
