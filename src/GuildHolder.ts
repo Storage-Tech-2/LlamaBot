@@ -116,8 +116,8 @@ export class GuildHolder {
 
         const match = message.content.match(/(isn'?t|not)?\bunload\bsafe\b/i);
         if (match) {
-            const isNegated = match[1] !== undefined;
-            if (!isNegated) {
+            const isNegated = match[1] === undefined;
+            if (isNegated) {
                 // Reply with "Nothing is unload safe."
                 await message.reply('Nothing here is unload safe. Never assume anything redstone is unload safe.');
             }
