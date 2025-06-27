@@ -255,7 +255,7 @@ export class Submission {
                 type: RevisionType.Initial,
                 parentRevision: null,
                 timestamp: Date.now(),
-                description: message.content,
+                description: `#EDIT ME\n\n${message.content}`,
                 features: [],
                 considerations: [],
                 notes: ''
