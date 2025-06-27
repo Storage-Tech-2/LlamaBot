@@ -13,9 +13,26 @@ export class SetArchiveCategoryMenu implements Menu {
     async getBuilder(guildHolder: GuildHolder): Promise<StringSelectMenuBuilder> {
         const channels = await guildHolder.getGuild().channels.fetch()
         const currentCategories = guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS) as Snowflake[] || [];
+        // const categoryChannels = channels.filter(channel => {
+        //     return channel && channel.type === ChannelType.GuildCategory && currentCategories.includes(channel.id)
+        // }) as unknown as Collection<Snowflake, CategoryChannel>;
+
         const categoryChannels = channels.filter(channel => {
             return channel && channel.type === ChannelType.GuildCategory && currentCategories.includes(channel.id)
-        }) as unknown as Collection<Snowflake, CategoryChannel>;
+        }).map(channel => {
+            if (!channel || channel.type !== ChannelType.GuildCategory) {
+                throw new Error('Channel not found');
+            }
+            return {
+                id: channel.id,
+                name: channel.name,
+                position: channel.position
+            }
+        });
+
+        // sort by position
+        categoryChannels.sort((a, b) => b.position - a.position);
+        
         return new StringSelectMenuBuilder()
             .setCustomId(this.getID())
             .setMinValues(1)
