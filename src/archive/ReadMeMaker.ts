@@ -5,7 +5,7 @@ import { ArchiveEntryData } from "./ArchiveEntry.js";
 
 function formatAttachment(attachment: Attachment): string {
     if (attachment.litematic) {
-        return `- [${attachment.name}](${encodeURI(attachment.path || '')}): MC ${attachment.litematic.version}, Size ${attachment.litematic.size} blocks`;
+        return `- [${attachment.name}](${encodeURI(attachment.path || '')}): ` + (attachment.litematic.error || `MC ${attachment.litematic.version}, Size ${attachment.litematic.size} blocks`);
     } else if (attachment.contentType === 'mediafire') {
         return `- [${attachment.name}](${attachment.url}): Mediafire link`;
     } else if (attachment.contentType === 'youtube') {

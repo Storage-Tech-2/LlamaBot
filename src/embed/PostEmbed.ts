@@ -72,7 +72,7 @@ export class PostEmbed {
             description += '**Litematics:**\n'
             litematics.forEach(attachment => {
                 const url = attachmentURLs.get(attachment.name) || attachment.url;
-                description += `- ${url} [Github](${rawURL}/${attachment.path}): MC ${attachment.litematic?.version}, ${attachment.litematic?.size}\n`
+                description += `- ${url} [Github](${rawURL}/${attachment.path}): ` + (attachment.litematic?.error || `MC ${attachment.litematic?.version}, ${attachment.litematic?.size}\n`)
             })
         }
 
