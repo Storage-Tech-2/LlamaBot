@@ -293,10 +293,14 @@ export async function processImageForDiscord(file_path: string, num_images: numb
         const scale = 800 / newWidth;
         newWidth = 800;
         newHeight = Math.floor(newHeight * scale);
+        // also scale padding
+        padding = Math.floor(padding * scale);
     } else {
         const scale = 800 / newHeight;
         newHeight = 800;
         newWidth = Math.floor(newWidth * scale);
+        // also scale padding
+        padding = Math.floor(padding * scale);
     }
 
     await sharp(file_path)
