@@ -30,9 +30,12 @@ export function makeEntryReadMe(
         const image = entryData.images[0];
         text.push(`<img alt="${escapeString(image.name)}" src="${encodeURI(image.path || '')}?raw=1"${(image.height || 200) > 300 ? " height=\"300px\"" : ""}>\n\n`)
     }
-
-    text.push(`**Authors:** *${entryData.authors.map(o => o.displayName || o.username).join(", ")}*\n\n`);
-    text.push(`**Endorsed by:** *${entryData.endorsers.map(o => o.displayName || o.username).join(", ")}*\n\n`);
+    if (entryData.authors.length > 0) {
+        text.push(`**Authors:** *${entryData.authors.map(o => o.displayName || o.username).join(", ")}*\n\n`);
+    }
+    if (entryData.endorsers.length > 0) {
+        text.push(`**Endorsed by:** *${entryData.endorsers.map(o => o.displayName || o.username).join(", ")}*\n\n`);
+    }
     text.push(`**Tags:** *${entryData.tags.map(o => o.name).join(", ")}*\n`);
     text.push(`\n`);
     text.push(`${entryData.description}\n`);
