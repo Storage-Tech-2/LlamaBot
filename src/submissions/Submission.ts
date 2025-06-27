@@ -61,14 +61,14 @@ export class Submission {
         this.checkLLMExtraction();
     }
 
-    public async getSubmissionChannel(): Promise<TextThreadChannel> {
+    public async getSubmissionChannel(dontUnarchive: boolean = false): Promise<TextThreadChannel> {
         const channel = await this.guildHolder.getGuild().channels.fetch(this.id);
         if (!channel) {
             throw new Error('Channel not found')
         }
 
         // check if archived
-        if (channel.isThread() && channel.archived) {
+        if (!dontUnarchive && channel.isThread() && channel.archived) {
             await channel.setArchived(false);
         }
 

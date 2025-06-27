@@ -706,11 +706,13 @@ export class RepositoryManager {
         }
 
         let thread;
+        let wasArchived = false;
         if (newEntryData.post && newEntryData.post.threadId) {
             thread = await archiveChannelDiscord.threads.fetch(newEntryData.post.threadId).catch(() => null);
             // unarchive the thread if it exists
             if (thread && thread.archived) {
                 await thread.setArchived(false);
+                wasArchived = true;
             }
         } else {
             newEntryData.post = {
@@ -918,6 +920,9 @@ export class RepositoryManager {
 
         }
 
+        if (wasArchived) {
+            await thread.setArchived(true, 'Thread was previously archived');
+        }
 
         await entry.save();
         await archiveChannel.save();
@@ -1743,19 +1748,44 @@ export class RepositoryManager {
                     const entryPath = Path.join(channelPath, entryRef.path);
                     const entry = await ArchiveEntry.fromFolder(entryPath);
                     const entryData = entry.getData();
+                    let result;
                     if (!entryData.post) {
-                        channel.send({ content: `Entry ${entryData.code} does not have a post, skipping.` });
+                        await channel.send({ content: `Entry ${entryData.code} does not have a post, skipping.` });
                     } else {
                         try {
-                            const result = await this.addOrUpdateEntryFromData(this.guildHolder, entryData, entryData.post.forumId, replace, async () => { });
-                            channel.send({ content: `Entry ${entryData.code} republished: ${result.newEntryData.post?.threadURL}` });
+                            result = await this.addOrUpdateEntryFromData(this.guildHolder, entryData, entryData.post.forumId, replace, async () => { });
+                            await channel.send({ content: `Entry ${entryData.code} republished: ${result.newEntryData.post?.threadURL}` });
                         } catch (e: any) {
-                            channel.send({ content: `Error republishing entry ${entryData.code}: ${e.message}` });
+                            await channel.send({ content: `Error republishing entry ${entryData.code}: ${e.message}` });
                         }
+                    }
+
+                    // Get submission
+                    const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entryData.id);
+                    if (!submission) {
+                        await channel.send({ content: `Submission for entry ${entryData.code} not found, skipping.` });
+                        continue;
+                    }
+
+                    // Get channel
+                    const submissionChannel = await submission.getSubmissionChannel(true);
+                    const wasArchived = submissionChannel.archived;
+                    if (submissionChannel.archived) {
+                        await submissionChannel.setArchived(false);
+                    }
+
+                    try {
+                        await submission.statusUpdated();
+                        await submissionChannel.send(`Republished by bulk republish command, the post is now at ${result?.newEntryData?.post?.threadURL}`);
+                    } catch (e: any) {
+                        await submissionChannel.send({ content: `Error updating submission ${entryData.code} status: ${e.message}` });
+                    }
+
+                    if (wasArchived) {
+                        await submissionChannel.setArchived(true);
                     }
                 }
             }
-
             this.lock.release();
         } catch (e) {
             this.lock.release();
