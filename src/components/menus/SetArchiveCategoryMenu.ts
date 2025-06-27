@@ -31,8 +31,8 @@ export class SetArchiveCategoryMenu implements Menu {
         });
 
         // sort by position
-        categoryChannels.sort((a, b) => b.position - a.position);
-        
+        categoryChannels.sort((a, b) => a.position - b.position);
+
         return new StringSelectMenuBuilder()
             .setCustomId(this.getID())
             .setMinValues(1)
@@ -40,10 +40,22 @@ export class SetArchiveCategoryMenu implements Menu {
             .setPlaceholder('Select archive category')
             .addOptions(
                 Array.from(categoryChannels.values()).map(channel => {
-                     
-                    const categoryChannels = channels.filter(channel2 => {
-                        return channel2 && channel2.type === ChannelType.GuildForum && channel2.parentId === channel.id
-                    }) as unknown as Collection<Snowflake, ForumChannel>;
+
+                    const categoryChannels = channels.filter(channel => {
+                        return channel && channel.type === ChannelType.GuildForum && channel.parentId === channel.id
+                    }).map(channel => {
+                        if (!channel || channel.type !== ChannelType.GuildForum) {
+                            throw new Error('Channel not found');
+                        }
+                        return {
+                            id: channel.id,
+                            name: channel.name,
+                            topic: channel.topic || '',
+                            position: channel.position
+                        }
+                    });
+                    // sort by position
+                    categoryChannels.sort((a, b) => a.position - b.position);
 
                     const description = categoryChannels.map(c => `#${c.name}`).join(', ') || 'No forum channels in this category';
                     return new StringSelectMenuOptionBuilder().setLabel(channel.name).setValue(channel.id).setDescription(description.substring(0, 100));

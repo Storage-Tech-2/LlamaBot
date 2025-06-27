@@ -29,7 +29,7 @@ export class SetArchiveChannelMenu implements Menu {
         });
 
         // sort by position
-        categoryChannels.sort((a, b) => b.position - a.position);
+        categoryChannels.sort((a, b) => a.position - b.position);
 
         const currentArchiveChannel = submission.getConfigManager().getConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID);
         return new StringSelectMenuBuilder()
