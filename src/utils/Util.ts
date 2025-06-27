@@ -213,7 +213,7 @@ export async function processImages(images: Image[], download_folder: string, pr
     const imageURLs = images.map(image => image.url);
     const refreshedURLs = await refreshAttachments(imageURLs, bot);
 
-    await Promise.all(images.map(async (image,i) => {
+    await Promise.all(images.map(async (image, i) => {
         const processedPath = Path.join(processed_folder, getFileKey(image, 'png'));
         // If the processed image already exists, skip processing
         if (await fs.access(processedPath).then(() => true).catch(() => false)) {
@@ -1092,12 +1092,32 @@ export async function refreshAttachments(
 
     // api/v9/attachments/refresh-urls
     if (expiringAttachments.length > 0) {
-        const result = await bot.client.rest.post('/attachments/refresh-urls', {
-            body: {
-                attachment_urls: expiringAttachments.map(a => a.url)
-            },
-        });
-        console.log(result);
+        try {
+            const result = await bot.client.rest.post('/attachments/refresh-urls', {
+                body: {
+                    attachment_urls: expiringAttachments.map(a => a.url)
+                },
+            }) as any;
+            if (!result || !result.refreshed_urls || !Array.isArray(result.refreshed_urls)) {
+                throw new Error('Invalid response from attachment refresh API');
+            }
+
+            result.refreshed_urls.forEach((data: {original: string, refreshed: string}) => {
+                if (!data.original || !data.refreshed) {
+                    console.warn(`Invalid data received for attachment refresh: ${JSON.stringify(data)}`);
+                    return;
+                }
+                const index = attachmentObjects.findIndex(obj => obj.url === data.original);
+                if (index !== -1) {
+                    attachmentObjects[index].url = data.refreshed;
+                } else {
+                    console.warn(`Original URL ${data.original} not found in attachment objects.`);
+                }
+            });
+        } catch (error: any) {
+            console.error(`Failed to refresh attachment URLs: ${error.message}`);
+            throw new Error(`Failed to refresh attachment URLs, try reuploading the files directly to the thread. Error: ${error.message}`);
+        }
     }
     return attachmentObjects.map(obj => obj.url);
 }
