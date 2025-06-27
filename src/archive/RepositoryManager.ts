@@ -642,6 +642,17 @@ export class RepositoryManager {
 
         const entryFolderPath = Path.join(channelPath, entryRef.path);
 
+        if (!newEntryData.post) {
+            newEntryData.post = {
+                threadId: '',
+                forumId: archiveChannelId,
+                continuingMessageIds: [],
+                threadURL: '',
+                uploadMessageId: '',
+                attachmentMessageId: '',
+            }
+        }
+
         let wasArchived = false;
         if (existing) {
             const existingFolder = Path.join(existing.channel.getFolderPath(), existing.entryRef.path);
@@ -676,7 +687,7 @@ export class RepositoryManager {
                 const existingImages = existing.entry.getData().images;
                 const newImages = newEntryData.images;
                 if (!getChangeIDs(existingImages, newImages) && !forceNew) { // no problem
-                    newEntryData.post = existing.entry.getData().post;
+                    newEntryData.post = existing.entry.getData().post || newEntryData.post;
                 } else {
                     // If images are different, we need to delete the thread
                     const post = existing.entry.getData().post;
@@ -698,7 +709,7 @@ export class RepositoryManager {
         }
 
         if (existing && getChangeIDs(existing.entry.getData().attachments, newEntryData.attachments)) {
-            newEntryData.post = undefined; // reset post info if attachments changed
+            newEntryData.post.attachmentMessageId = undefined;
         }
 
         await fs.mkdir(entryFolderPath, { recursive: true });
@@ -725,15 +736,18 @@ export class RepositoryManager {
                 await thread.setArchived(false);
                 wasArchived = true;
             }
-        } else {
-            newEntryData.post = {
-                forumId: archiveChannelId,
-                threadId: '',
-                continuingMessageIds: [],
-                threadURL: '',
-                uploadMessageId: '',
-            }
         }
+        
+        if (!thread) {
+            newEntryData.post.threadId = '';
+            newEntryData.post.threadURL = '';
+            newEntryData.post.continuingMessageIds = [];
+            newEntryData.post.attachmentMessageId = '';
+        } else {
+            newEntryData.post.threadId = thread.id;
+            newEntryData.post.threadURL = thread.url;
+        }
+
         // uploadMessageId
 
         // First, upload attachments
@@ -785,8 +799,6 @@ export class RepositoryManager {
                 await fs.unlink(file).catch(() => { });
             }
 
-            newEntryData.post.threadId = thread.id;
-            newEntryData.post.threadURL = thread.url;
             wasThreadCreated = true;
         } else {
             await thread.setAppliedTags(newEntryData.tags.map(tag => tag.id).filter(tagId => archiveChannelDiscord.availableTags.some(t => t.id === tagId)).slice(0, 5));
