@@ -1,4 +1,4 @@
-import { ActionRowBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, Snowflake, TextInputBuilder, TextInputStyle } from "discord.js";
+import { ActionRowBuilder, ModalBuilder, ModalSubmitInteraction, Snowflake, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
 import { Revision, RevisionType } from "../../submissions/Revision.js";

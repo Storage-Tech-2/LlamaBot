@@ -4,7 +4,6 @@ import { Modal } from "../../interface/Modal.js";
 import { areAuthorsSame, canEditSubmission, extractUserIdsFromText, getAuthorsString, reclassifyAuthors, replyEphemeral, splitIntoChunks } from "../../utils/Util.js";
 import { Author, AuthorType } from "../../submissions/Author.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
-import { SetAuthorsButton } from "../buttons/SetAuthorsButton.js";
 import { SetArchiveCategoryMenu } from "../menus/SetArchiveCategoryMenu.js";
 import { GuildConfigs } from "../../config/GuildConfigs.js";
 import { SetAuthorsMenu } from "../menus/SetAuthorsMenu.js";

@@ -7,3 +7,4 @@ coverage
 config
 secrets.json
 __pycache__
+dist

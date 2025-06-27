@@ -1,11 +1,9 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, MessageFlags } from "discord.js";
+import { ButtonBuilder, ButtonInteraction, ButtonStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Button } from "../../interface/Button.js";
-import { canEditSubmission, canPublishSubmission, replyEphemeral } from "../../utils/Util.js";
+import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
-import { SetImagesMenu } from "../menus/SetImagesMenu.js";
 import { SetAttachmentsMenu } from "../menus/SetAttachmentsMenu.js";
-import { SetAttachmentsButton } from "./SetAttachmentsButton.js";
 
 export class SkipImagesButton implements Button {
     getID(): string {

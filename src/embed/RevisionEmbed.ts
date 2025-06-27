@@ -1,4 +1,4 @@
-import { ActionRowBuilder, Channel, EmbedBuilder, InteractionReplyOptions, Message, MessageCreateOptions, MessageFlags, MessagePayload, TextBasedChannel } from "discord.js";
+import { ActionRowBuilder, Channel, EmbedBuilder, Message, MessageFlags } from "discord.js";
 import { Submission } from "../submissions/Submission.js";
 import { Revision } from "../submissions/Revision.js";
 import { EditSubmissionButton } from "../components/buttons/EditSubmissionButton.js";

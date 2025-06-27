@@ -2,7 +2,6 @@ import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextTyp
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { getAuthorFromIdentifier, replyEphemeral } from "../utils/Util.js";
-import { Author, AuthorType } from "../submissions/Author.js";
 
 export class GetPostsByCommand implements Command {
     getID(): string {
