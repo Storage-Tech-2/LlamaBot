@@ -708,10 +708,19 @@ export class RepositoryManager {
             }
         }
 
-        if (existing && getChangeIDs(existing.entry.getData().attachments, newEntryData.attachments)) {
-            newEntryData.post.attachmentMessageId = undefined;
+        if (existing) {
+            const existingData = existing.entry.getData();
+            if (getChangeIDs(existingData.attachments, newEntryData.attachments)) {
+                newEntryData.post.attachmentMessageId = undefined;
+            } else if (existingData.post) {
+                newEntryData.post.attachmentMessageId = existingData.post.attachmentMessageId;
+            } else {
+                newEntryData.post.attachmentMessageId = undefined;
+            }
+        } else {
+             newEntryData.post.attachmentMessageId = undefined;
         }
-
+        
         await fs.mkdir(entryFolderPath, { recursive: true });
 
         const entry = new ArchiveEntry(newEntryData, entryFolderPath);
@@ -737,7 +746,7 @@ export class RepositoryManager {
                 wasArchived = true;
             }
         }
-        
+
         if (!thread) {
             newEntryData.post.threadId = '';
             newEntryData.post.threadURL = '';
