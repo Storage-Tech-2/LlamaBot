@@ -72,7 +72,9 @@ export class PostEmbed {
             description += '**Litematics:**\n'
             litematics.forEach(attachment => {
                 const url = attachmentURLs.get(attachment.name) || attachment.url;
-                description += `- ${url} [Github](${rawURL}/${attachment.path}): ` + (attachment.litematic?.error || `MC ${attachment.litematic?.version}, ${attachment.litematic?.size}\n`)
+                const githubLink = `${rawURL}/${attachment.path}`;
+                const viewerURL = `https://schemat.io/view?url=${encodeURIComponent(githubLink)}`;
+                description += `- ${url} [Github](${githubLink}): ` + (attachment.litematic?.error || `MC ${attachment.litematic?.version}, Size ${attachment.litematic?.size}, [Viewer](${viewerURL})\n`);
             })
         }
 
