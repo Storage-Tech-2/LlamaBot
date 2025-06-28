@@ -136,10 +136,12 @@ export class RepositoryManager {
                 for (const entryRef of entries) {
                     const entryPath = Path.join(channelPath, entryRef.path);
                     const entry = await ArchiveEntry.fromFolder(entryPath);
-                    const post = entry.getData().post;
-                    if (post && post.threadId === postID) {
-                        await this.setSubmissionIDForPostID(postID, entry.getData().id); // Ensure the index is updated
-                        return entry.getData().id; // Return the submission ID
+                    if (entry) {
+                        const post = entry.getData().post;
+                        if (post && post.threadId === postID) {
+                            await this.setSubmissionIDForPostID(postID, entry.getData().id); // Ensure the index is updated
+                            return entry.getData().id; // Return the submission ID
+                        }
                     }
                 }
             }
@@ -303,6 +305,9 @@ export class RepositoryManager {
 
                 // Load entry
                 const entry = await ArchiveEntry.fromFolder(newFolderPath);
+                if (!entry) {
+                    throw new Error(`Entry ${oldEntryRef.name} (${oldEntryRef.code}) not found in memory`);
+                }
                 entry.getData().code = newEntryRef.code;
 
                 // Rename attachment files
@@ -382,6 +387,9 @@ export class RepositoryManager {
                 const entryRef = entries[entryIndex];
                 const entryPath = Path.join(channelPath, entryRef.path);
                 const entry = await ArchiveEntry.fromFolder(entryPath);
+                if (!entry) {
+                    continue; // Skip if entry could not be loaded
+                }
                 return {
                     channelRef,
                     channel: archiveChannel,
@@ -412,6 +420,9 @@ export class RepositoryManager {
                 const entryRef = entries[entryIndex];
                 const entryPath = Path.join(channelPath, entryRef.path);
                 const entry = await ArchiveEntry.fromFolder(entryPath);
+                if (!entry) {
+                    continue; // Skip if entry could not be loaded
+                }
                 return {
                     channelRef,
                     channel: archiveChannel,
@@ -1583,6 +1594,9 @@ export class RepositoryManager {
             for (const entryRef of archiveChannel.getData().entries) {
                 const entryPath = Path.join(channelPath, entryRef.path);
                 const entry = await ArchiveEntry.fromFolder(entryPath);
+                if (!entry) {
+                    continue; // Skip if entry cannot be loaded
+                }
                 const entryData = entry.getData();
                 const compareAuthors = endorsers ? entryData.endorsers : entryData.authors;
                 if (compareAuthors.some(otherAuthor => {
@@ -1615,6 +1629,10 @@ export class RepositoryManager {
             for (const entryRef of entries) {
                 const entryPath = Path.join(channelPath, entryRef.path);
                 const entry = await ArchiveEntry.fromFolder(entryPath);
+                if (!entry) {
+                    console.warn(`Entry ${entryRef.name} in channel ${archiveChannel.getData().name} could not be loaded, skipping.`);
+                    continue; // Skip if entry cannot be loaded
+                }
                 const entryData = entry.getData();
                 for (const author of entryData.authors) {
                     if (!authors.some(a => areAuthorsSame(a, author))) {
@@ -1645,6 +1663,10 @@ export class RepositoryManager {
             for (const entryRef of entries) {
                 const entryPath = Path.join(channelPath, entryRef.path);
                 const entry = await ArchiveEntry.fromFolder(entryPath);
+                if (!entry) {
+                    console.warn(`Entry ${entryRef.name} in channel ${archiveChannel.getData().name} could not be loaded, skipping.`);
+                    continue; // Skip if entry cannot be loaded
+                }
                 let modified = false;
                 try {
                     modified = await this.updateEntryAuthors(entry, reclassified);
@@ -1826,7 +1848,14 @@ export class RepositoryManager {
                 for (const entryRef of archiveChannel.getData().entries) {
                     const entryPath = Path.join(channelPath, entryRef.path);
                     const entry = await ArchiveEntry.fromFolder(entryPath);
+                
+                    if (!entry) {
+                        await channel.send({ content: `Entry ${entryRef.name} (${entryRef.code}) could not be loaded, skipping.` });
+                        continue; // Skip if entry cannot be loaded
+                    }
+                    
                     const entryData = entry.getData();
+
                     let result;
                     if (!entryData.post) {
                         await channel.send({ content: `Entry ${entryData.code} does not have a post, skipping.` });

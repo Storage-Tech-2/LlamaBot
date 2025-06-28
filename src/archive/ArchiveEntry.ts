@@ -67,11 +67,15 @@ export class ArchiveEntry {
         this.data = JSON.parse(await fs.readFile(dataPath, 'utf-8')) as ArchiveEntryData;
     }
 
-    public static async fromFolder(folder: string): Promise<ArchiveEntry> {
+    public static async fromFolder(folder: string): Promise<ArchiveEntry | null> {
         const dataPath = Path.join(folder, 'data.json');
-        const data: ArchiveEntryData = JSON.parse(await fs.readFile(dataPath, 'utf-8'));
-        const entry = new ArchiveEntry(data, folder);
-        return entry;
+        try {
+            const data: ArchiveEntryData = JSON.parse(await fs.readFile(dataPath, 'utf-8'));
+            const entry = new ArchiveEntry(data, folder);
+            return entry;
+        } catch (error) {
+            return null;
+        }
     }
 
 }
