@@ -68,7 +68,7 @@ export class RevisionEmbed {
         description += `## ${submission.getConfigManager().getConfig(SubmissionConfigs.NAME)}\n`;
 
         const authors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
-        description += `**Authors:** ${getAuthorsString(authors)}\n`
+        description += `**Authors:** ${getAuthorsString(authors.filter(a=>!a.dontDisplay))}\n`
 
         description += `**Description:** ${revision.description}`
 
@@ -89,6 +89,14 @@ export class RevisionEmbed {
         if (revision.notes.length) {
             description += '\n\n**Notes**\n'
             description += revision.notes
+        }
+
+        const authorsWithReasons = authors.filter(author => author.reason);
+        if (authorsWithReasons.length > 0) {
+            description += `\n\n**Acknowledgements:**\n`;
+            authorsWithReasons.forEach(author => {
+                description += `- ${getAuthorsString([author])}: ${author.reason}\n`;
+            });
         }
 
         const chunks = splitIntoChunks(description, 4096);

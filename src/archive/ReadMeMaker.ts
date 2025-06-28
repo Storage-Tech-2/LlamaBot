@@ -60,7 +60,7 @@ export function makeEntryReadMe(
 
     const authorsWithReasons = entryData.authors.filter(author => author.reason);
     if (authorsWithReasons.length > 0) {
-        text.push(`\n**Authorship Information:**\n`);
+        text.push(`\n**Acknowledgements:**\n`);
         authorsWithReasons.forEach(author => {
             text.push(`- ${getAuthorsString([author])}: ${author.reason}\n`);
         });

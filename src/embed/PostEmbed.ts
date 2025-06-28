@@ -148,7 +148,7 @@ export class PostEmbed {
 
         const authorsWithReasons = entryData.authors.filter(author => author.reason);
         if (authorsWithReasons.length > 0) {
-            content.push(`\n**Authorship Information:**`);
+            content.push(`\n**Acknowledgements:**`);
             authorsWithReasons.forEach(author => {
                 content.push(`- ${getAuthorsString([author])}: ${author.reason}`);
             });
