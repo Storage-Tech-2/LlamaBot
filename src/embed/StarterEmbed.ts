@@ -55,7 +55,12 @@ export class StarterEmbed {
         description += '\n\n**Submission Progress**\n'
 
         if (authors !== null) {
-            description += `:white_check_mark: Chose authors: ${getAuthorsString(authors)}\n`
+            description += `:white_check_mark: Chose authors: ${getAuthorsString(authors.filter(o=>!o.dontDisplay))}\n`
+            const authorsWithoutDisplay = authors.filter(o => o.dontDisplay);
+            if (authorsWithoutDisplay.length > 0) {
+                description += `:white_check_mark: Added acknowledgements: ${getAuthorsString(authorsWithoutDisplay)}\n`
+            }
+
         } else {
             description += ':zero: Choose authors\n'
         }
