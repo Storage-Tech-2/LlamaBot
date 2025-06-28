@@ -19,6 +19,7 @@ import { Submission } from '../submissions/Submission.js'
 import { SubmissionConfigs } from '../submissions/SubmissionConfigs.js'
 import { Tag } from '../submissions/Tag.js'
 import { SubmissionStatus } from '../submissions/SubmissionStatus.js'
+import { MCMeta } from './MCMeta.js'
 
 export function getItemsFromArray<T extends (Button | Menu | Modal | Command)>(itemArray: T[]): Map<string, T> {
     const items = new Map()
@@ -355,6 +356,8 @@ export async function processAttachments(attachments: Attachment[], attachments_
     const attachmentURLs = attachments.map(a => a.url);
     const attachmentURLsRefreshed = await refreshAttachments(attachmentURLs, bot);
 
+    const mcMeta = new MCMeta();
+    await mcMeta.fetchVersionData();
 
     // Process each attachment
     await Promise.all(attachments.map(async (attachment, index) => {
@@ -382,12 +385,12 @@ export async function processAttachments(attachments: Attachment[], attachments_
                     await litematic.read()
 
                     const dataVersion = litematic.litematic?.nbtData.MinecraftDataVersion ?? 0;
-                    const version = dataVersionToMinecraftVersion(dataVersion);
+                    const version = mcMeta.getByDataVersion(dataVersion);
                     const size = litematic.litematic?.blocks ?? { minx: 0, miny: 0, minz: 0, maxx: 0, maxy: 0, maxz: 0 };
                     const sizeString = `${size.maxx - size.minx + 1}x${size.maxy - size.miny + 1}x${size.maxz - size.minz + 1}`
                     attachment.litematic = {
                         size: sizeString,
-                        version: version
+                        version: version ? version.id : 'Unknown',
                     }
                 } catch (error) {
                     console.error('Error processing litematic file:', error)
@@ -400,120 +403,6 @@ export async function processAttachments(attachments: Attachment[], attachments_
     }));
 
     return attachments;
-}
-
-
-const DATA_VERSION_TO_RELEASE = Object.freeze({
-    /* 1.21 line */
-    4435: '1.21.6',
-    4325: '1.21.5',
-    4189: '1.21.4',
-    4082: '1.21.3',
-    4080: '1.21.2',
-    3955: '1.21.1',
-    3953: '1.21',
-
-    /* 1.20 line */
-    3839: '1.20.6',
-    3837: '1.20.5',
-    3700: '1.20.4',
-    3698: '1.20.3',
-    3578: '1.20.2',
-    3465: '1.20.1',
-    3463: '1.20',
-
-    /* 1.19 line */
-    3337: '1.19.4',
-    3218: '1.19.3',
-    3120: '1.19.2',
-    3105: '1.19',
-
-    /* 1.18 line */
-    2975: '1.18.2',
-    2865: '1.18.1',
-    2860: '1.18',
-
-    /* 1.17 line */
-    2730: '1.17.1',
-    2724: '1.17',
-
-    /* 1.16 line */
-    2586: '1.16.5',
-    2584: '1.16.4',
-    2580: '1.16.3',
-    2578: '1.16.2',
-    2567: '1.16.1',
-    2566: '1.16',
-
-    /* 1.15 line */
-    2230: '1.15.2',
-    2227: '1.15.1',
-    2225: '1.15',
-
-    /* 1.14 line */
-    1976: '1.14.4',
-    1968: '1.14.3',
-    1963: '1.14.2',
-    1957: '1.14.1',
-    1952: '1.14',
-
-    /* 1.13 line */
-    1631: '1.13.2',
-    1628: '1.13.1',
-    1519: '1.13',
-
-    /* 1.12 line */
-    1343: '1.12.2',
-    1241: '1.12.1',
-    1139: '1.12',
-
-    /* 1.11 line */
-    922: '1.11.2',
-    921: '1.11.1',
-    819: '1.11',
-
-    /* 1.10 line */
-    512: '1.10.2',
-    511: '1.10.1',
-    510: '1.10',
-
-    /* 1.9 line */
-    184: '1.9.4',
-    183: '1.9.3',
-    176: '1.9.2',
-    175: '1.9.1',
-    169: '1.9'
-})
-
-export function dataVersionToMinecraftVersion(dataVersion: number): string {
-    if (dataVersion in DATA_VERSION_TO_RELEASE) {
-        return DATA_VERSION_TO_RELEASE[dataVersion as keyof typeof DATA_VERSION_TO_RELEASE];
-    } else {
-        // find closest below and above
-        let closestBelow = null
-        let closestAbove = null
-        for (const versionRaw of Object.keys(DATA_VERSION_TO_RELEASE)) {
-            const version = parseInt(versionRaw)
-            if (version < dataVersion) {
-                if (!closestBelow || version > closestBelow) {
-                    closestBelow = version
-                }
-            } else if (version > dataVersion) {
-                if (!closestAbove || version < closestAbove) {
-                    closestAbove = version
-                }
-            }
-        }
-        if (closestBelow && closestAbove) {
-            return `${DATA_VERSION_TO_RELEASE[closestBelow as keyof typeof DATA_VERSION_TO_RELEASE]} - ${DATA_VERSION_TO_RELEASE[closestAbove as keyof typeof DATA_VERSION_TO_RELEASE]}`
-        } else if (closestBelow) {
-            return DATA_VERSION_TO_RELEASE[closestBelow as keyof typeof DATA_VERSION_TO_RELEASE]
-        } else if (closestAbove) {
-            return DATA_VERSION_TO_RELEASE[closestAbove as keyof typeof DATA_VERSION_TO_RELEASE]
-        } else {
-            return 'Unknown'
-        }
-    }
 }
 
 export function getAuthorsString(authors: Author[] | null): string {
