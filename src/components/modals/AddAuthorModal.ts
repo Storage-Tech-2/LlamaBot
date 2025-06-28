@@ -32,6 +32,11 @@ export class AddAuthorModal implements Modal {
             .setStyle(TextInputStyle.Short)
             .setRequired(false)
 
+        const reason = new TextInputBuilder()
+            .setCustomId('reasonInput')
+            .setLabel('Optional reason for adding:')
+            .setStyle(TextInputStyle.Paragraph)
+
         const row1 = new ActionRowBuilder().addComponents(userIDInput)
         const row2 = new ActionRowBuilder().addComponents(name)
         modal.addComponents(row1 as any, row2)
@@ -60,11 +65,13 @@ export class AddAuthorModal implements Modal {
 
         const name = interaction.fields.getTextInputValue('nameInput');
         const userId = interaction.fields.getTextInputValue('idInput') || null;
+        const reason = interaction.fields.getTextInputValue('reasonInput') || undefined;
 
         let author: Author = {
             type: AuthorType.Unknown,
             id: userId || undefined,
-            username: name || 'Unknown'
+            username: name || 'Unknown',
+            reason: reason,
         };
 
         if (userId && !/^\d{17,19}$/.test(userId)) {
@@ -101,7 +108,7 @@ export class AddAuthorModal implements Modal {
 
         const channel = await submission.getSubmissionChannel();
         channel.send({
-            content: `<@${interaction.user.id}> added author: ${author.username} (${author.id ? `<@${author.id}>` : 'Unknown ID'})`,
+            content: `<@${interaction.user.id}> added author: ${author.username} (${author.id ? `<@${author.id}>` : 'Unknown ID'})${author.reason ? ` with reason: ${author.reason}` : ''}`,
             flags: MessageFlags.SuppressNotifications
         });
 
