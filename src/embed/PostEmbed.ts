@@ -146,6 +146,14 @@ export class PostEmbed {
             content.push(`\n**Notes:**\n${notes}`);
         }
 
+        const authorsWithReasons = entryData.authors.filter(author => author.reason);
+        if (authorsWithReasons.length > 0) {
+            content.push(`\n**Authorship Information:**`);
+            authorsWithReasons.forEach(author => {
+                content.push(`- ${getAuthorsString([author])}: ${author.reason}`);
+            });
+        }
+        
         const githubURL = guildHolder.getConfigManager().getConfig(GuildConfigs.GITHUB_REPO_URL);
         // parse the URL to get the repo name and owner
         const { owner, project } = getGithubOwnerAndProject(githubURL);

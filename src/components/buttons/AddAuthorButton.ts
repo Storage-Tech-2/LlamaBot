@@ -34,5 +34,4 @@ export class AddAuthorButton implements Button {
         const modal = new AddAuthorModal().getBuilder()
         await interaction.showModal(modal);
     }
-
 }

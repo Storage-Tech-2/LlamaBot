@@ -1,5 +1,5 @@
 import { Attachment } from "../submissions/Attachment.js";
-import { escapeString } from "../utils/Util.js";
+import { escapeString, getAuthorsString } from "../utils/Util.js";
 import { ArchiveComment } from "./ArchiveComments.js";
 import { ArchiveEntryData } from "./ArchiveEntry.js";
 
@@ -56,6 +56,14 @@ export function makeEntryReadMe(
     if (entryData.notes.length > 0) {
         text.push(`\n## Notes\n`);
         text.push(entryData.notes + '\n');
+    }
+
+    const authorsWithReasons = entryData.authors.filter(author => author.reason);
+    if (authorsWithReasons.length > 0) {
+        text.push(`\n**Authorship Information:**\n`);
+        authorsWithReasons.forEach(author => {
+            text.push(`- ${getAuthorsString([author])}: ${author.reason}\n`);
+        });
     }
 
     if (entryData.images.length > 1) {
