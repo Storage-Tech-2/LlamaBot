@@ -39,7 +39,7 @@ export class AddAuthorModal implements Modal {
 
         const shouldDisplay = new TextInputBuilder()
             .setCustomId('shouldDisplay')
-            .setLabel('Should this author be displayed in the "by" line? (yes/no)')
+            .setLabel('Display in the "by" line?')
             .setStyle(TextInputStyle.Short)
             .setValue('Yes')
             .setPlaceholder('Yes/No')
