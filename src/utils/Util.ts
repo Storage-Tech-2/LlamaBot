@@ -405,6 +405,7 @@ export async function processAttachments(attachments: Attachment[], attachments_
 
 const DATA_VERSION_TO_RELEASE = Object.freeze({
     /* 1.21 line */
+    4435: '1.21.6',
     4325: '1.21.5',
     4189: '1.21.4',
     4082: '1.21.3',
