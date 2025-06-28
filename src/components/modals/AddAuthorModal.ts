@@ -36,6 +36,7 @@ export class AddAuthorModal implements Modal {
             .setCustomId('reasonInput')
             .setLabel('Optional reason for adding:')
             .setStyle(TextInputStyle.Paragraph)
+            .setRequired(false)
 
         const shouldDisplay = new TextInputBuilder()
             .setCustomId('shouldDisplay')
