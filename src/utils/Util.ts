@@ -676,6 +676,7 @@ export function isAuthor(interaction: Interaction, submission: Submission): bool
     if (authors && authors.length > 0) {
         for (const author of authors) {
             if (author.type === AuthorType.Unknown) continue; // Skip unknown authors
+            if (author.dontDisplay) continue; // Skip authors that don't want to be displayed
             if (author.id === interaction.member.user.id) {
                 return true;
             }
