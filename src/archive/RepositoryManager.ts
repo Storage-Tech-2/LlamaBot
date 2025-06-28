@@ -1837,6 +1837,7 @@ export class RepositoryManager {
                             result = await this.addOrUpdateEntryFromData(this.guildHolder, entryData, entryData.post.forumId, replace, async () => { });
                             await channel.send({ content: `Entry ${entryData.code} republished: ${result.newEntryData.post?.threadURL}` });
                         } catch (e: any) {
+                            console.error(e);
                             await channel.send({ content: `Error republishing entry ${entryData.code}: ${e.message}` });
                         }
                     }
