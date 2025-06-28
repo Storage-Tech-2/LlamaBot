@@ -1,4 +1,4 @@
-import { ActionRowBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
+import { ActionRowBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, StringSelectMenuBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
 import { areAuthorsSame, canEditSubmission, getAuthorsString, reclassifyAuthors, replyEphemeral, splitIntoChunks } from "../../utils/Util.js";
@@ -37,10 +37,28 @@ export class AddAuthorModal implements Modal {
             .setLabel('Optional reason for adding:')
             .setStyle(TextInputStyle.Paragraph)
 
+        const shouldDisplay = new StringSelectMenuBuilder()
+            .setCustomId('shouldDisplay')
+            .setPlaceholder('Display seperately?')
+            .setOptions([
+                {
+                    label: 'Yes',
+                    value: 'yes',
+                    description: 'Display author at the end of the post',
+                },
+                {
+                    label: 'No',
+                    value: 'no',
+                    default: true,
+                    description: 'Display author in the "by" line',
+                }
+            ])
+
         const row1 = new ActionRowBuilder().addComponents(userIDInput)
         const row2 = new ActionRowBuilder().addComponents(name)
         const row3 = new ActionRowBuilder().addComponents(reason)
-        modal.addComponents(row1 as any, row2 as any, row3 as any)
+        const row4 = new ActionRowBuilder().addComponents(shouldDisplay)
+        modal.addComponents(row1 as any, row2 as any, row3 as any, row4 as any);
         return modal
     }
 
@@ -67,6 +85,7 @@ export class AddAuthorModal implements Modal {
         const name = interaction.fields.getTextInputValue('nameInput');
         const userId = interaction.fields.getTextInputValue('idInput') || null;
         const reason = interaction.fields.getTextInputValue('reasonInput') || undefined;
+        const shouldDisplay = interaction.fields.getField('shouldDisplay');
 
         let author: Author = {
             type: AuthorType.Unknown,
