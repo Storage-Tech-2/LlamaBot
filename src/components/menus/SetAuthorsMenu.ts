@@ -140,7 +140,7 @@ export class SetAuthorsMenu implements Menu {
 
         const blacklist = guildHolder.getConfigManager().getConfig(GuildConfigs.BLACKLISTED_USERS);
         const blacklistedAuthors = blacklist.filter(entry => {
-            return currentAuthors.some(b => areAuthorsSame(b, entry.author));
+            return currentAuthors.some(b => !b.dontDisplay && areAuthorsSame(b, entry.author));
         });
         if (blacklistedAuthors.length > 0) {
             const msg = `Warning: The following authors are on the Do-not-archive list:\n` + blacklistedAuthors.map(entry => {
@@ -250,7 +250,7 @@ export class SetAuthorsMenu implements Menu {
 
         const blacklist = guildHolder.getConfigManager().getConfig(GuildConfigs.BLACKLISTED_USERS);
         const blacklistedAuthors = blacklist.filter(entry => {
-            return currentAuthors.some(b => areAuthorsSame(b, entry.author));
+            return currentAuthors.some(b => !b.dontDisplay && areAuthorsSame(b, entry.author));
         });
         if (blacklistedAuthors.length > 0) {
             const msg = `Warning: The following authors are on the Do-not-archive list:\n` + blacklistedAuthors.map(entry => {
