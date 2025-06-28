@@ -39,7 +39,8 @@ export class AddAuthorModal implements Modal {
 
         const row1 = new ActionRowBuilder().addComponents(userIDInput)
         const row2 = new ActionRowBuilder().addComponents(name)
-        modal.addComponents(row1 as any, row2)
+        const row3 = new ActionRowBuilder().addComponents(reason)
+        modal.addComponents(row1 as any, row2 as any, row3 as any)
         return modal
     }
 
