@@ -119,7 +119,7 @@ export class PostEmbed {
 
 
         if (authors.length > 0) {
-            content.push(`**Authors:** ${getAuthorsString(authors)}`);
+            content.push(`**Authors:** ${getAuthorsString(authors.filter(a=> !a.dontDisplay))}`);
         }
 
         // check if authors and endorsers are the same
@@ -153,7 +153,7 @@ export class PostEmbed {
                 content.push(`- ${getAuthorsString([author])}: ${author.reason}`);
             });
         }
-        
+
         const githubURL = guildHolder.getConfigManager().getConfig(GuildConfigs.GITHUB_REPO_URL);
         // parse the URL to get the repo name and owner
         const { owner, project } = getGithubOwnerAndProject(githubURL);

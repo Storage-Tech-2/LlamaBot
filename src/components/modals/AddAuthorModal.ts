@@ -37,22 +37,13 @@ export class AddAuthorModal implements Modal {
             .setLabel('Optional reason for adding:')
             .setStyle(TextInputStyle.Paragraph)
 
-        const shouldDisplay = new StringSelectMenuBuilder()
+        const shouldDisplay = new TextInputBuilder()
             .setCustomId('shouldDisplay')
-            .setPlaceholder('Display seperately?')
-            .setOptions([
-                {
-                    label: 'Yes',
-                    value: 'yes',
-                    description: 'Display author at the end of the post',
-                },
-                {
-                    label: 'No',
-                    value: 'no',
-                    default: true,
-                    description: 'Display author in the "by" line',
-                }
-            ])
+            .setLabel('Should this author be displayed in the "by" line? (yes/no)')
+            .setStyle(TextInputStyle.Short)
+            .setValue('Yes')
+            .setPlaceholder('Yes/No')
+            .setRequired(true)
 
         const row1 = new ActionRowBuilder().addComponents(userIDInput)
         const row2 = new ActionRowBuilder().addComponents(name)
@@ -85,14 +76,18 @@ export class AddAuthorModal implements Modal {
         const name = interaction.fields.getTextInputValue('nameInput');
         const userId = interaction.fields.getTextInputValue('idInput') || null;
         const reason = interaction.fields.getTextInputValue('reasonInput') || undefined;
-        const shouldDisplay = interaction.fields.getField('shouldDisplay');
+        const shouldDisplay = interaction.fields.getTextInputValue('shouldDisplay').toLowerCase() === 'yes' || interaction.fields.getTextInputValue('shouldDisplay').toLowerCase() === 'y';
 
         let author: Author = {
             type: AuthorType.Unknown,
             id: userId || undefined,
             username: name || 'Unknown',
-            reason: reason,
+            reason: reason
         };
+
+        if (!shouldDisplay) {
+            author.dontDisplay = true; // If the user doesn't want to display this author, we set dontDisplay to true
+        }
 
         if (userId && !/^\d{17,19}$/.test(userId)) {
             replyEphemeral(interaction, 'Invalid Discord User ID format. Please provide a valid ID or leave it empty.');
