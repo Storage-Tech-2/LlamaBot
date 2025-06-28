@@ -74,7 +74,7 @@ export class PostEmbed {
                 const url = attachmentURLs.get(attachment.name) || attachment.url;
                 const githubLink = `${rawURL}/${attachment.path}`;
                 const viewerURL = `https://schemat.io/view?url=${githubLink}`;
-                description += `- ${url} [Github](${githubLink}): ` + (attachment.litematic?.error || `MC ${attachment.litematic?.version}, Size ${attachment.litematic?.size}, [Viewer](${viewerURL})\n`);
+                description += `- ${url} [[Github]](${githubLink}) [[Viewer]](${viewerURL}): ` + (attachment.litematic?.error || `MC ${attachment.litematic?.version}, Size ${attachment.litematic?.size} \n`);
             })
         }
 
