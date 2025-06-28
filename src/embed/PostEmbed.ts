@@ -190,6 +190,11 @@ export class PostEmbed {
             files.push(file);
         }));
 
+        // reverse files
+        files.reverse();
+        // reverse paths
+        paths.reverse();
+
         return {
             files: files,
             paths: paths
