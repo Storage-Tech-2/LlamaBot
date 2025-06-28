@@ -5,6 +5,7 @@ import { Attachment } from "../submissions/Attachment.js";
 import { ArchiveEntryData } from "../archive/ArchiveEntry.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { GuildHolder } from "../GuildHolder.js";
+import fs from "fs/promises";
 
 export class PostEmbed {
     private embed: EmbedBuilder;
@@ -24,20 +25,26 @@ export class PostEmbed {
     }
 
     public static async createAttachmentUpload(entryFolderPath: string, entryData: ArchiveEntryData): Promise<{ content: string, files: AttachmentBuilder[] }> {
-        const files: AttachmentBuilder[] = [];
         const attachments = entryData.attachments;
-        attachments.forEach(attachment => {
+        const files = (await Promise.all(attachments.map(async attachment => {
             if (!attachment.canDownload || !attachment.path) {
-                return;
+                return null;
             }
 
             const key = escapeString(attachment.name);
             const filePath = Path.join(entryFolderPath, attachment.path);
+
+            // Check file size is less than 8MB
+            const stats = await fs.stat(filePath);
+            if (stats.size > 8 * 1024 * 1024) {
+                return null;
+            }
+
             const file = new AttachmentBuilder(filePath);
             file.setName(key);
             file.setDescription(attachment.description || '');
-            files.push(file);
-        });
+            return file;
+        }))).filter(file => file !== null);
         return {
             content: `This message contains the files for the submission **${entryData.name}**.`,
             files: files
