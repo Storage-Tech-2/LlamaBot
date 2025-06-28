@@ -114,7 +114,7 @@ export class GuildHolder {
      */
     public async handleMessage(message: Message) {
 
-        const match = message.content.match(/\b(isn'?t |not |never )?unload (?:safe|proof)\b/i);
+        const match = message.content.match(/\b(isn'?t |not |never )?unload (?:safe|proof)\??\b/i);
         if (match) {
             const isNegated = match[1] !== undefined;
             if (!isNegated) {
