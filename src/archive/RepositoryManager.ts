@@ -887,8 +887,6 @@ export class RepositoryManager {
             newEntryData.post.continuingMessageIds.push(message.id);
         }
 
-        newEntryData.post.continuingMessageIds = continuingMessageIds;
-
         // Update the initial message with the first chunk
         if (messageChunks.length > 0) {
             await initialMessage.edit({
