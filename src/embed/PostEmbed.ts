@@ -44,7 +44,7 @@ export class PostEmbed {
         }
     }
 
-    public static async createAttachmentMessage(guildHolder: GuildHolder, entryData: ArchiveEntryData, branchName: string, entryPathPart: string, uploadMessage: Message): Promise<{ content: string, files: AttachmentBuilder[] }> {
+    public static async createAttachmentMessage(guildHolder: GuildHolder, entryData: ArchiveEntryData, branchName: string, entryPathPart: string, uploadMessage: Message): Promise<string> {
         const attachmentURLs = new Map();
         uploadMessage.attachments.forEach(attachment => {
             attachmentURLs.set(attachment.name, attachment.url);
@@ -98,11 +98,7 @@ export class PostEmbed {
             })
         }
 
-        return {
-            content: description,
-            files: []
-        }
-
+        return description;
     }
 
     public static createInitialMessage(guildHolder: GuildHolder, entryData: ArchiveEntryData, entryPathPart: string): string {

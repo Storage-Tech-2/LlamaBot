@@ -11,8 +11,7 @@ export type DiscordPostReference = {
     threadId: Snowflake;
     threadURL: string;
     continuingMessageIds: Snowflake[];
-    attachmentMessageId?: Snowflake;
-    uploadMessageId?: Snowflake;
+    uploadMessageId: Snowflake;
 }
 
 export type ArchiveEntryData = {

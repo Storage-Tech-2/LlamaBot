@@ -655,8 +655,7 @@ export class RepositoryManager {
                 forumId: archiveChannelId,
                 continuingMessageIds: [],
                 threadURL: '',
-                uploadMessageId: '',
-                attachmentMessageId: '',
+                uploadMessageId: ''
             }
         }
 
@@ -718,14 +717,14 @@ export class RepositoryManager {
         if (existing) {
             const existingData = existing.entry.getData();
             if (getChangeIDs(existingData.attachments, newEntryData.attachments)) {
-                newEntryData.post.uploadMessageId = undefined;
+                newEntryData.post.uploadMessageId = '';
             } else if (existingData.post) {
                 newEntryData.post.uploadMessageId = existingData.post.uploadMessageId;
             } else {
-                newEntryData.post.uploadMessageId = undefined;
+                newEntryData.post.uploadMessageId = '';
             }
         } else {
-            newEntryData.post.uploadMessageId = undefined;
+            newEntryData.post.uploadMessageId = '';
         }
 
         await fs.mkdir(entryFolderPath, { recursive: true });
@@ -754,13 +753,6 @@ export class RepositoryManager {
             }
         }
 
-        if (!thread) {
-            newEntryData.post.threadId = '';
-            newEntryData.post.threadURL = '';
-            newEntryData.post.continuingMessageIds = [];
-            newEntryData.post.attachmentMessageId = '';
-        }
-        // uploadMessageId
 
         // First, upload attachments
         const entryPathPart = `${archiveChannelRef.path}/${entryRef.path}`;
@@ -785,15 +777,34 @@ export class RepositoryManager {
             newEntryData.post.uploadMessageId = uploadMessage.id;
         }
 
+        // get comments
+        const commentsFile = Path.join(entryFolderPath, 'comments.json');
+        let comments: ArchiveComment[] = [];
+        try {
+            comments = JSON.parse(await fs.readFile(commentsFile, 'utf-8')) as ArchiveComment[];
+        }
+        catch (e: any) {
+            if (e.code !== 'ENOENT') {
+                console.error("Error reading comments file:", e);
+                throw e;
+            }
+        }
+
+
         const branchName = await this.git.branchLocal().then(branch => branch.current);
-        const attachmentMessage = await PostEmbed.createAttachmentMessage(this.guildHolder, newEntryData, branchName, entryPathPart, uploadMessage);
 
         // Next, create the post
         const message = PostEmbed.createInitialMessage(this.guildHolder, newEntryData, entryPathPart);
         const messageChunks = splitIntoChunks(message, 2000);
+        const attachmentMessageChunks = splitIntoChunks(await PostEmbed.createAttachmentMessage(this.guildHolder, newEntryData, branchName, entryPathPart, uploadMessage), 2000);
+
+        messageChunks.push(...attachmentMessageChunks);
 
         let wasThreadCreated = false;
         if (!thread) {
+            newEntryData.post.threadId = '';
+            newEntryData.post.threadURL = '';
+            newEntryData.post.continuingMessageIds = [];
             const isGalleryView = archiveChannelDiscord.defaultForumLayout === ForumLayoutType.GalleryView;
             const files = await PostEmbed.createImageFiles(newEntryData, this.folderPath, entryPathPart, isGalleryView);
             thread = await archiveChannelDiscord.threads.create({
@@ -832,7 +843,7 @@ export class RepositoryManager {
 
         // Detect if thread needs to be refreshed
         const continuingMessageIds = newEntryData.post.continuingMessageIds || [];
-        const shouldRefreshThread = messageChunks.length > 1 + continuingMessageIds.length;
+        const shouldRefreshThread = (messageChunks.length > 1 + continuingMessageIds.length) && comments && comments.length > 0;
         if (shouldRefreshThread) {
             // Delete all previous messages in the thread that are not part of the continuing messages
             for (let i = 0; i < 100; i++) {
@@ -848,7 +859,7 @@ export class RepositoryManager {
                     break; // No more messages to delete
                 }
             }
-            newEntryData.post.attachmentMessageId = ''; // Reset attachment message ID to force re-creation
+            newEntryData.post.continuingMessageIds = []; // Reset continuing message IDs to force re-creation
         }
 
         // Delete excess messages if they exist
@@ -899,37 +910,7 @@ export class RepositoryManager {
             });
         }
 
-        let attachmentMessageInstance;
-        if (newEntryData.post.attachmentMessageId) {
-            attachmentMessageInstance = await thread.messages.fetch(newEntryData.post.attachmentMessageId).catch(() => null);
-        }
-
-        if (attachmentMessageInstance) {
-            await attachmentMessageInstance.edit({
-                content: attachmentMessage.content,
-                flags: [MessageFlags.SuppressEmbeds]
-            });
-        } else {
-            attachmentMessageInstance = await thread.send({
-                content: attachmentMessage.content,
-                flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications]
-            });
-            newEntryData.post.attachmentMessageId = attachmentMessageInstance.id;
-        }
-
         if (wasThreadCreated || shouldRefreshThread) { // check if there are comments to post
-            const commentsFile = Path.join(entryFolderPath, 'comments.json');
-            let comments: ArchiveComment[] = [];
-            try {
-                comments = JSON.parse(await fs.readFile(commentsFile, 'utf-8')) as ArchiveComment[];
-            }
-            catch (e: any) {
-                if (e.code !== 'ENOENT') {
-                    console.error("Error reading comments file:", e);
-                    throw e;
-                }
-            }
-
             if (comments.length > 0 && thread.parent) {
                 // make webhook
                 const threadWebhook = await thread.parent.createWebhook({
