@@ -918,16 +918,26 @@ export async function getAuthorFromIdentifier(guildHolder: GuildHolder, identifi
     }
     if (isId) {
         const userId = identifier.replace(/<@!?/, '').replace(/>/, '');
-        const user = await guildHolder.getBot().client.users.fetch(userId).catch(() => null);
-        if (!user) {
-            return null; // User not found
-        }
+        const user = await guildHolder.getGuild().members.fetch(userId).catch(() => null);
+        if (user) {
 
-        author.id = user.id;
-        author.username = user.username;
-        author.displayName = user.username;
-        author.iconURL = user.displayAvatarURL();
-        author.type = AuthorType.DiscordInGuild;
+            author.id = user.id;
+            author.username = user.user.username;
+            author.displayName = user.displayName;
+            author.iconURL = user.displayAvatarURL();
+            author.type = AuthorType.DiscordInGuild;
+        } else {
+            // try to fetch the user from the client
+            const user = await guildHolder.getBot().client.users.fetch(userId).catch(() => null);
+            if (user) {
+                author.id = user.id;
+                author.username = user.username;
+                author.iconURL = user.displayAvatarURL();
+                author.type = AuthorType.DiscordExternal;
+            } else {
+                return null; // User not found
+            }
+        }
     }
     return author;
 }
@@ -992,7 +1002,7 @@ export async function refreshAttachments(
                 throw new Error('Invalid response from attachment refresh API');
             }
 
-            result.refreshed_urls.forEach((data: {original: string, refreshed: string}) => {
+            result.refreshed_urls.forEach((data: { original: string, refreshed: string }) => {
                 if (!data.original || !data.refreshed) {
                     console.warn(`Invalid data received for attachment refresh: ${JSON.stringify(data)}`);
                     return;
@@ -1023,7 +1033,7 @@ export function areAuthorsListEqual(
 
     if (list1.length !== list2.length) return false; // Different lengths
 
-    
+
     for (let i = 0; i < list1.length; i++) {
         const author1 = list1[i];
         const otherFound = list2.find(author2 => {
@@ -1044,6 +1054,6 @@ export function areAuthorsListEqual(
             }
         }
     }
-    
+
     return true;
 }

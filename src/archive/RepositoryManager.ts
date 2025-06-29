@@ -1856,6 +1856,49 @@ export class RepositoryManager {
         };
     }
 
+    public async getUserArchiveStats(user: Author): Promise<{ numPosts: number, numSubmissions: number, numEndorsed: number }> {
+        let numPosts = 0;
+        let numEndorsed = 0;
+
+        const channelRefs = this.getChannelReferences();
+        for (const channelRef of channelRefs) {
+            const channelPath = Path.join(this.folderPath, channelRef.path);
+            const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
+            for (const entryRef of archiveChannel.getData().entries) {
+                const entryPath = Path.join(channelPath, entryRef.path);
+                const entry = await ArchiveEntry.fromFolder(entryPath);
+                if (!entry) {
+                    continue; // Skip if entry cannot be loaded
+                }
+                const entryData = entry.getData();
+                if (entryData.authors.some(a => areAuthorsSame(a, user))) {
+                    numPosts++;
+                }
+                if (entryData.endorsers.some(a => areAuthorsSame(a, user))) {
+                    numEndorsed++;
+                }
+            }
+        }
+
+        let numSubmissions = 0;
+        const submissions = await this.guildHolder.getSubmissionsManager().getSubmissionsList();
+        for (const submissionId of submissions) {
+            const submission = await this.guildHolder.getSubmissionsManager().getSubmission(submissionId);
+            if (!submission) {
+                continue; // Skip if submission cannot be loaded
+            }
+            const authors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
+            if (authors.some(a => areAuthorsSame(a, user))) {
+                numSubmissions++;
+            }
+        }
+        return {
+            numPosts,
+            numSubmissions,
+            numEndorsed
+        };
+    }
+
     public async republishAllEntries(doChannel: ForumChannel | null, replace: boolean, interaction: ChatInputCommandInteraction): Promise<void> {
 
         if (!this.git) {
