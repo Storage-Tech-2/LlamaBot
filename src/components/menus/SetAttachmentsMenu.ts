@@ -1,7 +1,7 @@
 import { ActionRowBuilder, Interaction, Message, MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { canEditSubmission, escapeString, replyEphemeral, truncateFileName } from "../../utils/Util.js";
+import { canEditSubmission, escapeDiscordString, escapeString, replyEphemeral, truncateFileName } from "../../utils/Util.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Attachment } from "../../submissions/Attachment.js";
@@ -102,7 +102,7 @@ export class SetAttachmentsMenu implements Menu {
         if (litematics.length) {
             description += '**Litematics:**\n'
             litematics.forEach(attachment => {
-                description += `- [${escapeString(attachment.name)}](${attachment.url}): MC ${attachment.litematic?.version}, ${attachment.litematic?.size}\n`
+                description += `- [${escapeDiscordString(escapeString(attachment.name))}](${attachment.url}): MC ${attachment.litematic?.version}, ${attachment.litematic?.size}\n`
             })
         }
 
@@ -121,7 +121,7 @@ export class SetAttachmentsMenu implements Menu {
                         type = 'Discord link';
                         break;
                 }
-                description += `- [${escapeString(attachment.name)}](${attachment.url}): ${type}\n`
+                description += `- [${escapeDiscordString(escapeString(attachment.name))}](${attachment.url}): ${type}\n`
             })
         }
 
