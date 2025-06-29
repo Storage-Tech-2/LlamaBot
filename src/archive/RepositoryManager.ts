@@ -1955,7 +1955,7 @@ export class RepositoryManager {
                         const submissionAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
                         const entryAuthors = entryData.authors;
                         const change = areAuthorsListEqual(submissionAuthors, entryAuthors);
-                        if (!change) {
+                        if (change) {
                             await channel.send({ content: `Authors for entry ${entryData.post.threadURL} does not match submission!` });
                         }
                     } catch (e: any) {
