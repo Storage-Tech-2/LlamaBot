@@ -1735,6 +1735,7 @@ export class RepositoryManager {
             const endorsersValid = !areAuthorsListEqual(entryData.endorsers, newData.endorsers, true);
             if (!authorsValid || !endorsersValid) {
                 console.warn(`Entry ${entryData.code} has been modified by another process, skipping author update.`);
+                this.lock.release();
                 return false; // Entry has been modified, skip this update
             }
 
