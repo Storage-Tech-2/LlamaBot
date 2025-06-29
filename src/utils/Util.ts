@@ -1015,6 +1015,8 @@ export async function refreshAttachments(
 export function areAuthorsListEqual(
     list1: Author[] | null,
     list2: Author[] | null,
+    checkSharedFields: boolean = false,
+    checkUniqueFields: boolean = false,
 ): boolean {
     if (!list1 && !list2) return true; // Both are null
     if (!list1 || !list2) return false; // One is null, the other is not
@@ -1024,15 +1026,22 @@ export function areAuthorsListEqual(
     
     for (let i = 0; i < list1.length; i++) {
         const author1 = list1[i];
-        if (!list2.some(author2 => areAuthorsSame(author1, author2))) {
-            return false; // No matching author found in list2
+        const otherFound = list2.find(author2 => {
+            return areAuthorsSame(author1, author2);
+        });
+        if (!otherFound) {
+            return false; // No matching author found
         }
-    }
+        if (checkSharedFields) {
+            if (author1.type !== otherFound.type || author1.id !== otherFound.id || author1.username !== otherFound.username || author1.displayName !== otherFound.displayName || author1.iconURL !== otherFound.iconURL) {
+                return false; // Authors are not the same
+            }
+        }
 
-    for (let i = 0; i < list2.length; i++) {
-        const author2 = list2[i];
-        if (!list1.some(author1 => areAuthorsSame(author1, author2))) {
-            return false; // No matching author found in list1
+        if (checkUniqueFields) {
+            if (author1.dontDisplay !== otherFound.dontDisplay || author1.reason !== otherFound.reason) {
+                return false; // Unique fields are not the same
+            }
         }
     }
     

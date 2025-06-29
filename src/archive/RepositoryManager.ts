@@ -1717,8 +1717,8 @@ export class RepositoryManager {
         });
 
         // check if they have changed
-        const authorsChanged = !areObjectsIdentical(entryData.authors, newAuthors);
-        const endorsersChanged = !areObjectsIdentical(entryData.endorsers, newEndorsers);
+        const authorsChanged = !areAuthorsListEqual(entryData.authors, newAuthors, true);
+        const endorsersChanged = !areAuthorsListEqual(entryData.endorsers, newEndorsers, true);
         if (!authorsChanged && !endorsersChanged) {
             return false; // No changes, nothing to do
         }
@@ -1731,16 +1731,46 @@ export class RepositoryManager {
 
             // Check if the entry is still valid
             const newData = entry.getData();
-            const authorsValid = areObjectsIdentical(newData.authors, entryData.authors);
-            const endorsersValid = areObjectsIdentical(newData.endorsers, entryData.endorsers);
+            const authorsValid = !areAuthorsListEqual(newData.authors, entryData.authors, true);
+            const endorsersValid = !areAuthorsListEqual(newData.endorsers, entryData.endorsers, true);
             if (!authorsValid || !endorsersValid) {
                 console.warn(`Entry ${entryData.code} has been modified by another process, skipping author update.`);
                 return false; // Entry has been modified, skip this update
             }
 
             // Update authors and endorsers
-            newData.authors = newAuthors;
-            newData.endorsers = newEndorsers;
+            newData.authors.forEach(author => {
+                if (author.type === AuthorType.Unknown) {
+                    return;
+                }
+
+                const updatedAuthor = updatedAuthors.find(a => areAuthorsSame(a, author));
+                if (!updatedAuthor) {
+                    console.warn(`Author ${author.username} (${author.id}) not found in updated authors, skipping.`);
+                } else {
+                    author.displayName = updatedAuthor.displayName;
+                    author.iconURL = updatedAuthor.iconURL;
+                    author.type = updatedAuthor.type;
+                    author.username = updatedAuthor.username;
+                }
+            });
+
+            newData.endorsers.forEach(author => {
+                if (author.type === AuthorType.Unknown) {
+                    return;
+                }
+
+                const updatedAuthor = updatedAuthors.find(a => areAuthorsSame(a, author));
+                if (!updatedAuthor) {
+                    console.warn(`Endorser ${author.username} (${author.id}) not found in updated authors, skipping.`);
+                } else {
+                    author.displayName = updatedAuthor.displayName;
+                    author.iconURL = updatedAuthor.iconURL;
+                    author.type = updatedAuthor.type;
+                    author.username = updatedAuthor.username;
+                }
+            });
+
             await entry.save();
 
             if (newData.post) {
@@ -1848,12 +1878,12 @@ export class RepositoryManager {
                 for (const entryRef of archiveChannel.getData().entries) {
                     const entryPath = Path.join(channelPath, entryRef.path);
                     const entry = await ArchiveEntry.fromFolder(entryPath);
-                
+
                     if (!entry) {
                         await channel.send({ content: `Entry ${entryRef.name} (${entryRef.code}) could not be loaded, skipping.` });
                         continue; // Skip if entry cannot be loaded
                     }
-                    
+
                     const entryData = entry.getData();
 
                     let result;
@@ -1931,12 +1961,12 @@ export class RepositoryManager {
                 for (const entryRef of archiveChannel.getData().entries) {
                     const entryPath = Path.join(channelPath, entryRef.path);
                     const entry = await ArchiveEntry.fromFolder(entryPath);
-                
+
                     if (!entry) {
                         await channel.send({ content: `Entry ${entryRef.name} (${entryRef.code}) could not be loaded, skipping.` });
                         continue; // Skip if entry cannot be loaded
                     }
-                    
+
                     const entryData = entry.getData();
 
                     if (!entryData.post) {
@@ -1954,7 +1984,7 @@ export class RepositoryManager {
                         // Check if authors are the same
                         const submissionAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
                         const entryAuthors = entryData.authors;
-                        const equal = areAuthorsListEqual(submissionAuthors, entryAuthors);
+                        const equal = areAuthorsListEqual(submissionAuthors, entryAuthors, false, true);
                         if (!equal) {
                             await channel.send({ content: `Authors for entry ${entryData.post.threadURL} does not match submission!` });
                         }
