@@ -1932,8 +1932,16 @@ export class RepositoryManager {
                         await channel.send({ content: `Entry ${entryRef.name} (${entryRef.code}) could not be loaded, skipping.` });
                         continue; // Skip if entry cannot be loaded
                     }
-
                     const entryData = entry.getData();
+
+                    const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entryData.id);
+                     // Get channel
+                    const submissionChannel = submission ? await submission.getSubmissionChannel(true) : null;
+                    const wasArchived = submissionChannel && submissionChannel.archived;
+                    if (wasArchived) {
+                        await submissionChannel.setArchived(false);
+                    }
+
 
                     let result;
                     if (!entryData.post) {
@@ -1949,20 +1957,12 @@ export class RepositoryManager {
                     }
 
                     // Get submission
-                    const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entryData.id);
-                    if (!submission) {
+                    if (!submission || !submissionChannel) {
                         await channel.send({ content: `Submission for entry ${entryData.code} not found, skipping.` });
                         continue;
                     }
 
                     submission.getConfigManager().setConfig(SubmissionConfigs.POST, result?.newEntryData.post || null);
-
-                    // Get channel
-                    const submissionChannel = await submission.getSubmissionChannel(true);
-                    const wasArchived = submissionChannel.archived;
-                    if (submissionChannel.archived) {
-                        await submissionChannel.setArchived(false);
-                    }
 
                     try {
                         await submission.statusUpdated();
