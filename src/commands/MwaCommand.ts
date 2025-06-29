@@ -152,6 +152,11 @@ export class Mwa implements Command {
                     .setName('updatesubmissionsstatus')
                     .setDescription('Update the status of all submissions based on their archive status')
             )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('checkposts')
+                    .setDescription('Update the status of all submissions based on their archive status')
+            )
         return data;
     }
 
@@ -188,6 +193,8 @@ export class Mwa implements Command {
             this.closeEverythingSubmissions(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'updatesubmissionsstatus') {
             this.updateAllSubmissionsStatus(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'checkposts') {
+            this.checkEveryPost(guildHolder, interaction);
         } else {
             await replyEphemeral(interaction, 'Invalid subcommand. Use `/mwa setsubmissions`, `/mwa setlogs`, `/mwa setarchives`, `/mwa setuparchives`, `/mwa setendorseroles`, `/mwa seteditorroles`, `/mwa sethelperrole` or `/mwa setrepo`.');
             return;
@@ -538,7 +545,7 @@ export class Mwa implements Command {
                 name: '👍',
                 id: null
             })
-           // await channel.setDefaultForumLayout(ForumLayoutType.ListView)
+            // await channel.setDefaultForumLayout(ForumLayoutType.ListView)
             await channel.setDefaultSortOrder(SortOrderType.CreationDate)
 
             // check if topic exists
@@ -601,7 +608,7 @@ export class Mwa implements Command {
                 return;
             }
         }
-        
+
         const replace = interaction.options.getBoolean('replace') || false;
         await interaction.reply('Starting to republish all entries. This may take a while depending on the size of the archive. You will be notified when it is complete.');
         try {
@@ -675,7 +682,7 @@ export class Mwa implements Command {
         await interaction.followUp(`<@${interaction.user.id}> Closing all submissions complete!`);
     }
 
-     async updateAllSubmissionsStatus(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+    async updateAllSubmissionsStatus(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         await interaction.reply('Starting to update status of all submissions. This may take a while depending on the number of submissions. You will be notified when it is complete.');
 
         const submissionsById = await guildHolder.getSubmissionsManager().getSubmissionsList();
@@ -710,5 +717,19 @@ export class Mwa implements Command {
 
         await interaction.followUp(`<@${interaction.user.id}> Updating status of all submissions complete!`);
 
-     }
+    }
+
+    async checkEveryPost(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        await interaction.reply('Starting to check every post. This may take a while depending on the number of posts. You will be notified when it is complete.');
+
+        try {
+            await guildHolder.getRepositoryManager().checkEveryPost(interaction);
+        } catch (error) {
+            console.error('Error checking every post:', error);
+            await interaction.followUp('An error occurred while checking every post. Please check the console for details.');
+            return;
+        }
+        await interaction.followUp(`<@${interaction.user.id}> Checking every post complete!`);
+
+    }
 }

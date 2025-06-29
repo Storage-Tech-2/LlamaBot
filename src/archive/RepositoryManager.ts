@@ -4,7 +4,7 @@ import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
 import { AnyThreadChannel, AttachmentBuilder, ChannelType, ChatInputCommandInteraction, EmbedBuilder, ForumChannel, ForumLayoutType, GuildTextBasedChannel, Message, MessageFlags, Snowflake } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
-import { areAuthorsSame, areObjectsIdentical, deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getChangeIDs, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
+import { areAuthorsListEqual, areAuthorsSame, areObjectsIdentical, deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getChangeIDs, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";
 import { Submission } from "../submissions/Submission.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
@@ -1894,6 +1894,73 @@ export class RepositoryManager {
 
                     if (wasArchived) {
                         await submissionChannel.setArchived(true);
+                    }
+                }
+            }
+
+            try {
+                await this.push();
+            } catch (e: any) {
+                console.error("Error pushing to remote:", e.message);
+            }
+
+            this.lock.release();
+        } catch (e) {
+            this.lock.release();
+            throw e;
+        }
+
+    }
+
+    public async checkEveryPost(interaction: ChatInputCommandInteraction): Promise<void> {
+        if (!this.git) {
+            throw new Error("Git not initialized");
+        }
+
+        const channel = interaction.channel;
+        if (!channel || channel.type !== ChannelType.GuildText) {
+            throw new Error("Interaction channel is not a text channel");
+        }
+
+        await this.lock.acquire();
+        try {
+            const channelRefs = this.getChannelReferences();
+            for (const channelRef of channelRefs) {
+                const channelPath = Path.join(this.folderPath, channelRef.path);
+                const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
+                for (const entryRef of archiveChannel.getData().entries) {
+                    const entryPath = Path.join(channelPath, entryRef.path);
+                    const entry = await ArchiveEntry.fromFolder(entryPath);
+                
+                    if (!entry) {
+                        await channel.send({ content: `Entry ${entryRef.name} (${entryRef.code}) could not be loaded, skipping.` });
+                        continue; // Skip if entry cannot be loaded
+                    }
+                    
+                    const entryData = entry.getData();
+
+                    if (!entryData.post) {
+                        await channel.send({ content: `Entry ${entryData.code} does not have a post, skipping.` });
+                        continue;
+                    }
+
+                    try {
+                        const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entryData.id);
+                        if (!submission) {
+                            await channel.send({ content: `Submission for entry ${entryData.code} not found, skipping.` });
+                            continue;
+                        }
+
+                        // Check if authors are the same
+                        const submissionAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
+                        const entryAuthors = entryData.authors;
+                        const change = areAuthorsListEqual(submissionAuthors, entryAuthors);
+                        if (!change) {
+                            await channel.send({ content: `Authors for entry ${entryData.post.threadURL} does not match submission!` });
+                        }
+                    } catch (e: any) {
+                        console.error(e);
+                        await channel.send({ content: `Error checking post for entry ${entryData.code}: ${e.message}` });
                     }
                 }
             }

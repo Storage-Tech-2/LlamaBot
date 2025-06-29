@@ -1011,3 +1011,30 @@ export async function refreshAttachments(
     }
     return attachmentObjects.map(obj => obj.url);
 }
+
+export function areAuthorsListEqual(
+    list1: Author[] | null,
+    list2: Author[] | null,
+): boolean {
+    if (!list1 && !list2) return true; // Both are null
+    if (!list1 || !list2) return false; // One is null, the other is not
+
+    if (list1.length !== list2.length) return false; // Different lengths
+
+    
+    for (let i = 0; i < list1.length; i++) {
+        const author1 = list1[i];
+        if (!list2.some(author2 => areAuthorsSame(author1, author2))) {
+            return false; // No matching author found in list2
+        }
+    }
+
+    for (let i = 0; i < list2.length; i++) {
+        const author2 = list2[i];
+        if (!list1.some(author1 => areAuthorsSame(author1, author2))) {
+            return false; // No matching author found in list1
+        }
+    }
+    
+    return true;
+}
