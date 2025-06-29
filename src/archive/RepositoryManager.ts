@@ -1954,6 +1954,10 @@ export class RepositoryManager {
                         // Check if authors are the same
                         const submissionAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
                         const entryAuthors = entryData.authors;
+
+                        if (entryData.id === '1387180395883397291') {
+                            console.log("Checking entry", entryData.code, "with authors", entryAuthors, "and submission authors", submissionAuthors);
+                        }
                         const equal = areAuthorsListEqual(submissionAuthors, entryAuthors);
                         if (!equal) {
                             await channel.send({ content: `Authors for entry ${entryData.post.threadURL} does not match submission!` });
