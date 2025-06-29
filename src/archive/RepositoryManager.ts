@@ -1731,8 +1731,8 @@ export class RepositoryManager {
 
             // Check if the entry is still valid
             const newData = entry.getData();
-            const authorsValid = !areAuthorsListEqual(entryData.authors, newData.authors, true);
-            const endorsersValid = !areAuthorsListEqual(entryData.endorsers, newData.endorsers, true);
+            const authorsValid = areAuthorsListEqual(entryData.authors, newData.authors, true);
+            const endorsersValid = areAuthorsListEqual(entryData.endorsers, newData.endorsers, true);
             if (!authorsValid || !endorsersValid) {
                 console.warn(`Entry ${entryData.code} has been modified by another process, skipping author update.`);
                 this.lock.release();
