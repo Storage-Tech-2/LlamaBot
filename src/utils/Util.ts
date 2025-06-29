@@ -940,7 +940,7 @@ export function areAuthorsSame(
     if (!author1 || !author2) return false; // One is null, the other is not
 
     // Compare IDs and types
-    if (author1.id === author2.id) {
+    if (author1.id && author2.id && author1.id === author2.id) {
         return true;
     }
 
