@@ -77,39 +77,39 @@ export class Mwa implements Command {
                     .setName('makeindex')
                     .setDescription('Make an index of all archive channels')
             )
-            .addSubcommand(subcommand =>
-                subcommand
-                    .setName('blacklistadd')
-                    .setDescription('Add a user to the do-not-archive list')
-                    .addStringOption(option =>
-                        option
-                            .setName('user')
-                            .setDescription('User name or id to add to the do-not-archive list')
-                            .setRequired(true)
-                    )
-                    .addStringOption(option =>
-                        option
-                            .setName('reason')
-                            .setDescription('Reason for blacklisting the user')
-                            .setRequired(false)
-                    )
-            )
-            .addSubcommand(subcommand =>
-                subcommand
-                    .setName('blacklistremove')
-                    .setDescription('Remove a user from the do-not-archive list')
-                    .addStringOption(option =>
-                        option
-                            .setName('user')
-                            .setDescription('User name or id to remove from the do-not-archive list')
-                            .setRequired(true)
-                    )
-            )
-            .addSubcommand(subcommand =>
-                subcommand
-                    .setName('blacklistlist')
-                    .setDescription('List all users in the do-not-archive list')
-            )
+            // .addSubcommand(subcommand =>
+            //     subcommand
+            //         .setName('blacklistadd')
+            //         .setDescription('Add a user to the do-not-archive list')
+            //         .addStringOption(option =>
+            //             option
+            //                 .setName('user')
+            //                 .setDescription('User name or id to add to the do-not-archive list')
+            //                 .setRequired(true)
+            //         )
+            //         .addStringOption(option =>
+            //             option
+            //                 .setName('reason')
+            //                 .setDescription('Reason for blacklisting the user')
+            //                 .setRequired(false)
+            //         )
+            // )
+            // .addSubcommand(subcommand =>
+            //     subcommand
+            //         .setName('blacklistremove')
+            //         .setDescription('Remove a user from the do-not-archive list')
+            //         .addStringOption(option =>
+            //             option
+            //                 .setName('user')
+            //                 .setDescription('User name or id to remove from the do-not-archive list')
+            //                 .setRequired(true)
+            //         )
+            // )
+            // .addSubcommand(subcommand =>
+            //     subcommand
+            //         .setName('blacklistlist')
+            //         .setDescription('List all users in the do-not-archive list')
+            // )
             .addSubcommand(subcommand =>
                 subcommand
                     .setName('setrepo')
