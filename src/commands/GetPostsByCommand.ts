@@ -26,7 +26,7 @@ export class GetPostsByCommand implements Command {
            data.addSubcommand(subcommand =>
             subcommand
                 .setName('endorser')
-                .setDescription('Get posts by an author')
+                .setDescription('Get posts endorsed by a user')
                 .addStringOption(option =>
                     option.setName('endorser')
                         .setDescription('The endorser\'s Discord ID or username')
