@@ -4,7 +4,7 @@ import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
 import { AnyThreadChannel, AttachmentBuilder, ChannelType, ChatInputCommandInteraction, EmbedBuilder, ForumChannel, ForumLayoutType, GuildTextBasedChannel, Message, MessageFlags, Snowflake } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
-import { areAuthorsListEqual, areAuthorsSame, areObjectsIdentical, deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getChangeIDs, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
+import { areAuthorsListEqual, areAuthorsSame, deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getChangeIDs, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";
 import { Submission } from "../submissions/Submission.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
@@ -437,6 +437,11 @@ export class RepositoryManager {
     }
 
     async addOrUpdateEntryFromSubmission(submission: Submission, forceNew: boolean): Promise<{ oldEntryData?: ArchiveEntryData, newEntryData: ArchiveEntryData }> {
+       
+        if (!this.git) {
+            throw new Error("Git not initialized");
+        }
+
         const archiveChannelId = submission.getConfigManager().getConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID);
         if (!archiveChannelId) {
             throw new Error("Submission does not have an archive channel set");
@@ -597,12 +602,18 @@ export class RepositoryManager {
 
             });
 
+            const newEntryData = result.newEntryData;
+            const oldEntryData = result.oldEntryData;
+            if (oldEntryData) {
+                await this.git.commit(`${newEntryData.code}: ${generateCommitMessage(oldEntryData, newEntryData)}`);
+            } else {
+                await this.git.commit(`Added entry ${newEntryData.name} (${newEntryData.code}) to channel ${archiveChannel.getData().name} (${archiveChannel.getData().code})`);
+            }
             try {
                 await this.push();
             } catch (e: any) {
                 console.error("Error pushing to remote:", e.message);
             }
-
             this.lock.release();
             return result;
         } catch (e: any) {
@@ -982,12 +993,6 @@ export class RepositoryManager {
 
         await this.git.add(entryFolderPath);
         await this.git.add(channelPath); // to update currentCodeId and entries
-
-        if (existing) {
-            await this.git.commit(`${newEntryData.code}: ${generateCommitMessage(existing.entry.getData(), newEntryData)}`);
-        } else {
-            await this.git.commit(`Added entry ${newEntryData.name} (${newEntryData.code}) to channel ${archiveChannel.getData().name} (${archiveChannel.getData().code})`);
-        }
 
         await this.setSubmissionIDForPostID(thread.id, newEntryData.id);
         this.removeFromIgnoreUpdatesFrom(newEntryData.id);
@@ -1973,6 +1978,9 @@ export class RepositoryManager {
                     }
                 }
             }
+
+            // Commit changes
+            await this.git.commit(`Republished all entries${doChannel ? ` in channel ${doChannel.name}` : ''}`);
 
             try {
                 await this.push();
