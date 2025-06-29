@@ -14,9 +14,10 @@ from typing import Dict
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-
+import llama_cpp
 import outlines
-from outlines import Template
+from outlines.types import JsonSchema
+from outlines import Generator
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -26,8 +27,8 @@ from outlines import Template
 BASE_DIR = Path(__file__).resolve().parent
 SCHEMA_DIR = BASE_DIR / "schemas"          # ─┐
 
-MODEL_REPO = "microsoft/Phi-3-mini-4k-instruct-gguf"
-MODEL_FILE = "Phi-3-mini-4k-instruct-q4.gguf"   # placed in ~/.cache/gpt4all or local dir
+# MODEL_REPO = "microsoft/Phi-3-mini-4k-instruct-gguf"
+# MODEL_FILE = "Phi-3-mini-4k-instruct-q4.gguf"   # placed in ~/.cache/gpt4all or local dir
 
 # Map the external value of `mode` to the JSON schema filename
 SCHEMA_MAP: Dict[str, str] = {
@@ -39,7 +40,18 @@ SCHEMA_MAP: Dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 print("⏳ Loading LLM …")
-model = outlines.models.llamacpp(MODEL_REPO, MODEL_FILE, n_gpu_layers=-1)
+model = outlines.models.llamacpp(
+    repo_id="NousResearch/Hermes-2-Pro-Llama-3-8B-GGUF",
+	filename="Hermes-2-Pro-Llama-3-8B-Q4_K_M.gguf",
+    tokenizer=llama_cpp.llama_tokenizer.LlamaHFTokenizer.from_pretrained(
+        "NousResearch/Hermes-2-Pro-Llama-3-8B"
+    ),
+    n_gpu_layers=-1,
+    flash_attn=True,
+    n_ctx=8192,
+    verbose=False
+)
+# model = outlines.models.llamacpp(llm)
 
 print("⏳ Compiling schema-specific generators …")
 GENERATORS: Dict[str, outlines.generate] = {}
@@ -89,15 +101,23 @@ def generate(req: GenerateRequest):
     schema_str = ""
     with open(schema_path, "r", encoding="utf-8") as f:
         schema_str = f.read()
-    prompt = f"""You are a world class AI assistant that extracts data from text in JSON format with a strict schema. You will be given a prompt that contains a text input, and you will return a JSON object that matches the schema. The schema is defined as follows:
+    prompt = f"""<|im_start|>system
+You are a world class AI assistant that extracts data from text in JSON format with a strict schema. You will be given a prompt that contains a text input, and you will return a JSON object that matches the schema. Here's the json schema you must adhere to:
+<schema>
 {schema_str}
-
-{req.input_text}"""
+</schema>
+<|im_end|>
+<|im_start|>user
+{req.input_text}
+<|im_end|>
+<|im_start|>assistant"""
 
     # 2️⃣ Call the model + constrained decoding
     try:
         result: dict = GENERATORS[mode](prompt)
     except Exception as exc:            # noqa: BLE001
+        # log error
+        print(f"❌ Generation failed: {exc}")
         raise HTTPException(status_code=500,
                             detail=f"Generation failed: {exc}") from exc
 
