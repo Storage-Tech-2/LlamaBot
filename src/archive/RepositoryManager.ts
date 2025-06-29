@@ -1899,7 +1899,7 @@ export class RepositoryManager {
         };
     }
 
-    public async republishAllEntries(doChannel: ForumChannel | null, replace: boolean, interaction: ChatInputCommandInteraction): Promise<void> {
+    public async republishAllEntries(doChannel: ForumChannel | null, replace: boolean, silent: boolean, interaction: ChatInputCommandInteraction): Promise<void> {
 
         if (!this.git) {
             throw new Error("Git not initialized");
@@ -1961,9 +1961,11 @@ export class RepositoryManager {
 
                     try {
                         await submission.statusUpdated();
-                        await submissionChannel.send(`Republished by bulk republish command, the post is now at ${result?.newEntryData?.post?.threadURL}`);
+                        if (!silent) {
+                            await submissionChannel.send(`Republished by bulk republish command, the post is now at ${result?.newEntryData?.post?.threadURL}`);
+                        }
                     } catch (e: any) {
-                        await submissionChannel.send({ content: `Error updating submission ${entryData.code} status: ${e.message}` });
+                        await channel.send({ content: `Error updating submission ${entryData.code} status: ${e.message}` });
                     }
 
                     if (wasArchived) {
