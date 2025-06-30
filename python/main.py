@@ -15,6 +15,7 @@ from threading import Event, RLock, Thread
 from typing import Dict, Optional
 import gc
 import time
+import json as pyjson
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
@@ -172,7 +173,7 @@ class GenerateRequest(BaseModel):
 
 
 class GenerateResponse(BaseModel):
-    result: str
+    result: dict
 
 
 @app.post("/generate", response_model=GenerateResponse, status_code=200)
@@ -200,7 +201,8 @@ def generate(req: GenerateRequest):
     )
 
     try:
-        result: str = generator(prompt)
+        resultstr = generator(prompt, max_tokens=8000);
+        result: dict = pyjson.loads(resultstr)
         with _state_lock:
             _touch()  # Mark usage after successful generation.
     except Exception as exc:  # noqa: BLE001
