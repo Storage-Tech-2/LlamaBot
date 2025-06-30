@@ -44,22 +44,21 @@ _MODEL_LOCK = RLock()
 def _load_model(app: FastAPI):
     """Load the LLM once, re‑using the instance stored on `app.state`."""
     with _MODEL_LOCK:
-        if getattr(app.state, "model", None) is None:
-            print("⏳  Loading LLM …")
-            llm = llama_cpp.Llama.from_pretrained(
-                repo_id="NousResearch/Hermes-2-Pro-Llama-3-8B-GGUF",
-                filename="Hermes-2-Pro-Llama-3-8B-Q4_K_M.gguf",
-                tokenizer=llama_cpp.llama_tokenizer.LlamaHFTokenizer.from_pretrained(
-                    "NousResearch/Hermes-2-Pro-Llama-3-8B"
-                ),
-                n_gpu_layers=-1,
-                flash_attn=True,
-                n_ctx=8192,
-                verbose=False,
-            )
-            app.state.model = outlines.from_llamacpp(llm)
-            print("✅  Model ready.")
-        return app.state.model
+        print("⏳  Loading LLM …")
+        llm = llama_cpp.Llama.from_pretrained(
+            repo_id="NousResearch/Hermes-2-Pro-Llama-3-8B-GGUF",
+            filename="Hermes-2-Pro-Llama-3-8B-Q4_K_M.gguf",
+            tokenizer=llama_cpp.llama_tokenizer.LlamaHFTokenizer.from_pretrained(
+                "NousResearch/Hermes-2-Pro-Llama-3-8B"
+            ),
+            n_gpu_layers=-1,
+            flash_attn=True,
+            n_ctx=8192,
+            verbose=False,
+        )
+        model = outlines.from_llamacpp(llm)
+        print("✅  Model ready.")
+        return model
 
 
 # ---------------------------------------------------------------------------
