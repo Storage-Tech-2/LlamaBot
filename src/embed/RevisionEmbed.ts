@@ -72,21 +72,21 @@ export class RevisionEmbed {
 
         description += `**Description:** ${revision.description}`
 
-        if (revision.features.length) {
+        if (revision.features && revision.features.length) {
             description += '\n\n**Features**'
             revision.features.forEach((feature) => {
                 description += `\n- ${feature}`
             })
         }
 
-        if (revision.considerations.length) {
+        if (revision.considerations && revision.considerations.length) {
             description += '\n\n**Considerations**'
             revision.considerations.forEach((con) => {
                 description += `\n- ${con}`
             })
         }
 
-        if (revision.notes.length) {
+        if (revision.notes && revision.notes.length) {
             description += '\n\n**Notes**\n'
             description += revision.notes
         }
