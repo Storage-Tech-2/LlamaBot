@@ -6,6 +6,7 @@ import { GetPostsByCommand } from "./GetPostsByCommand.js";
 import { GetStatsCommand } from "./GetStatsCommand.js";
 import { GetThanksCommand } from "./GetThanksCommand.js";
 import { Mwa } from "./MwaCommand.js";
+import { ToggleHelper } from "./ToggleHelper.js";
 export function getCommands() {
     const Commands = [
         new Mwa(),
@@ -15,7 +16,8 @@ export function getCommands() {
         new GetThanksCommand(),
         new GetPostsByCommand(),
         new GetStatsCommand(),
-        new EditCommand()
+        new EditCommand(),
+        new ToggleHelper()
     ];
     return Commands;
 }

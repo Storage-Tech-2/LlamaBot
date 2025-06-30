@@ -13,5 +13,6 @@ export type UserData = {
 
     thankedCountTotal: number;
     thankedBuffer: ThankEntry[];
+    disableRole: boolean;
 }
 
