@@ -133,7 +133,6 @@ export class LLMQueue {
                     request: 60000 // 60 seconds
                 }
             }).json();
-            console.log(response);
             return response as LLMResponse;
         } catch (error) {
             console.error('Error fetching LLM response:', error)
