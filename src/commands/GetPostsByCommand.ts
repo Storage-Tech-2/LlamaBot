@@ -84,10 +84,14 @@ export class GetPostsByCommand implements Command {
 
             // send chunks
             for (const chunk of chunks) {
+                let message = null;
                 if (interaction.replied) {
-                    await interaction.channel.send({ content: chunk });
+                    message = await interaction.channel.send({ content: '...' });
                 } else {
-                    await interaction.reply({ content: chunk });
+                    message = await interaction.reply({ content: '...' });
+                }
+                if (message) {
+                    await message.edit({ content: chunk });
                 }
             }
         } else {
