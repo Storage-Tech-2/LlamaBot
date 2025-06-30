@@ -124,7 +124,7 @@ export class LLMQueue {
     private async processRequest(request: LLMRequest): Promise<LLMResponse> {
         try {
             const prompt = request.prompt.generatePrompt();
-            const response = await got.post(URL, {
+            const res = await got.post(URL, {
                 json: {
                     mode: 'extraction',
                     input_text: prompt
@@ -132,8 +132,11 @@ export class LLMQueue {
                 timeout: {
                     request: 60000 // 60 seconds
                 }
-            }).json();
-            return response as LLMResponse;
+            }).json() as LLMResponse;
+            if (res.error) {
+                throw new Error(res.error);
+            }
+            return res;
         } catch (error) {
             console.error('Error fetching LLM response:', error)
             throw error

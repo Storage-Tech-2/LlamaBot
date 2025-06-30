@@ -5,4 +5,5 @@ export type LLMResponse = {
         cons?: string[]; // List of cons
         notes?: string; // Additional notes
     }
+    error?: string; // Error message if any
 }
