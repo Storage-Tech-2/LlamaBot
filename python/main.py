@@ -19,6 +19,7 @@ from fastapi import FastAPI, HTTPException, Request
 from outlines import Generator
 from outlines.types import JsonSchema
 from pydantic import BaseModel, Field
+import gc
 
 # ---------------------------------------------------------------------------
 # Configuration (constants only)
@@ -134,8 +135,14 @@ def generate(req: GenerateRequest, request: Request):
         try:
             result_str = generator(prompt, max_tokens=8000)
             output: dict = pyjson.loads(result_str)
+            generator = None  # Clear the generator to free resources
+            model = None  # Clear the model to free resources
+            gc.collect()
         except Exception as exc:  # noqa: BLE001
             print(f"❌  Generation failed: {exc}")
+            generator = None  # Clear the generator to free resources
+            model = None  # Clear the model to free resources
+            gc.collect()
             raise HTTPException(status_code=500, detail=f"Generation failed: {exc}") from exc
 
         return GenerateResponse(result=output)
