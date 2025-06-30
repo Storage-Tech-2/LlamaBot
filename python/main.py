@@ -42,23 +42,22 @@ _MODEL_LOCK = RLock()
 # ---------------------------------------------------------------------------
 
 def _load_model(app: FastAPI):
-    """Load the LLM once, re‑using the instance stored on `app.state`."""
-    with _MODEL_LOCK:
-        print("⏳  Loading LLM …")
-        llm = llama_cpp.Llama.from_pretrained(
-            repo_id="NousResearch/Hermes-2-Pro-Llama-3-8B-GGUF",
-            filename="Hermes-2-Pro-Llama-3-8B-Q4_K_M.gguf",
-            tokenizer=llama_cpp.llama_tokenizer.LlamaHFTokenizer.from_pretrained(
-                "NousResearch/Hermes-2-Pro-Llama-3-8B"
-            ),
-            n_gpu_layers=-1,
-            flash_attn=True,
-            n_ctx=8192,
-            verbose=False,
-        )
-        model = outlines.from_llamacpp(llm)
-        print("✅  Model ready.")
-        return model
+    """Load the LLM"""
+    print("⏳  Loading LLM …")
+    llm = llama_cpp.Llama.from_pretrained(
+        repo_id="NousResearch/Hermes-2-Pro-Llama-3-8B-GGUF",
+        filename="Hermes-2-Pro-Llama-3-8B-Q4_K_M.gguf",
+        tokenizer=llama_cpp.llama_tokenizer.LlamaHFTokenizer.from_pretrained(
+            "NousResearch/Hermes-2-Pro-Llama-3-8B"
+        ),
+        n_gpu_layers=-1,
+        flash_attn=True,
+        n_ctx=8192,
+        verbose=False,
+    )
+    model = outlines.from_llamacpp(llm)
+    print("✅  Model ready.")
+    return model
 
 
 # ---------------------------------------------------------------------------
@@ -98,47 +97,48 @@ def generate(req: GenerateRequest, request: Request):
             detail=f"Unknown mode '{mode}'. Choose one of {list(SCHEMA_MAP)}.",
         )
 
-    # Ensure the model is initialised
-    model = _load_model(request.app)
+    with _MODEL_LOCK:
+        # Ensure the model is initialised
+        model = _load_model(request.app)
 
-    # Read the JSON schema freshly for every request
-    schema_path = SCHEMA_DIR / SCHEMA_MAP[mode]
-    if not schema_path.exists():
-        raise HTTPException(
-            status_code=500,
-            detail=f"Schema file '{schema_path.name}' not found.",
+        # Read the JSON schema freshly for every request
+        schema_path = SCHEMA_DIR / SCHEMA_MAP[mode]
+        if not schema_path.exists():
+            raise HTTPException(
+                status_code=500,
+                detail=f"Schema file '{schema_path.name}' not found.",
+            )
+        with open(schema_path, encoding="utf-8") as f:
+            schema_str = f.read()
+
+        # Build a *new* generator for this call only (no generator caching)
+        generator = Generator(
+            model,
+            JsonSchema(schema=schema_str, whitespace_pattern=None),
         )
-    with open(schema_path, encoding="utf-8") as f:
-        schema_str = f.read()
 
-    # Build a *new* generator for this call only (no generator caching)
-    generator = Generator(
-        model,
-        JsonSchema(schema=schema_str, whitespace_pattern=None),
-    )
+        prompt = (
+            "<|im_start|>system\n"
+            "You are a world-class AI assistant that extracts data from text in JSON "
+            "format with a strict schema. Here is the schema you must follow:\n"
+            "<schema>\n"
+            f"{schema_str}\n"
+            "</schema>\n"
+            "<|im_end|>\n"
+            "<|im_start|>user\n"
+            f"{req.input_text}\n"
+            "<|im_end|>\n"
+            "<|im_start|>assistant"
+        )
 
-    prompt = (
-        "<|im_start|>system\n"
-        "You are a world-class AI assistant that extracts data from text in JSON "
-        "format with a strict schema. Here is the schema you must follow:\n"
-        "<schema>\n"
-        f"{schema_str}\n"
-        "</schema>\n"
-        "<|im_end|>\n"
-        "<|im_start|>user\n"
-        f"{req.input_text}\n"
-        "<|im_end|>\n"
-        "<|im_start|>assistant"
-    )
+        try:
+            result_str = generator(prompt, max_tokens=8000)
+            output: dict = pyjson.loads(result_str)
+        except Exception as exc:  # noqa: BLE001
+            print(f"❌  Generation failed: {exc}")
+            raise HTTPException(status_code=500, detail=f"Generation failed: {exc}") from exc
 
-    try:
-        result_str = generator(prompt, max_tokens=8000)
-        output: dict = pyjson.loads(result_str)
-    except Exception as exc:  # noqa: BLE001
-        print(f"❌  Generation failed: {exc}")
-        raise HTTPException(status_code=500, detail=f"Generation failed: {exc}") from exc
-
-    return GenerateResponse(result=output)
+        return GenerateResponse(result=output)
 
 
 # ---------------------------------------------------------------------------
