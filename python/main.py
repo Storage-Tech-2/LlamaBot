@@ -1,7 +1,6 @@
 """
 main.py – FastAPI wrapper around an Outlines-powered LLM
 -------------------------------------------------------
-
 Run locally:
     poetry install
     uvicorn main:app --reload      # or: python -m uvicorn main:app --reload
@@ -9,23 +8,20 @@ Run locally:
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
-from pathlib import Path
-from threading import Event, RLock, Thread
-from typing import Dict, Optional
-import gc
-import time
 import json as pyjson
+from pathlib import Path
+from threading import RLock
+from typing import Dict
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
 import llama_cpp
 import outlines
+from fastapi import FastAPI, HTTPException, Request
 from outlines import Generator
 from outlines.types import JsonSchema
+from pydantic import BaseModel, Field
 
 # ---------------------------------------------------------------------------
-# Configuration
+# Configuration (constants only)
 # ---------------------------------------------------------------------------
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -35,66 +31,20 @@ SCHEMA_MAP: Dict[str, str] = {
     "extraction": "extraction.schema.json",
 }
 
-# How long a model/generator can stay idle (in seconds) before being unloaded
-IDLE_TIMEOUT = 10  # ⏱️  30-second inactivity window
-CHECK_INTERVAL = 5  # How often the background thread checks (s)
-
 # ---------------------------------------------------------------------------
-# Lazy-loaded globals
+# Concurrency guard – single global lock
 # ---------------------------------------------------------------------------
 
-_model: Optional[outlines.models.llamacpp] = None
-_GENERATORS: Dict[str, Generator] = {}
-_last_used: Optional[float] = None  # monotonic timestamp of last usage
-
-# Synchronisation primitives
-_state_lock = RLock()  # Re-entrant to avoid self-deadlock          # Guards all global state above
-_stop_event = Event()         # Signals the background cleaner to exit
-
+_MODEL_LOCK = RLock()
 
 # ---------------------------------------------------------------------------
-# Cache-lifecycle helpers
+# Model helper (no background threads / lifespans / idle‑unload logic)
 # ---------------------------------------------------------------------------
 
-def _touch() -> None:
-    """Record the current moment as the last-use timestamp. Must be called with _state_lock held."""
-    global _last_used
-    _last_used = time.monotonic()
-
-
-def _cleanup_if_idle() -> None:
-    """Unload the model & clear generators if they have been idle too long. Must be called with _state_lock held."""
-    global _model, _GENERATORS, _last_used
-
-    if _model is None or _last_used is None:
-        return  # Nothing to do.
-
-    if time.monotonic() - _last_used > IDLE_TIMEOUT:
-        print("🧹  Unloading idle model and clearing generators …")
-        _model = None
-        _GENERATORS.clear()
-        gc.collect()
-        print("✅  Cache cleared.")
-
-
-def _cleaner_loop() -> None:
-    """Background thread that periodically triggers idle-cleanup until the app shuts down."""
-    while not _stop_event.is_set():
-        time.sleep(CHECK_INTERVAL)
-        with _state_lock:
-            _cleanup_if_idle()
-
-
-# ---------------------------------------------------------------------------
-# Model / generator management
-# ---------------------------------------------------------------------------
-
-def _load_model():
-    """Instantiate the LLM the first time it's required—or after a cleanup."""
-    global _model
-    with _state_lock:
-        _cleanup_if_idle()
-        if _model is None:
+def _load_model(app: FastAPI):
+    """Load the LLM once, re‑using the instance stored on `app.state`."""
+    with _MODEL_LOCK:
+        if getattr(app.state, "model", None) is None:
             print("⏳  Loading LLM …")
             llm = llama_cpp.Llama.from_pretrained(
                 repo_id="NousResearch/Hermes-2-Pro-Llama-3-8B-GGUF",
@@ -107,65 +57,25 @@ def _load_model():
                 n_ctx=8192,
                 verbose=False,
             )
-            _model = outlines.from_llamacpp(llm)
+            app.state.model = outlines.from_llamacpp(llm)
             print("✅  Model ready.")
-        _touch()
-        return _model
-
-
-def _get_generator(mode: str):
-    """Return (and cache) a schema-specific generator. Raises 400 if mode is unknown."""
-    if mode not in SCHEMA_MAP:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unknown mode '{mode}'. Choose one of {list(SCHEMA_MAP)}.",
-        )
-
-    with _state_lock:
-        _cleanup_if_idle()
-        _touch()
-        if mode not in _GENERATORS:
-            model = _load_model()
-            schema_path = SCHEMA_DIR / SCHEMA_MAP[mode]
-            if not schema_path.exists():
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Schema file '{schema_path.name}' not found.",
-                )
-            with open(schema_path, encoding="utf-8") as f:
-                schema_str = f.read()
-            print(f"⏳  Compiling generator for mode '{mode}' …")
-            _GENERATORS[mode] = Generator(
-                model,
-                JsonSchema(schema=schema_str, whitespace_pattern=None),
-            )
-            print(f"✅  Generator ready for mode '{mode}'.")
-        return _GENERATORS[mode]
+        return app.state.model
 
 
 # ---------------------------------------------------------------------------
-# FastAPI plumbing – with lifespan handler to manage background thread
+# FastAPI app (no lifespan handler)
 # ---------------------------------------------------------------------------
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Start the cleaner thread when the app starts and stop it on shutdown."""
-    cleaner = Thread(target=_cleaner_loop, daemon=True, name="model-cleaner")
-    cleaner.start()
-    try:
-        yield
-    finally:
-        _stop_event.set()
-        cleaner.join(timeout=1)
-
 
 app = FastAPI(
     title="LLM JSON-Schema API",
     description="Expose an LLM that reliably returns JSON.",
-    version="0.2.2",
-    lifespan=lifespan,
+    version="0.5.0",
 )
 
+
+# ---------------------------------------------------------------------------
+# Pydantic request / response models
+# ---------------------------------------------------------------------------
 
 class GenerateRequest(BaseModel):
     mode: str = Field(..., examples=["extraction"], description="Which schema / task to use.")
@@ -176,15 +86,37 @@ class GenerateResponse(BaseModel):
     result: dict
 
 
-@app.post("/generate", response_model=GenerateResponse, status_code=200)
-def generate(req: GenerateRequest):
-    mode = req.mode.lower()
-    generator = _get_generator(mode)
+# ---------------------------------------------------------------------------
+# /generate endpoint – stateless apart from the shared model instance
+# ---------------------------------------------------------------------------
 
-    # Re-read schema (small) so prompt always matches on-disk file.
+@app.post("/generate", response_model=GenerateResponse, status_code=200)
+def generate(req: GenerateRequest, request: Request):
+    mode = req.mode.lower()
+    if mode not in SCHEMA_MAP:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown mode '{mode}'. Choose one of {list(SCHEMA_MAP)}.",
+        )
+
+    # Ensure the model is initialised
+    model = _load_model(request.app)
+
+    # Read the JSON schema freshly for every request
     schema_path = SCHEMA_DIR / SCHEMA_MAP[mode]
+    if not schema_path.exists():
+        raise HTTPException(
+            status_code=500,
+            detail=f"Schema file '{schema_path.name}' not found.",
+        )
     with open(schema_path, encoding="utf-8") as f:
         schema_str = f.read()
+
+    # Build a *new* generator for this call only (no generator caching)
+    generator = Generator(
+        model,
+        JsonSchema(schema=schema_str, whitespace_pattern=None),
+    )
 
     prompt = (
         "<|im_start|>system\n"
@@ -201,19 +133,17 @@ def generate(req: GenerateRequest):
     )
 
     try:
-        resultstr = generator(prompt, max_tokens=8000);
-        result: dict = pyjson.loads(resultstr)
-        with _state_lock:
-            _touch()  # Mark usage after successful generation.
+        result_str = generator(prompt, max_tokens=8000)
+        output: dict = pyjson.loads(result_str)
     except Exception as exc:  # noqa: BLE001
         print(f"❌  Generation failed: {exc}")
         raise HTTPException(status_code=500, detail=f"Generation failed: {exc}") from exc
 
-    return GenerateResponse(result=result)
+    return GenerateResponse(result=output)
 
 
 # ---------------------------------------------------------------------------
-# Health check – stays lightweight
+# Lightweight health check
 # ---------------------------------------------------------------------------
 
 @app.get("/healthz")
