@@ -42,7 +42,7 @@ export class GetThanksCommand implements Command {
             flags: [MessageFlags.SuppressNotifications]
         });
 
-        let message = `${user.displayName || user.username} has a total of ${userData.thankedCountTotal} thank-you points in this server.`;
+        let message = `<@${userData.id}> has a total of ${userData.thankedCountTotal} thank-you points in this server.`;
         
         if (userData.thankedBuffer.length > 0) {
             message += `\n\n**${userData.thankedBuffer.length} Thanks recieved in the last 30 days:** ${userData.thankedBuffer.length > 15 ? '(showing most recent 15)' : ''}`;
@@ -52,19 +52,8 @@ export class GetThanksCommand implements Command {
                 buffer.splice(0, buffer.length - 15); // Limit to the most recent 15
             }
             for (const thanked of buffer) {
-                 const url = `https://discord.com/channels/${guildHolder.getGuild().id}/${thanked.channelId}/${thanked.messageId}`;
-               
-                let thankedUser = await guildHolder.getGuild().members.fetch(thanked.thankedBy).catch(() => null);
-                if (thankedUser) {
-                    message += `\n- <t:${Math.floor(thanked.timestamp/1000)}:D>, thanked by ${thankedUser.displayName || thankedUser.user.username} for ${url}`;
-                } else {
-                    const user = await guildHolder.getBot().client.users.fetch(thanked.thankedBy).catch(() => null);
-                    if (user) {
-                        message += `\n- <t:${Math.floor(thanked.timestamp/1000)}:D}, thanked by ${user.username} for ${url}`;
-                    } else {
-                        message += `\n- <t:${Math.floor(thanked.timestamp/1000)}:D}, thanked by unknown user for ${url}`;
-                    }
-                }
+                const url = `https://discord.com/channels/${guildHolder.getGuild().id}/${thanked.channelId}/${thanked.messageId}`;
+                message += `\n- <t:${Math.floor(thanked.timestamp/1000)}:D>, thanked by <@${thanked.thankedBy}> for ${url}`;
             }
         }
 
