@@ -35,7 +35,6 @@ export class ToggleHelper implements Command {
                 thankedBuffer: [],
                 disableRole: false // Initialize disableRole to false
             };
-            await guildHolder.getUserManager().saveUserData(userData);
         }
 
         userData.disableRole = !userData.disableRole;
