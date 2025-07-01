@@ -14,5 +14,7 @@ export type UserData = {
     thankedCountTotal: number;
     thankedBuffer: ThankEntry[];
     disableRole: boolean;
+
+    lastThanked?: number; // Timestamp of the last thanked message
 }
 

@@ -279,17 +279,29 @@ export class GuildHolder {
             await this.userManager.saveUserData(userData);
         }
 
+        // get user data for sender
+        let senderData = await this.userManager.getUserData(thanksSenderID);
+        if (!senderData) {
+            senderData = {
+                id: thanksSenderID,
+                username: message.author.username,
+                thankedCountTotal: 0,
+                thankedBuffer: [],
+                disableRole: false,
+            };
+        };
+
+
         // Check if the sender has already thanked the receiver in the last 24 hours
         const now = Date.now();
         const oneDay = 24 * 60 * 60 * 1000; //
-        if (userData.thankedBuffer.some(thank => thank.thankedBy === thanksSenderID && now - thank.timestamp < oneDay)) {
+        if (senderData.lastThanked && (now - senderData.lastThanked < oneDay)) {
             const embed = new EmbedBuilder()
                 .setColor(0x00FF00) // Green color for thank you message
-                .setTitle(`Point Already Given!`)
-                .setDescription(`You've already thanked <@${thanksRecieverID}> in the last 24 hours. Thank you anyway for being great!`)
+                .setTitle(`No Points Given!`)
+                .setDescription(`You've already given a point to someone in the last 24 hours. Thank you anyway for being great!`)
                 .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
             await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
-
             return; // Already thanked in the last 24 hours
         }
 
@@ -303,7 +315,12 @@ export class GuildHolder {
 
         // Increment the thanked count
         userData.thankedCountTotal++;
+
+        // Update the last thanked timestamp for the sender
+        senderData.lastThanked = now;
+
         await this.userManager.saveUserData(userData);
+        await this.userManager.saveUserData(senderData);
 
         // Send a thank you message in the channel
         const embed = new EmbedBuilder()
