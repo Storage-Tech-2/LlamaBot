@@ -96,7 +96,7 @@ export class PostEmbed {
                     return;
                 } else if (attachment.canDownload) {
                     const url = attachmentURLs.get(attachment.name) || attachment.url;
-                    description += `- ${url} [Github Mirror](${rawURL}/${attachment.path}): Discord link\n`
+                    description += `- ${url} [[Github Mirror]](${rawURL}/${attachment.path}): Discord link\n`
                     return;
                 } else {
                     description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): ContentType ${attachment.contentType}\n`
