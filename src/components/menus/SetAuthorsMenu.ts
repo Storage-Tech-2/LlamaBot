@@ -1,12 +1,11 @@
 import { ActionRowBuilder, Interaction, Message, MessageFlags, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, UserSelectMenuBuilder, UserSelectMenuInteraction } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { areAuthorsSame, canEditSubmission, getAuthorsString, reclassifyAuthors, replyEphemeral, splitIntoChunks } from "../../utils/Util.js";
+import { canEditSubmission, getAuthorsString, reclassifyAuthors, replyEphemeral } from "../../utils/Util.js";
 import { Author, AuthorType } from "../../submissions/Author.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { SetArchiveCategoryMenu } from "./SetArchiveCategoryMenu.js";
-import { GuildConfigs } from "../../config/GuildConfigs.js";
 import { ConfirmAuthorsButton } from "../buttons/ConfirmAuthorsButton.js";
 import { AddAuthorButton } from "../buttons/AddAuthorButton.js";
 

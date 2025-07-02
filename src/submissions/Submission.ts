@@ -53,19 +53,21 @@ export class Submission {
     public async init() {
         // Set initial config values
         const channel = await this.getSubmissionChannel(true);
-        this.config.setConfig(SubmissionConfigs.NAME, channel.name);
-        this.config.setConfig(SubmissionConfigs.SUBMISSION_THREAD_ID, channel.id);
-        this.config.setConfig(SubmissionConfigs.SUBMISSION_THREAD_URL, channel.url);
+        if (channel) {
+            this.config.setConfig(SubmissionConfigs.NAME, channel.name);
+            this.config.setConfig(SubmissionConfigs.SUBMISSION_THREAD_ID, channel.id);
+            this.config.setConfig(SubmissionConfigs.SUBMISSION_THREAD_URL, channel.url);
+        }
         this.config.setConfig(SubmissionConfigs.STATUS, SubmissionConfigs.STATUS.default);
 
         await this.checkStatusMessage();
         this.checkLLMExtraction();
     }
 
-    public async getSubmissionChannel(dontUnarchive: boolean = false): Promise<TextThreadChannel> {
-        const channel = await this.guildHolder.getGuild().channels.fetch(this.id);
+    public async getSubmissionChannel(dontUnarchive: boolean = false): Promise<TextThreadChannel | null> {
+        const channel = await this.guildHolder.getGuild().channels.fetch(this.id).catch(() => null);
         if (!channel) {
-            throw new Error('Channel not found')
+            return null;
         }
 
         // check if archived
@@ -82,6 +84,9 @@ export class Submission {
             // post initial message
             const starterEmbed = await StarterEmbed.create(this);
             const channel = await this.getSubmissionChannel();
+            if (!channel) {
+                return;
+            }
             const message = await channel.send({ embeds: [starterEmbed.getEmbed()], components: [starterEmbed.getRow() as any] })
             message.pin()
             this.config.setConfig(SubmissionConfigs.STATUS_MESSAGE_ID, message.id);
@@ -114,7 +119,11 @@ export class Submission {
         }
 
         const channel = await this.getSubmissionChannel();
-        const message = await channel.fetchStarterMessage();
+        if (!channel) {
+            throw new Error('Submission channel not found');
+        }
+
+        const message = await channel.fetchStarterMessage().catch(() => null);
         if (!message) {
             throw new Error('Starter message not found');
         }
@@ -205,6 +214,9 @@ export class Submission {
             const initialRevision = await this.getInitialRevision();
 
             const channel = await this.getSubmissionChannel();
+            if (!channel) {
+                throw new Error('Submission channel not found');
+            }
             const messages = await RevisionEmbed.sendRevisionMessages(channel, this, initialRevision, true);
 
             initialRevision.id = messages[messages.length - 1].id; // Set the last message ID as the revision ID
@@ -244,7 +256,11 @@ export class Submission {
             // If extraction results are not available, we create a default revision
             // get initial message from the submission thread
             const channel = await this.getSubmissionChannel();
-            const message = await channel.fetchStarterMessage();
+            if (!channel) {
+                throw new Error('Submission channel not found');
+            }
+
+            const message = await channel.fetchStarterMessage().catch(() => null);
             if (!message) {
                 throw new Error('Starter message not found');
             }
@@ -319,7 +335,11 @@ export class Submission {
             }
 
             const channel = await this.getSubmissionChannel();
-            const message = await channel.messages.fetch(statusMessageId);
+            if (!channel) {
+                throw new Error('Submission channel not found');
+            }
+
+            const message = await channel.messages.fetch(statusMessageId).catch(() => null);
 
             if (!message) {
                 throw new Error('Status message not found');
@@ -378,6 +398,11 @@ export class Submission {
 
     public async updateTags() {
         const channel = await this.getSubmissionChannel();
+        if (!channel) {
+            console.error('Submission channel not found, cannot update tags');
+            return; // No channel found, cannot update tags
+        }
+
         if (!channel.parentId) {
             console.error('Submission channel has no parent channel, cannot update tags');
             return; // No parent channel, cannot update tags
@@ -592,6 +617,10 @@ export class Submission {
             return this.cachedAttachments
         }
         const channel = await this.getSubmissionChannel();
+        if (!channel) {
+            throw new Error('Submission channel not found');
+        }
+
         const attachments = await getAllAttachments(channel)
         this.cachedAttachments = attachments
 
@@ -641,7 +670,11 @@ export class Submission {
 
     public async getPotentialAuthorsFromMessageContent(doFetch: boolean = false): Promise<Author[]> {
         const channel = await this.getSubmissionChannel(true);
-        const message = await channel.fetchStarterMessage();
+        if (!channel) {
+            throw new Error('Submission channel not found');
+        }
+
+        const message = await channel.fetchStarterMessage().catch(() => null);
         let currentAuthors: Author[] = [];
         if (message && message.content) {
             const users = extractUserIdsFromText(message.content);

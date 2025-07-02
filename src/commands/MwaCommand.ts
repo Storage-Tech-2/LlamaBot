@@ -700,6 +700,11 @@ export class Mwa implements Command {
             }
 
             const channel = await submission.getSubmissionChannel(true);
+            if (!channel) {
+                console.error(`Submission channel for submission ${submissionID} not found.`);
+                await interaction.followUp(`Submission channel for submission ${submissionID} not found, skipping.`);
+                continue;
+            }
             const isArchived = channel.archived;
 
             // try get post entry

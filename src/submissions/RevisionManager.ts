@@ -58,6 +58,10 @@ export class RevisionManager {
         const revisionsList = this.getRevisionsList();
         const oldCurrentRevisions = revisionsList.filter(r => r.isCurrent);
         const channel = await this.submission.getSubmissionChannel();
+        if (!channel) {
+            console.error('Submission channel not found');
+            return;
+        }
 
         await Promise.all(oldCurrentRevisions.map(async (revision) => {
             const revisionData = await this.getRevisionById(revision.id);

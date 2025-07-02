@@ -29,6 +29,9 @@ export class StarterEmbed {
     public static async create(submission: Submission): Promise<StarterEmbed> {
         const configs = submission.getConfigManager();
         const submissionChannel = await submission.getSubmissionChannel();
+        if (!submissionChannel) {
+            throw new Error('Submission channel not found');
+        }
         const authors = configs.getConfig(SubmissionConfigs.AUTHORS);
         const archiveChannelID = configs.getConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID);
         const tags = configs.getConfig(SubmissionConfigs.TAGS);

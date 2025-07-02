@@ -34,7 +34,12 @@ export class MakeRevisionCurrentButton implements Button {
             return
         }
         await submission.getRevisionsManager().setCurrentRevision(revision.id);
-        const message = await (await submission.getSubmissionChannel()).messages.fetch(revision.id);
+        const channel = await submission.getSubmissionChannel();
+        if (!channel) {
+            replyEphemeral(interaction, 'Submission channel not found. Please try again later.');
+            return;
+        }
+        const message = await channel.messages.fetch(revision.id);
         await interaction.reply({
             content: `<@${interaction.user.id}> changed current revision to ${message.url}`
         });

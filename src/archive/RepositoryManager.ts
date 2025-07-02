@@ -437,7 +437,7 @@ export class RepositoryManager {
     }
 
     async addOrUpdateEntryFromSubmission(submission: Submission, forceNew: boolean): Promise<{ oldEntryData?: ArchiveEntryData, newEntryData: ArchiveEntryData }> {
-       
+
         if (!this.git) {
             throw new Error("Git not initialized");
         }
@@ -506,6 +506,10 @@ export class RepositoryManager {
             }
 
             submissionChannel = await submission.getSubmissionChannel();
+            if (!submissionChannel) {
+                throw new Error("Submission channel not found");
+            }
+
             const config = submission.getConfigManager();
 
             config.setConfig(SubmissionConfigs.NAME, submissionChannel.name);
@@ -858,7 +862,7 @@ export class RepositoryManager {
             })
         }
 
-        const initialMessage = await thread.fetchStarterMessage();
+        const initialMessage = await thread.fetchStarterMessage().catch(() => null);
         if (!initialMessage) {
             throw new Error('Initial message not found in thread');
         }
@@ -1220,26 +1224,31 @@ export class RepositoryManager {
                 if (submission) {
                     // send message to the user
                     const channel = await submission.getSubmissionChannel();
-                    const embed = new EmbedBuilder()
-                        .setTitle(`Comment ${existingComment ? 'Updated' : 'Added'}`)
-                        .setURL(message.url)
-                        .setColor(existingComment ? '#ffa500' : '#00ff00')
-                        .setAuthor({
-                            name: newComment.sender.displayName || newComment.sender.username || 'Unknown Author',
-                            iconURL: newComment.sender.iconURL || undefined,
-                        })
-                        .setDescription(newComment.content)
-                        .setTimestamp(newComment.timestamp ? new Date(newComment.timestamp) : undefined);
-                    if (newComment.attachments.length > 0) {
-                        embed.addFields({
-                            name: 'Attachments',
-                            value: truncateStringWithEllipsis(newComment.attachments.map(a => a.name).join(', '), 1024)
+                    if (channel) {
+
+
+
+                        const embed = new EmbedBuilder()
+                            .setTitle(`Comment ${existingComment ? 'Updated' : 'Added'}`)
+                            .setURL(message.url)
+                            .setColor(existingComment ? '#ffa500' : '#00ff00')
+                            .setAuthor({
+                                name: newComment.sender.displayName || newComment.sender.username || 'Unknown Author',
+                                iconURL: newComment.sender.iconURL || undefined,
+                            })
+                            .setDescription(newComment.content)
+                            .setTimestamp(newComment.timestamp ? new Date(newComment.timestamp) : undefined);
+                        if (newComment.attachments.length > 0) {
+                            embed.addFields({
+                                name: 'Attachments',
+                                value: truncateStringWithEllipsis(newComment.attachments.map(a => a.name).join(', '), 1024)
+                            });
+                        }
+                        channel.send({
+                            flags: [MessageFlags.SuppressNotifications],
+                            embeds: [embed],
                         });
                     }
-                    channel.send({
-                        flags: [MessageFlags.SuppressNotifications],
-                        embeds: [embed],
-                    });
                 }
             } catch (e: any) {
                 console.error("Error updating submission:", e.message);
@@ -1337,25 +1346,27 @@ export class RepositoryManager {
                 if (submission) {
                     // send message to the user
                     const channel = await submission.getSubmissionChannel();
-                    const embed = new EmbedBuilder()
-                        .setTitle(`Comment Deleted`)
-                        .setColor('#ff0000')
-                        .setAuthor({
-                            name: deletedComment.sender.displayName || deletedComment.sender.username || 'Unknown Author',
-                            iconURL: deletedComment.sender.iconURL || undefined,
-                        })
-                        .setDescription(deletedComment.content)
-                        .setTimestamp();
-                    if (deletedComment.attachments.length > 0) {
-                        embed.addFields({
-                            name: 'Attachments',
-                            value: truncateStringWithEllipsis(deletedComment.attachments.map(a => a.name).join(', '), 1024)
+                    if (channel) {
+                        const embed = new EmbedBuilder()
+                            .setTitle(`Comment Deleted`)
+                            .setColor('#ff0000')
+                            .setAuthor({
+                                name: deletedComment.sender.displayName || deletedComment.sender.username || 'Unknown Author',
+                                iconURL: deletedComment.sender.iconURL || undefined,
+                            })
+                            .setDescription(deletedComment.content)
+                            .setTimestamp();
+                        if (deletedComment.attachments.length > 0) {
+                            embed.addFields({
+                                name: 'Attachments',
+                                value: truncateStringWithEllipsis(deletedComment.attachments.map(a => a.name).join(', '), 1024)
+                            });
+                        }
+                        channel.send({
+                            flags: [MessageFlags.SuppressNotifications],
+                            embeds: [embed]
                         });
                     }
-                    channel.send({
-                        flags: [MessageFlags.SuppressNotifications],
-                        embeds: [embed]
-                    });
                 }
             } catch (e: any) {
                 console.error("Error updating submission:", e.message);
@@ -1438,12 +1449,14 @@ export class RepositoryManager {
 
                     // send message to the user
                     const channel = await submission.getSubmissionChannel();
-                    channel.send({
-                        content: `Notice: The published post has been forcibly retracted because the thread was deleted.`
-                    });
+                    if (channel) {
+                        channel.send({
+                            content: `Notice: The published post has been forcibly retracted because the thread was deleted.`
+                        });
 
-                    await submission.save();
-                    await submission.statusUpdated();
+                        await submission.save();
+                        await submission.statusUpdated();
+                    }
                 }
                 this.guildHolder.logRetraction(found.entry.getData(), 'Thread deleted').catch(e => {
                     console.error("Error logging retraction:", e);
@@ -1542,33 +1555,35 @@ export class RepositoryManager {
 
                     // send message to the user
                     const channel = await submission.getSubmissionChannel();
+                    if (channel) {
 
-                    let message = ``;
-                    if (addedTags.length > 0) {
-                        if (addedTags.length === 1) {
-                            message += `Added tag **${addedTags[0].name}**`;
-                        } else {
-                            message += `Added tags **${addedTags.map(t => t.name).join(', ')}**`;
+                        let message = ``;
+                        if (addedTags.length > 0) {
+                            if (addedTags.length === 1) {
+                                message += `Added tag **${addedTags[0].name}**`;
+                            } else {
+                                message += `Added tags **${addedTags.map(t => t.name).join(', ')}**`;
+                            }
                         }
-                    }
 
-                    if (removedTags.length > 0) {
-                        if (message.length > 0) {
-                            message += `, `;
+                        if (removedTags.length > 0) {
+                            if (message.length > 0) {
+                                message += `, `;
+                            }
+                            if (removedTags.length === 1) {
+                                message += `Removed tag **${removedTags[0].name}**`;
+                            } else {
+                                message += `Removed tags **${removedTags.map(t => t.name).join(', ')}**`;
+                            }
                         }
-                        if (removedTags.length === 1) {
-                            message += `Removed tag **${removedTags[0].name}**`;
-                        } else {
-                            message += `Removed tags **${removedTags.map(t => t.name).join(', ')}**`;
-                        }
-                    }
 
-                    if (addedTags.length > 0 || removedTags.length > 0) {
-                        await channel.send({
-                            content: message + (removedTags.length > 0 ? ' from the post.' : ' to the post.'),
-                        });
-                        await submission.save();
-                        await submission.statusUpdated();
+                        if (addedTags.length > 0 || removedTags.length > 0) {
+                            await channel.send({
+                                content: message + (removedTags.length > 0 ? ' from the post.' : ' to the post.'),
+                            });
+                            await submission.save();
+                            await submission.statusUpdated();
+                        }
                     }
                 }
                 // this.guildHolder.logUpdate(oldEntryData, entryData).catch(e => {
@@ -1789,7 +1804,7 @@ export class RepositoryManager {
                         if (thread.archived) {
                             await thread.setArchived(false); // Unarchive the thread to update it
                         }
-                        const message = await thread.fetchStarterMessage();
+                        const message = await thread.fetchStarterMessage().catch(() => null);
                         if (message) {
 
                             // get entryPathPart folderpath/entrypathpart
@@ -1935,7 +1950,7 @@ export class RepositoryManager {
                     const entryData = entry.getData();
 
                     const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entryData.id);
-                     // Get channel
+                    // Get channel
                     const submissionChannel = submission ? await submission.getSubmissionChannel(true) : null;
                     const wasArchived = submissionChannel && submissionChannel.archived;
                     if (wasArchived) {

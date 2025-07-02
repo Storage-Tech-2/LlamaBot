@@ -1,11 +1,10 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, MessageFlags } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Button } from "../../interface/Button.js";
-import { areAuthorsSame, canEditSubmission, getAuthorsString, reclassifyAuthors, replyEphemeral, splitIntoChunks } from "../../utils/Util.js";
+import { canEditSubmission, getAuthorsString, reclassifyAuthors, replyEphemeral } from "../../utils/Util.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Author, AuthorType } from "../../submissions/Author.js";
 import { SetArchiveCategoryMenu } from "../menus/SetArchiveCategoryMenu.js";
-import { GuildConfigs } from "../../config/GuildConfigs.js";
 
 export class ConfirmAuthorsButton implements Button {
     getID(): string {

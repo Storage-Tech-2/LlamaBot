@@ -64,6 +64,9 @@ export class RevisionEmbed {
 
         // Check name
         const channel = await submission.getSubmissionChannel();
+        if (!channel) {
+            throw new Error('Submission channel not found');
+        }
         submission.getConfigManager().setConfig(SubmissionConfigs.NAME, channel.name);
         description += `## ${submission.getConfigManager().getConfig(SubmissionConfigs.NAME)}\n`;
 

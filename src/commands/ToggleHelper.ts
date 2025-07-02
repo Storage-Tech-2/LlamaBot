@@ -1,8 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
-import { getAuthorFromIdentifier, replyEphemeral } from "../utils/Util.js";
-import { GuildConfigs } from "../config/GuildConfigs.js";
+import { replyEphemeral } from "../utils/Util.js";
 
 export class ToggleHelper implements Command {
     getID(): string {

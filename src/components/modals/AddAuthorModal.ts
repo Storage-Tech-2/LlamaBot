@@ -1,11 +1,10 @@
 import { ActionRowBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
-import { areAuthorsSame, canEditSubmission, getAuthorsString, reclassifyAuthors, replyEphemeral, splitIntoChunks } from "../../utils/Util.js";
+import { areAuthorsSame, canEditSubmission, reclassifyAuthors, replyEphemeral } from "../../utils/Util.js";
 import { Author, AuthorType } from "../../submissions/Author.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { SetArchiveCategoryMenu } from "../menus/SetArchiveCategoryMenu.js";
-import { GuildConfigs } from "../../config/GuildConfigs.js";
 import { SetAuthorsMenu } from "../menus/SetAuthorsMenu.js";
 
 export class AddAuthorModal implements Modal {
@@ -123,6 +122,10 @@ export class AddAuthorModal implements Modal {
         submission.getConfigManager().setConfig(SubmissionConfigs.AUTHORS, currentAuthors);
 
         const channel = await submission.getSubmissionChannel();
+        if (!channel) {
+            replyEphemeral(interaction, 'Submission channel not found. Please try again later.');
+            return;
+        }
         channel.send({
             content: `<@${interaction.user.id}> added author: ${author.username} (${author.id ? `<@${author.id}>` : 'Unknown ID'})${author.reason ? ` with reason: ${author.reason}` : ''}`,
             flags: MessageFlags.SuppressNotifications
