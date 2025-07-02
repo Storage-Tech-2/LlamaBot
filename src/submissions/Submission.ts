@@ -120,12 +120,12 @@ export class Submission {
 
         const channel = await this.getSubmissionChannel();
         if (!channel) {
-            throw new Error('Submission channel not found');
+            return;
         }
 
         const message = await channel.fetchStarterMessage().catch(() => null);
         if (!message) {
-            throw new Error('Starter message not found');
+            return;
         }
 
         // If we already have extraction results, no need to check again
