@@ -374,7 +374,9 @@ export class GuildHolder {
         for (const member of members.values()) {
             const userData = await this.userManager.getUserData(member.id);
             if (!userData) continue;
-            await this.checkHelper(userData, member);
+            await this.checkHelper(userData, member).catch(e => {
+                console.error(`Error checking helper role for user ${member.id}:`, e);
+            });
         }
 
     }
