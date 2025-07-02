@@ -1,4 +1,4 @@
-import { AnyThreadChannel, ChannelType, EmbedBuilder, ForumChannel, Guild, Message, MessageFlags, Snowflake } from "discord.js";
+import { AnyThreadChannel, ChannelType, EmbedBuilder, ForumChannel, Guild, GuildMember, Message, MessageFlags, Snowflake } from "discord.js";
 import { Bot } from "./Bot.js";
 import { ConfigManager } from "./config/ConfigManager.js";
 import Path from "path";
@@ -368,13 +368,18 @@ export class GuildHolder {
 
             // Save updated user data
             await this.userManager.saveUserData(userData);
+        }
 
-            await this.checkHelper(userData);
+        const members = await this.guild.members.fetch();
+        for (const member of members.values()) {
+            const userData = await this.userManager.getUserData(member.id);
+            if (!userData) continue;
+            await this.checkHelper(userData, member);
         }
 
     }
 
-    public async checkHelper(userData: UserData) {
+    public async checkHelper(userData: UserData, member?: GuildMember) {
         const shouldHaveHelperRole = !userData.disableRole && userData.thankedBuffer.length >= this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_THRESHOLD);
         const guild = this.getGuild();
         const helperRoleId = this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_ID) as Snowflake | undefined;
@@ -388,9 +393,8 @@ export class GuildHolder {
             return;
         }
 
-        const member = await guild.members.fetch(userData.id).catch(() => null);
+        member = member || await guild.members.fetch(userData.id).catch(() => undefined);
         if (!member) {
-            console.warn(`Member with ID ${userData.id} not found in guild ${guild.name}`);
             return;
         }
 
