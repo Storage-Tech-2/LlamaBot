@@ -291,18 +291,20 @@ export class GuildHolder {
             };
         };
 
+        const doesSenderHaveEnoughPoints = senderData.thankedBuffer.length >= this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_THRESHOLD);
+
 
         // Check if the sender has already thanked the receiver in the last 24 hours
         const now = Date.now();
-        const oneDay = 24 * 60 * 60 * 1000; //
-        if (senderData.lastThanked && (now - senderData.lastThanked < oneDay)) {
+        const minTime = doesSenderHaveEnoughPoints ? (7 * 24 * 60 * 60 * 1000): (24 * 60 * 60 * 1000);
+        if (senderData.lastThanked && (now - senderData.lastThanked < minTime)) {
             const embed = new EmbedBuilder()
                 .setColor(0x00FF00) // Green color for thank you message
                 .setTitle(`No Points Given!`)
-                .setDescription(`You've already given a point to someone in the last 24 hours. Thank you anyway for being great!`)
+                .setDescription(`You've already given a point to someone in the last ${doesSenderHaveEnoughPoints ? '7 days' : '24 hours'}. Thank you anyway for being great!`)
                 .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
             await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
-            return; // Already thanked in the last 24 hours
+            return;
         }
 
         // Add the thank you to the buffer
