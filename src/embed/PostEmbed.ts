@@ -123,8 +123,8 @@ export class PostEmbed {
         }
 
         // check if authors and endorsers are the same
-        if (entryData.authors.length === entryData.endorsers.length &&
-            entryData.authors.every(author => entryData.endorsers.some(endorser => areObjectsIdentical(author, endorser)))) {
+        if (entryData.endorsers.length === 0 || (entryData.authors.length === entryData.endorsers.length &&
+            entryData.authors.every(author => entryData.endorsers.some(endorser => areObjectsIdentical(author, endorser))))) {
             // if they are the same, do not show endorsers
         } else {
             content.push(`**Endorsed by:** ${getAuthorsString(entryData.endorsers)}`);
