@@ -36,12 +36,13 @@ export class RepositoryManager {
         if (!await fs.access(this.folderPath).then(() => true).catch(() => false)) {
             await fs.mkdir(this.folderPath, { recursive: true });
         }
-        this.git = await simpleGit(this.folderPath)
+        this.git = simpleGit(this.folderPath)
             .init()
             .addConfig('user.name', 'llamabot-archiver[bot]')
             .addConfig('user.email', '217070326+llamabot-archiver[bot]@users.noreply.github.com')
             .addConfig('pull.rebase', 'false')
 
+        await this.git;
 
         // check if gitignore exists, create it if it doesn't
         const gitignorePath = Path.join(this.folderPath, '.gitignore');
