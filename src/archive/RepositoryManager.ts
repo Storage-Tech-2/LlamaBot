@@ -1788,7 +1788,7 @@ export class RepositoryManager {
 
         await entry.save();
 
-        if (newData.post) {
+        if (newData.post && newData.post.forumId) {
             await this.addOrUpdateEntryFromData(this.guildHolder, newData, newData.post.forumId, false, async () => { });
         }
     }
