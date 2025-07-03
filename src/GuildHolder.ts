@@ -43,6 +43,8 @@ export class GuildHolder {
     private userManager: UserManager;
 
     private lastDayLoop: number = 0;
+    private initPromise: Promise<void>;
+    private ready : boolean = false;
 
     /**
      * Creates a new GuildHolder instance.
@@ -56,7 +58,7 @@ export class GuildHolder {
         this.submissions = new SubmissionsManager(this, Path.join(this.getGuildFolder(), 'submissions'));
         this.repositoryManager = new RepositoryManager(this, Path.join(this.getGuildFolder(), 'archive'));
         this.userManager = new UserManager(Path.join(this.getGuildFolder(), 'users'));
-        this.config.loadConfig().then(async () => {
+        this.initPromise = this.config.loadConfig().then(async () => {
             // Set guild name and ID in the config
             this.config.setConfig(GuildConfigs.GUILD_NAME, guild.name);
             this.config.setConfig(GuildConfigs.GUILD_ID, guild.id);
@@ -69,6 +71,7 @@ export class GuildHolder {
 
             await this.updatePostChannelsCache();
             console.log(`GuildHolder initialized for guild: ${guild.name} (${guild.id})`);
+            this.ready = true;
         });
     }
 
@@ -343,6 +346,9 @@ export class GuildHolder {
      * Called every second to perform periodic tasks.
      */
     public async loop() {
+        if (!this.ready) {
+            return;
+        }
         await this.config.saveConfig();
         await this.submissions.purgeOldSubmissions();
         await this.submissions.saveSubmissions();
