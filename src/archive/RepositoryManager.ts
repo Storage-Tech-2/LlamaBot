@@ -36,7 +36,7 @@ export class RepositoryManager {
         if (!await fs.access(this.folderPath).then(() => true).catch(() => false)) {
             await fs.mkdir(this.folderPath, { recursive: true });
         }
-        this.git = simpleGit(this.folderPath)
+        this.git = await simpleGit(this.folderPath)
             .init()
             .addConfig('user.name', 'llamabot-archiver[bot]')
             .addConfig('user.email', '217070326+llamabot-archiver[bot]@users.noreply.github.com')
