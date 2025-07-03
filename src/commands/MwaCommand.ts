@@ -37,12 +37,12 @@ export class Mwa implements Command {
             )
             .addSubcommand(subcommand =>
                 subcommand
-                    .setName('setlogs')
-                    .setDescription('Setup Llamabot to send update logs to a channel')
+                    .setName('setupdates')
+                    .setDescription('Setup Llamabot to send archive updates to a channel')
                     .addChannelOption(option =>
                         option
                             .setName('channel')
-                            .setDescription('Channel to send update logs to')
+                            .setDescription('Channel to send updates to')
                             .setRequired(true)
                             .addChannelTypes(ChannelType.GuildAnnouncement, ChannelType.GuildText)
                     )
@@ -170,8 +170,8 @@ export class Mwa implements Command {
             this.setSubmissions(guildHolder, interaction)
         } else if (interaction.options.getSubcommand() === 'setarchives') {
             this.setArchives(guildHolder, interaction)
-        } else if (interaction.options.getSubcommand() === 'setlogs') {
-            this.setLogs(guildHolder, interaction)
+        } else if (interaction.options.getSubcommand() === 'setupdates') {
+            this.setUpdates(guildHolder, interaction)
         } else if (interaction.options.getSubcommand() === 'setuparchives') {
             this.setupArchives(guildHolder, interaction)
         } else if (interaction.options.getSubcommand() === 'setendorseroles') {
@@ -348,7 +348,7 @@ export class Mwa implements Command {
         await replyEphemeral(interaction, 'Select helper role', { components: [row] })
     }
 
-    async setLogs(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+    async setUpdates(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         const channel = interaction.options.getChannel('channel')
         if (!channel) {
             await replyEphemeral(interaction, 'Invalid channel')
@@ -356,7 +356,7 @@ export class Mwa implements Command {
         }
 
         guildHolder.getConfigManager().setConfig(GuildConfigs.LOGS_CHANNEL_ID, channel.id)
-        await replyEphemeral(interaction, `Llamabot will now send updates to ${channel.name}!`);
+        await interaction.reply(`Llamabot will now send updates to ${channel.name}!`);
     }
 
     async makeIndex(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
