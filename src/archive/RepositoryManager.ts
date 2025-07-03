@@ -219,6 +219,7 @@ export class RepositoryManager {
             await channel.fetch();
             const { code, description } = getCodeAndDescriptionFromTopic(channel.topic || '');
             if (!code) {
+                this.lock.release();
                 throw new Error(`Channel ${channel.name} (${channel.id}) does not have a valid code in the topic.`);
             }
             reMapped.push({

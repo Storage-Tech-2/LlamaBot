@@ -558,6 +558,9 @@ export class Mwa implements Command {
                 const { code } = getCodeAndDescriptionFromTopic(channel.topic);
                 if (code) {
                     codeMap.set(channel.id, code);
+                } else {
+                    interaction.editReply(`Error: Channel ${channel.name} does not have a valid code in the topic. Please set the topic to include a code in the format "Code: <code>"`);
+                    return;
                 }
             } else {
                 interaction.editReply(`Error: Channel ${channel.name} does not have a topic set. Please set the topic to include a code in the format "Code: <code>"`)
