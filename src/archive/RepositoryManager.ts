@@ -1640,6 +1640,9 @@ export class RepositoryManager {
             return;
         }
 
+
+        await this.lock.acquire();
+
         // First, collect authors
         const authors: Author[] = [];
 
@@ -1689,23 +1692,17 @@ export class RepositoryManager {
                     console.warn(`Entry ${entryRef.name} in channel ${archiveChannel.getData().name} could not be loaded, skipping.`);
                     continue; // Skip if entry cannot be loaded
                 }
-                let modified = false;
                 try {
-                    modified = await this.updateEntryAuthors(entry, reclassified);
+                    await this.updateEntryAuthors(entry, reclassified);
                 } catch (e: any) {
                     console.error(`Error updating authors for entry ${entryRef.name} in channel ${archiveChannel.getData().name}:`, e.message);
                 }
 
-                if (modified) {
-                    modifiedPaths.push(entry.getDataPath());
-                }
             }
         }
 
         if (modifiedPaths.length > 0) {
-            await this.lock.acquire();
             try {
-                await this.git.add(modifiedPaths);
                 await this.git.commit(`Updated authors for ${modifiedPaths.length} entries`);
                 try {
                     await this.push();
@@ -1716,13 +1713,11 @@ export class RepositoryManager {
             catch (e: any) {
                 console.error("Error committing updated authors:", e.message);
             }
-            finally {
-                this.lock.release();
-            }
         }
+        this.lock.release();
     }
 
-    async updateEntryAuthors(entry: ArchiveEntry, updatedAuthors: Author[]): Promise<boolean> {
+    async updateEntryAuthors(entry: ArchiveEntry, updatedAuthors: Author[]) {
         if (!this.git) {
             return false;
         }
@@ -1745,96 +1740,56 @@ export class RepositoryManager {
             return false; // No changes, nothing to do
         }
 
-        // Acquire lock
-        await this.lock.acquire();
-        try {
-            // Read entry again
-            await entry.load();
+        // Read entry again
+        await entry.load();
 
-            // Check if the entry is still valid
-            const newData = entry.getData();
-            const authorsValid = areAuthorsListEqual(entryData.authors, newData.authors, true);
-            const endorsersValid = areAuthorsListEqual(entryData.endorsers, newData.endorsers, true);
-            if (!authorsValid || !endorsersValid) {
-                console.warn(`Entry ${entryData.code} has been modified by another process, skipping author update.`);
-                this.lock.release();
-                return false; // Entry has been modified, skip this update
+        // Check if the entry is still valid
+        const newData = entry.getData();
+        const authorsValid = areAuthorsListEqual(entryData.authors, newData.authors, true);
+        const endorsersValid = areAuthorsListEqual(entryData.endorsers, newData.endorsers, true);
+        if (!authorsValid || !endorsersValid) {
+            console.warn(`Entry ${entryData.code} has been modified by another process, skipping author update.`);
+            this.lock.release();
+            return false; // Entry has been modified, skip this update
+        }
+
+        // Update authors and endorsers
+        newData.authors.forEach(author => {
+            if (author.type === AuthorType.Unknown) {
+                return;
             }
 
-            // Update authors and endorsers
-            newData.authors.forEach(author => {
-                if (author.type === AuthorType.Unknown) {
-                    return;
-                }
-
-                const updatedAuthor = updatedAuthors.find(a => areAuthorsSame(a, author));
-                if (!updatedAuthor) {
-                    console.warn(`Author ${author.username} (${author.id}) not found in updated authors, skipping.`);
-                } else {
-                    author.displayName = updatedAuthor.displayName;
-                    author.iconURL = updatedAuthor.iconURL;
-                    author.type = updatedAuthor.type;
-                    author.username = updatedAuthor.username;
-                }
-            });
-
-            newData.endorsers.forEach(author => {
-                if (author.type === AuthorType.Unknown) {
-                    return;
-                }
-
-                const updatedAuthor = updatedAuthors.find(a => areAuthorsSame(a, author));
-                if (!updatedAuthor) {
-                    console.warn(`Endorser ${author.username} (${author.id}) not found in updated authors, skipping.`);
-                } else {
-                    author.displayName = updatedAuthor.displayName;
-                    author.iconURL = updatedAuthor.iconURL;
-                    author.type = updatedAuthor.type;
-                    author.username = updatedAuthor.username;
-                }
-            });
-
-            await entry.save();
-
-            if (newData.post) {
-                // Update the post with new authors and endorsers
-                const publishForum = await this.guildHolder.getGuild().channels.fetch(newData.post.forumId).catch(() => null);
-                if (publishForum && publishForum.type === ChannelType.GuildForum) {
-                    const thread = await publishForum.threads.fetch(newData.post.threadId).catch(() => null);
-                    if (thread) {
-                        let wasArchived = thread.archived;
-                        if (thread.archived) {
-                            await thread.setArchived(false); // Unarchive the thread to update it
-                        }
-                        const message = await thread.fetchStarterMessage().catch(() => null);
-                        if (message) {
-
-                            // get entryPathPart folderpath/entrypathpart
-                            let entryPathPart = Path.relative(this.folderPath, entry.getFolderPath());
-                            // if starts with a slash, remove it
-                            if (entryPathPart.startsWith('/')) {
-                                entryPathPart = entryPathPart.substring(1);
-                            } else if (entryPathPart.startsWith('./')) {
-                                entryPathPart = entryPathPart.substring(2);
-                            }
-                            const content = PostEmbed.createInitialMessage(this.guildHolder, newData, entryPathPart);
-                            const split = splitIntoChunks(content, 2000);
-                            await message.edit({
-                                content: split[0],
-                            });
-                        }
-
-                        if (wasArchived) {
-                            await thread.setArchived(true, 'Re-archiving thread after author update');
-                        }
-                    }
-                }
+            const updatedAuthor = updatedAuthors.find(a => areAuthorsSame(a, author));
+            if (!updatedAuthor) {
+                console.warn(`Author ${author.username} (${author.id}) not found in updated authors, skipping.`);
+            } else {
+                author.displayName = updatedAuthor.displayName;
+                author.iconURL = updatedAuthor.iconURL;
+                author.type = updatedAuthor.type;
+                author.username = updatedAuthor.username;
             }
-            this.lock.release();
-            return true; // Authors updated successfully
-        } catch (e: any) {
-            this.lock.release();
-            throw e;
+        });
+
+        newData.endorsers.forEach(author => {
+            if (author.type === AuthorType.Unknown) {
+                return;
+            }
+
+            const updatedAuthor = updatedAuthors.find(a => areAuthorsSame(a, author));
+            if (!updatedAuthor) {
+                console.warn(`Endorser ${author.username} (${author.id}) not found in updated authors, skipping.`);
+            } else {
+                author.displayName = updatedAuthor.displayName;
+                author.iconURL = updatedAuthor.iconURL;
+                author.type = updatedAuthor.type;
+                author.username = updatedAuthor.username;
+            }
+        });
+
+        await entry.save();
+
+        if (newData.post) {
+            await this.addOrUpdateEntryFromData(this.guildHolder, newData, newData.post.forumId, false, async () => { });
         }
     }
 
