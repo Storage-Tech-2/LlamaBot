@@ -1636,7 +1636,7 @@ export class RepositoryManager {
 
     public async updateEntryAuthorsTask() {
         if (!this.git) {
-            throw new Error("Git not initialized");
+            return;
         }
 
         // First, collect authors
