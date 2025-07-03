@@ -18,6 +18,7 @@ import { SubmissionStatus } from "./SubmissionStatus.js";
 import { PublishButton } from "../components/buttons/PublishButton.js";
 import { SubmissionTagNames, SubmissionTags } from "./SubmissionTags.js";
 import { Author, AuthorType } from "./Author.js";
+import { GuildConfigs } from "../config/GuildConfigs.js";
 
 export class Submission {
     private guildHolder: GuildHolder;
@@ -176,7 +177,7 @@ export class Submission {
         }
 
         const endorsers = this.config.getConfig(SubmissionConfigs.ENDORSERS);
-        if (endorsers.length === 0) {
+        if (endorsers.length === 0 && this.guildHolder.getConfigManager().getConfig(GuildConfigs.ENDORSE_ROLE_IDS).length > 0) {
             // If there are no endorsers, we cannot proceed
             return false;
         }
