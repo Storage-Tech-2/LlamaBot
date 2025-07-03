@@ -123,7 +123,7 @@ export class GuildHolder {
             }
         }
 
-        if (message.reference) {
+        if (message.reference && this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_ID)) {
             // Check if message contains "thanks" or "thank you"
             // /\b(thanks|thank you|thank u)[!\.]?\b/i
             // don't if theres a no before it
@@ -359,6 +359,10 @@ export class GuildHolder {
     }
 
     public async purgeThanksBuffer() {
+        if (!this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_ID)) {
+            return;
+        }
+        
         const users = await this.userManager.getAllUserIDs();
         for (const userId of users) {
             const userData = await this.userManager.getUserData(userId);
