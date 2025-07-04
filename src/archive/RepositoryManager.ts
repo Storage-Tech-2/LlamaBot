@@ -1310,7 +1310,10 @@ export class RepositoryManager {
                 for (const attachment of deletedComment.attachments) {
                     const attachmentPath = Path.join(commentsAttachmentFolder, getFileKey(attachment));
                     if (attachment.canDownload) {
-                        this.git.rm(attachmentPath);
+                        try {
+                            this.git.rm(attachmentPath);
+                        } catch (e: any) {
+                        }
                     }
                 }
             }
