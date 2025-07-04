@@ -1328,7 +1328,10 @@ export class RepositoryManager {
                         await fs.unlink(filePath);
                     }
                 }
-                await this.git.rm(commentsAttachmentFolder);
+                try {
+                    await this.git.rm(commentsAttachmentFolder);
+                } catch (e: any) {
+                }
             }
 
             if (comments.length === 0) {
