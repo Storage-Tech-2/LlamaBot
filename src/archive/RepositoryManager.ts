@@ -1321,16 +1321,20 @@ export class RepositoryManager {
             if (!hasAnyAttachmentsLeft) {
                 // If no attachments left, delete the comments attachments folder
                 const commentsAttachmentFolder = Path.join(entryPath, 'comments_attachments');
-                for (const file of await fs.readdir(commentsAttachmentFolder)) {
-                    const filePath = Path.join(commentsAttachmentFolder, file);
-                    const stat = await fs.lstat(filePath);
-                    if (stat.isFile()) {
-                        await fs.unlink(filePath);
+                // check if folder exists
+                if (await fs.access(commentsAttachmentFolder).then(() => true).catch(() => false)) {
+
+                    for (const file of await fs.readdir(commentsAttachmentFolder)) {
+                        const filePath = Path.join(commentsAttachmentFolder, file);
+                        const stat = await fs.lstat(filePath);
+                        if (stat.isFile()) {
+                            await fs.unlink(filePath);
+                        }
                     }
-                }
-                try {
-                    await this.git.rm(commentsAttachmentFolder);
-                } catch (e: any) {
+                    try {
+                        await this.git.rm(commentsAttachmentFolder);
+                    } catch (e: any) {
+                    }
                 }
             }
 
