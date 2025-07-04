@@ -1311,7 +1311,7 @@ export class RepositoryManager {
                     const attachmentPath = Path.join(commentsAttachmentFolder, getFileKey(attachment));
                     if (attachment.canDownload) {
                         try {
-                            this.git.rm(attachmentPath);
+                            await this.git.rm(attachmentPath);
                         } catch (e: any) {
                         }
                     }
