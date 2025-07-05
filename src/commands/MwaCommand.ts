@@ -77,39 +77,39 @@ export class Mwa implements Command {
                     .setName('makeindex')
                     .setDescription('Make an index of all archive channels')
             )
-            // .addSubcommand(subcommand =>
-            //     subcommand
-            //         .setName('blacklistadd')
-            //         .setDescription('Add a user to the do-not-archive list')
-            //         .addStringOption(option =>
-            //             option
-            //                 .setName('user')
-            //                 .setDescription('User name or id to add to the do-not-archive list')
-            //                 .setRequired(true)
-            //         )
-            //         .addStringOption(option =>
-            //             option
-            //                 .setName('reason')
-            //                 .setDescription('Reason for blacklisting the user')
-            //                 .setRequired(false)
-            //         )
-            // )
-            // .addSubcommand(subcommand =>
-            //     subcommand
-            //         .setName('blacklistremove')
-            //         .setDescription('Remove a user from the do-not-archive list')
-            //         .addStringOption(option =>
-            //             option
-            //                 .setName('user')
-            //                 .setDescription('User name or id to remove from the do-not-archive list')
-            //                 .setRequired(true)
-            //         )
-            // )
-            // .addSubcommand(subcommand =>
-            //     subcommand
-            //         .setName('blacklistlist')
-            //         .setDescription('List all users in the do-not-archive list')
-            // )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('blacklistadd')
+                    .setDescription('Add a user to the thank you blacklist')
+                    .addStringOption(option =>
+                        option
+                            .setName('user')
+                            .setDescription('User name or id to add to the thank you blacklist')
+                            .setRequired(true)
+                    )
+                    .addStringOption(option =>
+                        option
+                            .setName('reason')
+                            .setDescription('Reason for blacklisting the user')
+                            .setRequired(false)
+                    )
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('blacklistremove')
+                    .setDescription('Remove a user from the thank you blacklist')
+                    .addStringOption(option =>
+                        option
+                            .setName('user')
+                            .setDescription('User name or id to remove from the thank you blacklist')
+                            .setRequired(true)
+                    )
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('blacklistlist')
+                    .setDescription('List all users in the thank you blacklist')
+            )
             .addSubcommand(subcommand =>
                 subcommand
                     .setName('setrepo')
@@ -221,17 +221,18 @@ export class Mwa implements Command {
             return;
         }
 
-        const blacklistedUsers = guildHolder.getConfigManager().getConfig(GuildConfigs.BLACKLISTED_USERS);
-        if (blacklistedUsers.some(user => areAuthorsSame(user.author, author))) {
-            await replyEphemeral(interaction, `User ${getAuthorsString([author])} is already in the do-not-archive list.`);
+        const blacklistedUsers = guildHolder.getConfigManager().getConfig(GuildConfigs.THANKS_BLACKLIST);
+        if (blacklistedUsers.some(user => areAuthorsSame(user, author))) {
+            await replyEphemeral(interaction, `User ${getAuthorsString([author])} is already in the thank you blacklist.`);
             return;
         }
 
-        blacklistedUsers.push({ author, reason });
-        guildHolder.getConfigManager().setConfig(GuildConfigs.BLACKLISTED_USERS, blacklistedUsers);
+        author.reason = reason; // Add reason to the author object
+        blacklistedUsers.push(author);
+        guildHolder.getConfigManager().setConfig(GuildConfigs.THANKS_BLACKLIST, blacklistedUsers);
 
         interaction.reply({
-            content: `Successfully added ${getAuthorsString([author])} to the do-not-archive list for reason: ${reason}`,
+            content: `Successfully added ${getAuthorsString([author])} to the thank you blacklist for reason: ${reason}`,
         });
     }
 
@@ -248,30 +249,30 @@ export class Mwa implements Command {
             return;
         }
 
-        const blacklistedUsers = guildHolder.getConfigManager().getConfig(GuildConfigs.BLACKLISTED_USERS);
-        const index = blacklistedUsers.findIndex(user => areAuthorsSame(user.author, author));
+        const blacklistedUsers = guildHolder.getConfigManager().getConfig(GuildConfigs.THANKS_BLACKLIST);
+        const index = blacklistedUsers.findIndex(user => areAuthorsSame(user, author));
         if (index === -1) {
-            await replyEphemeral(interaction, `User ${getAuthorsString([author])} is not in the do-not-archive list.`);
+            await replyEphemeral(interaction, `User ${getAuthorsString([author])} is not in the thank you blacklist.`);
             return;
         }
 
         blacklistedUsers.splice(index, 1);
-        guildHolder.getConfigManager().setConfig(GuildConfigs.BLACKLISTED_USERS, blacklistedUsers);
+        guildHolder.getConfigManager().setConfig(GuildConfigs.THANKS_BLACKLIST, blacklistedUsers);
 
         interaction.reply({
-            content: `Successfully removed ${getAuthorsString([author])} from the do-not-archive list.`,
+            content: `Successfully removed ${getAuthorsString([author])} from the thank you blacklist.`,
         });
     }
 
     async listBlacklist(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
-        const blacklistedUsers = guildHolder.getConfigManager().getConfig(GuildConfigs.BLACKLISTED_USERS);
+        const blacklistedUsers = guildHolder.getConfigManager().getConfig(GuildConfigs.THANKS_BLACKLIST);
         if (blacklistedUsers.length === 0) {
-            await replyEphemeral(interaction, 'The do-not-archive list is empty.');
+            await replyEphemeral(interaction, 'The thank you blacklist is empty.');
             return;
         }
 
-        const response = `## Current Do-Not-Archive user list:\n` + blacklistedUsers.map(user => {
-            return `- ${getAuthorsString([user.author])}: ${user.reason}`;
+        const response = `## Current Thank You Blacklist:\n` + blacklistedUsers.map(user => {
+            return `- ${getAuthorsString([user])}: ${user.reason}`;
         }).join('\n');
 
         const chunks = splitIntoChunks(response, 2000);

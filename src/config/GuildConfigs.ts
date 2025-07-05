@@ -57,5 +57,7 @@ export const GuildConfigs = {
     /**
      * User blacklist
      */
-    BLACKLISTED_USERS: new Config<{author: Author, reason: string}[]>("blacklistedUsers", []),
+    THANKS_BLACKLIST: new Config<Author[]>("thanksBlacklist", []),
+
+    
 }

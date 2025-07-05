@@ -6,7 +6,7 @@ import { GuildConfigs } from "./config/GuildConfigs.js";
 import { SubmissionsManager } from "./submissions/SubmissionsManager.js";
 import { RepositoryManager } from "./archive/RepositoryManager.js";
 import { ArchiveEntryData } from "./archive/ArchiveEntry.js";
-import { escapeDiscordString, getAuthorsString, getChanges, truncateStringWithEllipsis } from "./utils/Util.js";
+import { areAuthorsSame, escapeDiscordString, getAuthorsString, getChanges, truncateStringWithEllipsis } from "./utils/Util.js";
 import { UserManager } from "./support/UserManager.js";
 import { UserData } from "./support/UserData.js";
 import { SubmissionConfigs } from "./submissions/SubmissionConfigs.js";
@@ -269,6 +269,12 @@ export class GuildHolder {
             return;
         }
 
+        // Check if in blacklist
+        const blacklistedUsers = this.getConfigManager().getConfig(GuildConfigs.THANKS_BLACKLIST);
+        if (blacklistedUsers.some(user => user.id === thanksRecieverID)) {
+            return;
+        }
+
         // get user data for reciever
         let userData = await this.userManager.getUserData(thanksRecieverID);
         if (!userData) {
@@ -294,17 +300,17 @@ export class GuildHolder {
             };
         };
 
-        const doesSenderHaveEnoughPoints = senderData.thankedBuffer.length >= this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_THRESHOLD);
+        // const doesSenderHaveEnoughPoints = senderData.thankedBuffer.length >= this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_THRESHOLD);
 
 
         // Check if the sender has already thanked the receiver in the last 24 hours
         const now = Date.now();
-        const minTime = doesSenderHaveEnoughPoints ? (7 * 24 * 60 * 60 * 1000): (24 * 60 * 60 * 1000);
+        const minTime = 24 * 60 * 60 * 1000; // 24 hours
         if (senderData.lastThanked && (now - senderData.lastThanked < minTime)) {
             const embed = new EmbedBuilder()
                 .setColor(0x00FF00) // Green color for thank you message
                 .setTitle(`No Points Given!`)
-                .setDescription(`You've already given a point to someone in the last ${doesSenderHaveEnoughPoints ? '7 days' : '24 hours'}. Thank you anyway for being great!`)
+                .setDescription(`You've already given a point to someone in the last 24 hours. Thank you anyway for being great!`)
                 .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
             await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
             return;
