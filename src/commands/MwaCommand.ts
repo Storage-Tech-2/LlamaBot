@@ -234,6 +234,20 @@ export class Mwa implements Command {
         interaction.reply({
             content: `Successfully added ${getAuthorsString([author])} to the thank you blacklist for reason: ${reason}`,
         });
+
+        const member = await guildHolder.getGuild().members.fetch(author.id || '').catch(() => null);
+        if (!member) {
+            return;
+        }
+
+        const userData = await guildHolder.getUserManager().getUserData(member.id);
+        if (!userData) {
+            return;
+        }
+
+        await guildHolder.checkHelper(userData, member).catch(e => {
+            console.error(`Error checking helper role for user ${author.id}:`, e);
+        });
     }
 
     async removeFromBlacklist(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
@@ -261,6 +275,20 @@ export class Mwa implements Command {
 
         interaction.reply({
             content: `Successfully removed ${getAuthorsString([author])} from the thank you blacklist.`,
+        });
+
+          const member = await guildHolder.getGuild().members.fetch(author.id || '').catch(() => null);
+        if (!member) {
+            return;
+        }
+
+        const userData = await guildHolder.getUserManager().getUserData(member.id);
+        if (!userData) {
+            return;
+        }
+
+        await guildHolder.checkHelper(userData, member).catch(e => {
+            console.error(`Error checking helper role for user ${author.id}:`, e);
         });
     }
 
