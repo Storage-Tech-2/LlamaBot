@@ -306,14 +306,24 @@ export class GuildHolder {
         // Check if the sender has already thanked the receiver in the last 24 hours
         const now = Date.now();
         const minTime = 24 * 60 * 60 * 1000; // 24 hours
-        if (senderData.lastThanked && (now - senderData.lastThanked < minTime)) {
+        // if (senderData.lastThanked && (now - senderData.lastThanked < minTime)) {
+        //     const embed = new EmbedBuilder()
+        //         .setColor(0x00FF00) // Green color for thank you message
+        //         .setTitle(`No Points Given!`)
+        //         .setDescription(`You've already given a point to someone in the last 24 hours. Thank you anyway for being great!`)
+        //         .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
+        //     await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
+        //     return;
+        // }
+        if (userData.thankedBuffer.some(thank => thank.thankedBy === thanksSenderID && now - thank.timestamp < minTime)) {
             const embed = new EmbedBuilder()
                 .setColor(0x00FF00) // Green color for thank you message
-                .setTitle(`No Points Given!`)
-                .setDescription(`You've already given a point to someone in the last 24 hours. Thank you anyway for being great!`)
+                .setTitle(`Point Already Given!`)
+                .setDescription(`You've already thanked <@${thanksRecieverID}> in the last 24 hours. Thank you anyway for being great!`)
                 .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
             await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
-            return;
+
+            return; // Already thanked in the last 24 hours
         }
 
         // Add the thank you to the buffer
