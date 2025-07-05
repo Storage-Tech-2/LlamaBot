@@ -244,6 +244,12 @@ export class GuildHolder {
         const thanksSenderID = message.author.id;
         const thanksRecieverID = originalMessage.author.id;
 
+        // Check if in blacklist
+        const blacklistedUsers = this.getConfigManager().getConfig(GuildConfigs.THANKS_BLACKLIST);
+        if (blacklistedUsers.some(user => user.id === thanksSenderID)) {
+            return;
+        }
+
         // Check if the sender and receiver are the same
         if (thanksSenderID === thanksRecieverID) {
             const embed = new EmbedBuilder()
@@ -266,12 +272,6 @@ export class GuildHolder {
                     .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
                 await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
             }
-            return;
-        }
-
-        // Check if in blacklist
-        const blacklistedUsers = this.getConfigManager().getConfig(GuildConfigs.THANKS_BLACKLIST);
-        if (blacklistedUsers.some(user => user.id === thanksSenderID)) {
             return;
         }
 
