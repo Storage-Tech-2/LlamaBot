@@ -271,7 +271,7 @@ export class GuildHolder {
 
         // Check if in blacklist
         const blacklistedUsers = this.getConfigManager().getConfig(GuildConfigs.THANKS_BLACKLIST);
-        if (blacklistedUsers.some(user => user.id === thanksRecieverID)) {
+        if (blacklistedUsers.some(user => user.id === thanksSenderID)) {
             return;
         }
 
@@ -324,6 +324,18 @@ export class GuildHolder {
             await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
 
             return; // Already thanked in the last 24 hours
+        }
+
+        // check if reciever is blacklisted
+        const blacklistedReciever = this.getConfigManager().getConfig(GuildConfigs.THANKS_BLACKLIST).find(user => user.id === thanksRecieverID);
+        if (blacklistedReciever) {
+            const embed = new EmbedBuilder()
+                .setColor(0xFF0000) // Red color for error message
+                .setTitle(`User Blacklisted!`)
+                .setDescription(`<@${thanksRecieverID}> is blacklisted from receiving points because of reason: ${blacklistedReciever.reason}. Thank you for appreciating them anyway!`)
+                .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
+            await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
+            return;
         }
 
         // Add the thank you to the buffer
