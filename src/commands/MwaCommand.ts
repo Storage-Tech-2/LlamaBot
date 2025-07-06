@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, InteractionContextType, ChannelType, ActionRowBuilder, ForumChannel, GuildForumTag, SortOrderType, Snowflake, CategoryChannel } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, InteractionContextType, ChannelType, ActionRowBuilder, ForumChannel, GuildForumTag, SortOrderType, Snowflake, CategoryChannel, MessageFlags } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { areAuthorsSame, getAuthorFromIdentifier, getAuthorsString, getCodeAndDescriptionFromTopic, replyEphemeral, splitIntoChunks } from "../utils/Util.js";
@@ -304,9 +304,11 @@ export class Mwa implements Command {
         }).join('\n');
 
         const chunks = splitIntoChunks(response, 2000);
-        await interaction.reply({ content: chunks[0] });
+        const message = await interaction.reply({ content: 'pending...', flags: MessageFlags.SuppressNotifications });
+        await message.edit({ content: chunks[0] });
         for (let i = 1; i < chunks.length; i++) {
-            await interaction.followUp({ content: chunks[i] });
+            const message = await interaction.followUp({ content: 'pending...', flags: MessageFlags.SuppressNotifications});
+            await message.edit({ content: chunks[i] });
         }
     }
 
