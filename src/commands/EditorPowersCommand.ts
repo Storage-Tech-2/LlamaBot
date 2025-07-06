@@ -211,7 +211,7 @@ export class EditorPowersCommand implements Command {
                 submission.getConfigManager().setConfig(SubmissionConfigs.REJECTION_REASON, reason);
                 await submission.statusUpdated();
                 await interaction.reply({
-                    content: `<@${interaction.user.id}> has rejected this submission. It is no longer archived and cannot be archived in the future without a new post. Reason: ${reason || 'No reason provided'}`,
+                    content: `<@${interaction.user.id}> has rejected this submission. It cannot be archived in the future without a new post. Reason: ${reason || 'No reason provided'}`,
                 });
                 break;
             }
