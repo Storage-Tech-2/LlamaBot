@@ -88,11 +88,7 @@ export class EditCommand implements Command {
                 break;
             }
             case 'channel': {
-                const row = new ActionRowBuilder()
-                    .addComponents(await new SetArchiveCategoryMenu().getBuilder(guildHolder))
-                await replyEphemeral(interaction, `Please select an archive category`, {
-                    components: [row]
-                })
+                await SetArchiveCategoryMenu.sendArchiveCategorySelector(submission, interaction);
                 break;
             }
             case 'tags': {

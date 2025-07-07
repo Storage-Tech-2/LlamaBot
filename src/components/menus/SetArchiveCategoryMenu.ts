@@ -1,9 +1,10 @@
-import { ActionRowBuilder, ChannelType, Snowflake, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
+import { ActionRowBuilder, ChannelType, Interaction, Message, Snowflake, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
 import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
 import { GuildConfigs } from "../../config/GuildConfigs.js";
 import { SetArchiveChannelMenu } from "./SetArchiveChannelMenu.js";
+import { Submission } from "../../submissions/Submission.js";
 
 export class SetArchiveCategoryMenu implements Menu {
     getID(): string {
@@ -12,7 +13,7 @@ export class SetArchiveCategoryMenu implements Menu {
 
     async getBuilder(guildHolder: GuildHolder): Promise<StringSelectMenuBuilder> {
         const channels = await guildHolder.getGuild().channels.fetch()
-        const currentCategories = guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS) as Snowflake[] || [];
+        const currentCategories = guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS) as Snowflake[];
         // const categoryChannels = channels.filter(channel => {
         //     return channel && channel.type === ChannelType.GuildCategory && currentCategories.includes(channel.id)
         // }) as unknown as Collection<Snowflake, CategoryChannel>;
@@ -85,6 +86,29 @@ export class SetArchiveCategoryMenu implements Menu {
             components: [row]
         })
 
+    }
+
+    public static async sendArchiveCategorySelector(submission: Submission, interaction: Interaction): Promise<Message> {
+
+        const categories = submission.getGuildHolder().getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
+        if (categories.length === 0) {
+            return await replyEphemeral(interaction, `No archive categories have been set for this server. Please set them using \`/mwa setarchives\` command.`);
+        }
+
+        if (categories.length === 1) {
+            const categoryId = categories[0];
+            const row = new ActionRowBuilder()
+                .addComponents(await new SetArchiveChannelMenu().getBuilder(submission.getGuildHolder(), categoryId, submission))
+            return await replyEphemeral(interaction, `Please select an archive channel`, {
+                components: [row]
+            })
+        } else {
+            const row = new ActionRowBuilder()
+                .addComponents(await new SetArchiveCategoryMenu().getBuilder(submission.getGuildHolder()))
+            return await replyEphemeral(interaction, `Please select an archive category for your submission`, {
+                components: [row as any],
+            })
+        }
     }
 
 }

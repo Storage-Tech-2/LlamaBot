@@ -131,41 +131,12 @@ export class AddAuthorModal implements Modal {
             flags: MessageFlags.SuppressNotifications
         });
 
-        // const blacklist = guildHolder.getConfigManager().getConfig(GuildConfigs.BLACKLISTED_USERS);
-        // const blacklistedAuthors = blacklist.filter(entry => {
-        //     return currentAuthors.some(b => !b.dontDisplay && areAuthorsSame(b, entry.author));
-        // });
-        // if (blacklistedAuthors.length > 0) {
-        //     const msg = `Warning: The following authors are on the Do-not-archive list:\n` + blacklistedAuthors.map(entry => {
-        //         return `- ${getAuthorsString([entry.author])}: ${entry.reason || 'No reason provided'}`;
-        //     }).join('\n');
-        //     const split = splitIntoChunks(msg, 2000);
-        //     for (let i = 0; i < split.length; i++) {
-        //         if (!interaction.replied) {
-        //             await interaction.reply({
-        //                 content: split[0],
-        //                 flags: [MessageFlags.SuppressNotifications]
-        //             });
-        //         } else {
-        //             await interaction.followUp({
-        //                 content: split[i],
-        //                 flags: [MessageFlags.SuppressNotifications]
-        //             });
-        //         }
-        //     }
-        // }
-
-
         await SetAuthorsMenu.sendAuthorsMenuAndButton(submission, interaction);
 
         await submission.statusUpdated();
 
         if (isFirstTime) {
-            const row = new ActionRowBuilder()
-                .addComponents(await new SetArchiveCategoryMenu().getBuilder(guildHolder))
-            await replyEphemeral(interaction, `Please select an archive category for your submission`, {
-                components: [row as any],
-            })
+            await SetArchiveCategoryMenu.sendArchiveCategorySelector(submission, interaction);
         }
     }
 }

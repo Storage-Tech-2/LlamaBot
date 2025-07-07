@@ -162,13 +162,7 @@ export class SetAuthorsMenu implements Menu {
         // }
 
         if (isFirstTime) {
-            const row = new ActionRowBuilder()
-                .addComponents(await new SetArchiveCategoryMenu().getBuilder(guildHolder))
-            await interaction.followUp({
-                content: `Please select an archive category for your submission`,
-                components: [row as any],
-                flags: MessageFlags.Ephemeral
-            })
+            await SetArchiveCategoryMenu.sendArchiveCategorySelector(submission, interaction);
         }
 
         submission.checkReview()
@@ -272,13 +266,7 @@ export class SetAuthorsMenu implements Menu {
         // }
 
         if (isFirstTime) {
-            const row = new ActionRowBuilder()
-                .addComponents(await new SetArchiveCategoryMenu().getBuilder(guildHolder))
-            await interaction.followUp({
-                content: `Please select an archive category for your submission`,
-                components: [row as any],
-                flags: MessageFlags.Ephemeral
-            })
+            await SetArchiveCategoryMenu.sendArchiveCategorySelector(submission, interaction);
         }
 
         submission.checkReview()
