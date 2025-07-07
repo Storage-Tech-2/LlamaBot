@@ -277,7 +277,7 @@ export class Mwa implements Command {
             content: `Successfully removed ${getAuthorsString([author])} from the thank you blacklist.`,
         });
 
-          const member = await guildHolder.getGuild().members.fetch(author.id || '').catch(() => null);
+        const member = await guildHolder.getGuild().members.fetch(author.id || '').catch(() => null);
         if (!member) {
             return;
         }
@@ -307,7 +307,7 @@ export class Mwa implements Command {
         const message = await interaction.reply({ content: 'pending...', flags: MessageFlags.SuppressNotifications });
         await message.edit({ content: chunks[0] });
         for (let i = 1; i < chunks.length; i++) {
-            const message = await interaction.followUp({ content: 'pending...', flags: MessageFlags.SuppressNotifications});
+            const message = await interaction.followUp({ content: 'pending...', flags: MessageFlags.SuppressNotifications });
             await message.edit({ content: chunks[i] });
         }
     }
@@ -479,134 +479,146 @@ export class Mwa implements Command {
 
         await interaction.deferReply()
 
-        const tags = submissionChannel.availableTags.filter(tag => {
-            return !SubmissionTags.some(t => t.name === tag.name)
-        })
-        const newTags = SubmissionTags.map((t) => {
-            const existingTag = submissionChannel.availableTags.find(tag => tag.name === t.name);
-            if (existingTag) {
-                return existingTag;
-            }
-            return t;
-        }).concat(tags);
+        let channels;
+        try {
 
-        await submissionChannel.setAvailableTags(newTags);
-        await submissionChannel.setDefaultReactionEmoji({
-            name: '👍',
-            id: null
-        });
-
-        const currentCategories = guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
-
-        const allchannels = await guildHolder.getGuild().channels.fetch()
-
-        // get all categories in the guild
-        const categories = guildHolder.getGuild().channels.cache.filter(channel => {
-            return channel && channel.type === ChannelType.GuildCategory && currentCategories.includes(channel.id)
-        });
-
-        const endorserRoles = guildHolder.getConfigManager().getConfig(GuildConfigs.ENDORSE_ROLE_IDS);
-        const editorRoles = guildHolder.getConfigManager().getConfig(GuildConfigs.EDITOR_ROLE_IDS);
-
-        for (const category of categories.values()) {
-            // set permissions
-            if (category.type !== ChannelType.GuildCategory) {
-                continue;
-            }
-
-            const permissions = category.permissionOverwrites;
-            await permissions.edit(guildHolder.getGuild().roles.everyone, {
-                SendMessages: false,
-                SendMessagesInThreads: false,
-                CreatePrivateThreads: false,
-                CreatePublicThreads: false,
+            const tags = submissionChannel.availableTags.filter(tag => {
+                return !SubmissionTags.some(t => t.name === tag.name)
             })
-
-            for (const endorserRole of endorserRoles) {
-                await permissions.edit(endorserRole, {
-                    SendMessagesInThreads: true,
-                })
-            }
-
-            for (const editorRole of editorRoles) {
-                await permissions.edit(editorRole, {
-                    SendMessagesInThreads: true,
-                    ManageThreads: true,
-                    ManageMessages: true,
-                    ManageChannels: true,
-                })
-            }
-        }
-
-        // get all channels in categories
-        const channels = allchannels.filter(channel => {
-            return channel && channel.type === ChannelType.GuildForum && channel.parentId && currentCategories.includes(channel.parentId)
-        }) as unknown as ForumChannel[];
-
-        const basicTags: GuildForumTag[] = [
-            {
-                name: 'Untested',
-                emoji: { name: '⁉️' }
-            },
-            {
-                name: 'Broken',
-                emoji: { name: '💔' }
-            },
-            {
-                name: 'Tested & Functional',
-                emoji: { name: '✅' }
-            },
-            {
-                name: 'Recommended',
-                emoji: { name: '⭐' },
-                moderated: true
-            }
-        ] as GuildForumTag[];
-        // check each channel
-
-        const codeMap = new Map<Snowflake, string>();
-        for (const channel of channels.values()) {
-            const tags = channel.availableTags.filter(tag => {
-                return !basicTags.some(t => t.name === tag.name)
-            })
-            const newTags = basicTags.map((t) => {
-                const existingTag = channel.availableTags.find(tag => tag.name === t.name);
+            const newTags = SubmissionTags.map((t) => {
+                const existingTag = submissionChannel.availableTags.find(tag => tag.name === t.name);
                 if (existingTag) {
                     return existingTag;
                 }
                 return t;
             }).concat(tags);
-            await channel.setAvailableTags(newTags)
-            await channel.setDefaultReactionEmoji({
+
+            await submissionChannel.setAvailableTags(newTags);
+            await submissionChannel.setDefaultReactionEmoji({
                 name: '👍',
                 id: null
-            })
-            // await channel.setDefaultForumLayout(ForumLayoutType.ListView)
-            await channel.setDefaultSortOrder(SortOrderType.CreationDate)
+            });
 
-            // check if topic exists
-            if (channel.topic) {
-                const { code } = getCodeAndDescriptionFromTopic(channel.topic);
-                if (code) {
-                    codeMap.set(channel.id, code);
+            const currentCategories = guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
+
+            const allchannels = await guildHolder.getGuild().channels.fetch()
+
+            // get all categories in the guild
+            const categories = guildHolder.getGuild().channels.cache.filter(channel => {
+                return channel && channel.type === ChannelType.GuildCategory && currentCategories.includes(channel.id)
+            });
+
+            const endorserRoles = guildHolder.getConfigManager().getConfig(GuildConfigs.ENDORSE_ROLE_IDS);
+            const editorRoles = guildHolder.getConfigManager().getConfig(GuildConfigs.EDITOR_ROLE_IDS);
+
+            for (const category of categories.values()) {
+                // set permissions
+                if (category.type !== ChannelType.GuildCategory) {
+                    continue;
+                }
+
+                const permissions = category.permissionOverwrites;
+
+                await permissions.edit(guildHolder.getGuild().roles.everyone, {
+                    SendMessages: false,
+                    SendMessagesInThreads: false,
+                    CreatePrivateThreads: false,
+                    CreatePublicThreads: false,
+                });
+
+
+                for (const endorserRole of endorserRoles) {
+                    await permissions.edit(endorserRole, {
+                        SendMessagesInThreads: true,
+                    })
+                }
+
+                for (const editorRole of editorRoles) {
+                    await permissions.edit(editorRole, {
+                        SendMessagesInThreads: true,
+                        ManageThreads: true,
+                        ManageMessages: true,
+                        ManageChannels: true,
+                    })
+                }
+            }
+
+            // get all channels in categories
+            channels = allchannels.filter(channel => {
+                return channel && channel.type === ChannelType.GuildForum && channel.parentId && currentCategories.includes(channel.parentId)
+            }) as unknown as ForumChannel[];
+
+            const basicTags: GuildForumTag[] = [
+                {
+                    name: 'Untested',
+                    emoji: { name: '⁉️' }
+                },
+                {
+                    name: 'Broken',
+                    emoji: { name: '💔' }
+                },
+                {
+                    name: 'Tested & Functional',
+                    emoji: { name: '✅' }
+                },
+                {
+                    name: 'Recommended',
+                    emoji: { name: '⭐' },
+                    moderated: true
+                }
+            ] as GuildForumTag[];
+            // check each channel
+
+            const codeMap = new Map<Snowflake, string>();
+            for (const channel of channels.values()) {
+                const tags = channel.availableTags.filter(tag => {
+                    return !basicTags.some(t => t.name === tag.name)
+                })
+                const newTags = basicTags.map((t) => {
+                    const existingTag = channel.availableTags.find(tag => tag.name === t.name);
+                    if (existingTag) {
+                        return existingTag;
+                    }
+                    return t;
+                }).concat(tags);
+                await channel.setAvailableTags(newTags)
+                await channel.setDefaultReactionEmoji({
+                    name: '👍',
+                    id: null
+                })
+                // await channel.setDefaultForumLayout(ForumLayoutType.ListView)
+                await channel.setDefaultSortOrder(SortOrderType.CreationDate)
+
+                // check if topic exists
+                if (channel.topic) {
+                    const { code } = getCodeAndDescriptionFromTopic(channel.topic);
+                    if (code) {
+                        codeMap.set(channel.id, code);
+                    } else {
+                        interaction.editReply(`Error: Channel ${channel.name} does not have a valid code in the topic. Please set the topic to include a code in the format "Code: <code>"`);
+                        return;
+                    }
                 } else {
-                    interaction.editReply(`Error: Channel ${channel.name} does not have a valid code in the topic. Please set the topic to include a code in the format "Code: <code>"`);
+                    interaction.editReply(`Error: Channel ${channel.name} does not have a topic set. Please set the topic to include a code in the format "Code: <code>"`)
                     return;
                 }
-            } else {
-                interaction.editReply(`Error: Channel ${channel.name} does not have a topic set. Please set the topic to include a code in the format "Code: <code>"`)
+            }
+
+
+            // Check if codemap has duplicates
+            const codes = Array.from(codeMap.values());
+            const duplicates = codes.filter((code, index) => codes.indexOf(code) !== index);
+            if (duplicates.length > 0) {
+                await interaction.editReply(`Error: The following codes are duplicated across channels: ${duplicates.join(', ')}`);
                 return;
             }
-        }
 
-
-        // Check if codemap has duplicates
-        const codes = Array.from(codeMap.values());
-        const duplicates = codes.filter((code, index) => codes.indexOf(code) !== index);
-        if (duplicates.length > 0) {
-            await interaction.editReply(`Error: The following codes are duplicated across channels: ${duplicates.join(', ')}`);
+        } catch (error: any) {
+            console.error('Error setting up archives:', error);
+            await interaction.editReply(`An error occurred while setting up archives. ${error.message}`);
             return;
         }
+
 
         // Print each channel and its code
         // let response = 'Channel codes:\n';
