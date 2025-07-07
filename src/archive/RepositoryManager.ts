@@ -4,7 +4,7 @@ import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
 import { AnyThreadChannel, AttachmentBuilder, ChannelType, ChatInputCommandInteraction, EmbedBuilder, ForumChannel, ForumLayoutType, GuildTextBasedChannel, Message, MessageFlags, Snowflake } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
-import { areAuthorsListEqual, areAuthorsSame, deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getChangeIDs, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
+import { areAuthorsListEqual, areAuthorsSame, deepClone, escapeString, generateCommitMessage, getAttachmentsFromMessage, getChangeIDs, getChangeNames, getCodeAndDescriptionFromTopic, getFileKey, getGithubOwnerAndProject, processAttachments, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";
 import { Submission } from "../submissions/Submission.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
@@ -744,7 +744,7 @@ export class RepositoryManager {
 
         if (existing) {
             const existingData = existing.entry.getData();
-            if (getChangeIDs(existingData.attachments, newEntryData.attachments)) {
+            if (getChangeIDs(existingData.attachments, newEntryData.attachments) || getChangeNames(existingData.attachments, newEntryData.attachments)) {
                 newEntryData.post.uploadMessageId = '';
             } else if (existingData.post) {
                 newEntryData.post.uploadMessageId = existingData.post.uploadMessageId;
