@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, Client, Events, GatewayIntentBits, SelectMenuInteraction } from "discord.js";
+import { ChatInputCommandInteraction, Client, Events, GatewayIntentBits, Message, SelectMenuInteraction } from "discord.js";
 import { GuildHolder } from "./GuildHolder.js";
 import { LLMQueue } from "./llm/LLMQueue.js";
 import path from "path";
@@ -89,6 +89,7 @@ export class Bot {
 
         this.client = new Client({
             intents: [
+                GatewayIntentBits.DirectMessages,
                 GatewayIntentBits.Guilds,
                 GatewayIntentBits.GuildMessages,
                 GatewayIntentBits.MessageContent,
@@ -218,7 +219,10 @@ export class Bot {
 
         this.client.on(Events.MessageCreate, async (message) => {
             if (message.author.bot) return
-            if (!message.inGuild()) return
+            if (!message.inGuild()) {
+                this.handleAdminMessage(message)
+                return
+            }
 
             const guildHolder = this.guilds.get(message.guildId)
             if (!guildHolder) return
@@ -342,5 +346,48 @@ export class Bot {
             throw new Error(`Failed to get GitHub installation token for organization ${orgId}`);
         }
         return response.data.token;
+    }
+
+    public async handleAdminMessage(message: Message) {
+        // Check if dm and author is `239078039831445504`
+        if (message.inGuild()) return;
+        if (message.author.id !== '239078039831445504') return;
+        
+        // Check if the message starts with `/`
+        if (!message.content.startsWith('/')) {
+            return;
+        }
+
+        // Split the message into command and args
+        const args = message.content.slice(1).trim().split(/ +/);
+        const commandName = args.shift()?.toLowerCase();
+        if (!commandName) {
+            return message.reply('Please provide a command.');
+        }
+
+        // Check if its refresh
+        if (commandName === 'refresh') {
+           
+            await message.reply('Running git pull...');
+            try {
+                await fs.access(path.join(process.cwd(), '.git'));
+                const { exec } = await import('child_process');
+                exec('git pull', { cwd: process.cwd() }, async (error, stdout, stderr) => {
+                    if (error) {
+                        console.error(`Error pulling changes: ${error.message}`);
+                        return message.reply(`Error pulling changes: ${error.message}`);
+                    }
+                    console.log(`Git pull output: ${stdout}`);
+                    return message.reply('Bot refreshed successfully!');
+                });
+            } catch (err) {
+                console.error('Not a git repository:', err);
+                return message.reply('Not a git repository. Cannot refresh.');
+            }
+        } else {
+            return message.reply(`Unknown command: ${commandName}`);
+        }
+
+
     }
 }
