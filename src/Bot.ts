@@ -224,10 +224,7 @@ export class Bot {
 
         this.client.on(Events.MessageCreate, async (message) => {
             if (message.partial) {
-                message.fetch()
-                    .then(fullMessage => {
-                        console.log(fullMessage.content);
-                    })
+                await message.fetch()
                     .catch(error => {
                         console.log('Something went wrong when fetching the message: ', error);
                     });
@@ -253,10 +250,7 @@ export class Bot {
 
         this.client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
             if (newMessage.partial) {
-                newMessage.fetch()
-                    .then(fullMessage => {
-                        console.log(fullMessage.content);
-                    })
+                await newMessage.fetch()
                     .catch(error => {
                         console.log('Something went wrong when fetching the message: ', error);
                     });
