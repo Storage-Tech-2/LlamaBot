@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ChannelType, Message, MessageReferenceType, Snowflake, TextThreadChannel } from "discord.js";
+import { ActionRowBuilder, AnyThreadChannel, ChannelType, Message, MessageReferenceType, Snowflake, TextThreadChannel } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
@@ -736,6 +736,41 @@ export class Submission {
         this.getConfigManager().setConfig(SubmissionConfigs.STATUS, SubmissionStatus.RETRACTED);
         await this.statusUpdated();
         this.publishLock = false;
+
+    }
+
+    public async handleThreadUpdate(oldThread: AnyThreadChannel, newThread: AnyThreadChannel) {
+        // check if name changed
+        if (oldThread.name !== newThread.name) {
+            this.getConfigManager().setConfig(SubmissionConfigs.NAME, newThread.name);
+
+            const channel = await this.getSubmissionChannel();
+            if (!channel) {
+                return; // No channel found, cannot update thread name
+            }
+
+            // update status
+            await this.statusUpdated();
+            // update revisions
+            const revisions = this.getRevisionsManager().getRevisionsList();
+            for (const revisionRef of revisions) {
+                const revision = await this.getRevisionsManager().getRevisionById(revisionRef.id);
+                if (!revision) {
+                    continue; // Skip if revision not found
+                }
+                const topMessage = await newThread.messages.fetch(revision.messageIds[0]).catch(() => null);
+                if (topMessage) {
+                    // Update the revision message with the new thread name
+                    const messages = await Promise.all(revision.messageIds.map(async (messageId) => {
+                        return await channel.messages.fetch(messageId);
+                    }));
+                    await RevisionEmbed.editRevisionMessages(messages, this, revision, revisionRef.isCurrent);
+                } else {
+                    console.warn(`Top message for revision ${revision.id} not found in thread ${newThread.id}`);
+                }
+
+            }
+        }
 
     }
 

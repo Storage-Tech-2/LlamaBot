@@ -210,6 +210,16 @@ export class GuildHolder {
             this.getRepositoryManager().handlePostThreadUpdate(oldThread, newThread).catch(e => {
                 console.error('Error handling post thread update:', e);
             });
+        } else if (newThread.parentId === this.getSubmissionsChannelId()) {
+            const submissionId = newThread.id;
+            try {
+                const submission = await this.submissions.getSubmission(submissionId);
+                if (submission) {
+                    await submission.handleThreadUpdate(oldThread, newThread);
+                }
+            } catch (e) {
+                console.error('Error handling submission thread deletion:', e);
+            }
         }
     }
 
