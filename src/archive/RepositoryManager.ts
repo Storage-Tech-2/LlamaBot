@@ -787,8 +787,9 @@ export class RepositoryManager {
         const entryPathPart = `${archiveChannelRef.path}/${entryRef.path}`;
         const attachmentUpload = await PostEmbed.createAttachmentUpload(entryFolderPath, newEntryData);
 
+        const hasUploadAttachments = attachmentUpload.files.length > 0;
         let uploadMessage;
-        if (newEntryData.post && newEntryData.post.uploadMessageId) {
+        if (newEntryData.post && newEntryData.post.uploadMessageId && hasUploadAttachments) {
             uploadMessage = await uploadChannel.messages.fetch(newEntryData.post.uploadMessageId).catch(() => null);
         }
 
@@ -825,9 +826,12 @@ export class RepositoryManager {
         // Next, create the post
         const message = PostEmbed.createInitialMessage(this.guildHolder, newEntryData, entryPathPart);
         const messageChunks = splitIntoChunks(message, 2000);
-        const attachmentMessageChunks = splitIntoChunks(await PostEmbed.createAttachmentMessage(this.guildHolder, newEntryData, branchName, entryPathPart, uploadMessage), 2000);
 
-        messageChunks.push(...attachmentMessageChunks);
+        const hasAttachments = newEntryData.attachments.length > 0;
+        if (hasAttachments) {
+            const attachmentMessageChunks = splitIntoChunks(await PostEmbed.createAttachmentMessage(this.guildHolder, newEntryData, branchName, entryPathPart, uploadMessage), 2000);
+            messageChunks.push(...attachmentMessageChunks);
+        }
 
         let wasThreadCreated = false;
         if (!thread) {
