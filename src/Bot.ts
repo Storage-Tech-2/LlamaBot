@@ -220,7 +220,7 @@ export class Bot {
         this.client.on(Events.MessageCreate, async (message) => {
             if (message.author.bot) return
             if (!message.inGuild()) {
-                this.handleAdminMessage(message)
+                await this.handleAdminMessage(message)
                 return
             }
 
@@ -350,12 +350,13 @@ export class Bot {
 
     public async handleAdminMessage(message: Message) {
         // Check if dm and author is `239078039831445504`
+        console.log(`Received admin message: ${message.content} from ${message.author.tag} (${message.author.id})`);
         if (message.inGuild()) return;
         if (message.author.id !== '239078039831445504') return;
         
         // Check if the message starts with `/`
         if (!message.content.startsWith('/')) {
-            return;
+            return message.reply('Please start your command with `/`');
         }
 
         // Split the message into command and args
