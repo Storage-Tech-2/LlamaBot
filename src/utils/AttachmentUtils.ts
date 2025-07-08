@@ -465,6 +465,7 @@ export async function refreshAttachments(
                     attachment_urls: expiringAttachments.map(a => a.url)
                 },
             }) as any;
+            console.log(JSON.stringify(result, null, 2));
             if (!result || !result.refreshed_urls || !Array.isArray(result.refreshed_urls)) {
                 throw new Error('Invalid response from attachment refresh API');
             }
