@@ -766,7 +766,7 @@ export class RepositoryManager {
         await moveAttachments(newEntryData, imageFolder, attachmentFolder);
 
         if (reanalyzeAttachments) {
-            await analyzeAttachments(newEntryData.attachments, attachmentFolder);
+            await analyzeAttachments(newEntryData.attachments, entryFolderPath);
         }
 
         if (existing && isSameChannel) {
