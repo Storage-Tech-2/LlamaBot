@@ -632,11 +632,7 @@ async function iterateAllMessages(channel: TextBasedChannel, iterator: (message:
                 return;
             }
         }
-        if (messages.size < 100) {
-            messages = await channel.messages.fetch({ limit: 100, before: messages.last()?.id });
-        } else {
-            break; // If we fetched 100 messages, we assume there are no more
-        }
+        messages = await channel.messages.fetch({ limit: 100, before: messages.last()?.id });
     }
 }
 
