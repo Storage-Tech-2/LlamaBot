@@ -1,5 +1,5 @@
 import { Attachment } from "../submissions/Attachment.js";
-import { escapeString, getAuthorsString } from "../utils/Util.js";
+import { escapeDiscordString, escapeString, getAuthorsString } from "../utils/Util.js";
 import { ArchiveComment } from "./ArchiveComments.js";
 import { ArchiveEntryData } from "./ArchiveEntry.js";
 
@@ -10,6 +10,8 @@ function formatAttachment(attachment: Attachment): string {
         return `- [${attachment.name}](${encodeURI(attachment.path || '')}): ${attachment.wdl.error || `MC ${attachment.wdl.version}`}`;
     } else if (attachment.contentType === 'mediafire') {
         return `- [${attachment.name}](${attachment.url}): Mediafire link`;
+    } else if (attachment.youtube) {
+        return `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): YouTube video by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})`;
     } else if (attachment.contentType === 'youtube') {
         return `- ${attachment.url}: YouTube video`;
     }

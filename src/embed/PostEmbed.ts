@@ -60,11 +60,14 @@ export class PostEmbed {
 
         const litematics: Attachment[] = []
         const wdls: Attachment[] = []
+        const youtubeVideos: Attachment[] = []
         const others: Attachment[] = []
         const attachments = entryData.attachments;
         let description = `## Files for ${entryData.name}\n`;
         attachments.forEach(attachment => {
-            if (attachment.litematic) {
+            if (attachment.contentType === 'youtube') {
+                youtubeVideos.push(attachment);
+            } else if (attachment.litematic) {
                 litematics.push(attachment)
             } else if (attachment.wdl) {
                 wdls.push(attachment)
@@ -94,6 +97,17 @@ export class PostEmbed {
             wdls.forEach(attachment => {
                 const url = attachmentURLs.get(attachment.name) || attachment.url;
                 description += `- ${url}: ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}\n`
+            })
+        }
+
+        if (youtubeVideos.length) {
+            description += '**YouTube videos:**\n'
+            youtubeVideos.forEach(attachment => {
+                if (!attachment.youtube) {
+                    description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link\n`
+                    return;
+                }
+                description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube video by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})\n`
             })
         }
 

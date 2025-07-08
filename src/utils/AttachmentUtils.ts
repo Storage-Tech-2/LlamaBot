@@ -157,6 +157,32 @@ export async function processImageForDiscord(file_path: string, num_images: numb
     return output_path;
 }
 
+export async function handleYoutubeLink(attachment: Attachment) {
+    // https://noembed.com/embed?dataType=json&
+    const url = attachment.url;
+    const noEmbedAPI = 'https://noembed.com/embed?dataType=json&url=' + encodeURIComponent(url);
+    try {
+        const response = await got(noEmbedAPI, { responseType: 'json' });
+        if (response.statusCode !== 200) {
+            console.error(`Failed to fetch YouTube link details for ${url}: HTTP ${response.statusCode}`);
+            return;
+        }
+        const data = response.body as any;
+        attachment.youtube = {
+            title: data.title || 'Unknown Title',
+            author_name: data.author_name || 'Unknown Author',
+            author_url: data.author_url || '',
+            thumbnail_url: data.thumbnail_url || '',
+            thumbnail_width: data.thumbnail_width || 0,
+            thumbnail_height: data.thumbnail_height || 0,
+            width: data.width || 0,
+            height: data.height || 0,
+        };
+    } catch (error) {
+        console.error(`Failed to fetch YouTube link details for ${url}:`, error);
+    }
+}
+
 export async function processAttachments(attachments: Attachment[], attachments_folder: string, bot: Bot, remove_old: boolean = true): Promise<Attachment[]> {
     // Check if the folder exists, if not, create it
     if (attachments.length > 0) {
@@ -216,6 +242,9 @@ export async function processAttachments(attachments: Attachment[], attachments_
                 // Process zip files
                 await processWDLs(attachment, attachmentPath);
             }
+        } else if (attachment.contentType === 'youtube') {
+            // Process YouTube links
+            await handleYoutubeLink(attachment);
         }
     }));
 

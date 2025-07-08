@@ -91,9 +91,12 @@ export class SetAttachmentsMenu implements Menu {
 
         const litematics: Attachment[] = []
         const wdls: Attachment[] = []
+        const videos: Attachment[] = []
         const others: Attachment[] = []
         newAttachments.forEach(attachment => {
-            if (attachment.wdl) {
+            if (attachment.contentType === 'youtube') {
+                videos.push(attachment)
+            } else if (attachment.wdl) {
                 wdls.push(attachment)
             } else if (attachment.litematic) {
                 litematics.push(attachment)
@@ -116,6 +119,17 @@ export class SetAttachmentsMenu implements Menu {
             })
         }
 
+        if (videos.length) {
+            description += '**YouTube videos:**\n'
+            videos.forEach(attachment => {
+                if (!attachment.youtube) {
+                    description += `- [${escapeDiscordString(escapeString(attachment.name))}](${attachment.url}): YouTube link\n`
+                    return;
+                }
+                description += `- [${escapeDiscordString(escapeString(attachment.name))}](${attachment.url}): YouTube video by [${escapeDiscordString(attachment.youtube?.author_name)}](${attachment.youtube?.author_url})\n`
+            })
+        }
+
         if (others.length) {
             description += '**Other files:**\n'
             others.forEach(attachment => {
@@ -123,9 +137,6 @@ export class SetAttachmentsMenu implements Menu {
                 switch (attachment.contentType) {
                     case 'mediafire':
                         type = 'Mediafire link';
-                        break;
-                    case 'youtube':
-                        type = 'YouTube link';
                         break;
                     case 'discord':
                         type = 'Discord link';
