@@ -1295,7 +1295,7 @@ export class RepositoryManager {
             throw new Error("Git not initialized");
         }
 
-        const postId = message.channel.id;
+        const postId = message.channelId;
         const submissionId = await this.getSubmissionIDByPostID(postId);
         if (!submissionId || this.shouldIgnoreUpdates(submissionId)) {
             return;

@@ -168,7 +168,10 @@ export class GuildHolder {
      */
     public async handleMessageDelete(message: Message) {
         // Handle message inside archived post
-        if (message.channel.isThread() && message.channel.parentId && this.cachedChannelIds.includes(message.channel.parentId)) {
+        const channelId = message.channelId;
+        const channel = message.channel || await this.guild.channels.fetch(channelId).catch(() => null);
+
+        if (channel.isThread() && channel.parentId && this.cachedChannelIds.includes(channel.parentId)) {
             this.getRepositoryManager().handlePostMessageDelete(message).catch(e => {
                 console.error('Error handling post message:', e);
             });

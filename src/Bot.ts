@@ -278,7 +278,6 @@ export class Bot {
 
 
         this.client.on(Events.MessageDelete, async (message) => {
-            if (!message.author) return
             if (!message.inGuild()) return
 
             const guildHolder = this.guilds.get(message.guildId)
