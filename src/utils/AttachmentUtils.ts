@@ -9,6 +9,8 @@ import sharp from 'sharp'
 import { Litematic } from '@kleppe/litematic-reader'
 import { MCMeta } from './MCMeta.js'
 import { escapeString } from './Util.js'
+import yauzl from "yauzl"
+import nbt from 'prismarine-nbt'
 
 export async function processImages(images: Image[], download_folder: string, processed_folder: string, bot: Bot): Promise<Image[]> {
     if (images.length > 0) {
@@ -208,30 +210,62 @@ export async function processAttachments(attachments: Attachment[], attachments_
             }
 
             if (ext === 'litematic') {
-                try {
-                    const litematicFile = await fs.readFile(attachmentPath);
-                    const litematic = new Litematic(litematicFile as any)
-                    await litematic.read()
-
-                    const dataVersion = litematic.litematic?.nbtData.MinecraftDataVersion ?? 0;
-                    const version = mcMeta.getByDataVersion(dataVersion);
-                    const size = litematic.litematic?.blocks ?? { minx: 0, miny: 0, minz: 0, maxx: 0, maxy: 0, maxz: 0 };
-                    const sizeString = `${size.maxx - size.minx + 1}x${size.maxy - size.miny + 1}x${size.maxz - size.minz + 1}`
-                    attachment.litematic = {
-                        size: sizeString,
-                        version: version ? version.id : 'Unknown',
-                    }
-                } catch (error) {
-                    console.error('Error processing litematic file:', error)
-                    attachment.litematic = {
-                        error: 'Error processing litematic file'
-                    }
-                }
+                // Process litematic files
+                await processLitematic(attachment, attachmentPath, mcMeta);
+            } else if (ext === 'zip') {
+                // Process zip files
+                await processWDLs(attachment, attachmentPath);
             }
         }
     }));
 
     return attachments;
+}
+
+async function processLitematic(attachment: Attachment, attachmentPath: string, mcMeta: MCMeta): Promise<void> {
+    try {
+        const litematicFile = await fs.readFile(attachmentPath);
+        const litematic = new Litematic(litematicFile as any)
+        await litematic.read()
+
+        const dataVersion = litematic.litematic?.nbtData.MinecraftDataVersion ?? 0;
+        const version = mcMeta.getByDataVersion(dataVersion);
+        const size = litematic.litematic?.blocks ?? { minx: 0, miny: 0, minz: 0, maxx: 0, maxy: 0, maxz: 0 };
+        const sizeString = `${size.maxx - size.minx + 1}x${size.maxy - size.miny + 1}x${size.maxz - size.minz + 1}`
+        attachment.litematic = {
+            size: sizeString,
+            version: version ? version.id : 'Unknown',
+        }
+    } catch (error) {
+        console.error('Error processing litematic file:', error)
+        attachment.litematic = {
+            error: 'Error processing litematic file'
+        }
+    }
+}
+
+
+
+async function processWDLs(attachment: Attachment, attachmentPath: string): Promise<void> {
+    try {
+        const levelDat = await findFirstFileWithNameInZip(attachmentPath, 'level.dat');
+        if (!levelDat) {
+            return; // No level.dat found, nothing to process
+        }
+
+        const levelDatBuffer = levelDat;
+        const parsedNbt = await nbt.parse(levelDatBuffer);
+        const data = parsedNbt.parsed as any;
+        const version = data?.Data?.version?.Name;
+        if (!version) {
+            attachment.wdl = { error: 'Invalid Level.dat' };
+            return;
+        }
+
+        attachment.wdl = { version: version };
+    } catch (error) {
+        console.error('Error processing WDL file:', error);
+    }
 }
 
 async function iterateAllMessages(channel: TextBasedChannel, iterator: (message: Message) => Promise<boolean>) {
@@ -416,4 +450,80 @@ export function getFileKey(file: Attachment | Image, new_ext: string = '') {
     const escapedPrefix = escapeString(prefix)
     const escapedExt = ext ? `.${escapeString(ext)}` : ''
     return `${escapedPrefix}${escapedExt}`;
+}
+
+async function findFirstFileWithNameInZip(zipPath: string, fileName: string): Promise<Buffer | null> {
+    return new Promise((resolve, reject) => {
+        // 100 MB
+        const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
+        yauzl.open(zipPath, {
+            lazyEntries: true,
+            validateEntrySizes: true
+        }, (err, zipfile) => {
+            if (err) {
+                return reject(err);
+            }
+
+            zipfile.readEntry();
+            zipfile.on('entry', (entry) => {
+                const normalized = Path.posix.normalize(entry.fileName); // yauzl always gives / separators
+                const isDir = normalized.endsWith("/");
+                if (normalized.startsWith("../") || Path.isAbsolute(normalized)) {
+                    zipfile.close();                                               // hard-fail the whole archive
+                    return reject(new Error(`Path traversal detected: ${entry.fileName}`));
+                }
+
+                if (isDir) {
+                    zipfile.readEntry();                                           // nothing to extract
+                    return;
+                }
+
+                // Size checks
+                if (entry.uncompressedSize > MAX_FILE_SIZE) {
+                    zipfile.close();
+                    return reject(
+                        new Error(`Entry ${entry.fileName} is ${entry.uncompressedSize} bytes (> limit)`),
+                    );
+                }
+
+                if (Path.posix.basename(normalized) !== fileName) {
+                    zipfile.readEntry();
+                    return;
+                }
+
+                zipfile.openReadStream(entry, (err, readStream) => {
+                    if (err) {
+                        zipfile.close();
+                        return reject(err);
+                    }
+
+                    const chunks: Buffer[] = [];
+                    readStream.on('data', (chunk) => {
+                        chunks.push(chunk);
+                    });
+
+                    readStream.on('end', () => {
+                        const fileBuffer = Buffer.concat(chunks);
+                        zipfile.close();
+                        resolve(fileBuffer); // Return the file buffer
+                    });
+
+                    readStream.on('error', (error) => {
+                        zipfile.close();
+                        reject(error);
+                    });
+                });
+            });
+
+            zipfile.on('end', () => {
+                zipfile.close();
+                resolve(null); // No file found
+            });
+
+            zipfile.on('error', (error) => {
+                zipfile.close();
+                reject(error);
+            });
+        });
+    });
 }

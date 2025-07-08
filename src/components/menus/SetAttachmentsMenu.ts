@@ -90,9 +90,12 @@ export class SetAttachmentsMenu implements Menu {
         let description = `Attachments set by <@${interaction.user.id}>:\n\n`
 
         const litematics: Attachment[] = []
+        const wdls: Attachment[] = []
         const others: Attachment[] = []
         newAttachments.forEach(attachment => {
-            if (attachment.litematic) {
+            if (attachment.wdl) {
+                wdls.push(attachment)
+            } else if (attachment.litematic) {
                 litematics.push(attachment)
             } else {
                 others.push(attachment)
@@ -102,7 +105,14 @@ export class SetAttachmentsMenu implements Menu {
         if (litematics.length) {
             description += '**Litematics:**\n'
             litematics.forEach(attachment => {
-                description += `- [${escapeDiscordString(escapeString(attachment.name))}](${attachment.url}): MC ${attachment.litematic?.version}, ${attachment.litematic?.size}\n`
+                description += `- [${escapeDiscordString(escapeString(attachment.name))}](${attachment.url}): ${attachment.litematic?.error || `MC ${attachment.litematic?.version}, ${attachment.litematic?.size}`}\n`
+            })
+        }
+
+        if (wdls.length) {
+            description += '**WDLs:**\n'
+            wdls.forEach(attachment => {
+                description += `- [${escapeDiscordString(escapeString(attachment.name))}](${attachment.url}): ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}\n`
             })
         }
 

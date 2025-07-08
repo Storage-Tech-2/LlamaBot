@@ -59,12 +59,15 @@ export class PostEmbed {
         });
 
         const litematics: Attachment[] = []
+        const wdls: Attachment[] = []
         const others: Attachment[] = []
         const attachments = entryData.attachments;
         let description = `## Files for ${entryData.name}\n`;
         attachments.forEach(attachment => {
             if (attachment.litematic) {
                 litematics.push(attachment)
+            } else if (attachment.wdl) {
+                wdls.push(attachment)
             } else {
                 others.push(attachment)
             }
@@ -83,6 +86,14 @@ export class PostEmbed {
                 const githubLink = `${rawURL}/${attachment.path}`;
                 const viewerURL = `https://schemat.io/view?url=${githubLink}`;
                 description += `- ${url} [[Schemat.io Viewer]](${viewerURL}): ` + (attachment.litematic?.error || `MC ${attachment.litematic?.version}, Size ${attachment.litematic?.size} \n`);
+            })
+        }
+
+        if (wdls.length) {
+            description += '**WDLs:**\n'
+            wdls.forEach(attachment => {
+                const url = attachmentURLs.get(attachment.name) || attachment.url;
+                description += `- ${url}: ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}\n`
             })
         }
 
