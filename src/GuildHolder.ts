@@ -6,7 +6,7 @@ import { GuildConfigs } from "./config/GuildConfigs.js";
 import { SubmissionsManager } from "./submissions/SubmissionsManager.js";
 import { RepositoryManager } from "./archive/RepositoryManager.js";
 import { ArchiveEntryData } from "./archive/ArchiveEntry.js";
-import { areAuthorsSame, escapeDiscordString, getAuthorsString, getChanges, truncateStringWithEllipsis } from "./utils/Util.js";
+import { escapeDiscordString, getAuthorsString, getChanges, truncateStringWithEllipsis } from "./utils/Util.js";
 import { UserManager } from "./support/UserManager.js";
 import { UserData } from "./support/UserData.js";
 import { SubmissionConfigs } from "./submissions/SubmissionConfigs.js";
@@ -43,7 +43,6 @@ export class GuildHolder {
     private userManager: UserManager;
 
     private lastDayLoop: number = 0;
-    private initPromise: Promise<void>;
     private ready : boolean = false;
 
     /**
@@ -58,7 +57,7 @@ export class GuildHolder {
         this.submissions = new SubmissionsManager(this, Path.join(this.getGuildFolder(), 'submissions'));
         this.repositoryManager = new RepositoryManager(this, Path.join(this.getGuildFolder(), 'archive'));
         this.userManager = new UserManager(Path.join(this.getGuildFolder(), 'users'));
-        this.initPromise = this.config.loadConfig().then(async () => {
+        this.config.loadConfig().then(async () => {
             // Set guild name and ID in the config
             this.config.setConfig(GuildConfigs.GUILD_NAME, guild.name);
             this.config.setConfig(GuildConfigs.GUILD_ID, guild.id);

@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, MessageFlags } from "discord.js";
+import { ButtonBuilder, ButtonInteraction, ButtonStyle, MessageFlags } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Button } from "../../interface/Button.js";
 import { canEditSubmission, getAuthorsString, reclassifyAuthors, replyEphemeral } from "../../utils/Util.js";
