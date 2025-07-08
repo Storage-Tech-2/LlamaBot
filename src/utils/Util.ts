@@ -229,10 +229,10 @@ export async function processImages(images: Image[], download_folder: string, pr
             throw new Error(`Failed to download image ${image.name} at ${refreshedURLs[i]}, try reuploading the file directly to the thread.`);
         }
         await fs.writeFile(downloadPath, imageData.body);
-        const simage = sharp(downloadPath);
+        let simage = sharp(downloadPath);
         const stats = await simage.stats();
         if (!stats.isOpaque) {
-            await simage.trim();
+            simage = simage.trim();
         }
       
         const s = await simage
