@@ -126,7 +126,7 @@ export class SetAttachmentsMenu implements Menu {
                     description += `- [${escapeDiscordString(escapeString(attachment.name))}](${attachment.url}): YouTube link\n`
                     return;
                 }
-                description += `- [${escapeDiscordString(escapeString(attachment.name))}](${attachment.url}): YouTube video by [${escapeDiscordString(attachment.youtube?.author_name)}](${attachment.youtube?.author_url})\n`
+                description += `- [${escapeDiscordString(escapeString(attachment.youtube.title))}](${attachment.url}): YouTube video by [${escapeDiscordString(attachment.youtube?.author_name)}](${attachment.youtube?.author_url})\n`
             })
         }
 

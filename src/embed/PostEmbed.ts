@@ -107,7 +107,7 @@ export class PostEmbed {
                     description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link\n`
                     return;
                 }
-                description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube video by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})\n`
+                description += `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): YouTube video by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})\n`
             })
         }
 
