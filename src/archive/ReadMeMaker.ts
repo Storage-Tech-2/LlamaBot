@@ -11,7 +11,7 @@ function formatAttachment(attachment: Attachment): string {
     } else if (attachment.contentType === 'mediafire') {
         return `- [${attachment.name}](${attachment.url}): Mediafire link`;
     } else if (attachment.youtube) {
-        return `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): YouTube video by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})`;
+        return `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})`;
     } else if (attachment.contentType === 'youtube') {
         return `- ${attachment.url}: YouTube video`;
     }
