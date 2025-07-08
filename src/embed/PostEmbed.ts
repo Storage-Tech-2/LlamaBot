@@ -96,7 +96,7 @@ export class PostEmbed {
             description += '**WDLs:**\n'
             wdls.forEach(attachment => {
                 const url = attachmentURLs.get(attachment.name) || attachment.url;
-                description += `- ${url}: ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}\n`
+                description += `- ${url} [[Github Mirror]](${rawURL}/${attachment.path}): ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}\n`
             })
         }
 
