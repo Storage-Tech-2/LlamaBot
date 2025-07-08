@@ -313,7 +313,6 @@ export async function processImageForDiscord(file_path: string, num_images: numb
     }
 
     await sharp(file_path)
-        .trim()
         .resize({
             width: newWidth,
             height: newHeight,
