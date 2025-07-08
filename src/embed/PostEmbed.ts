@@ -52,11 +52,13 @@ export class PostEmbed {
         }
     }
 
-    public static async createAttachmentMessage(guildHolder: GuildHolder, entryData: ArchiveEntryData, branchName: string, entryPathPart: string, uploadMessage: Message): Promise<string> {
+    public static async createAttachmentMessage(guildHolder: GuildHolder, entryData: ArchiveEntryData, branchName: string, entryPathPart: string, uploadMessage: Message | null): Promise<string> {
         const attachmentURLs = new Map();
-        uploadMessage.attachments.forEach(attachment => {
-            attachmentURLs.set(attachment.name, attachment.url);
-        });
+        if (uploadMessage) {
+            uploadMessage.attachments.forEach(attachment => {
+                attachmentURLs.set(attachment.name, attachment.url);
+            });
+        }
 
         const litematics: Attachment[] = []
         const wdls: Attachment[] = []
@@ -145,7 +147,7 @@ export class PostEmbed {
 
 
         if (authors.length > 0) {
-            content.push(`**Authors:** ${getAuthorsString(authors.filter(a=> !a.dontDisplay))}`);
+            content.push(`**Authors:** ${getAuthorsString(authors.filter(a => !a.dontDisplay))}`);
         }
 
         // check if authors and endorsers are the same
@@ -197,7 +199,7 @@ export class PostEmbed {
         return content.join('\n');
     }
 
-    public static async createImageFiles(entryData: ArchiveEntryData, archivePath: string, entryPathPart: string, isGalleryView: boolean): Promise<{files: AttachmentBuilder[], paths: string[]}> {
+    public static async createImageFiles(entryData: ArchiveEntryData, archivePath: string, entryPathPart: string, isGalleryView: boolean): Promise<{ files: AttachmentBuilder[], paths: string[] }> {
         //   try {
         //             const images = this.config.getConfig(SubmissionConfigs.IMAGES) || [];
         //             const processedFolder = this.getProcessedImagesFolder();

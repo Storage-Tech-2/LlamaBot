@@ -792,13 +792,13 @@ export class RepositoryManager {
         const attachmentUpload = await PostEmbed.createAttachmentUpload(entryFolderPath, newEntryData);
 
         const hasUploadAttachments = attachmentUpload.files.length > 0;
-        let uploadMessage;
+        let uploadMessage = null;
         if (newEntryData.post && newEntryData.post.uploadMessageId && hasUploadAttachments) {
             uploadMessage = await uploadChannel.messages.fetch(newEntryData.post.uploadMessageId).catch(() => null);
         }
 
         let uploadArchived = false;
-        if (!uploadMessage) {
+        if (!uploadMessage && hasUploadAttachments) {
             if (uploadChannel.isThread() && uploadChannel.archived) {
                 uploadArchived = true;
                 await uploadChannel.setArchived(false);
