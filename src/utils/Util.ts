@@ -234,7 +234,7 @@ export async function processImages(images: Image[], download_folder: string, pr
         if (!stats.isOpaque) {
             simage = simage.trim();
         }
-      
+
         const s = await simage
             .resize({
                 width: 800,
@@ -624,12 +624,15 @@ export function getGithubOwnerAndProject(url: string): { owner: string, project:
 }
 
 async function iterateAllMessages(channel: TextBasedChannel, iterator: (message: Message) => Promise<boolean>) {
-    const messages = await channel.messages.fetch({ limit: 100 })
-    for (const msg of messages.values()) {
-        // If the iterator returns false, stop iterating
-        if (!await iterator(msg)) {
-            return;
+    let messages = await channel.messages.fetch({ limit: 100 });
+    while (messages.size > 0) {
+        for (const msg of messages.values()) {
+            // If the iterator returns false, stop iterating
+            if (!await iterator(msg)) {
+                return;
+            }
         }
+        messages = await channel.messages.fetch({ limit: 100, before: messages.last()?.id });
     }
 }
 
