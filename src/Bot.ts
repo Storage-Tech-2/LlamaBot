@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, Client, Events, GatewayIntentBits, Message, SelectMenuInteraction } from "discord.js";
+import { ChatInputCommandInteraction, Client, Events, GatewayIntentBits, Message, Partials, SelectMenuInteraction } from "discord.js";
 import { GuildHolder } from "./GuildHolder.js";
 import { LLMQueue } from "./llm/LLMQueue.js";
 import path from "path";
@@ -95,6 +95,11 @@ export class Bot {
                 GatewayIntentBits.MessageContent,
                 GatewayIntentBits.GuildMembers,
                 GatewayIntentBits.GuildModeration
+            ],
+            partials: [
+                Partials.Channel,
+                Partials.Message,
+                Partials.Reaction
             ]
         });
     }
@@ -218,6 +223,16 @@ export class Bot {
         })
 
         this.client.on(Events.MessageCreate, async (message) => {
+            if (message.partial) {
+                message.fetch()
+                    .then(fullMessage => {
+                        console.log(fullMessage.content);
+                    })
+                    .catch(error => {
+                        console.log('Something went wrong when fetching the message: ', error);
+                    });
+            }
+
             if (message.author.bot) return
             if (!message.inGuild()) {
                 await this.handleAdminMessage(message)
@@ -237,9 +252,19 @@ export class Bot {
 
 
         this.client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
+            if (newMessage.partial) {
+                newMessage.fetch()
+                    .then(fullMessage => {
+                        console.log(fullMessage.content);
+                    })
+                    .catch(error => {
+                        console.log('Something went wrong when fetching the message: ', error);
+                    });
+            }
+
             if (newMessage.author.bot) return
-            if (!oldMessage.inGuild() ||  !newMessage.inGuild()) return
-            
+            if (!oldMessage.inGuild() || !newMessage.inGuild()) return
+
             const guildHolder = this.guilds.get(newMessage.guildId)
             if (!guildHolder) return
 
@@ -253,6 +278,16 @@ export class Bot {
 
 
         this.client.on(Events.MessageDelete, async (message) => {
+            if (message.partial) {
+                message.fetch()
+                    .then(fullMessage => {
+                        console.log(fullMessage.content);
+                    })
+                    .catch(error => {
+                        console.log('Something went wrong when fetching the message: ', error);
+                    });
+            }
+            
             if (!message.author) return
             if (!message.inGuild()) return
 
@@ -269,7 +304,7 @@ export class Bot {
 
         this.client.on(Events.ThreadDelete, async (thread) => {
             if (!thread.isTextBased()) return
-            
+
 
             const guildHolder = this.guilds.get(thread.guildId)
             if (!guildHolder) return
@@ -281,10 +316,10 @@ export class Bot {
                 console.error('Error handling thread delete:', error)
             }
         })
-        
+
         this.client.on(Events.ThreadUpdate, async (oldThread, newThread) => {
             if (!newThread.isTextBased()) return
-            
+
             const guildHolder = this.guilds.get(newThread.guildId)
             if (!guildHolder) return
 
@@ -353,7 +388,7 @@ export class Bot {
         console.log(`Received admin message: ${message.content} from ${message.author.tag} (${message.author.id})`);
         if (message.inGuild()) return;
         if (message.author.id !== '239078039831445504') return;
-        
+
         // Check if the message starts with `/`
         if (!message.content.startsWith('/')) {
             return message.reply('Please start your command with `/`');
@@ -368,12 +403,12 @@ export class Bot {
 
         // Check if its refresh
         if (commandName === 'refresh') {
-           
+
             await message.reply('Running git pull...');
             try {
                 await fs.access(path.join(process.cwd(), '.git'));
                 const { exec } = await import('child_process');
-                exec('git pull', { cwd: process.cwd() }, async (error, stdout, stderr) => {
+                exec('git pull', { cwd: process.cwd() }, async (error, stdout, _stderr) => {
                     if (error) {
                         console.error(`Error pulling changes: ${error.message}`);
                         return message.reply(`Error pulling changes: ${error.message}`);
