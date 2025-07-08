@@ -1,7 +1,7 @@
 import { ActionRowBuilder, Interaction, Message, MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { canEditSubmission, escapeDiscordString, escapeString, replyEphemeral, truncateFileName } from "../../utils/Util.js";
+import { canEditSubmission, escapeDiscordString, escapeString, replyEphemeral, splitIntoChunks, truncateFileName } from "../../utils/Util.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Attachment } from "../../submissions/Attachment.js";
@@ -135,10 +135,20 @@ export class SetAttachmentsMenu implements Menu {
             })
         }
 
+        const split = splitIntoChunks(description, 2000);
         await interaction.editReply({
-            content: description,
+            content: split[0],
             flags: MessageFlags.SuppressEmbeds
         })
+
+        if (split.length > 1) {
+            for (let i = 1; i < split.length; i++) {
+                await interaction.followUp({
+                    content: split[i],
+                    flags: MessageFlags.SuppressEmbeds
+                })
+            }
+        }
 
         await submission.statusUpdated();
         submission.checkReview();
