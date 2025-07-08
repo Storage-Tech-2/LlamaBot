@@ -744,7 +744,7 @@ export class RepositoryManager {
 
         if (existing) {
             const existingData = existing.entry.getData();
-            if (getChangeIDs(existingData.attachments, newEntryData.attachments) || getChangeNames(existingData.attachments, newEntryData.attachments)) {
+            if (getChangeIDs(existingData.attachments, newEntryData.attachments) || existingData.code !== newEntryData.code) {
                 newEntryData.post.uploadMessageId = '';
             } else if (existingData.post) {
                 newEntryData.post.uploadMessageId = existingData.post.uploadMessageId;
