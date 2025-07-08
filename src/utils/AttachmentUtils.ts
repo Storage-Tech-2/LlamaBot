@@ -257,6 +257,7 @@ async function processWDLs(attachment: Attachment, attachmentPath: string): Prom
         const parsedNbt = await nbt.parse(levelDatBuffer);
         const data = parsedNbt.parsed as any;
         const version = data?.Data?.version?.Name;
+        console.log(data);
         if (!version) {
             attachment.wdl = { error: 'Invalid Level.dat' };
             return;
