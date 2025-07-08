@@ -278,16 +278,6 @@ export class Bot {
 
 
         this.client.on(Events.MessageDelete, async (message) => {
-            if (message.partial) {
-                message.fetch()
-                    .then(fullMessage => {
-                        console.log(fullMessage.content);
-                    })
-                    .catch(error => {
-                        console.log('Something went wrong when fetching the message: ', error);
-                    });
-            }
-            
             if (!message.author) return
             if (!message.inGuild()) return
 
