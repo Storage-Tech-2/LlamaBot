@@ -123,10 +123,10 @@ export class SetAttachmentsMenu implements Menu {
             description += '**YouTube videos:**\n'
             videos.forEach(attachment => {
                 if (!attachment.youtube) {
-                    description += `- [${escapeDiscordString(escapeString(attachment.name))}](${attachment.url}): YouTube link\n`
+                    description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link\n`
                     return;
                 }
-                description += `- [${escapeDiscordString(escapeString(attachment.youtube.title))}](${attachment.url}): YouTube video by [${escapeDiscordString(attachment.youtube?.author_name)}](${attachment.youtube?.author_url})\n`
+                description += `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): YouTube video by [${escapeDiscordString(attachment.youtube?.author_name)}](${attachment.youtube?.author_url})\n`
             })
         }
 
