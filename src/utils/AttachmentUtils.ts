@@ -256,14 +256,30 @@ async function processWDLs(attachment: Attachment, attachmentPath: string): Prom
         const levelDatBuffer = levelDat;
         const parsedNbt = await nbt.parse(levelDatBuffer);
         const data = parsedNbt.parsed as any;
-        const version = data?.Data?.version?.Name;
-        console.log(data);
-        if (!version) {
+        if (data.type !== 'compound' || !data.value) {
             attachment.wdl = { error: 'Invalid Level.dat' };
             return;
         }
 
-        attachment.wdl = { version: version };
+        const dataTag = data.value.Data;
+        if (!dataTag || dataTag.type !== 'compound' || !dataTag.value) {
+            attachment.wdl = { error: 'Invalid Level.dat' };
+            return;
+        }
+
+        const versionTag = dataTag.value.Version;
+        if (!versionTag || versionTag.type !== 'compound' || !versionTag.value) {
+            attachment.wdl = { error: 'Invalid Level.dat' };
+            return;
+        }
+
+        const versionName = versionTag.value.Name;
+        if (!versionName || versionName.type !== 'string' || !versionName.value) {
+            attachment.wdl = { error: 'Invalid Level.dat' };
+            return;
+        }
+        
+        attachment.wdl = { version: versionName.value };
     } catch (error) {
         console.error('Error processing WDL file:', error);
     }
