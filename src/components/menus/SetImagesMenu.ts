@@ -1,7 +1,7 @@
 import { ActionRowBuilder, AttachmentBuilder, EmbedBuilder, Interaction, Message, MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { canEditSubmission, escapeDiscordString, getFileKey, replyEphemeral, truncateFileName } from "../../utils/Util.js";
+import { canEditSubmission, escapeDiscordString, replyEphemeral, truncateFileName } from "../../utils/Util.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Image } from "../../submissions/Image.js";
@@ -9,6 +9,7 @@ import path from "path";
 import { SetAttachmentsMenu } from "./SetAttachmentsMenu.js";
 import { SetAttachmentsButton } from "../buttons/SetAttachmentsButton.js";
 import { SkipImagesButton } from "../buttons/SkipImagesButton.js";
+import { getFileKey } from "../../utils/AttachmentUtils.js";
 
 export class SetImagesMenu implements Menu {
     getID(): string {

@@ -8,7 +8,7 @@ import { LLMResponseFuture } from "../llm/LLMResponseFuture.js";
 import { LLMResponseStatus } from "../llm/LLMResponseStatus.js";
 import { LLMRequest } from "../llm/LLMRequest.js";
 import { ExtractionPrompt } from "../llm/prompts/ExtractionPrompt.js";
-import { extractUserIdsFromText, getAllAttachments, processAttachments, processImages, reclassifyAuthors } from "../utils/Util.js";
+import { extractUserIdsFromText, reclassifyAuthors } from "../utils/Util.js";
 import { Attachment } from "./Attachment.js";
 import { RevisionManager } from "./RevisionManager.js";
 import { Revision, RevisionType } from "./Revision.js";
@@ -19,6 +19,7 @@ import { PublishButton } from "../components/buttons/PublishButton.js";
 import { SubmissionTagNames, SubmissionTags } from "./SubmissionTags.js";
 import { Author, AuthorType } from "./Author.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
+import { processImages, processAttachments, getAllAttachments } from "../utils/AttachmentUtils.js";
 
 export class Submission {
     private guildHolder: GuildHolder;

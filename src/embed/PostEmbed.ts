@@ -1,11 +1,12 @@
 import { ActionRowBuilder, AttachmentBuilder, EmbedBuilder, Message } from "discord.js";
-import { areObjectsIdentical, escapeDiscordString, escapeString, getAuthorsString, getGithubOwnerAndProject, processImageForDiscord } from "../utils/Util.js";
+import { areObjectsIdentical, escapeDiscordString, escapeString, getAuthorsString, getGithubOwnerAndProject } from "../utils/Util.js";
 import Path from "path";
 import { Attachment } from "../submissions/Attachment.js";
 import { ArchiveEntryData } from "../archive/ArchiveEntry.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { GuildHolder } from "../GuildHolder.js";
 import fs from "fs/promises";
+import { processImageForDiscord } from "../utils/AttachmentUtils.js";
 
 export class PostEmbed {
     private embed: EmbedBuilder;
