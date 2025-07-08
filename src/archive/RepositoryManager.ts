@@ -1176,6 +1176,14 @@ export class RepositoryManager {
             // Check if the comment already exists
             const existingCommentIndex = comments.findIndex(c => c.id === message.id);
             const existingComment = existingCommentIndex !== -1 ? comments[existingCommentIndex] : null;
+
+            // Check if things have changed
+            if (existingComment && existingComment.content === content && !getChangeIDs(existingComment.attachments, attachments)) {
+                // No changes, nothing to do
+                this.lock.release();
+                return;
+            }
+
             const commentsAttachmentFolder = Path.join(entryPath, 'comments_attachments');
             if (existingComment && existingComment.attachments.length > 0) {
                 for (const attachment of existingComment.attachments) {
