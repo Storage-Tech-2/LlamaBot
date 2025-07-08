@@ -450,7 +450,7 @@ export async function refreshAttachments(
         // get the `ex` parameter from the URL
         const urlObj = new URL(url);
         const exParam = urlObj.searchParams.get('ex');
-        if (!exParam) return false; // No expiration parameter
+        if (!exParam) return true; // No expiration parameter
         if (parseInt(exParam, 16) * 1000 > Date.now()) { // If the expiration is in the future, keep it
             return !(urlObj.searchParams.get("is") && urlObj.searchParams.get("hm"))
         }
@@ -465,7 +465,6 @@ export async function refreshAttachments(
                     attachment_urls: expiringAttachments.map(a => a.url)
                 },
             }) as any;
-            console.log(JSON.stringify(result, null, 2));
             if (!result || !result.refreshed_urls || !Array.isArray(result.refreshed_urls)) {
                 throw new Error('Invalid response from attachment refresh API');
             }
