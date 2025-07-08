@@ -208,23 +208,15 @@ export async function processAttachments(attachments: Attachment[], attachments_
         }));
     }
 
-
-
     const attachmentURLs = attachments.map(a => a.url);
     const attachmentURLsRefreshed = await refreshAttachments(attachmentURLs, bot);
-
-    const mcMeta = new MCMeta();
-    await mcMeta.fetchVersionData();
 
     // Process each attachment
     await Promise.all(attachments.map(async (attachment, index) => {
         const key = getFileKey(attachment);
-        const attachmentPath = Path.join(attachments_folder, key);
-
-        const ext = attachment.name.split('.').pop();
-
         if (attachment.canDownload) {
-
+            const attachmentPath = Path.join(attachments_folder, key);
+            attachment.path = key;
             // If the attachment already exists, skip download
             if (!await fs.access(attachmentPath).then(() => true).catch(() => false)) {
                 try {
@@ -234,7 +226,23 @@ export async function processAttachments(attachments: Attachment[], attachments_
                     throw new Error(`Failed to download attachment ${attachment.name} at ${attachmentURLsRefreshed[index]}, try reuploading the file directly to the thread.`);
                 }
             }
+        }
+    }));
 
+    // Analyze attachments
+    await analyzeAttachments(attachments, attachments_folder);
+
+    return attachments;
+}
+
+export async function analyzeAttachments(attachments: Attachment[], attachments_folder: string): Promise<Attachment[]> {
+    const mcMeta = new MCMeta();
+    await mcMeta.fetchVersionData();
+
+    await Promise.all(attachments.map(async (attachment) => {
+        const ext = attachment.name.split('.').pop();
+        if (attachment.canDownload && attachment.path) {
+            const attachmentPath = Path.join(attachments_folder, attachment.path);
             if (ext === 'litematic') {
                 // Process litematic files
                 await processLitematic(attachment, attachmentPath, mcMeta);
@@ -247,7 +255,6 @@ export async function processAttachments(attachments: Attachment[], attachments_
             await handleYoutubeLink(attachment);
         }
     }));
-
     return attachments;
 }
 
@@ -307,7 +314,7 @@ async function processWDLs(attachment: Attachment, attachmentPath: string): Prom
             attachment.wdl = { error: 'Invalid Level.dat' };
             return;
         }
-        
+
         attachment.wdl = { version: versionName.value };
     } catch (error) {
         console.error('Error processing WDL file:', error);

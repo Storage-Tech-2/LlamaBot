@@ -17,7 +17,7 @@ import { ArchiveComment } from "./ArchiveComments.js";
 import { Author, AuthorType } from "../submissions/Author.js";
 import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
 import { makeEntryReadMe } from "./ReadMeMaker.js";
-import { getAttachmentsFromMessage, getFileKey, processAttachments } from "../utils/AttachmentUtils.js";
+import { analyzeAttachments, getAttachmentsFromMessage, getFileKey, processAttachments } from "../utils/AttachmentUtils.js";
 export class RepositoryManager {
     private folderPath: string;
     private git?: SimpleGit;
@@ -537,7 +537,7 @@ export class RepositoryManager {
             if (!submissionChannel || !entryData) {
                 throw new Error("Failed to get submission channel or entry data");
             }
-            const result = await this.addOrUpdateEntryFromData(submission.getGuildHolder(), entryData, archiveChannelId, forceNew, async (entryData, imageFolder, attachmentFolder) => {
+            const result = await this.addOrUpdateEntryFromData(submission.getGuildHolder(), entryData, archiveChannelId, forceNew, false, async (entryData, imageFolder, attachmentFolder) => {
                 // remove all images and attachments that exist in the folder.
                 await fs.mkdir(imageFolder, { recursive: true });
                 await fs.mkdir(attachmentFolder, { recursive: true });
@@ -630,7 +630,7 @@ export class RepositoryManager {
     }
 
 
-    async addOrUpdateEntryFromData(guildHolder: GuildHolder, newEntryData: ArchiveEntryData, archiveChannelId: Snowflake, forceNew: boolean, moveAttachments: (entryData: ArchiveEntryData, imageFolder: string, attachmentFolder: string) => Promise<void>): Promise<{ oldEntryData?: ArchiveEntryData, newEntryData: ArchiveEntryData }> {
+    async addOrUpdateEntryFromData(guildHolder: GuildHolder, newEntryData: ArchiveEntryData, archiveChannelId: Snowflake, forceNew: boolean, reanalyzeAttachments: boolean, moveAttachments: (entryData: ArchiveEntryData, imageFolder: string, attachmentFolder: string) => Promise<void>): Promise<{ oldEntryData?: ArchiveEntryData, newEntryData: ArchiveEntryData }> {
         // clone entryData
         newEntryData = deepClone(newEntryData);
 
@@ -764,6 +764,10 @@ export class RepositoryManager {
         const attachmentFolder = Path.join(entryFolderPath, 'attachments');
 
         await moveAttachments(newEntryData, imageFolder, attachmentFolder);
+
+        if (reanalyzeAttachments) {
+            await analyzeAttachments(newEntryData.attachments, attachmentFolder);
+        }
 
         if (existing && isSameChannel) {
             archiveChannel.getData().entries[existing.entryIndex] = entryRef;
@@ -1804,7 +1808,7 @@ export class RepositoryManager {
         await entry.save();
 
         if (newData.post && newData.post.forumId) {
-            await this.addOrUpdateEntryFromData(this.guildHolder, newData, newData.post.forumId, false, async () => { });
+            await this.addOrUpdateEntryFromData(this.guildHolder, newData, newData.post.forumId, false, false, async () => { });
         }
     }
 
@@ -1935,7 +1939,7 @@ export class RepositoryManager {
                         await channel.send({ content: `Entry ${entryData.code} does not have a post, skipping.` });
                     } else {
                         try {
-                            result = await this.addOrUpdateEntryFromData(this.guildHolder, entryData, entryData.post.forumId, replace, async () => { });
+                            result = await this.addOrUpdateEntryFromData(this.guildHolder, entryData, entryData.post.forumId, replace, true, async () => { });
                             await channel.send({ content: `Entry ${entryData.code} republished: ${result.newEntryData.post?.threadURL}` });
                         } catch (e: any) {
                             console.error(e);
