@@ -218,9 +218,9 @@ export class PostEmbed {
         }));
 
         // reverse files
-        files.reverse();
+        //files.reverse();
         // reverse paths
-        paths.reverse();
+        //paths.reverse();
 
         return {
             files: files,
