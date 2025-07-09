@@ -214,8 +214,7 @@ export class PostEmbed {
         //    }
         const images = entryData.images.filter(i => i.path);
         const paths: string[] = [];
-        const files: AttachmentBuilder[] = [];
-        await Promise.all(images.map(async (image, i) => {
+        const files = (await Promise.all(images.map(async (image, i) => {
             if (!image.path) {
                 return null
             }
@@ -230,8 +229,8 @@ export class PostEmbed {
             const file = new AttachmentBuilder(newPath === null ? path : newPath);
             file.setName(image.name);
             file.setDescription(image.description);
-            files.push(file);
-        }));
+            return file;
+        }))).filter(file => file !== null);
 
         // reverse files
         //files.reverse();
