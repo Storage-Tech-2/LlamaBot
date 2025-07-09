@@ -418,7 +418,7 @@ export async function getAllAttachments(channel: TextThreadChannel): Promise<Att
     let attachments: Attachment[] = [];
 
     await iterateAllMessages(channel, async (message: Message) => {
-        if (message.author.bot) {
+        if (message.author.bot && message.author.id !== '1392335374722007261') {
             return true;
         }
         // Get attachments from the message
