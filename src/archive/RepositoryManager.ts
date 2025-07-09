@@ -360,7 +360,6 @@ export class RepositoryManager {
                 // update submission
                 const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entry.getData().id);
                 if (submission) {
-                    submission.getConfigManager().setConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID, channel.id);
                     const reservedCodes = submission.getConfigManager().getConfig(SubmissionConfigs.RESERVED_CODES);
                     // Check if the code is already reserved
                     if (!reservedCodes.includes(entry.getData().code)) {
