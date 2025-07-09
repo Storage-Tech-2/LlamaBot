@@ -336,7 +336,10 @@ export class RepositoryManager {
                 await this.git.add(entry.getDataPath());
                 await entry.save();
                 newEntries.push(newEntryRef);
-                await this.git.add(await this.updateEntryReadme(entry));
+                //await this.git.add(await this.updateEntryReadme(entry));
+
+                // update submission
+                //await this.addOrUpdateEntryFromData(this.guildHolder, entry.getData(), channel.id, false, false, async () => {});
             }
 
             channelInstance.getData().name = channel.name;
@@ -344,6 +347,29 @@ export class RepositoryManager {
             channelInstance.getData().code = channel.code;
             channelInstance.getData().entries = newEntries;
             await channelInstance.save();
+
+            // republish everything
+            for (const entryRef of newEntries) {
+                const entryPath = Path.join(newPath, entryRef.path);
+                const entry = await ArchiveEntry.fromFolder(entryPath);
+                if (!entry) {
+                    throw new Error(`Entry ${entryRef.name} (${entryRef.code}) not found in memory`);
+                }
+                // republish the entry
+                await this.addOrUpdateEntryFromData(this.guildHolder, entry.getData(), channel.id, false, false, async () => {});
+                // update submission
+                const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entry.getData().id);
+                if (submission) {
+                    submission.getConfigManager().setConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID, channel.id);
+                    const reservedCodes = submission.getConfigManager().getConfig(SubmissionConfigs.RESERVED_CODES);
+                    // Check if the code is already reserved
+                    if (!reservedCodes.includes(entry.getData().code)) {
+                        reservedCodes.push(entry.getData().code);
+                        submission.getConfigManager().setConfig(SubmissionConfigs.RESERVED_CODES, reservedCodes);
+                    }
+                    await submission.save();
+                }
+            }
 
             // Commit the changes
             let msg;
