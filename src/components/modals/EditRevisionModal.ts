@@ -18,13 +18,13 @@ export class EditRevisionModal implements Modal {
             .setTitle('Edit Submission')
 
         const descriptionInput = new TextInputBuilder()
-            .setCustomId('input')
+            .setCustomId('input1')
             .setLabel('Markdown Text:')
             .setStyle(TextInputStyle.Paragraph)
             .setRequired(true)
 
         const descriptionInput2 = new TextInputBuilder()
-            .setCustomId('input')
+            .setCustomId('input2')
             .setLabel('Markdown Text Continued:')
             .setStyle(TextInputStyle.Paragraph)
             .setRequired(false)
@@ -81,7 +81,7 @@ export class EditRevisionModal implements Modal {
             return
         }
 
-        const input1 = interaction.fields.getTextInputValue('input');
+        const input1 = interaction.fields.getTextInputValue('input1');
         const input2 = interaction.fields.getTextInputValue('input2');
         const input = input1 + (input2 ? '\n' + input2 : ''); 
 
