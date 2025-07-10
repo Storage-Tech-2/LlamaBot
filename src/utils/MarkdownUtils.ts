@@ -202,7 +202,7 @@ export function markdownMatchSchema(markdown: string, schema: any): SubmissionRe
         if (!shouldBeList) {
             // If the property is a string, check if the first token is a paragraph
             const raw = section.tokens.map((t) => t.raw).join("").trim();
-            if (section.isOptional && prop?.description === raw) {
+            if (prop?.description === raw) {
                 // If the section is optional and the description matches, skip it
                 continue;
             }
@@ -219,7 +219,7 @@ export function markdownMatchSchema(markdown: string, schema: any): SubmissionRe
                 throw new Error(`Section "${propKey}" should be a list, but found ${listToken.type}.`);
             }
 
-            if (section.isOptional && listToken.items.length === 1 && listToken.items[0].text.trim() === prop?.description) {
+            if (listToken.items.length === 1 && listToken.items[0].text.trim() === prop?.description) {
                 // If the section is optional and the list matches the description, skip it
                 continue;
             }
