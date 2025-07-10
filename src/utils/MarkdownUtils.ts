@@ -356,15 +356,17 @@ export function schemaToMarkdownTemplate(schema: any, record?: SubmissionRecords
         }
         isFirst = false;
 
-        if (recordValue) {
-            markdown += submissionRecordToMarkdown(recordValue);
-        } else {
+        let text = recordValue ? submissionRecordToMarkdown(recordValue) : "";
+        if (text.length === 0 && schemaProp) {
             if (schemaProp.type === "string") {
                 markdown += schemaProp.description;
             } else if (schemaProp.type === "array") {
                 markdown += `- ${schemaProp.description}`;
             }
         }
+
+        markdown += text;
+
     }
 
     return markdown.trim();
