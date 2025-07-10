@@ -1,44 +1,7 @@
 import { Prompt } from "./Prompt.js";
 
 const prompt_template = `
-## Example
-A simple multi-item-sorter storage system.
-
-Features
-* Slice is very compact (5x9x2)
-* Can sort one item stack every 24gts (up to 21x hopper speed)
-* Sorts both 64 & 16 stackables
-* Unstackables are sent to their own output
-
-Cons
-* Noisy
-* Each category is limited to 1x hopper speed.
-* Extremely large, continuous input to a single category can cause items to be incorrectly sent to unsorted.
-
-Additional Credits
-* Chest-Minecart Input: @KikuGie & @Philgoodinator
-* Shulker box Unloader: @Christone & @javi
-* Cart Yeeter: @C5, @Inspector Talon, et al.
-
-Output:
-{
-  "description": "A simple multi-item-sorter storage system.",
-  "features": [
-    "Slice is very compact (5x9x2)",
-    "Can sort one item stack every 24gts (up to 21x hopper speed)",
-    "Sorts both 64 & 16 stackables",
-    "Unstackables are sent to their own output",
-    "Boxes are automatically unloaded"
-  ],
-  "cons": [
-    "Noisy",
-    "Each category is limited to 1x hopper speed.",
-    "Extremely large, continuous input to a single category can cause items to be incorrectly sent to unsorted."
-  ],
-  "notes": "Chest-Minecart Input: @KikuGie & @Philgoodinator. Shulker box Unloader: @Christone & @javi. Cart Yeeter: @C5, @Inspector Talon, et al."
-}
-
-Create a JSON object containing the description and a list of features extracted from the text below.:
+Create a structured JSON object with information from the text below:
 {{input}}`;
 
 export class ExtractionPrompt implements Prompt {
