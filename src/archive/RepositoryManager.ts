@@ -1479,6 +1479,7 @@ export class RepositoryManager {
 
             const found = await this.findEntryBySubmissionId(submissionId);
             if (!found) {
+                this.lock.release();
                 return;
             }
 
