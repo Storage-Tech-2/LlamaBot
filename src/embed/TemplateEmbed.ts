@@ -53,9 +53,9 @@ export class TemplateEmbed {
             const embed = new EmbedBuilder()
             embed.setColor('#0099ff')
             if (index === 0) {
-                embed.setTitle(`Post Template`)
+                //embed.setTitle(`Post Template`)
             } else {
-                embed.setTitle(`Post Template (Part ${index + 1})`)
+                embed.setTitle(`(Part ${index + 1})`)
             }
             embed.setDescription(chunk)
             if (index === chunks.length - 1) {
