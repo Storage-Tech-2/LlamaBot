@@ -72,7 +72,7 @@ app = FastAPI(
 # ---------------------------------------------------------------------------
 
 class GenerateRequest(BaseModel):
-    schema: str = Field(..., description="JSON schema to use for generation.")
+    schema_text: str = Field(..., description="JSON schema to use for generation.")
     input_text: str = Field(..., description="Raw text fed into the prompt.")
 
 
@@ -92,7 +92,7 @@ def generate(req: GenerateRequest, request: Request):
 
         # Validate the schema
         try:
-            schema_str = pyjson.dumps(pyjson.loads(req.schema), indent=2)
+            schema_str = pyjson.dumps(pyjson.loads(req.schema_text), indent=2)
         except pyjson.JSONDecodeError as exc:
             print(f"❌  Invalid JSON schema: {exc}")
             raise HTTPException(status_code=400, detail=f"Invalid JSON schema: {exc}") from exc
