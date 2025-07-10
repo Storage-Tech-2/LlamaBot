@@ -350,7 +350,7 @@ export function schemaToMarkdownTemplate(schema: any, record?: SubmissionRecords
         const recordValue = (record && Object.hasOwn(record, key)) ? record[key] : null;
 
         if (key !== "description" || !isFirst) {
-            markdown += `\n\n## ${capitalizeFirstLetter(key)}${isRequired ? "" : " (Optional)"}\n`;
+            markdown += `\n## ${capitalizeFirstLetter(key)}${isRequired ? "" : " (Optional)"}\n`;
         }
         isFirst = false;
 

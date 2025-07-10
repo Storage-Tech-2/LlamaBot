@@ -43,7 +43,7 @@ export class TemplateEmbed {
 
         description += `\n${schemaToMarkdownTemplate(schema)}\n`;
 
-        description += `\n## Acknowledgements:**\n\n`;
+        description += `\n## Acknowledgements\n\n`;
 
         description += `- <@${guildHolder.getBot().client.user?.id}>: For being awesome.\n`;
 
