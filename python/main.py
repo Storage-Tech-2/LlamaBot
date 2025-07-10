@@ -46,10 +46,10 @@ def _load_model(app: FastAPI):
     """Load the LLM"""
     print("⏳  Loading LLM …")
     llm = llama_cpp.Llama.from_pretrained(
-        repo_id="NousResearch/Hermes-2-Pro-Llama-3-8B-GGUF",
-        filename="Hermes-2-Pro-Llama-3-8B-Q4_K_M.gguf",
+        repo_id="NousResearch/Hermes-3-Llama-3.1-8B-GGUF",
+        filename="Hermes-3-Llama-3.1-8B.Q4_K_M.gguf",
         tokenizer=llama_cpp.llama_tokenizer.LlamaHFTokenizer.from_pretrained(
-            "NousResearch/Hermes-2-Pro-Llama-3-8B"
+            "NousResearch/Hermes-3-Llama-3.1-8B"
         ),
         n_gpu_layers=-1,
         flash_attn=True,
