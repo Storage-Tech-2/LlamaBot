@@ -292,7 +292,7 @@ export function postToMarkdown(record: SubmissionRecords): string {
     for (const key in record) {
         const recordValue = record[key];
 
-        if (key !== "description" && isFirst) {
+        if (key !== "description" || !isFirst) {
             markdown += `\n\n## ${key}\n\n`;
         }
         isFirst = false;
@@ -345,7 +345,7 @@ export function schemaToMarkdownTemplate(schema: any, record?: SubmissionRecords
         const schemaProp = Object.hasOwn(properties, key) ? properties[key] : null;
         const recordValue = (record && Object.hasOwn(record, key)) ? record[key] : null;
 
-        if (key !== "description" && isFirst) {
+        if (key !== "description" || !isFirst) {
             markdown += `\n\n## ${key}${isRequired ? "" : " (optional)"}\n\n`;
         }
         isFirst = false;
