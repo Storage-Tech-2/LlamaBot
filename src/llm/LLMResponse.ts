@@ -1,9 +1,6 @@
+import { SubmissionRecords } from "../utils/MarkdownUtils.js";
+
 export type LLMResponse = {
-    result: {
-        description: string; // Description of the device
-        features: string[]; // List of features
-        cons?: string[]; // List of cons
-        notes?: string; // Additional notes
-    }
+    result: SubmissionRecords;
     error?: string; // Error message if any
 }

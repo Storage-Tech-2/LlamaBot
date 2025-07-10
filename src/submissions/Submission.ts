@@ -143,7 +143,7 @@ export class Submission {
         // If no revisions, we can start the extraction process
         try {
             const prompt = new ExtractionPrompt(message.content)
-            const request = new LLMRequest(1, prompt);
+            const request = new LLMRequest(1, prompt, JSON.stringify(this.guildHolder.getSchema()));
             this.extractionResults = this.guildHolder.getBot().llmQueue.addRequest(request);
             await this.extractionResults.getResponse();
         } catch (error: any) {
@@ -248,10 +248,7 @@ export class Submission {
                 type: RevisionType.Initial,
                 parentRevision: null,
                 timestamp: Date.now(),
-                description: response.result.description,
-                features: response.result.features,
-                considerations: response.result.cons || [],
-                notes: response.result.notes || ''
+                records: response.result,
             }
             return revision;
         } else {
@@ -273,10 +270,7 @@ export class Submission {
                 type: RevisionType.Initial,
                 parentRevision: null,
                 timestamp: Date.now(),
-                description: `#EDIT ME\n\n${message.content}`,
-                features: [],
-                considerations: [],
-                notes: ''
+                records: {}
             }
             return revision;
         }
@@ -531,10 +525,7 @@ export class Submission {
             type: RevisionType.LLM,
             parentRevision: revision.id,
             timestamp: Date.now(),
-            description: response.result.description,
-            features: response.result.features,
-            considerations: response.result.cons || [],
-            notes: response.result.notes || ""
+            records: response.result,
         }
 
         await message.reply({
@@ -569,7 +560,7 @@ export class Submission {
             prompt,
             revision
         )
-        const request = new LLMRequest(1, llmPrompt);
+        const request = new LLMRequest(1, llmPrompt, JSON.stringify(this.guildHolder.getSchema()));
         return this.guildHolder.getBot().llmQueue.addRequest(request);
     }
 

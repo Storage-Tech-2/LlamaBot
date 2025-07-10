@@ -17,13 +17,21 @@ export class LLMRequest {
     private _prompt: Prompt;
 
     /**
+     * The schema for the LLM response.
+     * This is a JSON schema string that defines the structure of the response
+     */
+    private _schema: string = "";
+
+
+    /**
      * Creates a new LLMRequest instance.
      * @param priority The priority of the request. Higher numbers indicate higher priority.
      * @param prompt The prompt for the LLM request.
      */
-    constructor(priority: number, prompt: Prompt) {
+    constructor(priority: number, prompt: Prompt, schema: string) {
         this._priority = priority;
         this._prompt = prompt;
+        this._schema = schema;
     }
 
     /**
@@ -32,6 +40,14 @@ export class LLMRequest {
      */
     public get prompt(): Prompt {
         return this._prompt;
+    }
+    
+    /**
+     * Gets the schema for the LLM response.
+     * @returns The JSON schema string.
+     */
+    public get schema(): string {
+        return this._schema;
     }
     
     /**

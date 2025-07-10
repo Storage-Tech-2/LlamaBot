@@ -54,6 +54,17 @@ export class RevisionManager {
         return revision;
     }
 
+    public async updateRevision(revision: Revision) {
+        const filePath = path.join(this.revisionsFolder, `${revision.id}.json`);
+        // if the folder doesn't exist, create it
+        if (!await fs.access(this.revisionsFolder).then(() => true).catch(() =>
+            false)) {
+            await fs.mkdir(this.revisionsFolder, { recursive: true });
+        }
+        // Write the revision to the file
+        await fs.writeFile(filePath, JSON.stringify(revision, null, 2), 'utf-8');
+    }
+
     public async setCurrentRevision(id: Snowflake, updateCurrent: boolean = true) {
         const revisionsList = this.getRevisionsList();
         const oldCurrentRevisions = revisionsList.filter(r => r.isCurrent);

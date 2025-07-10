@@ -5,14 +5,15 @@ import Path from "path";
 import { GuildConfigs } from "./config/GuildConfigs.js";
 import { SubmissionsManager } from "./submissions/SubmissionsManager.js";
 import { RepositoryManager } from "./archive/RepositoryManager.js";
-import { ArchiveEntryData } from "./archive/ArchiveEntry.js";
-import { escapeDiscordString, getAuthorsString, getChanges, truncateStringWithEllipsis } from "./utils/Util.js";
+import { ArchiveEntryData, ArchiveEntryDataLegacy } from "./archive/ArchiveEntry.js";
+import { escapeDiscordString, getAuthorsString, getChanges } from "./utils/Util.js";
 import { UserManager } from "./support/UserManager.js";
 import { UserData } from "./support/UserData.js";
 import { SubmissionConfigs } from "./submissions/SubmissionConfigs.js";
 import { SubmissionStatus } from "./submissions/SubmissionStatus.js";
 import fs from "fs/promises";
-
+import { countCharactersInRecord } from "./utils/MarkdownUtils.js";
+import { Revision, RevisionLegacy } from "./submissions/Revision.js";
 /**
  * GuildHolder is a class that manages guild-related data.
  */
@@ -43,7 +44,7 @@ export class GuildHolder {
     private userManager: UserManager;
 
     private lastDayLoop: number = 0;
-    private ready : boolean = false;
+    private ready: boolean = false;
 
     /**
      * Creates a new GuildHolder instance.
@@ -408,7 +409,7 @@ export class GuildHolder {
         if (!this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_ID)) {
             return;
         }
-        
+
         const users = await this.userManager.getAllUserIDs();
         for (const userId of users) {
             const userData = await this.userManager.getUserData(userId);
@@ -435,7 +436,7 @@ export class GuildHolder {
 
     public async checkHelper(userData: UserData, member?: GuildMember) {
         const inBlacklist = this.getConfigManager().getConfig(GuildConfigs.THANKS_BLACKLIST).some(user => user.id === userData.id);
-        const shouldHaveHelperRole = !inBlacklist &&!userData.disableRole && userData.thankedBuffer.length >= this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_THRESHOLD);
+        const shouldHaveHelperRole = !inBlacklist && !userData.disableRole && userData.thankedBuffer.length >= this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_THRESHOLD);
         const guild = this.getGuild();
         const helperRoleId = this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_ID) as Snowflake | undefined;
         if (!helperRoleId) {
@@ -531,26 +532,36 @@ export class GuildHolder {
                 embed.setTitle(`Moved ${oldEntryData.code} to ${forumChannel.name}`);
             } else if (changes.name) {
                 embed.setTitle(`Updated name for ${newEntryData.code} in ${forumChannel.name}`);
-            } else if (changes.description) {
-                embed.setTitle(`Updated description for ${newEntryData.code} in ${forumChannel.name}`);
             } else if (changes.tags) {
                 embed.setTitle(`Updated tags for ${newEntryData.code} in ${forumChannel.name}`);
             } else if (changes.authors) {
                 embed.setTitle(`Updated authors for ${newEntryData.code} in ${forumChannel.name}`);
             } else if (changes.endorsers) {
                 embed.setTitle(`Updated endorsers for ${newEntryData.code} in ${forumChannel.name}`);
-            } else if (changes.features) {
-                embed.setTitle(`Updated features for ${newEntryData.code} in ${forumChannel.name}`);
-            } else if (changes.considerations) {
-                embed.setTitle(`Updated considerations for ${newEntryData.code} in ${forumChannel.name}`);
-            } else if (changes.notes) {
-                embed.setTitle(`Updated notes for ${newEntryData.code} in ${forumChannel.name}`);
             } else if (changes.images) {
                 embed.setTitle(`Updated images for ${newEntryData.code} in ${forumChannel.name}`);
             } else if (changes.attachments) {
                 embed.setTitle(`Updated attachments for ${newEntryData.code} in ${forumChannel.name}`);
             } else {
-                return; // No significant changes to log
+
+                let changed = false;
+                if (changes.records) {
+                    for (const [key, change] of Object.entries(changes.records)) {
+                        if (change.old && change.new) {
+                            embed.setTitle(`Updated ${key} for ${newEntryData.code} in ${forumChannel.name}`);
+                        } else if (change.old) {
+                            embed.setTitle(`Removed ${key} for ${newEntryData.code} in ${forumChannel.name}`);
+                        } else if (change.new) {
+                            embed.setTitle(`Added ${key} for ${newEntryData.code} in ${forumChannel.name}`);
+                        }
+                        changed = true;
+                        break;
+                    }
+                }
+
+                if (!changed) {
+                    return; // No significant changes to log
+                }
             }
 
             embed.setDescription(`**Name:** ${newEntryData.name}\n[Submission Thread](${submissionThread.url})`);
@@ -562,10 +573,19 @@ export class GuildHolder {
             if (changes.authors) fields.push({ name: 'Authors', value: `*${getAuthorsString(oldEntryData.authors)}* → *${getAuthorsString(newEntryData.authors)}*` });
             if (changes.endorsers) fields.push({ name: 'Endorsers', value: `*${getAuthorsString(oldEntryData.endorsers)}* → *${getAuthorsString(newEntryData.endorsers)}*` });
             if (changes.tags) fields.push({ name: 'Tags', value: `*${oldEntryData.tags.map(t => t.name).join(', ')}* → *${newEntryData.tags.map(t => t.name).join(', ')}*` });
-            if (changes.description) fields.push({ name: 'Description', value: `*${truncateStringWithEllipsis(oldEntryData.description, 100)}* → *${truncateStringWithEllipsis(newEntryData.description, 500)}*` });
-            if (changes.features) fields.push({ name: 'Features', value: `*${oldEntryData.features.length} features* → *${newEntryData.features.length} features*` });
-            if (changes.considerations) fields.push({ name: 'Considerations', value: `*${oldEntryData.considerations.length} considerations* → *${newEntryData.considerations.length} considerations*` });
-            if (changes.notes) fields.push({ name: 'Notes', value: `*${oldEntryData.notes.length} characters* → *${newEntryData.notes.length} characters*` });
+           
+            if (changes.records) {
+                for (const [key, change] of Object.entries(changes.records)) {
+                    if (change.old && change.new) {
+                        fields.push({ name: key, value: `*${countCharactersInRecord(change.old)} characters* → *${countCharactersInRecord(change.new)} characters*` });
+                    } else if (change.old) {
+                        fields.push({ name: key, value: `Removed ${countCharactersInRecord(change.old)} characters` });
+                    } else if (change.new) {
+                        fields.push({ name: key, value: `Added ${countCharactersInRecord(change.new)} characters` });
+                    }
+                }
+            }
+           
             if (changes.images) fields.push({ name: 'Images', value: `*${oldEntryData.images.length} images* → *${newEntryData.images.length} images*` });
             if (changes.attachments) fields.push({ name: 'Attachments', value: `*${oldEntryData.attachments.map(o => escapeDiscordString(o.name)).join(", ")} attachments* → *${newEntryData.attachments.map(o => escapeDiscordString(o.name)).join(", ")} attachments*` });
             embed.addFields(fields);
@@ -629,7 +649,72 @@ export class GuildHolder {
         });
     }
 
+    public getSchema(): any {
+        return this.getConfigManager().getConfig(GuildConfigs.POST_SCHEMA);
+    }
+
     public getUserManager(): UserManager {
         return this.userManager;
+    }
+
+    public async updateLegacyData() {
+        // Update legacy data for all submissions
+        const submissions = await this.getSubmissionsManager().getSubmissionsList();
+        for (const submissionID  of submissions) {
+            const submission = await this.getSubmissionsManager().getSubmission(submissionID);
+            if (submission) {
+                const revisionsRefs = submission.getRevisionsManager().getRevisionsList();
+                for (const revisionRef of revisionsRefs) {
+                    const revision = await submission.getRevisionsManager().getRevisionById(revisionRef.id);
+                    if (revision) {
+                        const legacy = revision as any as RevisionLegacy;
+                        if (legacy.description !== undefined) {
+                            const newRevision: Revision = {
+                                id: legacy.id,
+                                messageIds: legacy.messageIds,
+                                type: legacy.type,
+                                parentRevision: legacy.parentRevision,
+                                timestamp: legacy.timestamp,
+                                records: {
+                                    description: legacy.description,
+                                    features: legacy.features,
+                                    considerations: legacy.considerations,
+                                    notes: legacy.notes,
+                                }
+                            }
+                            await submission.getRevisionsManager().updateRevision(newRevision);
+                        }
+                    }
+                }
+            }
+        }
+
+        // update posts
+        await this.getRepositoryManager().iterateAllEntries(async (entry) => {
+            const data = entry.getData();
+            const legacy = data as any as ArchiveEntryDataLegacy;
+            if (legacy.description !== undefined) {
+                const newData: ArchiveEntryData = {
+                    id: legacy.id,
+                    name: legacy.name,
+                    code: legacy.code,
+                    authors: legacy.authors,
+                    endorsers: legacy.endorsers,
+                    tags: legacy.tags,
+                    images: legacy.images,
+                    attachments: legacy.attachments,
+                    records: {
+                        description: legacy.description,
+                        features: legacy.features,
+                        considerations: legacy.considerations,
+                        notes: legacy.notes,
+                    },
+                    timestamp: legacy.timestamp,
+                };
+                entry.setData(newData);
+                await entry.save();
+            }
+        });
+
     }
 }

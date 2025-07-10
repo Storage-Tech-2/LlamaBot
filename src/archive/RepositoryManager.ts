@@ -93,6 +93,28 @@ export class RepositoryManager {
         }
     }
 
+    public async iterateAllEntries(callback: (entry: ArchiveEntry, channelRef: ArchiveChannelReference, channel: ArchiveChannel) => Promise<void>) {
+        const channelReferences = this.getChannelReferences();
+        for (const channelRef of channelReferences) {
+            const channelPath = Path.join(this.folderPath, channelRef.path);
+            const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
+            if (!archiveChannel) {
+                console.warn(`Channel ${channelRef.name} (${channelRef.id}) not found in memory`);
+                continue;
+            }
+            const entries = archiveChannel.getData().entries;
+            for (const entryRef of entries) {
+                const entryPath = Path.join(channelPath, entryRef.path);
+                const entry = await ArchiveEntry.fromFolder(entryPath);
+                if (!entry) {
+                    console.warn(`Entry ${entryRef.name} (${entryRef.code}) not found in memory`);
+                    continue;
+                }
+                await callback(entry, channelRef, archiveChannel);
+            }
+        }
+    }
+
     shouldIgnoreUpdates(id: Snowflake): boolean {
         return this.ignoreUpdatesFrom.includes(id);
     }
@@ -551,10 +573,7 @@ export class RepositoryManager {
                 tags: config.getConfig(SubmissionConfigs.TAGS) || [],
                 images: submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) || [],
                 attachments: submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) || [],
-                description: revision.description || '',
-                features: revision.features || [],
-                considerations: revision.considerations || [],
-                notes: revision.notes || '',
+                records: revision.records,
                 timestamp: Date.now(),
                 post: undefined
             });

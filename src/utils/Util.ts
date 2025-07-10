@@ -15,6 +15,7 @@ import { Submission } from '../submissions/Submission.js'
 import { SubmissionConfigs } from '../submissions/SubmissionConfigs.js'
 import { Tag } from '../submissions/Tag.js'
 import { SubmissionStatus } from '../submissions/SubmissionStatus.js'
+import { SubmissionRecord } from './MarkdownUtils.js'
 
 export function getItemsFromArray<T extends (Button | Menu | Modal | Command)>(itemArray: T[]): Map<string, T> {
     const items = new Map()
@@ -158,10 +159,7 @@ export type Changes = {
     authors?: Change<Author[]>;
     endorsers?: Change<Author[]>;
     tags?: Change<Tag[]>;
-    description?: Change<string>;
-    features?: Change<string[]>;
-    considerations?: Change<string[]>;
-    notes?: Change<string>;
+    records?: Record<string, Change<SubmissionRecord | null>>;
     images?: Change<Image[]>;
     attachments?: Change<Attachment[]>;
 }
@@ -208,13 +206,37 @@ export function getChanges(
         authors: getChange(existing.authors, updated.authors),
         endorsers: getChange(existing.endorsers, updated.endorsers),
         tags: getChangeNames(existing.tags, updated.tags),
-        description: getChange(existing.description, updated.description),
-        features: getChange(existing.features, updated.features),
-        considerations: getChange(existing.considerations, updated.considerations),
-        notes: getChange(existing.notes, updated.notes),
+        records: getChangeRecords(existing.records, updated.records),
         images: getChangeIDs(existing.images, updated.images),
         attachments: getChangeIDs(existing.attachments, updated.attachments)
     }
+}
+
+export function getChangeRecords(
+    existing: Record<string, SubmissionRecord>,
+    updated: Record<string, SubmissionRecord>,
+): Record<string, Change<SubmissionRecord | null>> {
+    const changes: Record<string, Change<SubmissionRecord | null>> = {};
+    const allKeys = new Set([...Object.keys(existing), ...Object.keys(updated)]);
+
+    for (const key of allKeys) {
+        const oldRecord = existing[key];
+        const newRecord = updated[key];
+
+        if (oldRecord && newRecord) {
+            // Both exist, check for changes
+            if (!areObjectsIdentical(oldRecord, newRecord)) {
+                changes[key] = { old: oldRecord, new: newRecord };
+            }
+        } else if (oldRecord) {
+            // Only in existing
+            changes[key] = { old: oldRecord, new: null };
+        } else if (newRecord) {
+            // Only in updated
+            changes[key] = { old: null, new: newRecord };
+        }
+    }
+    return changes;
 }
 
 export function truncateStringWithEllipsis(str: string, maxLength: number): string {
@@ -242,10 +264,18 @@ export function generateCommitMessage(
     if (changes.authors) fragments.push("updated authors");
     if (changes.endorsers) fragments.push("updated endorsers");
     if (changes.tags) fragments.push("updated tags");
-    if (changes.description) fragments.push("updated description");
-    if (changes.features) fragments.push("updated features");
-    if (changes.considerations) fragments.push("updated considerations");
-    if (changes.notes) fragments.push("updated notes");
+    if (changes.records) {
+        for (const [key, change] of Object.entries(changes.records)) {
+            if (change.old && change.new) {
+                fragments.push(`updated ${key}`);
+            } else if (change.old) {
+                fragments.push(`removed ${key}`);
+            } else if (change.new) {
+                fragments.push(`added ${key}`);
+            }
+        }
+    }
+
     if (changes.images) fragments.push("updated images");
     if (changes.attachments) fragments.push("updated attachments");
 

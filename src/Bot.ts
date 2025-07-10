@@ -403,6 +403,18 @@ export class Bot {
                 console.error('Not a git repository:', err);
                 return message.reply('Not a git repository. Cannot refresh.');
             }
+        } else if (commandName === 'legacy') {
+            await message.reply('Updating legacy data...');
+            this.guilds.forEach(async (guildHolder) => {
+                try {
+                    await guildHolder.updateLegacyData();
+                    console.log(`Updated legacy data for guild ${guildHolder.getGuild().name} (${guildHolder.getGuild().id})`);
+                }
+                catch (error: any) {
+                    console.error(`Error updating legacy data for guild ${guildHolder.getGuild().name} (${guildHolder.getGuild().id}):`, error);
+                    return message.reply(`Error updating legacy data for guild ${guildHolder.getGuild().name}: ${error.message}`);
+                }
+            });
         } else {
             return message.reply(`Unknown command: ${commandName}`);
         }
