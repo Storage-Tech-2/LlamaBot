@@ -21,7 +21,7 @@ export class EditRevisionModal implements Modal {
             .setCustomId('input1')
             .setLabel('Markdown Text:')
             .setStyle(TextInputStyle.Paragraph)
-            .setPlaceholder(schemaToMarkdownTemplate(guildHolder.getSchema(),undefined, true))
+            .setPlaceholder('Formatted text for the submission.')
             .setRequired(true)
 
         const descriptionInput2 = new TextInputBuilder()
