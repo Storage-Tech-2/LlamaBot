@@ -79,7 +79,7 @@ export function getAuthorsString(authors: Author[] | null): string {
         if (author.type === AuthorType.DiscordInGuild) {
             return `<@${author.id}>`;
         } else if (author.type === AuthorType.DiscordExternal) {
-            return `${escapeDiscordString(name)} (<@${author.id}>)`;
+            return `${author.url ? `[${escapeDiscordString(name)}](${author.url})` : escapeDiscordString(name)} (<@${author.id}>)`;
         } else if (author.url) {
             return `[${escapeDiscordString(name)}](${author.url})`;
         } else {
