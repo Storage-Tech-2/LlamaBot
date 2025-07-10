@@ -22,18 +22,21 @@ export class AddAuthorModal implements Modal {
         const userIDInput = new TextInputBuilder()
             .setCustomId('idInput')
             .setLabel('Discord User ID:')
+            .setPlaceholder('A number. Leave empty for non-Discord users')
             .setStyle(TextInputStyle.Short)
             .setRequired(false)
 
         const name = new TextInputBuilder()
             .setCustomId('nameInput')
             .setLabel('or Name (for non-Discord users only):')
+            .setPlaceholder('Leave empty for Discord users')
             .setStyle(TextInputStyle.Short)
             .setRequired(false)
 
         const reason = new TextInputBuilder()
             .setCustomId('reasonInput')
             .setLabel('Optional reason for adding:')
+            .setPlaceholder('e.g. "for emotional support"')
             .setStyle(TextInputStyle.Paragraph)
             .setRequired(false)
 
