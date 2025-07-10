@@ -37,7 +37,7 @@ export class AddAuthorModal implements Modal {
         const url = new TextInputBuilder()
             .setCustomId('urlInput')
             .setLabel('Optional URL for the author:')
-            .setPlaceholder('e.g. "https://reddit.com/u/username"')
+            .setPlaceholder('e.g. https://reddit.com/u/username')
             .setStyle(TextInputStyle.Short)
             .setRequired(false)
 
