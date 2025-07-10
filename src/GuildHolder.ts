@@ -721,6 +721,7 @@ export class GuildHolder {
                 const submission = await this.getSubmissionsManager().getSubmission(data.id);
                 if (submission) {
                     entry.getData().post = submission.getConfigManager().getConfig(SubmissionConfigs.POST) || undefined;
+                    await entry.save();
                 }
             }
         });
