@@ -39,11 +39,11 @@ export class TemplateEmbed {
         const schema = guildHolder.getSchema();
         description += `# New Post Template\n`;
 
-        description += `**Authors:** <@${guildHolder.getBot().client.user?.id}>\n`
+        description += `**Authors:** <@${guildHolder.getBot().client.user?.id}>\n\n`
 
-        description += `\n${schemaToMarkdownTemplate(schema)}\n`;
+        description += schemaToMarkdownTemplate(schema);
 
-        description += `\n## Acknowledgements\n\n`;
+        description += `\n## Acknowledgements\n`;
 
         description += `- <@${guildHolder.getBot().client.user?.id}>: For being awesome.\n`;
 

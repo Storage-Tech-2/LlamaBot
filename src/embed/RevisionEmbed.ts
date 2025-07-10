@@ -74,11 +74,11 @@ export class RevisionEmbed {
         const authors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
         description += `**Authors:** ${getAuthorsString(authors.filter(a=>!a.dontDisplay))}\n`
 
-        description += `\n${postToMarkdown(revision.records)}\n`;
+        description += `\n${postToMarkdown(revision.records)}`;
 
         const authorsWithReasons = authors.filter(author => author.reason);
         if (authorsWithReasons.length > 0) {
-            description += `\n## Acknowledgements:**\n\n`;
+            description += `\n## Acknowledgements\n`;
             authorsWithReasons.forEach(author => {
                 description += `- ${getAuthorsString([author])}: ${author.reason}\n`;
             });

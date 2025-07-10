@@ -144,7 +144,7 @@ export class PostEmbed {
 
 
         if (authors.length > 0) {
-            content.push(`**Authors:** ${getAuthorsString(authors.filter(a => !a.dontDisplay))}`);
+            content.push(`**Authors:** ${getAuthorsString(authors.filter(a => !a.dontDisplay))}\n`);
         }
 
         // check if authors and endorsers are the same
@@ -152,7 +152,7 @@ export class PostEmbed {
             entryData.authors.every(author => entryData.endorsers.some(endorser => areObjectsIdentical(author, endorser))))) {
             // if they are the same, do not show endorsers
         } else {
-            content.push(`**Endorsed by:** ${getAuthorsString(entryData.endorsers)}`);
+            content.push(`**Endorsed by:** ${getAuthorsString(entryData.endorsers)}\n`);
         }
 
         content.push('\n' + postToMarkdown(entryData.records));
@@ -161,7 +161,7 @@ export class PostEmbed {
         if (authorsWithReasons.length > 0) {
             content.push(`\n## Acknowledgements`);
             authorsWithReasons.forEach(author => {
-                content.push(`- ${getAuthorsString([author])}: ${author.reason}`);
+                content.push(`\n- ${getAuthorsString([author])}: ${author.reason}`);
             });
         }
 
@@ -175,11 +175,11 @@ export class PostEmbed {
         const submissionURL = `https://discord.com/channels/${guildHolder.getGuild().id}/${submissionThreadID}`;
 
         const gitURL = `https://github.com/${owner}/${project}/tree/master/${entryPathPart}#readme`;
-        content.push(`\n[Submission Thread](${submissionURL})`);
-        content.push(`[Github](${gitURL})`);
-        content.push(`Edited on <t:${Math.floor(entryData.timestamp / 1000)}:F>`);
+        content.push(`\n\n[Submission Thread](${submissionURL})`);
+        content.push(`\n[Github](${gitURL})`);
+        content.push(`\nEdited on <t:${Math.floor(entryData.timestamp / 1000)}:F>`);
 
-        return content.join('\n');
+        return content.join('');
     }
 
     public static async createImageFiles(entryData: ArchiveEntryData, archivePath: string, entryPathPart: string, isGalleryView: boolean): Promise<{ files: AttachmentBuilder[], paths: string[] }> {

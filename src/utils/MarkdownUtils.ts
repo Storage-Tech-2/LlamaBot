@@ -297,7 +297,7 @@ export function postToMarkdown(record: SubmissionRecords): string {
         const recordValue = record[key];
 
         if (key !== "description" || !isFirst) {
-            markdown += `\n\n## ${capitalizeFirstLetter(key)}\n`;
+            markdown += `\n## ${capitalizeFirstLetter(key)}\n`;
         }
         isFirst = false;
         markdown += submissionRecordToMarkdown(recordValue);
