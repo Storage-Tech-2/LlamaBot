@@ -295,12 +295,14 @@ export function postToMarkdown(record: SubmissionRecords): string {
     let isFirst = true;
     for (const key in record) {
         const recordValue = record[key];
-
-        if (key !== "description" || !isFirst) {
-            markdown += `\n## ${capitalizeFirstLetter(key)}\n`;
+        const text = submissionRecordToMarkdown(recordValue);
+        if (text.length > 0) {
+            if (key !== "description" || !isFirst) {
+                markdown += `\n## ${capitalizeFirstLetter(key)}\n`;
+            }
+            isFirst = false;
         }
-        isFirst = false;
-        markdown += submissionRecordToMarkdown(recordValue);
+        markdown += text;
     }
 
     return markdown.trim();
