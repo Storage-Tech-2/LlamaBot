@@ -285,6 +285,10 @@ export function submissionRecordToMarkdown(value: SubmissionRecord): string {
     return markdown.trim();
 }
 
+export function capitalizeFirstLetter(str: string): string {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 export function postToMarkdown(record: SubmissionRecords): string {
     let markdown = "";
 
@@ -293,7 +297,7 @@ export function postToMarkdown(record: SubmissionRecords): string {
         const recordValue = record[key];
 
         if (key !== "description" || !isFirst) {
-            markdown += `\n\n## ${key}\n\n`;
+            markdown += `\n\n## ${capitalizeFirstLetter(key)}\n\n`;
         }
         isFirst = false;
         markdown += submissionRecordToMarkdown(recordValue);
@@ -346,7 +350,7 @@ export function schemaToMarkdownTemplate(schema: any, record?: SubmissionRecords
         const recordValue = (record && Object.hasOwn(record, key)) ? record[key] : null;
 
         if (key !== "description" || !isFirst) {
-            markdown += `\n\n## ${key}${isRequired ? "" : " (optional)"}\n\n`;
+            markdown += `\n\n## ${capitalizeFirstLetter(key)}${isRequired ? "" : " (Optional)"}\n\n`;
         }
         isFirst = false;
 
