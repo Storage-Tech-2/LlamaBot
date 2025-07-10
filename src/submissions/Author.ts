@@ -13,4 +13,5 @@ export type Author = {
     iconURL?: string, // URL to the user's avatar or icon
     reason?: string, // Optional reason for the author
     dontDisplay?: boolean // If true, this author will not be displayed in the by line
+    url?: string, // URL to the author's profile or relevant page
 }

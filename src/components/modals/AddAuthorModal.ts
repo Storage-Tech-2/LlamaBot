@@ -33,6 +33,14 @@ export class AddAuthorModal implements Modal {
             .setStyle(TextInputStyle.Short)
             .setRequired(false)
 
+        
+        const url = new TextInputBuilder()
+            .setCustomId('urlInput')
+            .setLabel('Optional URL for the author:')
+            .setPlaceholder('e.g. "https://reddit.com/u/username"')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(false)
+
         const reason = new TextInputBuilder()
             .setCustomId('reasonInput')
             .setLabel('Optional reason for adding:')
@@ -50,9 +58,10 @@ export class AddAuthorModal implements Modal {
 
         const row1 = new ActionRowBuilder().addComponents(userIDInput)
         const row2 = new ActionRowBuilder().addComponents(name)
-        const row3 = new ActionRowBuilder().addComponents(reason)
-        const row4 = new ActionRowBuilder().addComponents(shouldDisplay)
-        modal.addComponents(row1 as any, row2 as any, row3 as any, row4 as any);
+        const row3 = new ActionRowBuilder().addComponents(url)
+        const row4 = new ActionRowBuilder().addComponents(reason)
+        const row5 = new ActionRowBuilder().addComponents(shouldDisplay)
+        modal.addComponents(row1 as any, row2 as any, row3 as any, row4 as any, row5 as any);
         return modal
     }
 
@@ -80,7 +89,8 @@ export class AddAuthorModal implements Modal {
         const userId = interaction.fields.getTextInputValue('idInput') || null;
         const reason = interaction.fields.getTextInputValue('reasonInput') || undefined;
         const shouldDisplay = interaction.fields.getTextInputValue('shouldDisplay').toLowerCase() === 'yes' || interaction.fields.getTextInputValue('shouldDisplay').toLowerCase() === 'y';
-
+        const url = interaction.fields.getTextInputValue('urlInput') || undefined;
+        
         let author: Author = {
             type: AuthorType.Unknown,
             id: userId || undefined,
@@ -110,6 +120,17 @@ export class AddAuthorModal implements Modal {
                 replyEphemeral(interaction, 'User not found. Please provide a valid Discord User ID or leave it empty.');
                 return;
             }
+        }
+
+        if (url) {
+            // check if the URL is valid
+            try {
+                new URL(url); // This will throw if the URL is invalid
+            } catch (e) {
+                replyEphemeral(interaction, 'Invalid URL format. Please provide a valid URL or leave it empty.');
+                return;
+            }
+            author.url = url; // If a URL is provided, we add it to the author object
         }
 
         const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) === null;
