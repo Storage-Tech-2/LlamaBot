@@ -1,4 +1,5 @@
 import { Snowflake } from "discord.js"
+import { SubmissionRecords } from "../utils/MarkdownUtils.js";
 
 export enum RevisionType {
     /**
@@ -18,6 +19,17 @@ export enum RevisionType {
 }
 
 export type Revision = {
+    id: Snowflake;
+    messageIds: Snowflake[];
+    type: RevisionType;
+
+    parentRevision: Snowflake | null;
+    timestamp: number;
+
+    records: SubmissionRecords;
+}
+
+export type RevisionLegacy = {
     id: Snowflake;
     messageIds: Snowflake[];
     type: RevisionType;

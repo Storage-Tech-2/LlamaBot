@@ -126,7 +126,7 @@ export class LLMQueue {
             const prompt = request.prompt.generatePrompt();
             const res = await got.post(URL, {
                 json: {
-                    mode: 'extraction',
+                    schema: request.schema,
                     input_text: prompt
                 },
                 timeout: {

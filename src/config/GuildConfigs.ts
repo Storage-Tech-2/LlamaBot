@@ -59,5 +59,42 @@ export const GuildConfigs = {
      */
     THANKS_BLACKLIST: new Config<Author[]>("thanksBlacklist", []),
 
-    
+    /**
+     * Schema for the posts
+     */
+    POST_SCHEMA: new Config<any>("postSchema", {
+        "title": "Submission",
+        "type": "object",
+        "properties": {
+            "description": {
+                "type": "string",
+                "description": "A description of the device."
+            },
+            "features": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                },
+                "description": "A list of features of the device."
+            },
+            "considerations": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                },
+                "description": "Optional list of considerations/downsides of the device."
+            },
+            "notes": {
+                "type": "string",
+                "description": "Optional notes about the device."
+            }
+        },
+        "required": [
+            "name",
+            "description",
+            "features"
+        ]
+    }),
+
+
 }

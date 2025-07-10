@@ -26,11 +26,6 @@ import gc
 # ---------------------------------------------------------------------------
 
 BASE_DIR = Path(__file__).resolve().parent
-SCHEMA_DIR = BASE_DIR / "schemas"
-
-SCHEMA_MAP: Dict[str, str] = {
-    "extraction": "extraction.schema.json",
-}
 
 # ---------------------------------------------------------------------------
 # Concurrency guard – single global lock
@@ -77,7 +72,7 @@ app = FastAPI(
 # ---------------------------------------------------------------------------
 
 class GenerateRequest(BaseModel):
-    mode: str = Field(..., examples=["extraction"], description="Which schema / task to use.")
+    schema: str = Field(..., description="JSON schema to use for generation.")
     input_text: str = Field(..., description="Raw text fed into the prompt.")
 
 
@@ -91,26 +86,17 @@ class GenerateResponse(BaseModel):
 
 @app.post("/generate", response_model=GenerateResponse, status_code=200)
 def generate(req: GenerateRequest, request: Request):
-    mode = req.mode.lower()
-    if mode not in SCHEMA_MAP:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unknown mode '{mode}'. Choose one of {list(SCHEMA_MAP)}.",
-        )
-
     with _MODEL_LOCK:
         # Ensure the model is initialised
         model = _load_model(request.app)
 
-        # Read the JSON schema freshly for every request
-        schema_path = SCHEMA_DIR / SCHEMA_MAP[mode]
-        if not schema_path.exists():
-            raise HTTPException(
-                status_code=500,
-                detail=f"Schema file '{schema_path.name}' not found.",
-            )
-        with open(schema_path, encoding="utf-8") as f:
-            schema_str = f.read()
+        # Validate the schema
+        try:
+            schema_str = pyjson.dumps(pyjson.loads(req.schema), indent=2)
+        except pyjson.JSONDecodeError as exc:
+            print(f"❌  Invalid JSON schema: {exc}")
+            raise HTTPException(status_code=400, detail=f"Invalid JSON schema: {exc}") from exc
+        
 
         # Build a *new* generator for this call only (no generator caching)
         generator = Generator(

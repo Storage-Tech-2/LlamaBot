@@ -1,5 +1,4 @@
 import { Revision } from "../../submissions/Revision.js";
-import { LLMResponse } from "../LLMResponse.js";
 import { Prompt } from "./Prompt.js";
 
 export class ModificationPrompt implements Prompt {
@@ -20,19 +19,7 @@ export class ModificationPrompt implements Prompt {
      */
     constructor(instruction: string, revision: Revision) {
         this._instruction = instruction;
-        this._input = JSON.stringify(this.revisionToSchema(revision), null, 2);
-    }
-
-    revisionToSchema(revision: Revision): LLMResponse {
-        return {
-            result: {
-                description: revision.description,
-                features: revision.features,
-                cons: revision.considerations || [],
-                notes: revision.notes || ""
-            }
-        };
-
+        this._input = JSON.stringify(revision.records, null, 2);
     }
 
     /**

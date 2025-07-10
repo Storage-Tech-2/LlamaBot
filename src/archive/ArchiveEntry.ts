@@ -5,6 +5,7 @@ import { Image } from "../submissions/Image.js";
 import { Tag } from "../submissions/Tag.js";
 import fs from "fs/promises";
 import Path from "path";
+import { SubmissionRecords } from "../utils/MarkdownUtils.js";
 
 export type DiscordPostReference = {
     forumId: Snowflake;
@@ -14,7 +15,7 @@ export type DiscordPostReference = {
     uploadMessageId: Snowflake;
 }
 
-export type ArchiveEntryData = {
+export type ArchiveEntryDataLegacy = {
     id: Snowflake;
     name: string;
     code: string;
@@ -36,6 +37,26 @@ export type ArchiveEntryData = {
     timestamp: number;
 }
 
+
+export type ArchiveEntryData = {
+    id: Snowflake;
+    name: string;
+    code: string;
+    authors: Author[];
+    endorsers: Author[];
+    tags: Tag[];
+
+    images: Image[];
+    attachments: Attachment[];
+
+    records: SubmissionRecords;
+
+    /// For routing
+    post?: DiscordPostReference;
+
+    timestamp: number;
+}
+
 export class ArchiveEntry {
     private data: ArchiveEntryData;
     private folderPath: string;
@@ -47,6 +68,10 @@ export class ArchiveEntry {
 
     public getData(): ArchiveEntryData {
         return this.data;
+    }
+
+    public setData(data: ArchiveEntryData): void {
+        this.data = data;
     }
 
     public getFolderPath(): string {

@@ -7,6 +7,7 @@ import { GuildConfigs } from "../config/GuildConfigs.js";
 import { GuildHolder } from "../GuildHolder.js";
 import fs from "fs/promises";
 import { processImageForDiscord } from "../utils/AttachmentUtils.js";
+import { postToMarkdown } from "../utils/MarkdownUtils.js";
 
 export class PostEmbed {
     private embed: EmbedBuilder;
@@ -85,7 +86,7 @@ export class PostEmbed {
         const rawURL = `https://raw.githubusercontent.com/${owner}/${project}/refs/heads/${branchName}/${entryPathPart}`;
 
         if (litematics.length) {
-            description += '**Litematics:**\n'
+            description += '### Litematics\n'
             litematics.forEach(attachment => {
                 const url = attachmentURLs.get(attachment.name) || attachment.url;
                 const githubLink = `${rawURL}/${attachment.path}`;
@@ -95,7 +96,7 @@ export class PostEmbed {
         }
 
         if (wdls.length) {
-            description += '**WDLs:**\n'
+            description += '### WDLs\n'
             wdls.forEach(attachment => {
                 const url = attachmentURLs.get(attachment.name) || attachment.url;
                 description += `- ${url} [[Github Mirror]](${rawURL}/${attachment.path}): ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}\n`
@@ -103,7 +104,7 @@ export class PostEmbed {
         }
 
         if (youtubeVideos.length) {
-            description += '**YouTube videos:**\n'
+            description += '### YouTube videos\n'
             youtubeVideos.forEach(attachment => {
                 if (!attachment.youtube) {
                     description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link\n`
@@ -114,7 +115,7 @@ export class PostEmbed {
         }
 
         if (others.length) {
-            description += '**Other files:**\n'
+            description += '### Other files\n'
             others.forEach(attachment => {
                 if (attachment.contentType === 'mediafire') {
                     description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Mediafire link\n`
@@ -139,10 +140,6 @@ export class PostEmbed {
     public static createInitialMessage(guildHolder: GuildHolder, entryData: ArchiveEntryData, entryPathPart: string): string {
         let content = [];
 
-        const description = entryData.description;
-        const features = entryData.features;
-        const considerations = entryData.considerations;
-        const notes = entryData.notes;
         const authors = entryData.authors;
 
 
@@ -158,25 +155,11 @@ export class PostEmbed {
             content.push(`**Endorsed by:** ${getAuthorsString(entryData.endorsers)}`);
         }
 
-        content.push('\n' + description);
-
-        if (features.length) {
-            content.push('\n**Features:**');
-            features.forEach(feature => content.push(`- ${feature}`));
-        }
-
-        if (considerations.length) {
-            content.push('\n**Considerations:**');
-            considerations.forEach(con => content.push(`- ${con}`));
-        }
-
-        if (notes.length) {
-            content.push(`\n**Notes:**\n${notes}`);
-        }
+        content.push('\n' + postToMarkdown(entryData.records));
 
         const authorsWithReasons = entryData.authors.filter(author => author.reason);
         if (authorsWithReasons.length > 0) {
-            content.push(`\n**Acknowledgements:**`);
+            content.push(`\n## Acknowledgements`);
             authorsWithReasons.forEach(author => {
                 content.push(`- ${getAuthorsString([author])}: ${author.reason}`);
             });

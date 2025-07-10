@@ -5,6 +5,7 @@ import { EditSubmissionButton } from "../components/buttons/EditSubmissionButton
 import { MakeRevisionCurrentButton } from "../components/buttons/MakeRevisionCurrentButton.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import { getAuthorsString, splitIntoChunks } from "../utils/Util.js";
+import { postToMarkdown } from "../utils/MarkdownUtils.js";
 
 export class RevisionEmbed {
     private embeds: EmbedBuilder[];
@@ -73,30 +74,11 @@ export class RevisionEmbed {
         const authors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
         description += `**Authors:** ${getAuthorsString(authors.filter(a=>!a.dontDisplay))}\n`
 
-        description += `**Description:** ${revision.description}`
-
-        if (revision.features && revision.features.length) {
-            description += '\n\n**Features**'
-            revision.features.forEach((feature) => {
-                description += `\n- ${feature}`
-            })
-        }
-
-        if (revision.considerations && revision.considerations.length) {
-            description += '\n\n**Considerations**'
-            revision.considerations.forEach((con) => {
-                description += `\n- ${con}`
-            })
-        }
-
-        if (revision.notes && revision.notes.length) {
-            description += '\n\n**Notes**\n'
-            description += revision.notes
-        }
+        description += `\n${postToMarkdown(revision.records)}\n`;
 
         const authorsWithReasons = authors.filter(author => author.reason);
         if (authorsWithReasons.length > 0) {
-            description += `\n\n**Acknowledgements:**\n`;
+            description += `\n## Acknowledgements:**\n\n`;
             authorsWithReasons.forEach(author => {
                 description += `- ${getAuthorsString([author])}: ${author.reason}\n`;
             });

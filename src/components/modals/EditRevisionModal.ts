@@ -4,50 +4,39 @@ import { Modal } from "../../interface/Modal.js";
 import { Revision, RevisionType } from "../../submissions/Revision.js";
 import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
 import { RevisionEmbed } from "../../embed/RevisionEmbed.js";
+import { markdownMatchSchema, schemaToMarkdownTemplate } from "../../utils/MarkdownUtils.js";
+import { FixErrorsButton } from "../buttons/FixErrorsButton.js";
 
 export class EditRevisionModal implements Modal {
     getID(): string {
         return "edit-revision-modal";
     }
 
-    getBuilder(revision: Revision): ModalBuilder {
+    getBuilder(guildHolder: GuildHolder, revision: Revision, storedID?: Snowflake): ModalBuilder {
         const modal = new ModalBuilder()
             .setCustomId(this.getID() + '|' + revision.id)
             .setTitle('Edit Submission')
 
         const descriptionInput = new TextInputBuilder()
-            .setCustomId('descriptionInput')
-            .setLabel('Description:')
+            .setCustomId('input')
+            .setLabel('Markdown Text:')
             .setStyle(TextInputStyle.Paragraph)
-            .setValue(revision.description)
+          //  .setValue(schemaToMarkdownTemplate(guildHolder.getSchema(), revision.records))
             .setRequired(true)
 
-        const featuresInput = new TextInputBuilder()
-            .setCustomId('featuresInput')
-            .setLabel('Features:')
-            .setStyle(TextInputStyle.Paragraph)
-            .setValue(revision.features.map(o => "- " + o).join('\n'))
-            .setRequired(false)
+        if (storedID) {
+            const tempData = guildHolder.getBot().getTempDataStore().getEntry(storedID);
+            if (tempData) {
+                descriptionInput.setValue(tempData.data);
+            } else {
+                descriptionInput.setValue(schemaToMarkdownTemplate(guildHolder.getSchema(), revision.records));
+            }
+        } else {
+            descriptionInput.setValue(schemaToMarkdownTemplate(guildHolder.getSchema(), revision.records));
+        }
 
-        const authorsInput = new TextInputBuilder()
-            .setCustomId('consInput')
-            .setLabel('Cons:')
-            .setStyle(TextInputStyle.Paragraph)
-            .setValue((revision.considerations || []).map(o => "- " + o).join('\n'))
-            .setRequired(false)
-
-        const notesInput = new TextInputBuilder()
-            .setCustomId('notesInput')
-            .setLabel('Notes:')
-            .setStyle(TextInputStyle.Paragraph)
-            .setValue(revision.notes)
-            .setRequired(false)
-
-        const row1 = new ActionRowBuilder().addComponents(descriptionInput)
-        const row2 = new ActionRowBuilder().addComponents(featuresInput)
-        const row3 = new ActionRowBuilder().addComponents(authorsInput)
-        const row4 = new ActionRowBuilder().addComponents(notesInput)
-        modal.addComponents(row1 as any, row2, row3, row4)
+        const row1 = new ActionRowBuilder().addComponents(descriptionInput);
+        modal.addComponents(row1 as any);
         return modal
     }
 
@@ -77,10 +66,25 @@ export class EditRevisionModal implements Modal {
             return
         }
 
-        const descriptionInput = interaction.fields.getTextInputValue('descriptionInput')
-        const featuresInput = interaction.fields.getTextInputValue('featuresInput')
-        const consInput = interaction.fields.getTextInputValue('consInput')
-        const notesInput = interaction.fields.getTextInputValue('notesInput')
+        const input = interaction.fields.getTextInputValue('input');
+
+        let records;
+
+        try {
+            records = markdownMatchSchema(input, guildHolder.getSchema());
+        } catch (error: any) {
+
+            // store
+            const tempid = guildHolder.getBot().getTempDataStore().getNewId();
+            guildHolder.getBot().getTempDataStore().addEntry(tempid, input, 60 * 60 * 1000); // Store for 1 hour
+            const fixErrorsButton = new FixErrorsButton().getBuilder(revision, tempid);
+            const row = new ActionRowBuilder().addComponents(fixErrorsButton);
+            replyEphemeral(interaction, `Invalid input: ${error.message}`, {
+                components: [row]
+            });
+            return;
+        }
+     
 
         const newRevisionData: Revision = {
             id: "",
@@ -88,10 +92,7 @@ export class EditRevisionModal implements Modal {
             type: RevisionType.Manual,
             parentRevision: revision.id,
             timestamp: Date.now(),
-            description: descriptionInput,
-            features: featuresInput.split('\n').map(o => o.trim().replace(/^- /, '').trim()).filter(o => o.length > 0),
-            considerations: consInput.split('\n').map(o => o.trim().replace(/^- /, '').trim()).filter(o => o.length > 0),
-            notes: notesInput
+            records
         }
 
         const isCurrent = submission.getRevisionsManager().isRevisionCurrent(revision.id);
