@@ -89,7 +89,7 @@ export class StarterEmbed {
         }
 
         if (attachments !== null) {
-            description += `:white_check_mark: Finalized other attachments: ${attachments.length ? attachments.map(o => o.canDownload ? o.url : o.name).join(' , ') : 'No attachments'}\n`
+            description += `:white_check_mark: Finalized other attachments: ${attachments.length ? attachments.map(o => o.canDownload ? o.url : (o.url ? `[${o.name}](${o.url})` : o.name)).join(' , ') : 'No attachments'}\n`
         } else {
             description += ':four: Finalize other attachments\n'
         }
