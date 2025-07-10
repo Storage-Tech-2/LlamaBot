@@ -29,10 +29,10 @@ export class EditRevisionModal implements Modal {
             if (tempData) {
                 descriptionInput.setValue(tempData.data);
             } else {
-                descriptionInput.setValue(schemaToMarkdownTemplate(guildHolder.getSchema(), revision.records));
+                descriptionInput.setValue(schemaToMarkdownTemplate(guildHolder.getSchema(), revision.records, true));
             }
         } else {
-            descriptionInput.setValue(schemaToMarkdownTemplate(guildHolder.getSchema(), revision.records));
+            descriptionInput.setValue(schemaToMarkdownTemplate(guildHolder.getSchema(), revision.records, true));
         }
 
         const row1 = new ActionRowBuilder().addComponents(descriptionInput);

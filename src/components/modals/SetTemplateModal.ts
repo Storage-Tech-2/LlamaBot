@@ -20,7 +20,7 @@ export class SetTemplateModal implements Modal {
             .setCustomId('input')
             .setLabel('Markdown Template:')
             .setStyle(TextInputStyle.Paragraph)
-            .setValue(schemaToMarkdownTemplate(guildHolder.getSchema()))
+            .setValue(schemaToMarkdownTemplate(guildHolder.getSchema(), undefined, true))
             .setRequired(true)
 
         const row1 = new ActionRowBuilder().addComponents(descriptionInput);

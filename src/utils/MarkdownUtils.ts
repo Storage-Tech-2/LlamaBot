@@ -308,7 +308,7 @@ export function postToMarkdown(record: SubmissionRecords): string {
 
 
 
-export function schemaToMarkdownTemplate(schema: any, record?: SubmissionRecords): string {
+export function schemaToMarkdownTemplate(schema: any, record?: SubmissionRecords, addExtraNewline: boolean = false): string {
     let markdown = "";
     const properties = schema.properties || {};
 
@@ -350,7 +350,7 @@ export function schemaToMarkdownTemplate(schema: any, record?: SubmissionRecords
         const recordValue = (record && Object.hasOwn(record, key)) ? record[key] : null;
 
         if (key !== "description" || !isFirst) {
-            markdown += `\n## ${capitalizeFirstLetter(key)}${isRequired ? "" : " (Optional)"}\n`;
+            markdown += (addExtraNewline ? '\n' : '') + `\n## ${capitalizeFirstLetter(key)}${isRequired ? "" : " (Optional)"}\n`;
         }
         isFirst = false;
 
