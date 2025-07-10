@@ -28,19 +28,22 @@ export class MakeRevisionCurrentButton implements Button {
             return;
         }
 
+        await interaction.deferReply();
+
         const revision = await submission.getRevisionsManager().getRevisionById(interaction.message.id)
         if (!revision) {
-            replyEphemeral(interaction, 'Revision not found')
+            interaction.editReply('Revision not found')
             return
         }
         await submission.getRevisionsManager().setCurrentRevision(revision.id);
         const channel = await submission.getSubmissionChannel();
         if (!channel) {
-            replyEphemeral(interaction, 'Submission channel not found. Please try again later.');
+            interaction.editReply('Submission channel not found. Please try again later.');
             return;
         }
+
         const message = await channel.messages.fetch(revision.id);
-        await interaction.reply({
+        await interaction.editReply({
             content: `<@${interaction.user.id}> changed current revision to ${message.url}`
         });
         submission.statusUpdated();
