@@ -715,6 +715,14 @@ export class GuildHolder {
                 entry.setData(newData);
                 await entry.save();
             }
+
+            // check if post doesn't exist, then find submission post;
+            if (!data.post) {
+                const submission = await this.getSubmissionsManager().getSubmission(data.id);
+                if (submission) {
+                    entry.getData().post = submission.getConfigManager().getConfig(SubmissionConfigs.POST) || undefined;
+                }
+            }
         });
 
     }
