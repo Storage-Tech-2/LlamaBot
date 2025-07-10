@@ -29,20 +29,6 @@ export type Revision = {
     records: SubmissionRecords;
 }
 
-export type RevisionLegacy = {
-    id: Snowflake;
-    messageIds: Snowflake[];
-    type: RevisionType;
-
-    parentRevision: Snowflake | null;
-    timestamp: number;
-
-    description: string;
-    features: string[];
-    considerations: string[];
-    notes: string;
-}
-
 export type TempRevisionData = {
     name: string;
     minecraftVersion: string;

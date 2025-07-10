@@ -5,7 +5,7 @@ import Path from "path";
 import { GuildConfigs } from "./config/GuildConfigs.js";
 import { SubmissionsManager } from "./submissions/SubmissionsManager.js";
 import { RepositoryManager } from "./archive/RepositoryManager.js";
-import { ArchiveEntryData, ArchiveEntryDataLegacy } from "./archive/ArchiveEntry.js";
+import { ArchiveEntryData } from "./archive/ArchiveEntry.js";
 import { escapeDiscordString, getAuthorsString, getChanges } from "./utils/Util.js";
 import { UserManager } from "./support/UserManager.js";
 import { UserData } from "./support/UserData.js";
@@ -13,7 +13,6 @@ import { SubmissionConfigs } from "./submissions/SubmissionConfigs.js";
 import { SubmissionStatus } from "./submissions/SubmissionStatus.js";
 import fs from "fs/promises";
 import { countCharactersInRecord } from "./utils/MarkdownUtils.js";
-import { Revision, RevisionLegacy } from "./submissions/Revision.js";
 /**
  * GuildHolder is a class that manages guild-related data.
  */
@@ -655,76 +654,5 @@ export class GuildHolder {
 
     public getUserManager(): UserManager {
         return this.userManager;
-    }
-
-    public async updateLegacyData() {
-        // Update legacy data for all submissions
-        const submissions = await this.getSubmissionsManager().getSubmissionsList();
-        for (const submissionID  of submissions) {
-            const submission = await this.getSubmissionsManager().getSubmission(submissionID);
-            if (submission) {
-                const revisionsRefs = submission.getRevisionsManager().getRevisionsList();
-                for (const revisionRef of revisionsRefs) {
-                    const revision = await submission.getRevisionsManager().getRevisionById(revisionRef.id);
-                    if (revision) {
-                        const legacy = revision as any as RevisionLegacy;
-                        if (legacy.description !== undefined) {
-                            const newRevision: Revision = {
-                                id: legacy.id,
-                                messageIds: legacy.messageIds,
-                                type: legacy.type,
-                                parentRevision: legacy.parentRevision,
-                                timestamp: legacy.timestamp,
-                                records: {
-                                    description: legacy.description,
-                                    features: legacy.features,
-                                    considerations: legacy.considerations,
-                                    notes: legacy.notes,
-                                }
-                            }
-                            await submission.getRevisionsManager().updateRevision(newRevision);
-                        }
-                    }
-                }
-            }
-        }
-
-        // update posts
-        await this.getRepositoryManager().iterateAllEntries(async (entry) => {
-            const data = entry.getData();
-            const legacy = data as any as ArchiveEntryDataLegacy;
-            if (legacy.description !== undefined) {
-                const newData: ArchiveEntryData = {
-                    id: legacy.id,
-                    name: legacy.name,
-                    code: legacy.code,
-                    authors: legacy.authors,
-                    endorsers: legacy.endorsers,
-                    tags: legacy.tags,
-                    images: legacy.images,
-                    attachments: legacy.attachments,
-                    records: {
-                        description: legacy.description,
-                        features: legacy.features,
-                        considerations: legacy.considerations,
-                        notes: legacy.notes,
-                    },
-                    timestamp: legacy.timestamp,
-                    post: legacy.post,
-                };
-                entry.setData(newData);
-                await entry.save();
-            }
-
-            // check if post doesn't exist, then find submission post;
-            if (!data.post) {
-                const submission = await this.getSubmissionsManager().getSubmission(data.id);
-                if (submission) {
-                    entry.getData().post = submission.getConfigManager().getConfig(SubmissionConfigs.POST) || undefined;
-                    await entry.save();
-                }
-            }
-        });
-
     }
 }

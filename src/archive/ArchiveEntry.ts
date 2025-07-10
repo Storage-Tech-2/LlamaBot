@@ -15,29 +15,6 @@ export type DiscordPostReference = {
     uploadMessageId: Snowflake;
 }
 
-export type ArchiveEntryDataLegacy = {
-    id: Snowflake;
-    name: string;
-    code: string;
-    authors: Author[];
-    endorsers: Author[];
-    tags: Tag[];
-
-    images: Image[];
-    attachments: Attachment[];
-
-    description: string;
-    features: string[];
-    considerations: string[];
-    notes: string;
-
-    /// For routing
-    post?: DiscordPostReference;
-
-    timestamp: number;
-}
-
-
 export type ArchiveEntryData = {
     id: Snowflake;
     name: string;
