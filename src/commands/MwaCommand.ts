@@ -10,6 +10,7 @@ import { SetEditorRolesMenu } from "../components/menus/SetEditorRolesMenu.js";
 import { SetHelperRoleMenu } from "../components/menus/SetHelperRoleMenu.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
+import { SetTemplateModal } from "../components/modals/SetTemplateModal.js";
 
 export class Mwa implements Command {
     getID(): string {
@@ -122,6 +123,12 @@ export class Mwa implements Command {
                     )
             )
 
+              .addSubcommand(subcommand =>
+                subcommand
+                    .setName('settemplate')
+                    .setDescription('Set the post template for the archive')
+            )
+
             .addSubcommand(subcommand =>
                 subcommand
                     .setName('republisheverything')
@@ -200,6 +207,8 @@ export class Mwa implements Command {
             this.updateAllSubmissionsStatus(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'checkposts') {
             this.checkEveryPost(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'settemplate') {
+            this.setTemplate(guildHolder, interaction);
         } else {
             await replyEphemeral(interaction, 'Invalid subcommand. Use `/mwa setsubmissions`, `/mwa setlogs`, `/mwa setarchives`, `/mwa setuparchives`, `/mwa setendorseroles`, `/mwa seteditorroles`, `/mwa sethelperrole` or `/mwa setrepo`.');
             return;
@@ -345,7 +354,7 @@ export class Mwa implements Command {
         }
 
         guildHolder.getConfigManager().setConfig(GuildConfigs.SUBMISSION_CHANNEL_ID, channel.id)
-        await replyEphemeral(interaction, `Llamabot will now listen to ${channel.name} for submissions!`);
+        await interaction.reply(`Llamabot will now listen to ${channel.name} for submissions!`);
     }
 
     async setArchives(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
@@ -356,6 +365,11 @@ export class Mwa implements Command {
             .addComponents(dt);
         // interaction.reply({ content: `Change notification settings of '${name}' in this channel`, components: [row], ephemeral: true })
         await replyEphemeral(interaction, 'Select archive categories', { components: [row] })
+    }
+
+    async setTemplate(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const modal = new SetTemplateModal().getBuilder(guildHolder);
+        await interaction.showModal(modal);
     }
 
     async setEndorseRoles(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
