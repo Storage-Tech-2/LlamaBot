@@ -710,6 +710,7 @@ export class GuildHolder {
                         notes: legacy.notes,
                     },
                     timestamp: legacy.timestamp,
+                    post: legacy.post,
                 };
                 entry.setData(newData);
                 await entry.save();
