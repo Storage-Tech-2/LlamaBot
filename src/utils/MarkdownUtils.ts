@@ -163,7 +163,7 @@ export function countCharactersInRecord(record: SubmissionRecord): number {
 
 export function markdownMatchSchema(markdown: string, schema: any): SubmissionRecords {
     const requiredKeys = schema.required || [];
-    const properties = schema.properties || {};
+    const schemaProps = schema.properties || {};
     const resultObject: Record<string, string | (string | NestedListItem)[]> = {};
 
     const splitTokens = splitMarkdownByHeadings(markdown);
@@ -175,13 +175,13 @@ export function markdownMatchSchema(markdown: string, schema: any): SubmissionRe
         }
     }
 
-    // Check if invalid keys are present in the markdown
+    // // Check if invalid keys are present in the markdown
     const markdownKeys = splitTokens.map((s) => s.key);
-    for (const key of markdownKeys) {
-        if (!Object.hasOwn(properties, key)) {
-            throw new Error(`Invalid section "${key}" found in markdown.`);
-        }
-    }
+    // for (const key of markdownKeys) {
+    //     if (!Object.hasOwn(properties, key)) {
+    //         throw new Error(`Invalid section "${key}" found in markdown.`);
+    //     }
+    // }
 
     // Check if duplicate keys are present in the markdown
     const keyCounts: Record<string, number> = {};
@@ -192,24 +192,22 @@ export function markdownMatchSchema(markdown: string, schema: any): SubmissionRe
         }
     }
 
-    for (const propKey in properties) {
-        const section = splitTokens.find((s) => s.key === propKey);
-        if (!section) {
-            continue; // Skip if section not found
-        }
-
-        const prop = properties[propKey];
-        if (prop.type === "string") {
+    
+    for (const section of splitTokens) {
+        const propKey = section.key;
+        const prop: {description: string, type: string} | null = Object.hasOwn(schemaProps, propKey) ? schemaProps[propKey] : null;
+        const listTokens = section.tokens.filter((t) => t.type === "list");
+        const shouldBeList = (prop && prop.type === "array") || listTokens.length === 1;
+           
+        if (!shouldBeList) {
             // If the property is a string, check if the first token is a paragraph
             const raw = section.tokens.map((t) => t.raw).join("").trim();
-            if (section.isOptional && prop.description === raw) {
+            if (section.isOptional && prop?.description === raw) {
                 // If the section is optional and the description matches, skip it
                 continue;
             }
             resultObject[propKey] = raw;
-        } else if (prop.type === "array") {
-
-            const listTokens = section.tokens.filter((t) => t.type === "list");
+        } else {
             if (listTokens.length === 0) {
                 throw new Error(`Section "${propKey}" should contain a list, but found none.`);
             }
@@ -221,7 +219,7 @@ export function markdownMatchSchema(markdown: string, schema: any): SubmissionRe
                 throw new Error(`Section "${propKey}" should be a list, but found ${listToken.type}.`);
             }
 
-            if (section.isOptional && listToken.items.length === 1 && listToken.items[0].text.trim() === prop.description) {
+            if (section.isOptional && listToken.items.length === 1 && listToken.items[0].text.trim() === prop?.description) {
                 // If the section is optional and the list matches the description, skip it
                 continue;
             }
