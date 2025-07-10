@@ -151,7 +151,7 @@ export class AddAuthorModal implements Modal {
             return;
         }
         channel.send({
-            content: `<@${interaction.user.id}> added author: ${author.username} (${author.id ? `<@${author.id}>` : 'Unknown ID'})${author.reason ? ` with reason: ${author.reason}` : ''}`,
+            content: `<@${interaction.user.id}> added author: ${author.url ? `[${author.username}](${author.url})` : author.username} (${author.id ? `<@${author.id}>` : 'Unknown ID'})${author.reason ? ` with reason: ${author.reason}` : ''}`,
             flags: MessageFlags.SuppressNotifications
         });
 
