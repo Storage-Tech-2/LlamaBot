@@ -27,6 +27,7 @@ export class EditRevisionModal implements Modal {
             .setCustomId('input2')
             .setLabel('Markdown Text Continued:')
             .setStyle(TextInputStyle.Paragraph)
+            .setPlaceholder('If the text is too long, you can continue it here.')
             .setRequired(false)
 
         let preset = '';
