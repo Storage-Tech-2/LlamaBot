@@ -2,7 +2,7 @@ import { ActionRowBuilder, ModalBuilder, ModalSubmitInteraction, Snowflake, Text
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
 import { Revision, RevisionType } from "../../submissions/Revision.js";
-import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
+import { canEditSubmission, replyEphemeral, splitIntoChunks } from "../../utils/Util.js";
 import { RevisionEmbed } from "../../embed/RevisionEmbed.js";
 import { markdownMatchSchema, schemaToMarkdownTemplate } from "../../utils/MarkdownUtils.js";
 import { FixErrorsButton } from "../buttons/FixErrorsButton.js";
@@ -21,22 +21,37 @@ export class EditRevisionModal implements Modal {
             .setCustomId('input')
             .setLabel('Markdown Text:')
             .setStyle(TextInputStyle.Paragraph)
-          //  .setValue(schemaToMarkdownTemplate(guildHolder.getSchema(), revision.records))
             .setRequired(true)
 
+        const descriptionInput2 = new TextInputBuilder()
+            .setCustomId('input')
+            .setLabel('Markdown Text Continued:')
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(false)
+
+        let preset = '';
         if (storedID) {
             const tempData = guildHolder.getBot().getTempDataStore().getEntry(storedID);
             if (tempData) {
-                descriptionInput.setValue(tempData.data);
-            } else {
-                descriptionInput.setValue(schemaToMarkdownTemplate(guildHolder.getSchema(), revision.records, true));
+               preset = tempData.data;
             }
+        }
+
+        if (preset.length === 0) {
+            preset = schemaToMarkdownTemplate(guildHolder.getSchema(), revision.records, true);
+        }
+
+        const split = splitIntoChunks(preset, 4000);
+        if (split.length > 1) {
+            descriptionInput.setValue(split[0]);
+            descriptionInput2.setValue(split[1]);
         } else {
-            descriptionInput.setValue(schemaToMarkdownTemplate(guildHolder.getSchema(), revision.records, true));
+            descriptionInput.setValue(preset);
         }
 
         const row1 = new ActionRowBuilder().addComponents(descriptionInput);
-        modal.addComponents(row1 as any);
+        const row2 = new ActionRowBuilder().addComponents(descriptionInput2);
+        modal.addComponents(row1 as any, row2 as any);
         return modal
     }
 
@@ -66,7 +81,9 @@ export class EditRevisionModal implements Modal {
             return
         }
 
-        const input = interaction.fields.getTextInputValue('input');
+        const input1 = interaction.fields.getTextInputValue('input');
+        const input2 = interaction.fields.getTextInputValue('input2');
+        const input = input1 + (input2 ? '\n' + input2 : ''); 
 
         let records;
 
