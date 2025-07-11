@@ -391,7 +391,7 @@ export function getAttachmentsFromMessage(message: Message, attachments: Attachm
                 } else if (url.startsWith('https://bilibili.com/') || url.startsWith('https://www.bilibili.com/')) {
                     // Bilibili links
                     const urlObj = new URL(url);
-                    const videoId = urlObj.pathname.split('/').pop() || urlObj.searchParams.get('bvid');
+                    const videoId = urlObj.pathname.split('/')[2] || urlObj.searchParams.get('bvid');
                     if (!videoId) return;
                     if (attachments.some(attachment => attachment.id === videoId)) {
                         return;
