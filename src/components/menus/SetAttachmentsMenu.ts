@@ -94,7 +94,7 @@ export class SetAttachmentsMenu implements Menu {
         const videos: Attachment[] = []
         const others: Attachment[] = []
         newAttachments.forEach(attachment => {
-            if (attachment.contentType === 'youtube') {
+            if (attachment.contentType === 'youtube' || attachment.contentType === 'bilibili') {
                 videos.push(attachment)
             } else if (attachment.wdl) {
                 wdls.push(attachment)
@@ -120,8 +120,12 @@ export class SetAttachmentsMenu implements Menu {
         }
 
         if (videos.length) {
-            description += '**YouTube videos:**\n'
+            description += '**Videos:**\n'
             videos.forEach(attachment => {
+                if (attachment.contentType === 'bilibili') {
+                    description += `- [${attachment.name}](${attachment.url}): Bilibili video\n`
+                    return;
+                }
                 if (!attachment.youtube) {
                     description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link\n`
                     return;

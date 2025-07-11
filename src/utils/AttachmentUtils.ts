@@ -388,6 +388,22 @@ export function getAttachmentsFromMessage(message: Message, attachments: Attachm
                         description: `[DiscordCDN] Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`,
                         canDownload: true // Discord CDN links can be downloaded directly
                     })
+                } else if (url.startsWith('https://bilibili.com/') || url.startsWith('https://www.bilibili.com/')) {
+                    // Bilibili links
+                    const urlObj = new URL(url);
+                    const videoId = urlObj.pathname.split('/').pop() || urlObj.searchParams.get('bvid');
+                    if (!videoId) return;
+                    if (attachments.some(attachment => attachment.id === videoId)) {
+                        return;
+                    }
+                    attachments.push({
+                        id: videoId,
+                        name: `Bilibili Video ${videoId}`,
+                        contentType: 'bilibili',
+                        url: url,
+                        description: `[Bilibili] Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`,
+                        canDownload: false // Bilibili links cannot be downloaded directly
+                    })
                 }
             })
         }

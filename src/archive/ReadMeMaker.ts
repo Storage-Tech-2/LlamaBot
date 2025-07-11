@@ -15,6 +15,8 @@ function formatAttachment(attachment: Attachment): string {
         return `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})`;
     } else if (attachment.contentType === 'youtube') {
         return `- ${attachment.url}: YouTube video`;
+    } else if (attachment.contentType === 'bilibili') {
+        return `- [${attachment.name}](${attachment.url}): Bilibili video`;
     }
 
     if (attachment.canDownload && attachment.path) {
