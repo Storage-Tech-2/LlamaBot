@@ -442,6 +442,10 @@ export function canPublishSubmission(interaction: Interaction, submission: Submi
         return true;
     }
 
+    if (isAuthor(interaction, submission) && isEndorser(interaction, submission.getGuildHolder())) {
+        return true;
+    }
+
     if (submission.getConfigManager().getConfig(SubmissionConfigs.ON_HOLD) || (submission.getConfigManager().getConfig(SubmissionConfigs.STATUS) !== SubmissionStatus.WAITING && submission.getConfigManager().getConfig(SubmissionConfigs.IS_LOCKED))) {
         return false;
     }
