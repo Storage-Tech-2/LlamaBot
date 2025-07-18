@@ -512,7 +512,7 @@ export class RepositoryManager {
 
 
             // Find old entry if it exists
-            const existing = await this.findEntryBySubmissionId(submission.getId());
+            // const existing = await this.findEntryBySubmissionId(submission.getId());
             const reservedCodes = submission.getConfigManager().getConfig(SubmissionConfigs.RESERVED_CODES);
             // archiveChannel.getData().code + (++archiveChannel.getData().currentCodeId).toString().padStart(3, '0')
             // check reserved codes
@@ -1761,7 +1761,7 @@ export class RepositoryManager {
             reclassified.push(...reclassifiedChunk);
         }
 
-        const modifiedPaths: string[] = [];
+        let modifiedCount = 0;
         for (const channelRef of channelRefs) {
             const channelPath = Path.join(this.folderPath, channelRef.path);
             const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
@@ -1774,17 +1774,18 @@ export class RepositoryManager {
                     continue; // Skip if entry cannot be loaded
                 }
                 try {
-                    await this.updateEntryAuthors(entry, reclassified);
+                    if (await this.updateEntryAuthors(entry, reclassified)) {
+                        modifiedCount++;
+                    }
                 } catch (e: any) {
                     console.error(`Error updating authors for entry ${entryRef.name} in channel ${archiveChannel.getData().name}:`, e.message);
                 }
 
             }
         }
-
-        if (modifiedPaths.length > 0) {
+        if (modifiedCount > 0) {
             try {
-                await this.git.commit(`Updated authors for ${modifiedPaths.length} entries`);
+                await this.git.commit(`Updated authors for ${modifiedCount} entries`);
                 try {
                     await this.push();
                 } catch (e: any) {
@@ -1872,6 +1873,8 @@ export class RepositoryManager {
         if (newData.post && newData.post.forumId) {
             await this.addOrUpdateEntryFromData(this.guildHolder, newData, newData.post.forumId, false, false, async () => { });
         }
+
+        return true;
     }
 
     async updateEntryReadme(entry: ArchiveEntry): Promise<string> {
