@@ -542,7 +542,7 @@ export class RepositoryManager {
                 }
             }
 
-            archiveChannel.save();
+            await archiveChannel.save();
 
             // Add the new code to the reserved codes if it doesn't already exist
             if (!reservedCodes.includes(newCode)) {
