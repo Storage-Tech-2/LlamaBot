@@ -535,7 +535,7 @@ export class RepositoryManager {
 
             // Check if the code already exists in the channel
             const existingCodeEntry = archiveChannel.getData().entries.find(e => e.code === newCode);
-            if (existingCodeEntry && existing && existing.entryRef.id !== existingCodeEntry.id) {
+            if (existingCodeEntry && submission.getId() !== existingCodeEntry.id) {
                 newCode = archiveChannelRef.code + (++archiveChannel.getData().currentCodeId).toString().padStart(3, '0');
                 archiveChannel.save();
             }
