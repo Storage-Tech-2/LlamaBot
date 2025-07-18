@@ -523,7 +523,10 @@ export class RepositoryManager {
                 if (channelCode === archiveChannelRef.code) {
                     // If the code is reserved, use it
                     newCode = code;
-                    break;
+
+                    if (!archiveChannel.getData().entries.find(e => e.code === newCode)) {
+                        break;
+                    }
                 }
             }
 
