@@ -378,7 +378,7 @@ export class RepositoryManager {
                     throw new Error(`Entry ${entryRef.name} (${entryRef.code}) not found in memory`);
                 }
                 // republish the entry
-                await this.addOrUpdateEntryFromData(this.guildHolder, entry.getData(), channel.id, false, false, async () => {});
+                await this.addOrUpdateEntryFromData(this.guildHolder, entry.getData(), channel.id, false, false, async () => { });
                 // update submission
                 const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entry.getData().id);
                 if (submission) {
@@ -530,15 +530,19 @@ export class RepositoryManager {
             if (!newCode) {
                 // If no reserved code was found, generate a new code
                 newCode = archiveChannelRef.code + (++archiveChannel.getData().currentCodeId).toString().padStart(3, '0');
-                archiveChannel.save();
             }
 
             // Check if the code already exists in the channel
-            const existingCodeEntry = archiveChannel.getData().entries.find(e => e.code === newCode);
-            if (existingCodeEntry && submission.getId() !== existingCodeEntry.id) {
-                newCode = archiveChannelRef.code + (++archiveChannel.getData().currentCodeId).toString().padStart(3, '0');
-                archiveChannel.save();
+            for (let i = 0; i < archiveChannel.getData().entries.length; i++) {
+                const existingCodeEntry = archiveChannel.getData().entries.find(e => e.code === newCode);
+                if (existingCodeEntry && submission.getId() !== existingCodeEntry.id) {
+                    newCode = archiveChannelRef.code + (++archiveChannel.getData().currentCodeId).toString().padStart(3, '0');
+                } else {
+                    break; // Found a unique code
+                }
             }
+
+            archiveChannel.save();
 
             // Add the new code to the reserved codes if it doesn't already exist
             if (!reservedCodes.includes(newCode)) {
