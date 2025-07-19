@@ -524,7 +524,7 @@ export class RepositoryManager {
                     // If the code is reserved, use it
                     newCode = code;
 
-                    if (!archiveChannel.getData().entries.find(e => e.code === newCode)) {
+                    if (!archiveChannel.getData().entries.find(e => e.code === newCode && submission.getId() !== e.id)) {
                         break;
                     }
                 }
