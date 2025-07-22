@@ -558,6 +558,7 @@ export class Mwa implements Command {
                     AttachFiles: true,
                     ReadMessageHistory: true,
                     ViewChannel: true,
+                    ManageChannels: true,
                 });
 
 
