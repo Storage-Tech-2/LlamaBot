@@ -3,9 +3,10 @@ import { Config } from "../config/ConfigManager.js";
 export type ArchiveChannelReference = {
     id: string;
     name: string;
+    code: string;
+    category: string;
     description: string;
     path: string;
-    code: string;
 }
 
 

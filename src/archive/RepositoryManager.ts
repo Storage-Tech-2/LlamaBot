@@ -249,6 +249,7 @@ export class RepositoryManager {
                 id: channel.id,
                 name: channel.name,
                 code,
+                category: channel.parent?.name || '',
                 path: `Archive/${code}_${escapeString(channel.name) || ''}`,
                 description: description || 'No description'
             });
@@ -260,7 +261,7 @@ export class RepositoryManager {
         const removedChannels = existingChannels.filter(ec => !reMapped.some(c => c.id === ec.id));
         const modifiedChannels = reMapped.filter(c => {
             const existing = existingChannels.find(ec => ec.id === c.id);
-            return existing && (existing.name !== c.name || existing.description !== c.description || existing.code !== c.code);
+            return existing && (existing.name !== c.name || existing.description !== c.description || existing.code !== c.code || existing.category !== c.category);
         });
 
         // First, remove any channels that no longer exist
@@ -365,30 +366,33 @@ export class RepositoryManager {
             }
 
             channelInstance.getData().name = channel.name;
+            channelInstance.getData().category = channel.category;
             channelInstance.getData().description = channel.description;
             channelInstance.getData().code = channel.code;
             channelInstance.getData().entries = newEntries;
             await channelInstance.save();
 
-            // republish everything
-            for (const entryRef of newEntries) {
-                const entryPath = Path.join(newPath, entryRef.path);
-                const entry = await ArchiveEntry.fromFolder(entryPath);
-                if (!entry) {
-                    throw new Error(`Entry ${entryRef.name} (${entryRef.code}) not found in memory`);
-                }
-                // republish the entry
-                await this.addOrUpdateEntryFromData(this.guildHolder, entry.getData(), channel.id, false, false, async () => { });
-                // update submission
-                const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entry.getData().id);
-                if (submission) {
-                    const reservedCodes = submission.getConfigManager().getConfig(SubmissionConfigs.RESERVED_CODES);
-                    // Check if the code is already reserved
-                    if (!reservedCodes.includes(entry.getData().code)) {
-                        reservedCodes.push(entry.getData().code);
-                        submission.getConfigManager().setConfig(SubmissionConfigs.RESERVED_CODES, reservedCodes);
+            if (oldPath !== newPath) {
+                // republish everything
+                for (const entryRef of newEntries) {
+                    const entryPath = Path.join(newPath, entryRef.path);
+                    const entry = await ArchiveEntry.fromFolder(entryPath);
+                    if (!entry) {
+                        throw new Error(`Entry ${entryRef.name} (${entryRef.code}) not found in memory`);
                     }
-                    await submission.save();
+                    // republish the entry
+                    await this.addOrUpdateEntryFromData(this.guildHolder, entry.getData(), channel.id, false, false, async () => { });
+                    // update submission
+                    const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entry.getData().id);
+                    if (submission) {
+                        const reservedCodes = submission.getConfigManager().getConfig(SubmissionConfigs.RESERVED_CODES);
+                        // Check if the code is already reserved
+                        if (!reservedCodes.includes(entry.getData().code)) {
+                            reservedCodes.push(entry.getData().code);
+                            submission.getConfigManager().setConfig(SubmissionConfigs.RESERVED_CODES, reservedCodes);
+                        }
+                        await submission.save();
+                    }
                 }
             }
 

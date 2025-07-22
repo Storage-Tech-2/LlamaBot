@@ -15,9 +15,9 @@ export type ArchiveChannelData = {
     id: Snowflake;
     name: string;
     code: string;
+    category: string;
     description: string;
     currentCodeId: number;
-
     entries: ArchiveEntryReference[];
 }
 
@@ -57,6 +57,7 @@ export class ArchiveChannel {
             id: reference.id,
             name: reference.name,
             code: reference.code,
+            category: reference.category,
             description: reference.description,
             currentCodeId: 0,
             entries: []
