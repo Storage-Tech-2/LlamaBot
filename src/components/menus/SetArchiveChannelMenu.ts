@@ -70,21 +70,24 @@ export class SetArchiveChannelMenu implements Menu {
         }
         submission.getConfigManager().setConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID, newChannel);
 
+        const channel = await guildHolder.getGuild().channels.fetch(newChannel).catch(() => null);
+        if (!channel || channel.type !== ChannelType.GuildForum) {
+            await interaction.reply({ content: `Archive channel <#${newChannel}> not found`, ephemeral: true });
+            return;
+        }
+
+        const topic = channel.topic || '';
+        const { description } = getCodeAndDescriptionFromTopic(topic);
+
         if (!currentChannel) {
-            await interaction.reply(`<@${interaction.user.id}> set archive channel to <#${newChannel}>`)
+            await interaction.reply(`<@${interaction.user.id}> set archive channel to <#${newChannel}>: ${description}`);
         } else {
-            await interaction.reply(`<@${interaction.user.id}> changed archive channel from <#${currentChannel}> to <#${newChannel}>`)
+            await interaction.reply(`<@${interaction.user.id}> changed archive channel from <#${currentChannel}> to <#${newChannel}>: ${description}`)
         }
 
         // Migrate tags
         const tags = submission.getConfigManager().getConfig(SubmissionConfigs.TAGS);
         if (tags !== null && tags.length > 0) {
-            const channel = await guildHolder.getGuild().channels.fetch(newChannel) as ForumChannel;
-            if (!channel) {
-                await interaction.followUp(`Archive channel <#${newChannel}> not found, tags will not be migrated.`);
-                return;
-            }
-
             const availableTags = channel.availableTags;
             const migratedTags = [];
             const removedTags = [];
