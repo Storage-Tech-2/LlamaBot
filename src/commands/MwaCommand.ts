@@ -540,13 +540,6 @@ export class Mwa implements Command {
 
                 const permissions = category.permissionOverwrites;
 
-                await permissions.edit(guildHolder.getGuild().roles.everyone, {
-                    SendMessages: false,
-                    SendMessagesInThreads: false,
-                    CreatePrivateThreads: false,
-                    CreatePublicThreads: false,
-                });
-
                 // set permissions for the bot
                 await permissions.edit(me, {
                     SendMessages: true,
@@ -559,6 +552,15 @@ export class Mwa implements Command {
                     ReadMessageHistory: true,
                     ViewChannel: true,
                     ManageChannels: true,
+                    ManageWebhooks: true,
+                    ManageRoles: true,
+                });
+
+                await permissions.edit(guildHolder.getGuild().roles.everyone, {
+                    SendMessages: false,
+                    SendMessagesInThreads: false,
+                    CreatePrivateThreads: false,
+                    CreatePublicThreads: false,
                 });
 
 
