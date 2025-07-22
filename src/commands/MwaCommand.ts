@@ -525,6 +525,13 @@ export class Mwa implements Command {
             const endorserRoles = guildHolder.getConfigManager().getConfig(GuildConfigs.ENDORSE_ROLE_IDS);
             const editorRoles = guildHolder.getConfigManager().getConfig(GuildConfigs.EDITOR_ROLE_IDS);
 
+            const me = guildHolder.getGuild().members.me;
+            
+            if (!me) {
+                await replyEphemeral(interaction, 'Bot is not in the guild. Please invite the bot to the guild and try again.');
+                return;
+            }
+
             for (const category of categories.values()) {
                 // set permissions
                 if (category.type !== ChannelType.GuildCategory) {
@@ -538,6 +545,19 @@ export class Mwa implements Command {
                     SendMessagesInThreads: false,
                     CreatePrivateThreads: false,
                     CreatePublicThreads: false,
+                });
+
+                // set permissions for the bot
+                await permissions.edit(me, {
+                    SendMessages: true,
+                    SendMessagesInThreads: true,
+                    CreatePrivateThreads: true,
+                    CreatePublicThreads: true,
+                    ManageMessages: true,
+                    ManageThreads: true,
+                    AttachFiles: true,
+                    ReadMessageHistory: true,
+                    ViewChannel: true,
                 });
 
 
