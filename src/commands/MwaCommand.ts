@@ -554,6 +554,7 @@ export class Mwa implements Command {
                     ManageChannels: true,
                     ManageWebhooks: true,
                     ManageRoles: true,
+                    EmbedLinks: true,
                 });
 
                 await permissions.edit(guildHolder.getGuild().roles.everyone, {
