@@ -116,14 +116,14 @@ export class GuildHolder {
      */
     public async handleMessage(message: Message) {
 
-        const match = message.content.match(/\b(isn'?t |not |never )?unload (?:safe|proof)\??\b/i);
-        if (match) {
-            const isNegated = match[1] !== undefined;
-            if (!isNegated) {
-                // Reply with "Nothing is unload safe."
-                await message.reply('Nothing here is unload safe. Never assume anything redstone is unload safe. Have a good day!');
-            }
-        }
+        // const match = message.content.match(/\b(isn'?t |not |never )?unload (?:safe|proof)\??\b/i);
+        // if (match) {
+        //     const isNegated = match[1] !== undefined;
+        //     if (!isNegated) {
+        //         // Reply with "Nothing is unload safe."
+        //         await message.reply('Nothing here is unload safe. Never assume anything redstone is unload safe. Have a good day!');
+        //     }
+        // }
 
         if (message.reference && this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_ID)) {
             // Check if message contains "thanks" or "thank you"
