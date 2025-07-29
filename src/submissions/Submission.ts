@@ -712,7 +712,7 @@ export class Submission {
 
         let oldEntryData;
         try {
-            oldEntryData = await this.guildHolder.getRepositoryManager().retractEntry(this, reason);
+            oldEntryData = await this.guildHolder.getRepositoryManager().retractSubmission(this, reason);
         } catch (error) {
             this.publishLock = false;
             throw error;

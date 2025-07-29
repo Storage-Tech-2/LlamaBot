@@ -1066,13 +1066,25 @@ export class RepositoryManager {
 
         await this.setSubmissionIDForPostID(thread.id, newEntryData.id);
         this.removeFromIgnoreUpdatesFrom(newEntryData.id);
+
+
+        if (existing) {
+            this.guildHolder.onPostUpdate(existing.entry.getData(), entry.getData()).catch(e => {
+                console.error("Error handling post update:", e);
+            });
+        } else {
+            this.guildHolder.onPostAdd(entry.getData()).catch(e => {
+                console.error("Error handling post add:", e);
+            });
+        }
+
         return {
             oldEntryData: existing ? existing.entry.getData() : undefined,
             newEntryData: entry.getData()
         }
 
     }
-    async retractEntry(submission: Submission, reason: string): Promise<ArchiveEntryData> {
+    async retractSubmission(submission: Submission, reason: string): Promise<ArchiveEntryData> {
         if (!this.git) {
             throw new Error("Git not initialized");
         }
@@ -1134,10 +1146,14 @@ export class RepositoryManager {
                 console.error("Error pushing to remote:", e.message);
             }
 
-
             await this.deleteSubmissionIDForPostID(entryData.post?.threadId || '');
             this.removeFromIgnoreUpdatesFrom(submission.getId());
             this.lock.release();
+
+            this.guildHolder.onPostDelete(found.entry.getData()).catch(e => {
+                console.error("Error handling post delete:", e);
+            });
+
             return entryData;
         } catch (e) {
             this.removeFromIgnoreUpdatesFrom(submission.getId());
@@ -1551,6 +1567,9 @@ export class RepositoryManager {
                 this.guildHolder.logRetraction(found.entry.getData(), 'Thread deleted').catch(e => {
                     console.error("Error logging retraction:", e);
                 });
+                this.guildHolder.onPostDelete(found.entry.getData()).catch(e => {
+                    console.error("Error handling post delete:", e);
+                });
             } catch (e: any) {
                 console.error("Error updating submission config:", e.message);
             }
@@ -1600,6 +1619,7 @@ export class RepositoryManager {
             }
 
             const entryData = found.entry.getData();
+            const oldData = deepClone(entryData);
 
             const addedTags = [];
             const removedTags = []
@@ -1689,6 +1709,11 @@ export class RepositoryManager {
             } catch (e: any) {
                 console.error("Error pushing to remote:", e.message);
             }
+
+
+            this.guildHolder.onPostUpdate(oldData, entryData).catch(e => {
+                console.error("Error handling post update:", e);
+            });
         } catch (e) {
             console.error("Error handling post thread update:", e);
         }

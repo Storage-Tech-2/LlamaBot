@@ -27,6 +27,22 @@ export class UserManager {
         }
     }
 
+    public async getOrCreateUserData(userId: string, username: string): Promise<UserData> {
+        let userData = await this.getUserData(userId);
+        if (!userData) {
+            userData = {
+                id: userId as Snowflake,
+                username,
+                thankedCountTotal: 0,
+                thankedBuffer: [],
+                disableRole: false,
+                lastThanked: 0,
+                archivedPosts: [],
+            }
+        }
+        return userData;
+    }
+
     public async getAllUserIDs(): Promise<Snowflake[]> {
         const files = await fs.readdir(this.folderPath);
         const userIds: Snowflake[] = [];

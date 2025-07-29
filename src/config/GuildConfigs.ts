@@ -50,6 +50,11 @@ export const GuildConfigs = {
     HELPER_ROLE_ID: new Config<Snowflake>("helperRoleId", ""),
 
     /**
+     * Designer role
+     */
+    DESIGNER_ROLE_ID: new Config<Snowflake>("designerRoleId", ""),
+
+    /**
      * Helper role threshold
      */
     HELPER_ROLE_THRESHOLD: new Config<number>("helperRoleThreshold", 5),

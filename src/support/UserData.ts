@@ -16,5 +16,7 @@ export type UserData = {
     disableRole: boolean;
 
     lastThanked?: number; // Timestamp of the last thanked message
+
+    archivedPosts?: Snowflake[]; // List of archived post IDs
 }
 

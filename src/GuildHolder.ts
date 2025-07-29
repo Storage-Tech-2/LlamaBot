@@ -13,6 +13,7 @@ import { SubmissionConfigs } from "./submissions/SubmissionConfigs.js";
 import { SubmissionStatus } from "./submissions/SubmissionStatus.js";
 import fs from "fs/promises";
 import { countCharactersInRecord } from "./utils/MarkdownUtils.js";
+import { Author, AuthorType } from "./submissions/Author.js";
 /**
  * GuildHolder is a class that manages guild-related data.
  */
@@ -288,29 +289,10 @@ export class GuildHolder {
         }
 
         // get user data for reciever
-        let userData = await this.userManager.getUserData(thanksRecieverID);
-        if (!userData) {
-            userData = {
-                id: thanksRecieverID,
-                username: originalMessage.author.username,
-                thankedCountTotal: 0,
-                thankedBuffer: [],
-                disableRole: false,
-            };
-            await this.userManager.saveUserData(userData);
-        }
+        let userData = await this.userManager.getOrCreateUserData(thanksRecieverID, originalMessage.author.username);
 
         // get user data for sender
-        let senderData = await this.userManager.getUserData(thanksSenderID);
-        if (!senderData) {
-            senderData = {
-                id: thanksSenderID,
-                username: message.author.username,
-                thankedCountTotal: 0,
-                thankedBuffer: [],
-                disableRole: false,
-            };
-        };
+        let senderData = await this.userManager.getOrCreateUserData(thanksSenderID, message.author.username);
 
         // const doesSenderHaveEnoughPoints = senderData.thankedBuffer.length >= this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_THRESHOLD);
 
@@ -572,7 +554,7 @@ export class GuildHolder {
             if (changes.authors) fields.push({ name: 'Authors', value: `*${getAuthorsString(oldEntryData.authors)}* → *${getAuthorsString(newEntryData.authors)}*` });
             if (changes.endorsers) fields.push({ name: 'Endorsers', value: `*${getAuthorsString(oldEntryData.endorsers)}* → *${getAuthorsString(newEntryData.endorsers)}*` });
             if (changes.tags) fields.push({ name: 'Tags', value: `*${oldEntryData.tags.map(t => t.name).join(', ')}* → *${newEntryData.tags.map(t => t.name).join(', ')}*` });
-           
+
             if (changes.records) {
                 for (const [key, change] of Object.entries(changes.records)) {
                     if (change.old && change.new) {
@@ -584,7 +566,7 @@ export class GuildHolder {
                     }
                 }
             }
-           
+
             if (changes.images) fields.push({ name: 'Images', value: `*${oldEntryData.images.length} images* → *${newEntryData.images.length} images*` });
             if (changes.attachments) fields.push({ name: 'Attachments', value: `*${oldEntryData.attachments.map(o => escapeDiscordString(o.name)).join(", ")} attachments* → *${newEntryData.attachments.map(o => escapeDiscordString(o.name)).join(", ")} attachments*` });
             embed.addFields(fields);
@@ -598,6 +580,157 @@ export class GuildHolder {
         });
     }
 
+
+    public async onPostAdd(entryData: ArchiveEntryData) {
+        await this.updateDesigers(entryData.id, [], entryData.authors);
+    }
+
+    public async onPostUpdate(oldEntryData: ArchiveEntryData, newEntryData: ArchiveEntryData) {
+        await this.updateDesigers(newEntryData.id, oldEntryData.authors, newEntryData.authors);
+    }
+
+    public async onPostDelete(entryData: ArchiveEntryData) {
+        await this.updateDesigers(entryData.id, entryData.authors, []);
+    }
+
+    public async updateDesigers(entryId: Snowflake, oldAuthors: Author[], newAuthors: Author[]) {
+        const oldDesigners = oldAuthors.filter(a => a.type === AuthorType.DiscordInGuild && !a.dontDisplay).map(a => a.id || "");
+        const newDesigners = newAuthors.filter(a => a.type === AuthorType.DiscordInGuild && !a.dontDisplay).map(a => a.id || "");
+
+        const addedDesigners = newDesigners.filter(id => !oldDesigners.includes(id));
+        const removedDesigners = oldDesigners.filter(id => !newDesigners.includes(id));
+        const designerRoleId = this.getConfigManager().getConfig(GuildConfigs.DESIGNER_ROLE_ID);
+
+        for (const designerId of addedDesigners) {
+            // get userdata for designer
+            const member = await this.getGuild().members.fetch(designerId).catch(() => undefined);
+            if (!member) {
+                continue; // Skip if member not found
+            }
+            let userData = await this.userManager.getOrCreateUserData(designerId, member.user.username);
+            if (!userData.archivedPosts) {
+                userData.archivedPosts = [];
+            }
+            if (!userData.archivedPosts.includes(entryId)) {
+                userData.archivedPosts.push(entryId);
+            }
+
+            await this.userManager.saveUserData(userData);
+
+            if (!member.roles.cache.has(designerRoleId)) {
+                const designerRole = this.getGuild().roles.cache.get(designerRoleId);
+                if (designerRole) {
+                    try {
+                        await member.roles.add(designerRole);
+                    } catch (e) {
+                        console.error(`Failed to add designer role to ${member.user.username}:`, e);
+                    }
+                } else {
+                    console.warn(`Designer role with ID ${designerRoleId} not found in guild ${this.getGuild().name}`);
+                }
+            }
+        }
+
+        for (const designerId of removedDesigners) {
+            // get userdata for designer
+            const member = await this.getGuild().members.fetch(designerId).catch(() => undefined);
+            if (!member) {
+                continue; // Skip if member not found
+            }
+            let userData = await this.userManager.getOrCreateUserData(designerId, member.user.username);
+            if (!userData.archivedPosts) {
+                userData.archivedPosts = [];
+            }
+            userData.archivedPosts = userData.archivedPosts.filter(id => id !== entryId);
+
+            await this.userManager.saveUserData(userData);
+
+            if (member.roles.cache.has(designerRoleId) && userData.archivedPosts.length === 0) {
+                const designerRole = this.getGuild().roles.cache.get(designerRoleId);
+                if (designerRole) {
+                    try {
+                        await member.roles.remove(designerRole);
+                    } catch (e) {
+                        console.error(`Failed to remove designer role from ${member.user.username}:`, e);
+                    }
+                } else {
+                    console.warn(`Designer role with ID ${designerRoleId} not found in guild ${this.getGuild().name}`);
+                }
+            }
+        }
+    }
+
+    public async rebuildDesignerRoles() {
+        const allDesignerIdsToPosts = new Map<Snowflake, Snowflake[]>();
+        await this.getRepositoryManager().iterateAllEntries(async (entry) => {
+            entry.getData().authors.filter(a => a.type === AuthorType.DiscordInGuild && !a.dontDisplay).forEach(author => {
+                if (author.id) {
+                    if (!allDesignerIdsToPosts.has(author.id)) {
+                        allDesignerIdsToPosts.set(author.id, []);
+                    }
+                    allDesignerIdsToPosts.get(author.id)?.push(entry.getData().id);
+                }
+            });
+        });
+
+        // Give user data to all designers
+        for (const [designerId, posts] of allDesignerIdsToPosts.entries()) {
+            let userData = await this.userManager.getUserData(designerId);
+            if (!userData) {
+                const member = await this.getGuild().members.fetch(designerId).catch(() => undefined);
+                if (!member) {
+                    continue; // Skip if member not found
+                }
+                userData = await this.userManager.getOrCreateUserData(designerId, member.user.username);
+                // save user data
+                userData.archivedPosts = posts;
+                await this.userManager.saveUserData(userData);
+            }
+        }
+
+        // Now update all user data
+        const userIDs = await this.userManager.getAllUserIDs();
+        for (const userId of userIDs) {
+            const userData = await this.userManager.getUserData(userId);
+            if (!userData) continue;
+
+            // Get the posts for this user
+            const posts = allDesignerIdsToPosts.get(userId) || [];
+            userData.archivedPosts = posts;
+
+            // Save the updated user data
+            await this.userManager.saveUserData(userData);
+
+            // Update roles if necessary
+            const member = await this.getGuild().members.fetch(userId).catch(() => undefined);
+            if (member) {
+                const designerRoleId = this.getConfigManager().getConfig(GuildConfigs.DESIGNER_ROLE_ID);
+                if (designerRoleId && member.roles.cache.has(designerRoleId) && posts.length === 0) {
+                    const designerRole = this.getGuild().roles.cache.get(designerRoleId);
+                    if (designerRole) {
+                        try {
+                            await member.roles.remove(designerRole);
+                        } catch (e) {
+                            console.error(`Failed to remove designer role from ${member.user.username}:`, e);
+                        }
+                    } else {
+                        console.warn(`Designer role with ID ${designerRoleId} not found in guild ${this.getGuild().name}`);
+                    }
+                } else if (designerRoleId && !member.roles.cache.has(designerRoleId) && posts.length > 0) {
+                    const designerRole = this.getGuild().roles.cache.get(designerRoleId);
+                    if (designerRole) {
+                        try {
+                            await member.roles.add(designerRole);
+                        } catch (e) {
+                            console.error(`Failed to add designer role to ${member.user.username}:`, e);
+                        }
+                    } else {
+                        console.warn(`Designer role with ID ${designerRoleId} not found in guild ${this.getGuild().name}`);
+                    }
+                }
+            }
+        }
+    }
 
     public async logRetraction(oldEntryData: ArchiveEntryData, reason: string) {
         const logChannelId = this.getConfigManager().getConfig(GuildConfigs.LOGS_CHANNEL_ID);

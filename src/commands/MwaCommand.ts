@@ -11,6 +11,7 @@ import { SetHelperRoleMenu } from "../components/menus/SetHelperRoleMenu.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
 import { SetTemplateModal } from "../components/modals/SetTemplateModal.js";
+import { SetDesignerRoleMenu } from "../components/menus/SetDesignerRoleMenu.js";
 
 export class Mwa implements Command {
     getID(): string {
@@ -169,6 +170,16 @@ export class Mwa implements Command {
                     .setName('checkposts')
                     .setDescription('Update the status of all submissions based on their archive status')
             )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('setdesignerrole')
+                    .setDescription('Set the designer role for the archive')
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('refreshdesignerroles')
+                    .setDescription('Refresh designer roles based on the current archive')
+            );
         return data;
     }
 
@@ -209,6 +220,10 @@ export class Mwa implements Command {
             this.checkEveryPost(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'settemplate') {
             this.setTemplate(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'setdesignerrole') {
+            this.setDesignerRole(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'refreshdesignerroles') {
+            this.refreshDesignerRoles(guildHolder, interaction);
         } else {
             await replyEphemeral(interaction, 'Invalid subcommand. Use `/mwa setsubmissions`, `/mwa setlogs`, `/mwa setarchives`, `/mwa setuparchives`, `/mwa setendorseroles`, `/mwa seteditorroles`, `/mwa sethelperrole` or `/mwa setrepo`.');
             return;
@@ -386,11 +401,24 @@ export class Mwa implements Command {
         await replyEphemeral(interaction, 'Select editor roles', { components: [row] })
     }
 
+    async refreshDesignerRoles(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        await interaction.deferReply();
+        await guildHolder.rebuildDesignerRoles();
+        await interaction.editReply('Designer roles have been refreshed.');
+    }
+
     async setHelperRole(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         const dt = await (new SetHelperRoleMenu()).getBuilder(guildHolder);
         const row = new ActionRowBuilder()
             .addComponents(dt);
         await replyEphemeral(interaction, 'Select helper role', { components: [row] })
+    }
+
+    async setDesignerRole(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const dt = await (new SetDesignerRoleMenu()).getBuilder(guildHolder);
+        const row = new ActionRowBuilder()
+            .addComponents(dt);
+        await replyEphemeral(interaction, 'Select designer role', { components: [row] })
     }
 
     async setUpdates(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
