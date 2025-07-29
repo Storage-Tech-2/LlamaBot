@@ -582,15 +582,21 @@ export class GuildHolder {
 
 
     public async onPostAdd(entryData: ArchiveEntryData) {
-        await this.updateDesigers(entryData.id, [], entryData.authors);
+        await this.updateDesigers(entryData.id, [], entryData.authors).catch(e => {
+            console.error(`Error adding designers for entry ${entryData.id}:`, e);
+        });
     }
 
     public async onPostUpdate(oldEntryData: ArchiveEntryData, newEntryData: ArchiveEntryData) {
-        await this.updateDesigers(newEntryData.id, oldEntryData.authors, newEntryData.authors);
+        await this.updateDesigers(newEntryData.id, oldEntryData.authors, newEntryData.authors).catch(e => {
+            console.error(`Error updating designers for entry ${newEntryData.id}:`, e);
+        });
     }
 
     public async onPostDelete(entryData: ArchiveEntryData) {
-        await this.updateDesigers(entryData.id, entryData.authors, []);
+        await this.updateDesigers(entryData.id, entryData.authors, []).catch(e => {
+            console.error(`Error removing designers for entry ${entryData.id}:`, e);
+        });
     }
 
     public async updateDesigers(entryId: Snowflake, oldAuthors: Author[], newAuthors: Author[]) {
