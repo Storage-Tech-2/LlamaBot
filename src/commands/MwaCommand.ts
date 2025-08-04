@@ -179,6 +179,18 @@ export class Mwa implements Command {
                 subcommand
                     .setName('refreshdesignerroles')
                     .setDescription('Refresh designer roles based on the current archive')
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('sethoneypot')
+                    .setDescription('Setup Llamabot to timeout anyone who sends a message to a channel')
+                    .addChannelOption(option =>
+                        option
+                            .setName('channel')
+                            .setDescription('Honeypot channel')
+                            .setRequired(true)
+                            .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+                    )
             );
         return data;
     }
@@ -186,6 +198,8 @@ export class Mwa implements Command {
     async execute(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction): Promise<void> {
         if (interaction.options.getSubcommand() === 'setsubmissions') {
             this.setSubmissions(guildHolder, interaction)
+        } else if (interaction.options.getSubcommand() === 'sethoneypot') {
+            this.setHoneypot(guildHolder, interaction)
         } else if (interaction.options.getSubcommand() === 'setarchives') {
             this.setArchives(guildHolder, interaction)
         } else if (interaction.options.getSubcommand() === 'setupdates') {
