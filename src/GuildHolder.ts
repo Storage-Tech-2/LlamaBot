@@ -159,16 +159,39 @@ export class GuildHolder {
             // Timeout the user permanently
             const member = await this.guild.members.fetch(message.author.id).catch(() => null);
             if (member) {
-                await member.timeout(0, 'Honeypot');
-                await message.delete();
-                const embed = new EmbedBuilder()
-                    .setColor(0xFF0000) // Red color for honeypot message
-                    .setTitle(`Honeypot Triggered!`)
-                    .setDescription(`Timed out <@${message.author.id}> for sending a message in the honeypot channel.`)
-                    .setFooter({ text: `This is a honeypot channel to catch spammers.` });
-                // send a message to the honeypot channel
-                if (message.channel.isSendable()) {
-                    await message.channel.send({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
+                try {
+                    await member.timeout(0, 'Honeypot');
+                    await message.delete();
+
+                    // delete all messages sent by the user in past hour in every channel
+                    let deletedMessages = 1;
+                    await this.guild.channels.cache.reduce(async (acc, channel) => {
+                        if (channel.isTextBased() && !channel.isThread()) {
+                            const fetchedMessages = await channel.messages.fetch({ limit: 100 });
+                            const userMessages = fetchedMessages.filter(m => m.author.id === message.author.id && m.createdAt > new Date(Date.now() - 60 * 60 * 1000));
+                            const messagesToDelete = userMessages.map(m => m.id);
+                            if (messagesToDelete.length > 0) {
+                                await channel.bulkDelete(messagesToDelete, true).catch(console.error);
+                            }
+                            deletedMessages += messagesToDelete.length;
+                        }
+                        return acc;
+                    }, Promise.resolve()).catch(console.error);
+
+                    const embed = new EmbedBuilder()
+                        .setColor(0xFF0000) // Red color for honeypot message
+                        .setTitle(`Honeypot Triggered!`)
+                        .setDescription(`Timed out <@${message.author.id}> for sending a message in the honeypot channel.`)
+                        .addFields(
+                            { name: 'Deleted Messages', value: `${deletedMessages}`, inline: true }
+                        )
+                        .setFooter({ text: `This is a honeypot channel to catch spammers.` });
+                    // send a message to the honeypot channel
+                    if (message.channel.isSendable()) {
+                        await message.channel.send({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
+                    }
+                } catch (e) {
+                    console.error(`Failed to timeout member ${message.author.id} in guild ${this.guild.name}:`, e);
                 }
             } else {
                 console.warn(`Member ${message.author.id} not found in guild ${this.guild.name}`);
