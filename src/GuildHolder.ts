@@ -193,10 +193,7 @@ export class GuildHolder {
                     const embed = new EmbedBuilder()
                         .setColor(0xFF0000) // Red color for honeypot message
                         .setTitle(`Honeypot Triggered!`)
-                        .setDescription(`Timed out <@${message.author.id}> for sending a message in the honeypot channel.`)
-                        .addFields(
-                            { name: 'Deleted Messages', value: `${deletedMessages}`, inline: true }
-                        )
+                        .setDescription(`Timed out <@${message.author.id}> for sending a message in the honeypot channel and deleted ${deletedMessages} of their messages in the past hour.`)
                         .setFooter({ text: `This is a honeypot channel to catch spammers.` });
                     // send a message to the honeypot channel
                     if (message.channel.isSendable()) {
