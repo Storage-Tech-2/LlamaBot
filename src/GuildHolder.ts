@@ -195,7 +195,7 @@ export class GuildHolder {
                     try {
                         // Send an error message to the honeypot channel
                         if (message.channel.isSendable()) {
-                            await message.channel.send(`Failed to timeout <@${message.author.id}>. Error: ${escapeDiscordString(e.message)}`);
+                            await message.channel.send(`Failed to timeout <@${message.author.id}>. Error: ${escapeDiscordString(e.message)}, stack: ${e.stack}`);
                         }
                     } catch (e) {
                         console.error(`Failed to send error message to honeypot channel:`, e);
