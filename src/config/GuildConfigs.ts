@@ -102,4 +102,8 @@ export const GuildConfigs = {
     }),
 
 
+    /**
+     * Honeypot channel ID
+     */
+    HONEYPOT_CHANNEL_ID: new Config<Snowflake>("honeypotChannelId", ""),
 }

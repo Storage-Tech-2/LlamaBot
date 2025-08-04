@@ -372,6 +372,17 @@ export class Mwa implements Command {
         await interaction.reply(`Llamabot will now listen to ${channel.name} for submissions!`);
     }
 
+     async setHoneypot(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const channel = interaction.options.getChannel('channel')
+        if (!channel) {
+            await replyEphemeral(interaction, 'Invalid channel')
+            return
+        }
+
+        guildHolder.getConfigManager().setConfig(GuildConfigs.HONEYPOT_CHANNEL_ID, channel.id)
+        await interaction.reply(`Llamabot will now timeout anyone who sends a message to ${channel.name}!`);
+    }
+
     async setArchives(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         // Get all channels in the guild
         const currentCategories = guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);

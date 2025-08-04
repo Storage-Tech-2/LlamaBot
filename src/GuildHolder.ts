@@ -152,6 +152,29 @@ export class GuildHolder {
                 console.error('Error handling post message:', e);
             });
         }
+
+        // Handle honeypot channel
+        const honeypotChannelId = this.getConfigManager().getConfig(GuildConfigs.HONEYPOT_CHANNEL_ID);
+        if (honeypotChannelId && message.channel.id === honeypotChannelId) {
+            // Timeout the user permanently
+            const member = await this.guild.members.fetch(message.author.id).catch(() => null);
+            if (member) {
+                await member.timeout(0, 'Honeypot');
+                await message.delete();
+                const embed = new EmbedBuilder()
+                    .setColor(0xFF0000) // Red color for honeypot message
+                    .setTitle(`Honeypot Triggered!`)
+                    .setDescription(`Timed out <@${message.author.id}> for sending a message in the honeypot channel.`)
+                    .setFooter({ text: `This is a honeypot channel to catch spammers.` });
+                // send a message to the honeypot channel
+                if (message.channel.isSendable()) {
+                    await message.channel.send({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
+                }
+            } else {
+                console.warn(`Member ${message.author.id} not found in guild ${this.guild.name}`);
+            }
+            return;
+        }
     }
 
     public async handleMessageUpdate(_oldMessage: Message, newMessage: Message) {
