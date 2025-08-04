@@ -190,8 +190,16 @@ export class GuildHolder {
                     if (message.channel.isSendable()) {
                         await message.channel.send({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
                     }
-                } catch (e) {
+                } catch (e: any) {
                     console.error(`Failed to timeout member ${message.author.id} in guild ${this.guild.name}:`, e);
+                    try {
+                        // Send an error message to the honeypot channel
+                        if (message.channel.isSendable()) {
+                            await message.channel.send(`Failed to timeout <@${message.author.id}>. Error: ${escapeDiscordString(e.message)}`);
+                        }
+                    } catch (e) {
+                        console.error(`Failed to send error message to honeypot channel:`, e);
+                    }
                 }
             } else {
                 console.warn(`Member ${message.author.id} not found in guild ${this.guild.name}`);
