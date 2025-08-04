@@ -160,6 +160,18 @@ export class GuildHolder {
             const member = await this.guild.members.fetch(message.author.id).catch(() => null);
             if (member) {
                 try {
+                    // Check if has perms
+                    if (!member.manageable) {
+                        const embed = new EmbedBuilder()
+                        embed.setColor(0xFF0000) // Red color for honeypot message
+                        embed.setTitle(`Honeypot Triggered!`)
+                        embed.setDescription(`Unfortunately, <@${message.author.id}> is immune to honeypot timeouts because I cannot manage their role.`);
+                        embed.setFooter({ text: `This is a honeypot channel to catch spammers.` });
+                        if (message.channel.isSendable()) {
+                            await message.channel.send({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
+                        }
+                        return;
+                    }
                     await member.timeout(0, 'Honeypot');
                     await message.delete();
 
@@ -192,14 +204,14 @@ export class GuildHolder {
                     }
                 } catch (e: any) {
                     console.error(`Failed to timeout member ${message.author.id} in guild ${this.guild.name}:`, e);
-                    try {
-                        // Send an error message to the honeypot channel
-                        if (message.channel.isSendable()) {
-                            await message.channel.send(`Failed to timeout <@${message.author.id}>. Error: ${escapeDiscordString(e.message)}, stack: ${e.stack}`);
-                        }
-                    } catch (e) {
-                        console.error(`Failed to send error message to honeypot channel:`, e);
-                    }
+                    // try {
+                    //     // Send an error message to the honeypot channel
+                    //     if (message.channel.isSendable()) {
+                    //         await message.channel.send(`Failed to timeout <@${message.author.id}>. Error: ${escapeDiscordString(e.message)}, stack: ${e.stack}`);
+                    //     }
+                    // } catch (e) {
+                    //     console.error(`Failed to send error message to honeypot channel:`, e);
+                    // }
                 }
             } else {
                 console.warn(`Member ${message.author.id} not found in guild ${this.guild.name}`);
