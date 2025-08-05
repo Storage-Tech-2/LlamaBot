@@ -172,7 +172,19 @@ export class GuildHolder {
                         }
                         return;
                     }
-                    await member.timeout(0, 'Honeypot');
+                    try {
+                        await member.timeout(0, 'Honeypot');
+                    } catch (e: any) {
+                        const embed = new EmbedBuilder()
+                        embed.setColor(0xFF0000) // Red color for honeypot message
+                        embed.setTitle(`Honeypot Triggered!`)
+                        embed.setDescription(`Unfortunately, <@${message.author.id}> is immune to honeypot because I do not have permission to timeout them.`);
+                        embed.setFooter({ text: `This is a honeypot channel to catch spammers.` });
+                        if (message.channel.isSendable()) {
+                            await message.channel.send({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
+                        }
+                        return;
+                    }
                     await message.delete();
 
                     // delete all messages sent by the user in past hour in every channel
