@@ -47,13 +47,23 @@ export class RevisionEmbed {
         const embed = await RevisionEmbed.create(submission, revision, isCurrent);
         const embeds = embed.getEmbeds();
         if (existingMessages.length !== embeds.length) {
-            throw new Error('Number of existing messages does not match number of embeds');
+            console.warn(`Warning: Number of existing messages (${existingMessages.length}) does not match number of embeds (${embeds.length}) for revision ${revision.id}.`);
         }
         const row = embed.getRow();
-        for (let i = 0; i < embeds.length; i++) {
+        for (let i = 0; i < existingMessages.length ; i++) {
+            let embed = embeds[i];
+            if (!embed) {
+                embed = new EmbedBuilder()
+                    .setColor(isCurrent ? '#0099ff' : '#ff9900')
+                    .setTitle(`Submission Draft (Part ${i + 1})${isCurrent ? ' (Current)' : ''}`)
+                    .setDescription('No continuation')
+                    .setFooter({
+                        text: 'This is a draft submission. Reply to this message with instructions to update it.'
+                    });
+            }
             await existingMessages[i].edit({
-                embeds: [embeds[i]],
-                components: i === embeds.length - 1 ? [row as any] : [],
+                embeds: [embed],
+                components: i === existingMessages.length  - 1 ? [row as any] : [],
             });
         }
     }
