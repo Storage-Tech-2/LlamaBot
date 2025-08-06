@@ -165,7 +165,8 @@ export class SetAuthorsMenu implements Menu {
             await SetArchiveCategoryMenu.sendArchiveCategorySelector(submission, interaction);
         }
 
-        submission.checkReview()
+        submission.checkReview();
+        await submission.updateRevisions();
     }
 
 
@@ -269,7 +270,8 @@ export class SetAuthorsMenu implements Menu {
             await SetArchiveCategoryMenu.sendArchiveCategorySelector(submission, interaction);
         }
 
-        submission.checkReview()
+        submission.checkReview();
+        await submission.updateRevisions();
     }
 
     public static async sendAuthorsMenuAndButton(submission: Submission, interaction: Interaction): Promise<Message> {

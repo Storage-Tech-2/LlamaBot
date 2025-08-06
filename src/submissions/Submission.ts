@@ -744,26 +744,35 @@ export class Submission {
             // update status
             await this.statusUpdated();
             // update revisions
-            const revisions = this.getRevisionsManager().getRevisionsList();
-            for (const revisionRef of revisions) {
-                const revision = await this.getRevisionsManager().getRevisionById(revisionRef.id);
-                if (!revision) {
-                    continue; // Skip if revision not found
-                }
-                const topMessage = await newThread.messages.fetch(revision.messageIds[0]).catch(() => null);
-                if (topMessage) {
-                    // Update the revision message with the new thread name
-                    const messages = await Promise.all(revision.messageIds.map(async (messageId) => {
-                        return await channel.messages.fetch(messageId);
-                    }));
-                    await RevisionEmbed.editRevisionMessages(messages, this, revision, revisionRef.isCurrent);
-                } else {
-                    console.warn(`Top message for revision ${revision.id} not found in thread ${newThread.id}`);
-                }
-
-            }
+            await this.updateRevisions();
         }
 
+    }
+
+    public async updateRevisions() {
+        const thread = await this.getSubmissionChannel();
+        if (!thread) {
+            return; // No channel found, cannot update revisions
+        }
+        const revisions = this.getRevisionsManager().getRevisionsList();
+        for (const revisionRef of revisions) {
+            const revision = await this.getRevisionsManager().getRevisionById(revisionRef.id);
+            if (!revision) {
+                continue; // Skip if revision not found
+            }
+
+            // Update the revision message with the new thread name
+            const messages = await Promise.all(revision.messageIds.map(async (messageId) => {
+                return await thread.messages.fetch(messageId);
+            })).catch(() => null);
+            if (!messages) {
+                console.warn(`Messages for revision ${revision.id} not found in thread ${thread.id}`);
+                continue;
+            }
+            await RevisionEmbed.editRevisionMessages(messages, this, revision, revisionRef.isCurrent).catch((error) => {
+                console.error(`Error updating revision messages for revision ${revision.id}:`, error);
+            });
+        }
     }
 
     public getRevisionsManager(): RevisionManager {

@@ -162,5 +162,7 @@ export class AddAuthorModal implements Modal {
         if (isFirstTime) {
             await SetArchiveCategoryMenu.sendArchiveCategorySelector(submission, interaction);
         }
+
+        await submission.updateRevisions();
     }
 }
