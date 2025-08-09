@@ -333,80 +333,84 @@ async function iterateAllMessages(channel: TextBasedChannel, iterator: (message:
         messages = await channel.messages.fetch({ limit: 100, before: messages.last()?.id });
     }
 }
-
+export function getAttachmentsFromText(text: string, attachments: Attachment[] = [], suffix = ""): Attachment[] {
+    // Find all URLs in the message
+    const urls = text.match(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g)
+    if (urls) {
+        urls.forEach(url => {
+            // Check if mediafire
+            // https://www.mediafire.com/file/idjbw9lc1kt4obj/1_17_Crafter-r2.zip/file
+            // https://www.mediafire.com/folder/5ajiire4a6cs5/Scorpio+MIS
+            if (url.startsWith('https://www.mediafire.com/file/') || url.startsWith('https://www.mediafire.com/folder/')) {
+                const id = url.split('/')[4]
+                const name = url.split('/')[5]
+                // check if duplicate
+                if (attachments.some(attachment => attachment.id === id)) {
+                    return;
+                }
+                attachments.push({
+                    id: id,
+                    name: name,
+                    contentType: 'mediafire',
+                    url: url,
+                    description: `[MediaFire]${suffix}`,
+                    canDownload: false // MediaFire links cannot be downloaded directly
+                })
+            } else if (url.startsWith('https://youtu.be/') || url.startsWith('https://www.youtube.com/watch')) {
+                // YouTube links
+                const videoId = new URL(url).searchParams.get('v') || url.split('/').pop();
+                if (!videoId) return;
+                if (attachments.some(attachment => attachment.id === videoId)) {
+                    return;
+                }
+                attachments.push({
+                    id: videoId,
+                    name: `YouTube Video ${videoId}`,
+                    contentType: 'youtube',
+                    url: url,
+                    description: `[YouTube]${suffix}`,
+                    canDownload: false // YouTube links cannot be downloaded directly
+                })
+            } else if (url.startsWith('https://cdn.discordapp.com/attachments/')) {
+                // https://cdn.discordapp.com/attachments/749137321710059542/912059917106548746/Unbreakable_8gt_reset_6gt_box_replacement.litematic?ex=6832c4bd&is=6831733d&hm=1e5ff51ca94199d70f26ad2611715c86afbb095e3da120416e55352ccf43f7a4&
+                const id = url.split('/')[5]
+                const name = url.split('/')[6].split('?')[0]
+                if (attachments.some(attachment => attachment.id === id)) {
+                    return;
+                }
+                attachments.push({
+                    id: id,
+                    name: name,
+                    contentType: 'discord',
+                    url: url,
+                    description: `[DiscordCDN]${suffix}`,
+                    canDownload: true // Discord CDN links can be downloaded directly
+                })
+            } else if (url.startsWith('https://bilibili.com/') || url.startsWith('https://www.bilibili.com/')) {
+                // Bilibili links
+                const urlObj = new URL(url);
+                const videoId = urlObj.pathname.split('/')[2] || urlObj.searchParams.get('bvid');
+                if (!videoId) return;
+                if (attachments.some(attachment => attachment.id === videoId)) {
+                    return;
+                }
+                attachments.push({
+                    id: videoId,
+                    name: `Bilibili Video ${videoId}`,
+                    contentType: 'bilibili',
+                    url: url,
+                    description: `[Bilibili]${suffix}`,
+                    canDownload: false // Bilibili links cannot be downloaded directly
+                })
+            }
+        })
+    }
+    return attachments;
+}
 export function getAttachmentsFromMessage(message: Message, attachments: Attachment[] = []): Attachment[] {
     if (message.content.length > 0) {
-        // Find all URLs in the message
-        const urls = message.content.match(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g)
-        if (urls) {
-            urls.forEach(url => {
-                // Check if mediafire
-                // https://www.mediafire.com/file/idjbw9lc1kt4obj/1_17_Crafter-r2.zip/file
-                // https://www.mediafire.com/folder/5ajiire4a6cs5/Scorpio+MIS
-                if (url.startsWith('https://www.mediafire.com/file/') || url.startsWith('https://www.mediafire.com/folder/')) {
-                    const id = url.split('/')[4]
-                    const name = url.split('/')[5]
-                    // check if duplicate
-                    if (attachments.some(attachment => attachment.id === id)) {
-                        return;
-                    }
-                    attachments.push({
-                        id: id,
-                        name: name,
-                        contentType: 'mediafire',
-                        url: url,
-                        description: `[MediaFire] Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`,
-                        canDownload: false // MediaFire links cannot be downloaded directly
-                    })
-                } else if (url.startsWith('https://youtu.be/') || url.startsWith('https://www.youtube.com/watch')) {
-                    // YouTube links
-                    const videoId = new URL(url).searchParams.get('v') || url.split('/').pop();
-                    if (!videoId) return;
-                    if (attachments.some(attachment => attachment.id === videoId)) {
-                        return;
-                    }
-                    attachments.push({
-                        id: videoId,
-                        name: `YouTube Video ${videoId}`,
-                        contentType: 'youtube',
-                        url: url,
-                        description: `[YouTube] Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`,
-                        canDownload: false // YouTube links cannot be downloaded directly
-                    })
-                } else if (url.startsWith('https://cdn.discordapp.com/attachments/')) {
-                    // https://cdn.discordapp.com/attachments/749137321710059542/912059917106548746/Unbreakable_8gt_reset_6gt_box_replacement.litematic?ex=6832c4bd&is=6831733d&hm=1e5ff51ca94199d70f26ad2611715c86afbb095e3da120416e55352ccf43f7a4&
-                    const id = url.split('/')[5]
-                    const name = url.split('/')[6].split('?')[0]
-                    if (attachments.some(attachment => attachment.id === id)) {
-                        return;
-                    }
-                    attachments.push({
-                        id: id,
-                        name: name,
-                        contentType: 'discord',
-                        url: url,
-                        description: `[DiscordCDN] Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`,
-                        canDownload: true // Discord CDN links can be downloaded directly
-                    })
-                } else if (url.startsWith('https://bilibili.com/') || url.startsWith('https://www.bilibili.com/')) {
-                    // Bilibili links
-                    const urlObj = new URL(url);
-                    const videoId = urlObj.pathname.split('/')[2] || urlObj.searchParams.get('bvid');
-                    if (!videoId) return;
-                    if (attachments.some(attachment => attachment.id === videoId)) {
-                        return;
-                    }
-                    attachments.push({
-                        id: videoId,
-                        name: `Bilibili Video ${videoId}`,
-                        contentType: 'bilibili',
-                        url: url,
-                        description: `[Bilibili] Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`,
-                        canDownload: false // Bilibili links cannot be downloaded directly
-                    })
-                }
-            })
-        }
+        // Get attachments from the message text
+        getAttachmentsFromText(message.content, attachments, ` Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`);
     }
     if (message.attachments.size > 0) {
         message.attachments.forEach(attachment => {

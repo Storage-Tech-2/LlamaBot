@@ -17,7 +17,7 @@ import { ArchiveComment } from "./ArchiveComments.js";
 import { Author, AuthorType } from "../submissions/Author.js";
 import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
 import { makeEntryReadMe } from "./ReadMeMaker.js";
-import { analyzeAttachments, getAttachmentsFromMessage, getFileKey, processAttachments } from "../utils/AttachmentUtils.js";
+import { analyzeAttachments, getAttachmentsFromMessage, getAttachmentsFromText, getFileKey, processAttachments } from "../utils/AttachmentUtils.js";
 export class RepositoryManager {
     private folderPath: string;
     private git?: SimpleGit;
@@ -1012,6 +1012,8 @@ export class RepositoryManager {
                 for (const comment of comments) {
                     const author = (await reclassifyAuthors(this.guildHolder, [comment.sender]))[0];
                     comment.sender = author;
+                    
+                    const textAttachments = getAttachmentsFromText(comment.content);
 
                     const files: AttachmentBuilder[] = [];
                     if (comment.attachments.length > 0) {
@@ -1019,6 +1021,12 @@ export class RepositoryManager {
                             if (!attachment.canDownload || !attachment.path || attachment.contentType === 'discord') {
                                 continue; // Skip attachments that cannot be downloaded or have no path
                             }
+
+                            // check if the attachment exists in textAttachments
+                            if (textAttachments.some(a => a.id === attachment.id)) {
+                                continue; // Skip attachments that are already in the text
+                            }
+
                             const attachmentPath = Path.join(entryFolderPath, attachment.path);
                             if (await fs.access(attachmentPath).then(() => true).catch(() => false)) {
                                 const file = new AttachmentBuilder(attachmentPath);
