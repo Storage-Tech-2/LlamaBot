@@ -9,6 +9,7 @@ export type ArchiveEntryReference = {
     code: string;
     timestamp: number;
     path: string;
+    tags: string[];
 }
 
 export type ArchiveChannelData = {

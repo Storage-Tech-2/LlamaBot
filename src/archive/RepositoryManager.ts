@@ -410,6 +410,36 @@ export class RepositoryManager {
             await this.git.commit(msg);
         }
 
+        // Check tags for entries
+        for (const channel of reMapped) {
+            const channelPath = Path.join(this.folderPath, channel.path);
+            const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
+            if (!archiveChannel) {
+                console.warn(`Channel ${channel.name} (${channel.id}) not found in memory`);
+                continue;
+            }
+            const entries = archiveChannel.getData().entries;
+            let changed = false;
+            for (const entryRef of entries) {
+                const entryPath = Path.join(channelPath, entryRef.path);
+                const entry = await ArchiveEntry.fromFolder(entryPath);
+                if (!entry) {
+                    console.warn(`Entry ${entryRef.name} (${entryRef.code}) not found in memory`);
+                    continue;
+                }
+                const newTags = entry.getData().tags.map(tag => tag.name);
+                const currentTags = entryRef.tags || [];
+                if (JSON.stringify(newTags) !== JSON.stringify(currentTags)) {
+                    entryRef.tags = newTags;
+                    changed = true;
+                }
+            }
+            if (changed) {
+                await archiveChannel.save();
+                await this.git.add(archiveChannel.getDataPath());
+            }
+        }
+
         // Finally, save the new config
         this.configManager.setConfig(RepositoryConfigs.ARCHIVE_CHANNELS, reMapped);
         await this.save();
@@ -730,6 +760,7 @@ export class RepositoryManager {
             code: newEntryData.code,
             timestamp: newEntryData.timestamp,
             path: `${newEntryData.code}_${escapeString(newEntryData.name) || ''}`,
+            tags: newEntryData.tags.map(tag => tag.name),
         }
 
         const entryFolderPath = Path.join(channelPath, entryRef.path);
@@ -1662,7 +1693,11 @@ export class RepositoryManager {
                 id: tag.id,
                 name: tag.name
             }));
+            // update entry ref
+            found.entryRef.tags = entryData.tags.map(tag => tag.name);
 
+            await found.channel.save();
+            await this.git.add(found.channel.getDataPath());
             await found.entry.save();
             await this.git.add(found.entry.getDataPath());
             await this.git.add(await this.updateEntryReadme(found.entry));
