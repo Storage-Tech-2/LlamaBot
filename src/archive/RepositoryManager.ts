@@ -251,7 +251,8 @@ export class RepositoryManager {
                 code,
                 category: channel.parent?.name || '',
                 path: `Archive/${code}_${escapeString(channel.name) || ''}`,
-                description: description || 'No description'
+                description: description || 'No description',
+                availableTags: channel.availableTags?.map(tag => tag.name) || []
             });
         }
 
