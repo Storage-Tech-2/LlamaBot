@@ -363,11 +363,16 @@ export function getAttachmentsFromText(text: string, attachments: Attachment[] =
                 if (attachments.some(attachment => attachment.id === videoId)) {
                     return;
                 }
+
+                const urlCleaned = new URL(url);
+                // remove the si parameter if exists for anti-tracking
+                urlCleaned.searchParams.delete('si');
+                
                 attachments.push({
                     id: videoId,
                     name: `YouTube Video ${videoId}`,
                     contentType: 'youtube',
-                    url: url,
+                    url: urlCleaned.toString(),
                     description: `[YouTube]${suffix}`,
                     canDownload: false // YouTube links cannot be downloaded directly
                 })
