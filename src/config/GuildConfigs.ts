@@ -106,4 +106,9 @@ export const GuildConfigs = {
      * Honeypot channel ID
      */
     HONEYPOT_CHANNEL_ID: new Config<Snowflake>("honeypotChannelId", ""),
+
+    /**
+     * Conversational LLM enabled
+     */
+    CONVERSATIONAL_LLM_ENABLED: new Config<boolean>("conversationalLlmEnabled", false),
 }

@@ -124,10 +124,22 @@ export class Mwa implements Command {
                     )
             )
 
-              .addSubcommand(subcommand =>
+            .addSubcommand(subcommand =>
                 subcommand
                     .setName('settemplate')
                     .setDescription('Set the post template for the archive')
+            )
+
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('togglellm')
+                    .setDescription('Toggle conversational LLM features on or off')
+                    .addBooleanOption(option =>
+                        option
+                            .setName('enabled')
+                            .setDescription('Enable or disable conversational LLM features')
+                            .setRequired(true)
+                    )
             )
 
             .addSubcommand(subcommand =>
@@ -238,6 +250,8 @@ export class Mwa implements Command {
             this.setDesignerRole(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'refreshdesignerroles') {
             this.refreshDesignerRoles(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'togglellm') {
+            this.toggleLlm(guildHolder, interaction);
         } else {
             await replyEphemeral(interaction, 'Invalid subcommand. Use `/mwa setsubmissions`, `/mwa setlogs`, `/mwa setarchives`, `/mwa setuparchives`, `/mwa setendorseroles`, `/mwa seteditorroles`, `/mwa sethelperrole` or `/mwa setrepo`.');
             return;
@@ -373,6 +387,17 @@ export class Mwa implements Command {
             await replyEphemeral(interaction, 'Error setting remote repository. Please check the URL and try again.')
             return
         }
+    }
+
+    async toggleLlm(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const enabled = interaction.options.getBoolean('enabled');
+        if (enabled === null) {
+            await replyEphemeral(interaction, 'Invalid option');
+            return;
+        }
+
+        guildHolder.getConfigManager().setConfig(GuildConfigs.CONVERSATIONAL_LLM_ENABLED, enabled);
+        await replyEphemeral(interaction, `Conversational LLM features have been ${enabled ? 'enabled' : 'disabled'}.`);
     }
 
     async setSubmissions(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {

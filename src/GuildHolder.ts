@@ -245,7 +245,7 @@ export class GuildHolder {
         }
 
         // Finally, check if llm is available;
-        if (!this.bot.canConverse()) {
+        if (!this.bot.canConverse() || !this.getConfigManager().getConfig(GuildConfigs.CONVERSATIONAL_LLM_ENABLED)) {
             return;
         }
 
