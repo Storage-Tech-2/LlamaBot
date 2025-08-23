@@ -397,7 +397,7 @@ export class Mwa implements Command {
         }
 
         guildHolder.getConfigManager().setConfig(GuildConfigs.CONVERSATIONAL_LLM_ENABLED, enabled);
-        await replyEphemeral(interaction, `Conversational LLM features have been ${enabled ? 'enabled' : 'disabled'}.`);
+        await interaction.reply(`Conversational LLM features have been ${enabled ? 'enabled' : 'disabled'}.`);
     }
 
     async setSubmissions(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
