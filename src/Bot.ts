@@ -137,7 +137,7 @@ export class Bot {
             const xaiClient = createXai({
                 apiKey: secrets.xaiApiKey
             });
-            const model = xaiClient("grok-4");
+            const model = xaiClient("grok-3-mini");
             this.paidLlmModel = model;
         }
 
