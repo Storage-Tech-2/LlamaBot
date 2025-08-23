@@ -266,7 +266,10 @@ export class GuildHolder {
         if (shouldReply && message.channel.type === ChannelType.GuildText || message.channel.type === ChannelType.PublicThread) {
             // send typing
             await message.channel.sendTyping().catch(() => null);
-            const reply = await this.bot.respondToConversation(message.channel);
+            const reply = await this.bot.respondToConversation(message.channel).catch(e => {
+                console.error('Error responding to conversation:', e);
+                return 'Sorry, I had an error trying to respond to that message.';
+            });
             if (reply) {
                 await message.reply({ content: reply, flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
             }
