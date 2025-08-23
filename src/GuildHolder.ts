@@ -133,17 +133,22 @@ export class GuildHolder {
             const words = message.content.split(/\s+/).map(word => word.toLowerCase().trim().replace(/[^a-z0-9]/gi, ''));
             const thankIndex = words.findIndex(word => word === 'thanks' || word === 'thank' || word === 'thankyou' || word === 'thanku' || word === 'thx' || word === 'tysm' || word === 'ty');
             if (thankIndex !== -1 && (thankIndex === 0 || words[thankIndex - 1] !== 'no')) {
-                this.handleThanksMessage(message).catch(e => {
-                    console.error('Error handling thanks message:', e);
-                });
-            }
-        }
 
-        // Handle submissions
-        if (message.channel.isThread() && message.channel.parentId === this.getSubmissionsChannelId()) {
-            this.handleSubmissionMessage(message).catch(e => {
-                console.error('Error handling submission message:', e);
-            });
+                // check if reference message is from the bot itself
+                let skip = false;
+                if (message.reference.messageId) {
+                    const referencedMessage = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
+                    if (referencedMessage && referencedMessage.author.id === this.getBot().client.user?.id) {
+                        skip = true;
+                    }
+                }
+                if (!skip) {
+                    this.handleThanksMessage(message).catch(e => {
+                        console.error('Error handling thanks message:', e);
+                    });
+                    return;
+                }
+            }
         }
 
         // Handle message inside archived post
@@ -151,6 +156,17 @@ export class GuildHolder {
             this.getRepositoryManager().handlePostOrUpdateMessage(message).catch(e => {
                 console.error('Error handling post message:', e);
             });
+            return;
+        }
+
+        // Handle submissions
+        if (message.channel.isThread() && message.channel.parentId === this.getSubmissionsChannelId()) {
+            if (await this.handleSubmissionMessage(message).catch(e => {
+                console.error('Error handling submission message:', e);
+                return true;
+            })) {
+                return;
+            }
         }
 
         // Handle honeypot channel
@@ -227,6 +243,34 @@ export class GuildHolder {
             }
             return;
         }
+
+        // Finally, check if llm is available;
+        if (!this.bot.canConverse()) {
+            return;
+        }
+
+        let shouldReply = false;
+        // check if message is a reply to the bot
+        if (message.reference && message.reference.messageId) {
+            const referencedMessage = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
+            if (referencedMessage && referencedMessage.author.id === this.getBot().client.user?.id) {
+                shouldReply = true;
+            }
+        }
+
+        // check if message mentions the bot
+        if (message.mentions.has(this.getBot().client.user?.id || '')) {
+            shouldReply = true;
+        }
+
+        if (shouldReply && message.channel.type === ChannelType.GuildText || message.channel.type === ChannelType.PublicThread) {
+            // send typing
+            await message.channel.sendTyping().catch(() => null);
+            const reply = await this.bot.respondToConversation(message.channel);
+            if (reply) {
+                await message.reply({ content: reply, flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
+            }
+        }
     }
 
     public async handleMessageUpdate(_oldMessage: Message, newMessage: Message) {
@@ -301,7 +345,7 @@ export class GuildHolder {
         }
     }
 
-    public async handleSubmissionMessage(message: Message) {
+    public async handleSubmissionMessage(message: Message): Promise<boolean> {
         const submissionId = message.channel.id
         let submission = await this.submissions.getSubmission(submissionId)
         if (!submission) {
@@ -309,8 +353,9 @@ export class GuildHolder {
             submission.init().catch(e => {
                 console.error('Error initializing submission:', e)
             })
+            return false;
         } else {
-            await submission.handleMessage(message)
+            return await submission.handleMessage(message)
         }
     }
 

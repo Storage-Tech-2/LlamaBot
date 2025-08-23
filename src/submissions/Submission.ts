@@ -472,37 +472,38 @@ export class Submission {
         await channel.setAppliedTags(newTags)
     }
 
-    public async handleMessage(message: Message) {
+    public async handleMessage(message: Message): Promise<boolean> {
         this.checkLLMExtraction();
         if (message.reference && message.reference.type === MessageReferenceType.Default) {
             // its a reply
-            await this.handleReplies(message);
+            return await this.handleReplies(message);
         }
+        return false;
     }
 
-    async handleReplies(message: Message) {
+    async handleReplies(message: Message): Promise<boolean> {
         // Make sure it isn't bot
         if (message.author.bot || message.reference?.messageId === undefined) {
-            return
+            return false;
         }
 
         // Check if message id is in revisions
         const revisions = this.getRevisionsManager().getRevisionsList();
         if (!revisions.some(r => r.id === message.reference?.messageId)) {
-            return;
+            return false;
         }
 
         // It's a reply to the bot for a revision
         const revision = await this.getRevisionsManager().getRevisionById(message.reference.messageId)
         if (!revision) {
             console.error('Revision not found', message.reference.messageId)
-            return
+            return true;
         }
 
         if (this.llmReviseResponse && this.llmReviseResponse.getStatus() === LLMResponseStatus.InProgress) {
             console.log('LLM revise promise already in progress')
             message.reply('Revision already in progress, please wait')
-            return
+            return true;
         }
 
         const wmsg = await message.reply('Processing revision, please wait');
@@ -523,7 +524,7 @@ export class Submission {
             console.error('Error using LLM:', error)
             await message.reply('Error using LLM, please check the logs')
             this.llmReviseResponse = undefined;
-            return
+            return true;
         }
 
         this.llmReviseResponse = undefined;
@@ -555,6 +556,7 @@ export class Submission {
             await this.getRevisionsManager().setCurrentRevision(newRevisionData.id, false);
         }
         this.statusUpdated();
+        return true;
     }
 
     setLock(locked: boolean) {

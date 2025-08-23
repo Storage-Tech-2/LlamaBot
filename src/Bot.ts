@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, Client, Events, GatewayIntentBits, Message, Partials, SelectMenuInteraction } from "discord.js";
+import { ChatInputCommandInteraction, Client, Events, GatewayIntentBits, Message, Partials, SelectMenuInteraction, Snowflake, TextChannel, TextThreadChannel } from "discord.js";
 import { GuildHolder } from "./GuildHolder.js";
 import { LLMQueue } from "./llm/LLMQueue.js";
 import path from "path";
@@ -14,6 +14,8 @@ import { getMenus } from "./components/menus/index.js";
 import { getModals } from "./components/modals/index.js";
 import { TempDataStore } from "./utils/TempDataStore.js";
 import { App } from "octokit";
+import { createXai } from "@ai-sdk/xai";
+import { generateText, LanguageModel, ModelMessage } from "ai";
 /**
  * The Secrets type defines the structure for the bot's secrets, including the token and client ID.
  */
@@ -21,6 +23,7 @@ export type Secrets = {
     token: string;
     clientId: string;
     githubAppId: string;
+    xaiApiKey?: string;
 }
 
 /**
@@ -77,6 +80,11 @@ export class Bot {
      */
     githubClient?: App;
 
+    /**
+     * Xai bot client
+     */
+    paidLlmModel?: LanguageModel;
+
 
     constructor() {
         this.guilds = new Map()
@@ -124,6 +132,14 @@ export class Bot {
             appId: secrets.githubAppId,
             privateKey: await fs.readFile(path.join(process.cwd(), 'key.pem'), 'utf-8'),
         });
+
+        if (secrets.xaiApiKey) {
+            const xaiClient = createXai({
+                apiKey: secrets.xaiApiKey
+            });
+            const model = xaiClient("grok-4");
+            this.paidLlmModel = model;
+        }
 
         return new Promise((resolve, reject) => {
             this.client.once('ready', async () => {
@@ -406,7 +422,86 @@ export class Bot {
         } else {
             return message.reply(`Unknown command: ${commandName}`);
         }
+    }
+
+    public async canConverse() {
+        return this.paidLlmModel !== undefined;
+    }
+
+    public async respondToConversation(channel: TextChannel | TextThreadChannel): Promise<string> {
+        if (!this.paidLlmModel) {
+            throw new Error('LLM client not configured');
+        }
+
+        const channelName = channel.name;
+        const channelTopic = channel.isThread() ? (channel.parent?.topic ?? '') : (channel.topic ?? '');
+        const messages = await channel.messages.fetch({ limit: 50 });
+       
+        // Remove messages that are not in the last 24 hours
+        const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+        const recentMessages = messages.filter(msg => msg.createdTimestamp > oneDayAgo);
+
+        // Sort messages so that newest is last
+        const sortedMessages = recentMessages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
 
 
+        const messagesIn: {mid: Snowflake, id: number, obj: ModelMessage}[] = [];
+        const systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration and development. You are friendly and concise. You are talking in a channel called #${channelName}.${channelTopic ? ` The channel topic is: ${channelTopic}.` : ''} Usernames are in the format @username and will be prepended to messages they send.`;
+
+        messagesIn.push({ mid: '0', id: 0, obj: { role: 'system', content: systemPrompt }});
+        sortedMessages.forEach(msg => {
+            const isBot = msg.author.id === this.client.user?.id;
+            const role = isBot ? 'assistant' : 'user';
+            const username = msg.author.username;
+            const content = msg.content;
+            // replace mentions with @username
+            const mentionRegex = /<@!?(\d+)>/g;
+            const contentWithMentions = content.replace(mentionRegex, (_match, userId) => {
+                const user = this.client.users.cache.get(userId);
+                return user ? `@${user.username}` : '@unknown';
+            });
+
+            // if content length is greater than 1000, truncate it
+            const maxLength = 1000;
+            const truncatedContent = contentWithMentions.length > maxLength ? contentWithMentions.slice(0, maxLength) + '... (truncated)' : contentWithMentions;
+            
+            // check reply
+            let replyTo = null;
+            if (msg.reference && msg.reference.messageId) {
+                const repliedMessage = messagesIn.find(m => m.mid === msg.reference?.messageId);
+                if (repliedMessage) {
+                    replyTo = repliedMessage.id;
+                }
+            }
+            messagesIn.push({ mid: msg.id, id: messagesIn.length,  obj: { role, content: `[${messagesIn.length}] @${username} ${replyTo === null ? "said" : ` replied to [${replyTo}]`}: ${truncatedContent}` }});
+        });
+
+        const response = await generateText({
+            model: this.paidLlmModel,
+            messages: messagesIn.map(m => m.obj),
+            maxOutputTokens: 1000,
+        })
+
+        if (response.warnings) {
+            console.warn('LLM Warnings:', response.warnings);
+        }
+
+        if (!response.text) {
+            throw new Error('No response from LLM');
+        }
+
+        // replace @username with actual mentions if possible
+        let responseText = response.text;
+        const mentionRegex = /@(\w+)/g;
+        responseText = responseText.replace(mentionRegex, (match, username) => {
+            const user = this.client.users.cache.find(u => u.username === username);
+            return user ? `<@${user.id}>` : match;
+        });
+
+        // remove everyone mentions
+        responseText = responseText.replace(/@everyone/g, 'everyone');
+        responseText = responseText.replace(/@here/g, 'here');
+
+        return responseText;
     }
 }
