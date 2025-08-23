@@ -263,7 +263,7 @@ export class GuildHolder {
             shouldReply = true;
         }
 
-        if (shouldReply && message.channel.type === ChannelType.GuildText || message.channel.type === ChannelType.PublicThread) {
+        if (shouldReply && (message.channel.type === ChannelType.GuildText || message.channel.type === ChannelType.PublicThread)) {
             // send typing
             await message.channel.sendTyping().catch(() => null);
             const reply = await this.bot.respondToConversation(message.channel).catch(e => {
