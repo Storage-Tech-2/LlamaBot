@@ -435,7 +435,7 @@ export class Bot {
 
         const channelName = channel.name;
         const channelTopic = channel.isThread() ? (channel.parent?.topic ?? '') : (channel.topic ?? '');
-        const messages = await channel.messages.fetch({ limit: 50 });
+        const messages = await channel.messages.fetch({ limit: 20 });
        
         // Remove messages that are not in the last 24 hours
         const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
@@ -482,7 +482,7 @@ export class Bot {
             maxOutputTokens: 1000,
         })
 
-        if (response.warnings) {
+        if (response.warnings?.length) {
             console.warn('LLM Warnings:', response.warnings);
         }
 
