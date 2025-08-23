@@ -435,7 +435,7 @@ export class Bot {
 
         const channelName = channel.name;
         const channelTopic = channel.isThread() ? (channel.parent?.topic ?? '') : (channel.topic ?? '');
-        const messages = await channel.messages.fetch({ limit: 20 });
+        const messages = await channel.messages.fetch({ limit: 30 });
        
         // Remove messages that are not in the last 24 hours
         const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
