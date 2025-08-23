@@ -446,20 +446,16 @@ export class Bot {
 
 
         const messagesIn: {mid: Snowflake, id: number, obj: ModelMessage}[] = [];
-        const systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration and development. You are friendly, concise, and talk casually. You are talking in a channel called #${channelName}.${channelTopic ? ` The channel topic is: ${channelTopic}.` : ''} Usernames are in the format @username and will be prepended to messages they send. Do not use emojis or em-dashes.`;
+        const systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration and development. You are friendly, concise, and talk casually. You are talking in a channel called #${channelName}.${channelTopic ? ` The channel topic is: ${channelTopic}.` : ''} User mentions are in the format <@UserID> and will be prepended to messages they send. Do not use emojis or em-dashes. Mention the correct user to keep the conversation clear. EG: If a message says "<@123456789012345678> tell them" and a previous message from user 4987654321012345678 said "I love Minecraft", you should respond with "<@4987654321012345678> Minecraft is great!"`;
 
         messagesIn.push({ mid: '0', id: 0, obj: { role: 'system', content: systemPrompt }});
         sortedMessages.forEach(msg => {
             const isBot = msg.author.id === this.client.user?.id;
             const role = isBot ? 'assistant' : 'user';
-            const username = msg.author.username;
             const content = msg.content;
             // replace mentions with @username
-            const mentionRegex = /<@!?(\d+)>/g;
-            const contentWithMentions = content.replace(mentionRegex, (_match, userId) => {
-                const user = this.client.users.cache.get(userId);
-                return user ? `@${user.username}` : '@unknown';
-            });
+            // const mentionRegex = /<@!?(\d+)>/g;
+            const contentWithMentions = content;
 
             // if content length is greater than 1000, truncate it
             const maxLength = 1000;
@@ -473,7 +469,7 @@ export class Bot {
                     replyTo = repliedMessage.id;
                 }
             }
-            messagesIn.push({ mid: msg.id, id: messagesIn.length,  obj: { role, content: `[${messagesIn.length}] @${username} ${replyTo === null ? "said" : ` replied to [${replyTo}]`}: ${truncatedContent}` }});
+            messagesIn.push({ mid: msg.id, id: messagesIn.length,  obj: { role, content: `[${messagesIn.length}] <@${msg.author.id}> ${replyTo === null ? "said" : ` replied to [${replyTo}]`}: ${truncatedContent}` }});
         });
 
         const response = await generateText({
@@ -492,11 +488,6 @@ export class Bot {
 
         // replace @username with actual mentions if possible
         let responseText = response.text;
-        const mentionRegex = /@(\w+)/g;
-        responseText = responseText.replace(mentionRegex, (match, username) => {
-            const user = this.client.users.cache.find(u => u.username === username);
-            return user ? `<@${user.id}>` : match;
-        });
 
         // remove everyone mentions
         responseText = responseText.replace(/@everyone/g, 'everyone');
