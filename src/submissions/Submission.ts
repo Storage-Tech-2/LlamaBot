@@ -204,6 +204,11 @@ export class Submission {
         }
 
         if (this.extractionResults && this.extractionResults.getStatus() === LLMResponseStatus.InProgress) {
+            // send typeing indicator
+            const channel = await this.getSubmissionChannel();
+            if (channel && channel.isSendable()) {
+                channel.sendTyping().catch(() => { });
+            }
             return; // Wait for extraction to complete
         }
 
@@ -500,7 +505,13 @@ export class Submission {
             return
         }
 
-        const wmsg = await message.reply('Processing revision, please wait')
+        const wmsg = await message.reply('Processing revision, please wait');
+
+        // send typing indicator
+        const channel = message.channel;
+        if (channel && channel.isSendable()) {
+            channel.sendTyping().catch(() => { });
+        }
 
 
         let response
