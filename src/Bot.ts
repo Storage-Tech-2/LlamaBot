@@ -446,7 +446,7 @@ export class Bot {
 
 
         const messagesIn: {mid: Snowflake, id: number, obj: ModelMessage}[] = [];
-        const systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration and development. You are friendly and concise. You are talking in a channel called #${channelName}.${channelTopic ? ` The channel topic is: ${channelTopic}.` : ''} Usernames are in the format @username and will be prepended to messages they send.`;
+        const systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration and development. You are friendly, concise, and talk casually. You are talking in a channel called #${channelName}.${channelTopic ? ` The channel topic is: ${channelTopic}.` : ''} Usernames are in the format @username and will be prepended to messages they send.`;
 
         messagesIn.push({ mid: '0', id: 0, obj: { role: 'system', content: systemPrompt }});
         sortedMessages.forEach(msg => {
