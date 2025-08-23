@@ -489,6 +489,17 @@ export class Bot {
         // replace @username with actual mentions if possible
         let responseText = response.text;
 
+        // Check for channel name mentions eg #ask-questions
+        const channelMentionRegex = /#([a-zA-Z0-9-_]+)/g;
+        let match;
+        while ((match = channelMentionRegex.exec(responseText)) !== null) {
+            const channelName = match[1];
+            const foundChannel = channel.guild.channels.cache.find(c => c.name === channelName && (c.isTextBased()));
+            if (foundChannel) {
+                responseText = responseText.replace(`#${channelName}`, `<#${foundChannel.id}>`);
+            }
+        }
+
         // remove everyone mentions
         responseText = responseText.replace(/@everyone/g, 'everyone');
         responseText = responseText.replace(/@here/g, 'here');
