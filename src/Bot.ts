@@ -502,6 +502,10 @@ export class Bot {
         responseText = responseText.replace(/@everyone/g, 'everyone');
         responseText = responseText.replace(/@here/g, 'here');
 
+        // Sometimes, the llm will respond with "[n] @LlamaBot said: blabla" or "[n] @LlamaBot replied to [m]: blabla" so we remove that
+        const botMentionRegex = /\[\d+\]\s+<@!?(\d+)>\s+(said|replied to \[\d+\]):\s+/g;
+        responseText = responseText.replace(botMentionRegex, '');
+
         return responseText;
     }
 }
