@@ -438,11 +438,11 @@ export class Bot {
         const messages = await channel.messages.fetch({ limit: 30 });
        
         // Remove messages that are not in the last 24 hours
-        const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
-        const recentMessages = messages.filter(msg => msg.createdTimestamp > oneDayAgo);
+        // const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+        //const recentMessages = messages.filter(msg => msg.createdTimestamp > oneDayAgo);
 
         // Sort messages so that newest is last
-        const sortedMessages = recentMessages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+        const sortedMessages = messages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
 
 
         const messagesIn: {mid: Snowflake, id: number, obj: ModelMessage}[] = [];
