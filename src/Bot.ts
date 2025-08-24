@@ -439,7 +439,7 @@ export class Bot {
         let model;
         let systemPrompt;
         let maxOutputLength;
-        if (message.content.toLowerCase().includes('who is right') || message.content.toLowerCase().includes('think hard')) {
+        if (message.content.toLowerCase().includes('who is right')) {
             contextLength = 50; // more context for "who is right" questions
             model = this.paidLlmModel("grok-4"); // use better model for complex questions
             systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration. You are friendly and talk casually. You are logical and do not flatter. User mentions are in the format <@UserID> and will be prepended to messages they send. Do not use emojis or em-dashes. Mention the correct user to keep the conversation clear. EG: If a message says "<@123456789012345678> tell them" and a previous message from user 4987654321012345678 said "I love Minecraft", you should respond with "<@4987654321012345678> Minecraft is great!"`;
