@@ -428,14 +428,18 @@ export class Bot {
         return this.paidLlmModel !== undefined;
     }
 
-    public async respondToConversation(channel: TextChannel | TextThreadChannel): Promise<string> {
+    public async respondToConversation(channel: TextChannel | TextThreadChannel, message: Message): Promise<string> {
         if (!this.paidLlmModel) {
             throw new Error('LLM client not configured');
         }
 
         const channelName = channel.name;
         const channelTopic = channel.isThread() ? (channel.parent?.topic ?? '') : (channel.topic ?? '');
-        const messages = await channel.messages.fetch({ limit: 10 });
+        let contextLength = 10;
+        if (message.content.toLowerCase().includes('who is right')) {
+            contextLength = 50; // more context for "who is right" questions
+        }
+        const messages = await channel.messages.fetch({ limit: contextLength, before: message.id });
        
         // Remove messages that are not in the last 24 hours
         // const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
