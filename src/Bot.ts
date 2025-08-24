@@ -451,9 +451,10 @@ export class Bot {
             // get channel list
             const channelList = channel.guild.channels.cache
                 .filter(c => (c.isTextBased() || c.type === ChannelType.GuildForum) && !c.isThread() && !c.isVoiceBased())
+                .filter(c => c.permissionsFor(channel.guild.roles.everyone).has('ViewChannel'))
                 .map(c => {
                     let topic = c.topic ? getCodeAndDescriptionFromTopic(c.topic || "").description : "No topic";
-                    return `#${c.name} (${topic})`;
+                    return `#${c.name} - ${topic}`;
                 })
                 .join(', ');
 
