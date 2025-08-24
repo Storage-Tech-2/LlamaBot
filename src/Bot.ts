@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, Client, Events, GatewayIntentBits, Message, Partials, SelectMenuInteraction, Snowflake, TextChannel, TextThreadChannel } from "discord.js";
+import { ChannelType, ChatInputCommandInteraction, Client, Events, GatewayIntentBits, Message, Partials, SelectMenuInteraction, Snowflake, TextChannel, TextThreadChannel } from "discord.js";
 import { GuildHolder } from "./GuildHolder.js";
 import { LLMQueue } from "./llm/LLMQueue.js";
 import path from "path";
@@ -446,7 +446,7 @@ export class Bot {
 
         // get channel list
         const channelList = channel.guild.channels.cache
-            .filter(c => c.isTextBased() && !c.isThread())
+            .filter(c => (c.isTextBased() || c.type === ChannelType.GuildForum) && !c.isThread())
             .map(c => `#${c.name}`)
             .join(', ');
 
