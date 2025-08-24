@@ -446,7 +446,7 @@ export class Bot {
 
         // get channel list
         const channelList = channel.guild.channels.cache
-            .filter(c => c.isTextBased())
+            .filter(c => c.isTextBased() && !c.isThread())
             .map(c => `#${c.name}`)
             .join(', ');
 
