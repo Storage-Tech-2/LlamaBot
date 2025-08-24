@@ -7,7 +7,7 @@ import { Command } from "./interface/Command.js";
 import { Button } from "./interface/Button.js";
 import { Menu } from "./interface/Menu.js";
 import { Modal } from "./interface/Modal.js";
-import { deployCommands, getItemsFromArray, replyEphemeral } from "./utils/Util.js";
+import { deployCommands, getCodeAndDescriptionFromTopic, getItemsFromArray, replyEphemeral } from "./utils/Util.js";
 import { getButtons } from "./components/buttons/index.js";
 import { getCommands } from "./commands/index.js";
 import { getMenus } from "./components/menus/index.js";
@@ -434,7 +434,7 @@ export class Bot {
         }
 
         const channelName = channel.name;
-        const channelTopic = channel.isThread() ? (channel.parent?.topic ?? '') : (channel.topic ?? '');
+        const channelTopic = channel.isThread() ? getCodeAndDescriptionFromTopic(channel.parent?.topic || '').description : (channel.topic ?? '');
         let contextLength;
         let model;
         let systemPrompt;
@@ -452,7 +452,7 @@ export class Bot {
             const channelList = channel.guild.channels.cache
                 .filter(c => (c.isTextBased() || c.type === ChannelType.GuildForum) && !c.isThread() && !c.isVoiceBased())
                 .map(c => {
-                    let topic = c.topic ? c.topic : "No topic";
+                    let topic = c.topic ? getCodeAndDescriptionFromTopic(c.topic || "").description : "No topic";
                     return `#${c.name} (${topic})`;
                 })
                 .join(', ');
