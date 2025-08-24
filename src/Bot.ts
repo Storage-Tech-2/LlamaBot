@@ -500,7 +500,7 @@ export class Bot {
         let match;
         while ((match = channelMentionRegex.exec(responseText)) !== null) {
             const channelName = match[1];
-            const foundChannel = channel.guild.channels.cache.find(c => c.name === channelName && (c.isTextBased()));
+            const foundChannel = channel.guild.channels.cache.find(c => c.name === channelName && (c.isTextBased() || c.type === ChannelType.GuildForum) && !c.isThread());
             if (foundChannel) {
                 responseText = responseText.replace(`#${channelName}`, `<#${foundChannel.id}>`);
             }
