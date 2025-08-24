@@ -504,6 +504,7 @@ export class Bot {
         }
 
         if (!response.text) {
+            console.error('No response from LLM:', response);
             throw new Error('No response from LLM');
         }
 
