@@ -14,7 +14,7 @@ import { getMenus } from "./components/menus/index.js";
 import { getModals } from "./components/modals/index.js";
 import { TempDataStore } from "./utils/TempDataStore.js";
 import { App } from "octokit";
-import { createXai } from "@ai-sdk/xai";
+import { createXai, XaiProvider } from "@ai-sdk/xai";
 import { generateText, LanguageModel, ModelMessage } from "ai";
 /**
  * The Secrets type defines the structure for the bot's secrets, including the token and client ID.
@@ -83,7 +83,7 @@ export class Bot {
     /**
      * Xai bot client
      */
-    paidLlmModel?: LanguageModel;
+    paidLlmModel?: XaiProvider;
 
 
     constructor() {
@@ -137,8 +137,8 @@ export class Bot {
             const xaiClient = createXai({
                 apiKey: secrets.xaiApiKey
             });
-            const model = xaiClient("grok-3-mini");
-            this.paidLlmModel = model;
+            // const model = xaiClient("grok-3-mini");
+            this.paidLlmModel = xaiClient;
         }
 
         return new Promise((resolve, reject) => {
@@ -436,8 +436,10 @@ export class Bot {
         const channelName = channel.name;
         const channelTopic = channel.isThread() ? (channel.parent?.topic ?? '') : (channel.topic ?? '');
         let contextLength = 10;
+        let model: LanguageModel = this.paidLlmModel("grok-3-mini");
         if (message.content.toLowerCase().includes('who is right')) {
             contextLength = 50; // more context for "who is right" questions
+            model = this.paidLlmModel("grok-4"); // use better model for complex questions
         }
         const messages = await channel.messages.fetch({ limit: contextLength, before: message.id });
        
@@ -483,7 +485,7 @@ export class Bot {
         });
 
         const response = await generateText({
-            model: this.paidLlmModel,
+            model: model,
             messages: messagesIn.map(m => m.obj),
             maxOutputTokens: 1000,
         })
