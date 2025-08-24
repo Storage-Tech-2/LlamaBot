@@ -435,14 +435,31 @@ export class Bot {
 
         const channelName = channel.name;
         const channelTopic = channel.isThread() ? (channel.parent?.topic ?? '') : (channel.topic ?? '');
-        let contextLength = 10;
-        let model: LanguageModel = this.paidLlmModel("grok-3-mini");
+        let contextLength;
+        let model;
+        let systemPrompt;
         if (message.content.toLowerCase().includes('who is right')) {
             contextLength = 50; // more context for "who is right" questions
             model = this.paidLlmModel("grok-4"); // use better model for complex questions
+            systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration. You are friendly and talk casually. You are logical and do not flatter. User mentions are in the format <@UserID> and will be prepended to messages they send. Do not use emojis or em-dashes. Mention the correct user to keep the conversation clear. EG: If a message says "<@123456789012345678> tell them" and a previous message from user 4987654321012345678 said "I love Minecraft", you should respond with "<@4987654321012345678> Minecraft is great!"`;
+        } else {
+            contextLength = 10;
+            model = this.paidLlmModel("grok-3-mini");
+
+            // get channel list
+            const channelList = channel.guild.channels.cache
+                .filter(c => (c.isTextBased() || c.type === ChannelType.GuildForum) && !c.isThread() && !c.isVoiceBased())
+                .map(c => {
+                    let topic = c.topic ? c.topic : "No topic";
+                    return `#${c.name} (${topic})`;
+                })
+                .join(', ');
+
+            systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration and development. You are friendly, concise, and talk casually. You are talking in a channel called #${channelName}.${channelTopic ? ` The channel topic is: ${channelTopic}.` : ''} Direct users to the appropriate channel if they ask where they can find something. Available channels: ${channelList}. User mentions are in the format <@UserID> and will be prepended to messages they send. Do not use emojis or em-dashes. Mention the correct user to keep the conversation clear. EG: If a message says "<@123456789012345678> tell them" and a previous message from user 4987654321012345678 said "I love Minecraft", you should respond with "<@4987654321012345678> Minecraft is great!"`;
+
         }
         const messages = await channel.messages.fetch({ limit: contextLength, before: message.id });
-       
+
         // Remove messages that are not in the last 24 hours
         // const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
         //const recentMessages = messages.filter(msg => msg.createdTimestamp > oneDayAgo);
@@ -450,17 +467,9 @@ export class Bot {
         // Sort messages so that newest is last
         const sortedMessages = messages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
 
-        // get channel list
-        const channelList = channel.guild.channels.cache
-            .filter(c => (c.isTextBased() || c.type === ChannelType.GuildForum) && !c.isThread())
-            .map(c => `#${c.name}`)
-            .join(', ');
+        const messagesIn: { mid: Snowflake, id: number, obj: ModelMessage }[] = [];
 
-
-        const messagesIn: {mid: Snowflake, id: number, obj: ModelMessage}[] = [];
-        const systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration and development. You are friendly, concise, talk casually. You are talking in a channel called #${channelName}.${channelTopic ? ` The channel topic is: ${channelTopic}.` : ''} Direct users to the appropriate channel if they ask where they can find something. Available channels: ${channelList}. User mentions are in the format <@UserID> and will be prepended to messages they send. Do not use emojis or em-dashes. Mention the correct user to keep the conversation clear. EG: If a message says "<@123456789012345678> tell them" and a previous message from user 4987654321012345678 said "I love Minecraft", you should respond with "<@4987654321012345678> Minecraft is great!"`;
-
-        messagesIn.push({ mid: '0', id: 0, obj: { role: 'system', content: systemPrompt }});
+        messagesIn.push({ mid: '0', id: 0, obj: { role: 'system', content: systemPrompt } });
         sortedMessages.forEach(msg => {
             const isBot = msg.author.id === this.client.user?.id;
             const role = isBot ? 'assistant' : 'user';
@@ -472,7 +481,7 @@ export class Bot {
             // if content length is greater than 1000, truncate it
             const maxLength = 1000;
             const truncatedContent = contentWithMentions.length > maxLength ? contentWithMentions.slice(0, maxLength) + '... (truncated)' : contentWithMentions;
-            
+
             // check reply
             let replyTo = null;
             if (msg.reference && msg.reference.messageId) {
@@ -481,7 +490,7 @@ export class Bot {
                     replyTo = repliedMessage.id;
                 }
             }
-            messagesIn.push({ mid: msg.id, id: messagesIn.length,  obj: { role, content: `[${messagesIn.length}] <@${msg.author.id}> ${replyTo === null ? "said" : ` replied to [${replyTo}]`}: ${truncatedContent}` }});
+            messagesIn.push({ mid: msg.id, id: messagesIn.length, obj: { role, content: `[${messagesIn.length}] <@${msg.author.id}> ${replyTo === null ? "said" : ` replied to [${replyTo}]`}: ${truncatedContent}` } });
         });
 
         const response = await generateText({
