@@ -6,7 +6,7 @@ import { GuildConfigs } from "./config/GuildConfigs.js";
 import { SubmissionsManager } from "./submissions/SubmissionsManager.js";
 import { RepositoryManager } from "./archive/RepositoryManager.js";
 import { ArchiveEntryData } from "./archive/ArchiveEntry.js";
-import { escapeDiscordString, getAuthorsString, getChanges } from "./utils/Util.js";
+import { escapeDiscordString, getAuthorsString, getChanges, splitIntoChunks } from "./utils/Util.js";
 import { UserManager } from "./support/UserManager.js";
 import { UserData } from "./support/UserData.js";
 import { SubmissionConfigs } from "./submissions/SubmissionConfigs.js";
@@ -271,7 +271,14 @@ export class GuildHolder {
                 return 'Sorry, I had an error trying to respond to that message.';
             });
             if (reply) {
-                await message.reply({ content: reply, flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
+                const split = splitIntoChunks(reply, 2000);
+                for (let i = 0; i < split.length; i++) {
+                    if (i === 0) {
+                        await message.reply({ content: split[i], flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
+                    } else {
+                        await message.channel.send({ content: reply, flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
+                    }
+                }
             }
         }
     }

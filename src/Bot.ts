@@ -438,10 +438,12 @@ export class Bot {
         let contextLength;
         let model;
         let systemPrompt;
+        let maxOutputLength;
         if (message.content.toLowerCase().includes('who is right') || message.content.toLowerCase().includes('think hard')) {
             contextLength = 50; // more context for "who is right" questions
             model = this.paidLlmModel("grok-4"); // use better model for complex questions
             systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration. You are friendly and talk casually. You are logical and do not flatter. User mentions are in the format <@UserID> and will be prepended to messages they send. Do not use emojis or em-dashes. Mention the correct user to keep the conversation clear. EG: If a message says "<@123456789012345678> tell them" and a previous message from user 4987654321012345678 said "I love Minecraft", you should respond with "<@4987654321012345678> Minecraft is great!"`;
+            maxOutputLength = 20000;
         } else {
             contextLength = 10;
             model = this.paidLlmModel("grok-3-mini");
@@ -456,7 +458,7 @@ export class Bot {
                 .join(', ');
 
             systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration and development. You are friendly, concise, and talk casually. You are talking in a channel called #${channelName}.${channelTopic ? ` The channel topic is: ${channelTopic}.` : ''} Direct users to the appropriate channel if they ask where they can find something. Available channels: ${channelList}. User mentions are in the format <@UserID> and will be prepended to messages they send. Do not use emojis or em-dashes. Mention the correct user to keep the conversation clear. EG: If a message says "<@123456789012345678> tell them" and a previous message from user 4987654321012345678 said "I love Minecraft", you should respond with "<@4987654321012345678> Minecraft is great!"`;
-
+            maxOutputLength = 1000;
         }
         const messages = await channel.messages.fetch({ limit: contextLength, before: message.id });
 
@@ -496,7 +498,7 @@ export class Bot {
         const response = await generateText({
             model: model,
             messages: messagesIn.map(m => m.obj),
-            maxOutputTokens: 1000,
+            maxOutputTokens: maxOutputLength,
         })
 
         if (response.warnings?.length) {
@@ -504,7 +506,7 @@ export class Bot {
         }
 
         if (!response.text) {
-            console.error('No response from LLM:', response);
+            //console.error('No response from LLM:', response);
             throw new Error('No response from LLM');
         }
 
