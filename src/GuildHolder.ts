@@ -264,19 +264,25 @@ export class GuildHolder {
         }
 
         if (shouldReply && (message.channel.type === ChannelType.GuildText || message.channel.type === ChannelType.PublicThread)) {
+            const channel = message.channel;
             // send typing
-            await message.channel.sendTyping().catch(() => null);
-            const reply = await this.bot.respondToConversation(message.channel, message).catch(e => {
+            await channel.sendTyping().catch(() => null);
+            // typing interval
+            const typingInterval = setInterval(() => {
+                channel.sendTyping().catch(() => null);
+            }, 9000);
+            const reply = await this.bot.respondToConversation(channel, message).catch(e => {
                 console.error('Error responding to conversation:', e);
                 return 'Sorry, I had an error trying to respond to that message.';
             });
+            clearInterval(typingInterval);
             if (reply) {
                 const split = splitIntoChunks(reply, 2000);
                 for (let i = 0; i < split.length; i++) {
                     if (i === 0) {
                         await message.reply({ content: split[i], flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
                     } else {
-                        await message.channel.send({ content: reply, flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
+                        await channel.send({ content: reply, flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
                     }
                 }
             }
