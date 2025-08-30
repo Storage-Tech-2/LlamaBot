@@ -439,7 +439,7 @@ export class Bot {
         let model;
         let systemPrompt;
         let maxOutputLength;
-        const specialQuestions = ['who is right', 'is this true', 'translate into'];
+        const specialQuestions = ['who is right', 'is this true', 'translate'];
         if (specialQuestions.some(q => message.content.toLowerCase().includes(q))) {
             contextLength = 50; // more context for "who is right" questions
             model = this.paidLlmModel("grok-4"); // use better model for complex questions
