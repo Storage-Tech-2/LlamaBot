@@ -245,7 +245,8 @@ export class GuildHolder {
         }
 
         // Finally, check if llm is available;
-        if (!this.bot.canConverse() || !this.getConfigManager().getConfig(GuildConfigs.CONVERSATIONAL_LLM_ENABLED)) {
+        const isAdmin = message.member?.permissions.has('Administrator') || false;
+        if (!this.bot.canConverse() || (!this.getConfigManager().getConfig(GuildConfigs.CONVERSATIONAL_LLM_ENABLED) && !isAdmin)) {
             return;
         }
 
