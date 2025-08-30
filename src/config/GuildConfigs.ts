@@ -111,4 +111,9 @@ export const GuildConfigs = {
      * Conversational LLM enabled
      */
     CONVERSATIONAL_LLM_ENABLED: new Config<boolean>("conversationalLlmEnabled", false),
+
+    /**
+     * Website URL
+     */
+    WEBSITE_URL: new Config<string>("websiteUrl", ""),
 }

@@ -181,6 +181,13 @@ export class PostEmbed {
         const gitURL = `https://github.com/${owner}/${project}/tree/master/${entryPathPart}#readme`;
         content.push(`\n\n[Submission Thread](${submissionURL})`);
         content.push(`\n[Github](${gitURL})`);
+
+        const websiteURL = guildHolder.getConfigManager().getConfig(GuildConfigs.WEBSITE_URL);
+        if (websiteURL) {
+            const postURLObj = new URL(websiteURL);
+            postURLObj.searchParams.append('id', entryData.id);
+            content.push(` | [Website](${postURLObj.href})`);
+        }
         content.push(`\nEdited on <t:${Math.floor(entryData.timestamp / 1000)}:F>`);
 
         return content.join('');

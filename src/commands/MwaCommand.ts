@@ -126,6 +126,18 @@ export class Mwa implements Command {
 
             .addSubcommand(subcommand =>
                 subcommand
+                    .setName('setwebsite')
+                    .setDescription('Set the website URL for the archive')
+                    .addStringOption(option =>
+                        option
+                            .setName('url')
+                            .setDescription('Website URL')
+                            .setRequired(true)
+                    )
+            )
+
+            .addSubcommand(subcommand =>
+                subcommand
                     .setName('settemplate')
                     .setDescription('Set the post template for the archive')
             )
@@ -252,10 +264,31 @@ export class Mwa implements Command {
             this.refreshDesignerRoles(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'togglellm') {
             this.toggleLlm(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'setwebsite') {
+            this.setWebsite(guildHolder, interaction);
         } else {
             await replyEphemeral(interaction, 'Invalid subcommand. Use `/mwa setsubmissions`, `/mwa setlogs`, `/mwa setarchives`, `/mwa setuparchives`, `/mwa setendorseroles`, `/mwa seteditorroles`, `/mwa sethelperrole` or `/mwa setrepo`.');
             return;
         }
+    }
+
+    async setWebsite(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const url = interaction.options.getString('url')
+        if (!url) {
+            await replyEphemeral(interaction, 'Invalid URL')
+            return
+        }
+
+        // check url is valid
+        try {
+            new URL(url);
+        } catch (e) {
+            await replyEphemeral(interaction, 'Invalid URL')
+            return
+        }
+        
+        guildHolder.getConfigManager().setConfig(GuildConfigs.WEBSITE_URL, url)
+        await interaction.reply(`Successfully set website URL to ${url}!`);
     }
 
     async addToBlacklist(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
@@ -411,7 +444,7 @@ export class Mwa implements Command {
         await interaction.reply(`Llamabot will now listen to ${channel.name} for submissions!`);
     }
 
-     async setHoneypot(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+    async setHoneypot(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         const channel = interaction.options.getChannel('channel')
         if (!channel) {
             await replyEphemeral(interaction, 'Invalid channel')
@@ -604,7 +637,7 @@ export class Mwa implements Command {
             const editorRoles = guildHolder.getConfigManager().getConfig(GuildConfigs.EDITOR_ROLE_IDS);
 
             const me = guildHolder.getGuild().members.me;
-            
+
             if (!me) {
                 await replyEphemeral(interaction, 'Bot is not in the guild. Please invite the bot to the guild and try again.');
                 return;
