@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType, MessageFlags, Message, Snowflake, Collection, ActionRowBuilder } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType, MessageFlags, Message, Snowflake, Collection } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { replyEphemeral } from "../utils/Util.js";
