@@ -6,7 +6,7 @@ import { getOrMakeMoveConvoData, saveMoveConvoData } from "../support/MoveConvoT
 
 export class MoveConvoEndContextCommand implements ContextMenuCommand {
     getID(): string {
-        return "Move Convo: Mark End";
+        return "Mark Convo End";
     }
 
     getBuilder(_guildHolder: GuildHolder): ContextMenuCommandBuilder {

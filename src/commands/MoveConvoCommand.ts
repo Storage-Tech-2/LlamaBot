@@ -44,12 +44,12 @@ export class MoveConvoCommand implements Command {
         }
 
         if (!data.startMessageId) {
-            await replyEphemeral(interaction, 'You have not marked a start message. Please use the context menu command "Move Convo: Mark Start" on a message to mark the start of the conversation.');
+            await replyEphemeral(interaction, 'You have not marked a start message. Please use the context menu command "Mark Convo Start" on a message to mark the start of the conversation.');
             return;
         }
 
         if (!data.endMessageId) {
-            await replyEphemeral(interaction, 'You have not marked an end message. Please use the context menu command "Move Convo: Mark End" on a message to mark the end of the conversation.');
+            await replyEphemeral(interaction, 'You have not marked an end message. Please use the context menu command "Mark Convo End" on a message to mark the end of the conversation.');
             return;
         }
 
@@ -191,10 +191,10 @@ export class MoveConvoCommand implements Command {
         data.movedMessageIds = movedMessageIds;
         // save data
         saveMoveConvoData(guildHolder.getBot(), data);
-        
+
 
         const othersToDelete = [];
-        
+
         await origMessage.delete().catch(() => { });
         if (failedList.length > 0) {
             const failedText = `Warning: Failed to move the following messages:\n` + failedList.map(url => `- ${url}`).join('\n');
@@ -212,7 +212,7 @@ export class MoveConvoCommand implements Command {
 
         const summary = `Moved ${movedMessageIds.length} messages from ${currentChannel.url} to ${destinationChannel.url}`;
         const confirmButton = (new MoveConvoConfirmButton()).getBuilder(false);
-        const cancelButton =  (new MoveConvoConfirmButton()).getBuilder(true);
+        const cancelButton = (new MoveConvoConfirmButton()).getBuilder(true);
         const rows = [new ActionRowBuilder().addComponents(cancelButton, confirmButton) as any];
         const confirmMessage = await currentChannel.send({
             content: summary,
@@ -222,7 +222,7 @@ export class MoveConvoCommand implements Command {
             console.error('Error sending confirmation message:', e);
         });
         if (confirmMessage) othersToDelete.push(confirmMessage.id);
-        
+
         data.statusMessages = othersToDelete;
         saveMoveConvoData(guildHolder.getBot(), data);
 
