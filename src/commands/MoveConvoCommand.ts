@@ -4,6 +4,7 @@ import { Command } from "../interface/Command.js";
 import { replyEphemeral, splitIntoChunks } from "../utils/Util.js";
 import { getMoveConvoData, saveMoveConvoData } from "../support/MoveConvoTool.js";
 import { MoveConvoConfirmButton } from "../components/buttons/MoveConvoConfirmButton.js";
+import { MoveConvoCancelButton } from "../components/buttons/MoveConvoCancelButton.js";
 
 export class MoveConvoCommand implements Command {
     getID(): string {
@@ -211,8 +212,8 @@ export class MoveConvoCommand implements Command {
         }
 
         const summary = `Moved ${movedMessageIds.length} messages from ${currentChannel.url} to ${destinationChannel.url}`;
-        const confirmButton = (new MoveConvoConfirmButton()).getBuilder(false);
-        const cancelButton = (new MoveConvoConfirmButton()).getBuilder(true);
+        const confirmButton = (new MoveConvoCancelButton()).getBuilder();
+        const cancelButton = (new MoveConvoConfirmButton()).getBuilder();
         const rows = [new ActionRowBuilder().addComponents(cancelButton, confirmButton) as any];
         const confirmMessage = await currentChannel.send({
             content: summary,

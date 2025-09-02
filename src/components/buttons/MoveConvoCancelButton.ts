@@ -3,16 +3,16 @@ import { GuildHolder } from "../../GuildHolder.js";
 import { Button } from "../../interface/Button.js";
 import { getMoveConvoData, removeMoveConvoData } from "../../support/MoveConvoTool.js";
 import { replyEphemeral } from "../../utils/Util.js";
-export class MoveConvoConfirmButton implements Button {
+export class MoveConvoCancelButton implements Button {
     getID(): string {
-        return "mv-confirm-button";
+        return "mv-cancel-button";
     }
 
     getBuilder(): ButtonBuilder {
         return new ButtonBuilder()
             .setCustomId(this.getID())
-            .setLabel('Confirm')
-            .setStyle(ButtonStyle.Success);
+            .setLabel('Undo')
+            .setStyle(ButtonStyle.Danger);
     }
 
     async execute(guildHolder: GuildHolder, interaction: ButtonInteraction): Promise<void> {
@@ -24,7 +24,7 @@ export class MoveConvoConfirmButton implements Button {
 
         await interaction.deferReply();
 
-        const listToDelete = data.toMoveMessageIds.slice();
+        const listToDelete = data.movedMessageIds.slice();
         
         // Delete status messages too
         if (data.statusMessages) {
@@ -45,7 +45,7 @@ export class MoveConvoConfirmButton implements Button {
         removeMoveConvoData(guildHolder.getBot(), interaction.user.id, interaction.channelId);
 
         await interaction.editReply({
-            content: 'Conversation moved successfully.',
+            content: 'Move conversation undone.'
         });
     }
 }

@@ -3,6 +3,7 @@ import { ConfirmAuthorsButton } from "./ConfirmAuthorsButton.js";
 import { EditSubmissionButton } from "./EditSubmissionButton.js";
 import { FixErrorsButton } from "./FixErrorsButton.js";
 import { MakeRevisionCurrentButton } from "./MakeRevisionCurrentButton.js";
+import { MoveConvoCancelButton } from "./MoveConvoCancelButton.js";
 import { MoveConvoConfirmButton } from "./MoveConvoConfirmButton.js";
 import { PublishButton } from "./PublishButton.js";
 import { SetArchiveChannelButton } from "./SetArchiveChannelButton.js";
@@ -27,6 +28,7 @@ export function getButtons() {
         new ConfirmAuthorsButton(),
         new FixErrorsButton(),
         new MoveConvoConfirmButton(),
+        new MoveConvoCancelButton()
     ];
     return Buttons;
 }
