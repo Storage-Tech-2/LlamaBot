@@ -122,7 +122,7 @@ export class BulkDeleteCommand implements Command {
 
         const summary = `Deleted ${messagesToMove.length} messages from ${currentChannel.url}`;
       
-        const confirmMessage = await currentChannel.send({
+        await currentChannel.send({
             content: summary,
             flags: [MessageFlags.SuppressNotifications],
         }).catch((e) => {

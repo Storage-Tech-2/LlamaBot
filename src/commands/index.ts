@@ -1,3 +1,4 @@
+import { BulkDeleteCommand } from "./BulkDeleteCommand.js";
 import { EditCommand } from "./EditCommand.js";
 import { EditorPowersCommand } from "./EditorPowersCommand.js";
 import { EndorseCommand } from "./EndorseCommand.js";
@@ -23,7 +24,8 @@ export function getCommands() {
         new ToggleHelper(),
         new MoveConvoStartContextCommand(),
         new MoveConvoEndContextCommand(),
-        new MoveConvoCommand()
+        new MoveConvoCommand(),
+        new BulkDeleteCommand()
     ];
     return Commands;
 }
