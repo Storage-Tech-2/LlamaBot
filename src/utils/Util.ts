@@ -16,8 +16,9 @@ import { SubmissionConfigs } from '../submissions/SubmissionConfigs.js'
 import { Tag } from '../submissions/Tag.js'
 import { SubmissionStatus } from '../submissions/SubmissionStatus.js'
 import { SubmissionRecord } from './MarkdownUtils.js'
+import { ContextMenuCommand } from '../interface/ContextMenuCommand.js'
 
-export function getItemsFromArray<T extends (Button | Menu | Modal | Command)>(itemArray: T[]): Map<string, T> {
+export function getItemsFromArray<T extends (Button | Menu | Modal | Command | ContextMenuCommand)>(itemArray: T[]): Map<string, T> {
     const items = new Map()
     for (const item of itemArray) {
         if (items.has(item.getID())) {
@@ -29,7 +30,7 @@ export function getItemsFromArray<T extends (Button | Menu | Modal | Command)>(i
 }
 
 export async function deployCommands(
-    commandsMap: Map<string, Command>,
+    commandsMap: Map<string, Command | ContextMenuCommand>,
     guildHolder: GuildHolder,
     secrets: Secrets
 ) {

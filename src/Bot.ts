@@ -1,4 +1,4 @@
-import { ChannelType, ChatInputCommandInteraction, Client, Events, GatewayIntentBits, Message, Partials, SelectMenuInteraction, Snowflake, TextChannel, TextThreadChannel } from "discord.js";
+import { ChannelType, ChatInputCommandInteraction, Client, ContextMenuCommandInteraction, Events, GatewayIntentBits, Message, Partials, SelectMenuInteraction, Snowflake, TextChannel, TextThreadChannel } from "discord.js";
 import { GuildHolder } from "./GuildHolder.js";
 import { LLMQueue } from "./llm/LLMQueue.js";
 import path from "path";
@@ -15,7 +15,8 @@ import { getModals } from "./components/modals/index.js";
 import { TempDataStore } from "./utils/TempDataStore.js";
 import { App } from "octokit";
 import { createXai, XaiProvider } from "@ai-sdk/xai";
-import { generateText, LanguageModel, ModelMessage } from "ai";
+import { generateText, ModelMessage } from "ai";
+import { ContextMenuCommand } from "./interface/ContextMenuCommand.js";
 /**
  * The Secrets type defines the structure for the bot's secrets, including the token and client ID.
  */
@@ -48,7 +49,7 @@ export class Bot {
     /**
      * Commands available for the bot, loaded from the commands directory.
      */
-    commands: Map<string, Command>;
+    commands: Map<string, Command | ContextMenuCommand>;
 
     /**
      * Buttons available for the bot, loaded from the buttons directory.
@@ -195,7 +196,11 @@ export class Bot {
                 if (!command) return
 
                 try {
-                    await command.execute(guildHolder, interaction as ChatInputCommandInteraction)
+                    if (interaction.isContextMenuCommand()) {
+                        await (command as ContextMenuCommand).execute(guildHolder, interaction as ContextMenuCommandInteraction)
+                    } else {
+                        await (command as Command).execute(guildHolder, interaction as ChatInputCommandInteraction)
+                    }
                 } catch (error) {
                     console.error(error)
                     return replyEphemeral(interaction, 'An error occurred while executing the command.')

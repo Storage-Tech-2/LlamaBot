@@ -5,6 +5,9 @@ import { GetPostCommand } from "./GetPostCommand.js";
 import { GetPostsByCommand } from "./GetPostsByCommand.js";
 import { GetStatsCommand } from "./GetStatsCommand.js";
 import { GetThanksCommand } from "./GetThanksCommand.js";
+import { MoveConvoCommand } from "./MoveConvoCommand.js";
+import { MoveConvoEndContextCommand } from "./MoveConvoEndContextCommand.js";
+import { MoveConvoStartContextCommand } from "./MoveConvoStartContextCommand.js";
 import { Mwa } from "./MwaCommand.js";
 import { ToggleHelper } from "./ToggleHelper.js";
 export function getCommands() {
@@ -17,7 +20,10 @@ export function getCommands() {
         new GetPostsByCommand(),
         new GetStatsCommand(),
         new EditCommand(),
-        new ToggleHelper()
+        new ToggleHelper(),
+        new MoveConvoStartContextCommand(),
+        new MoveConvoEndContextCommand(),
+        new MoveConvoCommand()
     ];
     return Commands;
 }
