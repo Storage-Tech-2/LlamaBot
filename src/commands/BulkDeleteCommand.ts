@@ -1,9 +1,8 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType, MessageFlags, Message, Snowflake, Collection, ActionRowBuilder } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
-import { replyEphemeral, splitIntoChunks } from "../utils/Util.js";
-import { getMoveConvoData, removeMoveConvoData, saveMoveConvoData } from "../support/MoveConvoTool.js";
-import { MoveConvoConfirmButton } from "../components/buttons/MoveConvoConfirmButton.js";
+import { replyEphemeral } from "../utils/Util.js";
+import { getMoveConvoData, removeMoveConvoData } from "../support/MoveConvoTool.js";
 
 export class BulkDeleteCommand implements Command {
     getID(): string {
@@ -122,9 +121,8 @@ export class BulkDeleteCommand implements Command {
 
         const summary = `Deleted ${messagesToMove.length} messages from ${currentChannel.url}`;
       
-        await currentChannel.send({
+        await origMessage.edit({
             content: summary,
-            flags: [MessageFlags.SuppressNotifications],
         }).catch((e) => {
             console.error('Error sending confirmation message:', e);
         });
