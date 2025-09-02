@@ -99,7 +99,7 @@ export class MoveConvoCommand implements Command {
         }
 
         const origMessage = await interaction.reply({
-            content: `Fetching messages to move...`,
+            content: `Copying over messages...`,
             flags: [MessageFlags.SuppressNotifications]
         });
 
