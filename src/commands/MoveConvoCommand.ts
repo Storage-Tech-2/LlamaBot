@@ -166,7 +166,7 @@ export class MoveConvoCommand implements Command {
                 const isLast = i === contentSplit.length - 1;
                 const sent = await webhook.send({
                     content: part,
-                    username: author.username,
+                    username: author.displayName || author.username,
                     avatarURL: author.displayAvatarURL(),
                     files: isLast && files.size > 0 ? Array.from(files.values()).map(a => a.url) : undefined,
                     embeds: isLast && embeds.length > 0 ? embeds.map(e => e.toJSON()) : undefined,
