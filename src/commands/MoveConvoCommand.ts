@@ -152,6 +152,11 @@ export class MoveConvoCommand implements Command {
         const originalMessageIds: Snowflake[] = messagesToMove.map(m => m.id);
         const movedMessageIds: Snowflake[] = [];
         const failedList = [];
+
+        // send notice to destination channel
+        const msg = await destinationChannel.send(`Moving ${messagesToMove.length} messages from ${currentChannel.url} to ${destinationChannel.url}.`).catch(() => { });
+        if (msg) movedMessageIds.push(msg.id);
+
         for (const msg of messagesToMove) {
             let content = msg.content;
             let files = msg.attachments;
