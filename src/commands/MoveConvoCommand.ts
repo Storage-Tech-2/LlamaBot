@@ -38,8 +38,18 @@ export class MoveConvoCommand implements Command {
         }
 
         const data = getMoveConvoData(guildHolder.getBot(), interaction.user.id, interaction.channelId);
-        if (!data || !data.startMessageId || !data.endMessageId) {
-            await replyEphemeral(interaction, 'You need to mark both the start and end of the conversation using the context menu commands first.');
+        if (!data) {
+            await replyEphemeral(interaction, 'You have not marked any conversation to move. Please use the context menu commands to mark the start and end of the conversation first.');
+            return;
+        }
+
+        if (!data.startMessageId) {
+            await replyEphemeral(interaction, 'You have not marked a start message. Please use the context menu command "Move Convo: Mark Start" on a message to mark the start of the conversation.');
+            return;
+        }
+
+        if (!data.endMessageId) {
+            await replyEphemeral(interaction, 'You have not marked an end message. Please use the context menu command "Move Convo: Mark End" on a message to mark the end of the conversation.');
             return;
         }
 
