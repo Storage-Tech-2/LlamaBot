@@ -212,12 +212,13 @@ export class MoveConvoCommand implements Command {
             }
         }
 
-        const summary = `Moved ${movedMessageIds.length} messages from ${currentChannel.url} to ${destinationChannel.url}`;
+        await currentChannel.send(`Copied ${movedMessageIds.length} messages from ${currentChannel.url} to ${destinationChannel.url}`).catch(() => { });
+        
         const confirmButton = (new MoveConvoCancelButton()).getBuilder();
         const cancelButton = (new MoveConvoConfirmButton()).getBuilder();
         const rows = [new ActionRowBuilder().addComponents(cancelButton, confirmButton) as any];
         const confirmMessage = await currentChannel.send({
-            content: summary,
+            content: `Please confirm that the messages have been copied successfully. If so, click "Confirm" to delete the original messages. If there were issues, click "Undo" to delete the copied messages in ${destinationChannel}.`,
             flags: [MessageFlags.SuppressNotifications],
             components: rows
         }).catch((e) => {

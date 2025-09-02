@@ -22,7 +22,10 @@ export class MoveConvoConfirmButton implements Button {
             return;
         }
 
-        await interaction.deferReply();
+        const original = await interaction.reply({
+            content: 'Removing original conversation... This may take a while for large conversations.',
+        });
+
 
         const listToDelete = data.toMoveMessageIds.slice();
         
@@ -44,8 +47,8 @@ export class MoveConvoConfirmButton implements Button {
 
         removeMoveConvoData(guildHolder.getBot(), interaction.user.id, interaction.channelId);
 
-        await interaction.editReply({
-            content: 'Conversation moved successfully.',
+        await original.edit({
+            content: 'Conversation moved successfully!'
         });
     }
 }

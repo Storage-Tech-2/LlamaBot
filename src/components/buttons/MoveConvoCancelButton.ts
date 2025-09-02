@@ -22,7 +22,9 @@ export class MoveConvoCancelButton implements Button {
             return;
         }
 
-        await interaction.deferReply();
+        const original = await interaction.reply({
+            content: 'Undoing move conversation... This may take a while for large conversations.',
+        });
 
         const listToDelete = data.movedMessageIds.slice();
 
@@ -57,8 +59,8 @@ export class MoveConvoCancelButton implements Button {
 
         removeMoveConvoData(guildHolder.getBot(), interaction.user.id, interaction.channelId);
 
-        await interaction.editReply({
-            content: 'Move conversation undone.'
+        await original.edit({
+            content: 'Move conversation undone!'
         });
     }
 }
