@@ -213,7 +213,7 @@ export class MoveConvoCommand implements Command {
         const summary = `Moved ${movedMessageIds.length} messages from ${currentChannel.url} to ${destinationChannel.url}`;
         const confirmButton = (new MoveConvoConfirmButton()).getBuilder(false);
         const cancelButton =  (new MoveConvoConfirmButton()).getBuilder(true);
-        const rows = [new ActionRowBuilder().addComponents([cancelButton, confirmButton]) as any];
+        const rows = [new ActionRowBuilder().addComponents(cancelButton, confirmButton) as any];
         const confirmMessage = await currentChannel.send({
             content: summary,
             flags: [MessageFlags.SuppressNotifications],

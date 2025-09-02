@@ -5,12 +5,12 @@ import { getMoveConvoData, removeMoveConvoData } from "../../support/MoveConvoTo
 import { replyEphemeral } from "../../utils/Util.js";
 export class MoveConvoConfirmButton implements Button {
     getID(): string {
-        return "move-convo-confirm-button";
+        return "mv-confirm-button";
     }
 
     getBuilder(isCancel: boolean): ButtonBuilder {
         return new ButtonBuilder()
-            .setCustomId(this.getID() + '|' + isCancel ? 'cancel' : 'confirm')
+            .setCustomId(this.getID() + '|' + isCancel ? 'cancel' : 'conf')
             .setLabel(isCancel ? 'Undo' : 'Confirm')
             .setStyle(isCancel ? ButtonStyle.Danger : ButtonStyle.Success);
     }
