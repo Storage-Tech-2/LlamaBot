@@ -30,8 +30,11 @@ export function getOrMakeMoveConvoData(bot: Bot, userId: Snowflake, channelId: S
 export function getMoveConvoData(bot: Bot, userId: Snowflake, channelId: Snowflake): MoveConvoData | undefined {
     const tempDataStore = bot.getTempDataStore();
     const key = `move-convo-${userId}-${channelId}`;
-    let data = tempDataStore.getEntry(key) as MoveConvoData | undefined;
-    return data;
+    let data = tempDataStore.getEntry(key);
+    if (data) {
+        return data.data as MoveConvoData;
+    };
+    return undefined;
 }
 
 
