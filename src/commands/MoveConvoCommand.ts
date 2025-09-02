@@ -190,6 +190,7 @@ export class MoveConvoCommand implements Command {
         await webhook.delete().catch(() => { });
         data.toMoveMessageIds = originalMessageIds;
         data.movedMessageIds = movedMessageIds;
+        data.moveToChannelId = destinationChannel.id;
         // save data
         saveMoveConvoData(guildHolder.getBot(), data);
 

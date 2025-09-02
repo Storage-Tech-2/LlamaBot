@@ -17,7 +17,7 @@ export class MoveConvoCancelButton implements Button {
 
     async execute(guildHolder: GuildHolder, interaction: ButtonInteraction): Promise<void> {
         const data = getMoveConvoData(guildHolder.getBot(), interaction.user.id, interaction.channelId);
-        if (!interaction.channel || !data) {
+        if (!interaction.channel || !data || !data.moveToChannelId) {
             await replyEphemeral(interaction, 'No move conversation data found.');
             return;
         }
@@ -25,20 +25,33 @@ export class MoveConvoCancelButton implements Button {
         await interaction.deferReply();
 
         const listToDelete = data.movedMessageIds.slice();
-        
-        // Delete status messages too
-        if (data.statusMessages) {
-            listToDelete.push(...data.statusMessages);
+
+        const channel = await guildHolder.getGuild().channels.fetch(data.moveToChannelId).catch(() => null);
+        if (!channel || !channel.isTextBased()) {
+            await replyEphemeral(interaction, 'Destination channel not found. Please contact an admin to manually move the messages back.');
+            return;
         }
 
         for (const messageId of listToDelete) {
+            try {
+                const message = await channel.messages.fetch(messageId as Snowflake).catch(() => null);
+                if (message) {
+                    await message.delete();
+                }
+            } catch (e) {
+                console.error(`Failed to delete message ${messageId}:`, e);
+            }
+        }
+
+        // Delete status messages too
+        for (const messageId of data.statusMessages) {
             try {
                 const message = await interaction.channel.messages.fetch(messageId as Snowflake).catch(() => null);
                 if (message) {
                     await message.delete();
                 }
             } catch (e) {
-                console.error(`Failed to delete message ${messageId}:`, e);
+                console.error(`Failed to delete status message ${messageId}:`, e);
             }
         }
 
