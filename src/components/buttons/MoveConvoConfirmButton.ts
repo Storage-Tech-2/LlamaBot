@@ -26,13 +26,20 @@ export class MoveConvoConfirmButton implements Button {
             content: 'Removing original conversation... This may take a while for large conversations.',
         });
 
+        // Delete status messages
+        for (const messageId of data.statusMessages) {
+            try {
+                const message = await interaction.channel.messages.fetch(messageId as Snowflake).catch(() => null);
+                if (message) {
+                    await message.delete();
+                }
+            } catch (e) {
+                console.error(`Failed to delete status message ${messageId}:`, e);
+            }
+        }
 
         const listToDelete = data.toMoveMessageIds.slice();
         
-        // Delete status messages too
-        if (data.statusMessages) {
-            listToDelete.push(...data.statusMessages);
-        }
 
         for (const messageId of listToDelete) {
             try {

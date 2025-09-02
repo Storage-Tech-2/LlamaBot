@@ -26,6 +26,18 @@ export class MoveConvoCancelButton implements Button {
             content: 'Undoing move conversation... This may take a while for large conversations.',
         });
 
+        // Delete status messages
+        for (const messageId of data.statusMessages) {
+            try {
+                const message = await interaction.channel.messages.fetch(messageId as Snowflake).catch(() => null);
+                if (message) {
+                    await message.delete();
+                }
+            } catch (e) {
+                console.error(`Failed to delete status message ${messageId}:`, e);
+            }
+        }
+
         const listToDelete = data.movedMessageIds.slice();
 
         const channel = await guildHolder.getGuild().channels.fetch(data.moveToChannelId).catch(() => null);
@@ -42,18 +54,6 @@ export class MoveConvoCancelButton implements Button {
                 }
             } catch (e) {
                 console.error(`Failed to delete message ${messageId}:`, e);
-            }
-        }
-
-        // Delete status messages too
-        for (const messageId of data.statusMessages) {
-            try {
-                const message = await interaction.channel.messages.fetch(messageId as Snowflake).catch(() => null);
-                if (message) {
-                    await message.delete();
-                }
-            } catch (e) {
-                console.error(`Failed to delete status message ${messageId}:`, e);
             }
         }
 
