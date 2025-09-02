@@ -1,4 +1,4 @@
-import { InteractionContextType, ApplicationCommandType, ContextMenuCommandInteraction, ContextMenuCommandBuilder } from "discord.js";
+import { InteractionContextType, ApplicationCommandType, ContextMenuCommandInteraction, ContextMenuCommandBuilder, MessageFlags } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { replyEphemeral } from "../utils/Util.js";
 import { ContextMenuCommand } from "../interface/ContextMenuCommand.js";
@@ -47,7 +47,7 @@ export class MoveConvoEndContextCommand implements ContextMenuCommand {
 
         await interaction.reply({
             content: `Conversation end marked at ${message.url}`,
-            ephemeral: true
+            flags: [MessageFlags.Ephemeral]
         });
 
     }

@@ -211,14 +211,16 @@ export class MoveConvoCommand implements Command {
         }
 
         const summary = `Moved ${movedMessageIds.length} messages from ${currentChannel.url} to ${destinationChannel.url}`;
-        const confirmButton = await (new MoveConvoConfirmButton()).getBuilder(false);
-        const cancelButton = await (new MoveConvoConfirmButton()).getBuilder(true);
+        const confirmButton = (new MoveConvoConfirmButton()).getBuilder(false);
+        const cancelButton =  (new MoveConvoConfirmButton()).getBuilder(true);
         const rows = [new ActionRowBuilder().addComponents([cancelButton, confirmButton]) as any];
         const confirmMessage = await currentChannel.send({
             content: summary,
             flags: [MessageFlags.SuppressNotifications],
             components: rows
-        }).catch(() => { });
+        }).catch((e) => {
+            console.error('Error sending confirmation message:', e);
+        });
         if (confirmMessage) othersToDelete.push(confirmMessage.id);
         
         data.statusMessages = othersToDelete;

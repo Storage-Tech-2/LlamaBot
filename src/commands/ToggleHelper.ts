@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType, MessageFlags } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { replyEphemeral } from "../utils/Util.js";
@@ -43,7 +43,7 @@ export class ToggleHelper implements Command {
         const status = userData.disableRole ? 'disabled' : 'enabled';
         await interaction.reply({
             content: `Helper role has been ${status}. Please toggle it again if you change your mind.`,
-            ephemeral: true
+            flags: [MessageFlags.Ephemeral]
         });
     }
 

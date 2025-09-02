@@ -461,7 +461,6 @@ export class Mwa implements Command {
         const dt = await (new SetArchiveCategoriesMenu()).getBuilder(guildHolder, currentCategories);
         const row = new ActionRowBuilder()
             .addComponents(dt);
-        // interaction.reply({ content: `Change notification settings of '${name}' in this channel`, components: [row], ephemeral: true })
         await replyEphemeral(interaction, 'Select archive categories', { components: [row] })
     }
 
