@@ -168,7 +168,7 @@ export class MoveConvoCommand implements Command {
             let failed = false;
             for (let i = 0; i === 0 || i < contentSplit.length; i++) {
                 const part = contentSplit[i] || "";
-                const isLast = i === contentSplit.length - 1;
+                const isLast = i === Math.max(contentSplit.length - 1, 0);
                 const sent = await webhook.send({
                     content: part,
                     username: author.displayName || author.username,
