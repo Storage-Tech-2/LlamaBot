@@ -166,8 +166,8 @@ export class MoveConvoCommand implements Command {
             // move
             const contentSplit = splitIntoChunks(content, 2000);
             let failed = false;
-            for (let i = 0; i < contentSplit.length; i++) {
-                const part = contentSplit[i];
+            for (let i = 0; i === 0 || i < contentSplit.length; i++) {
+                const part = contentSplit[i] || "";
                 const isLast = i === contentSplit.length - 1;
                 const sent = await webhook.send({
                     content: part,
