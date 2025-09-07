@@ -189,8 +189,10 @@ export class GuildHolder {
                         return;
                     }
                     try {
-                        await member.timeout(0, 'Honeypot');
+                        const duration = 28 * 24 * 60 * 60 * 1000; // 28 days in milliseconds
+                        await member.timeout(duration, 'Honeypot');
                     } catch (e: any) {
+                        console.error(e);
                         const embed = new EmbedBuilder()
                         embed.setColor(0xFF0000) // Red color for honeypot message
                         embed.setTitle(`Honeypot Triggered!`)
