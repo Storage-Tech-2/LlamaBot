@@ -375,7 +375,7 @@ export class GuildHolder {
                 .setFooter({ text: `If you believe this is a mistake, please contact the moderators.` });
             const row = new ActionRowBuilder()
                 .addComponents(await new NotABotButton().getBuilder(message.author.id));
-            await message.reply({ embeds: [embed], components: [row as any], flags: [MessageFlags.SuppressNotifications] });
+            const warningMsg = await message.reply({ embeds: [embed], components: [row as any], flags: [MessageFlags.SuppressNotifications] });
 
             userData.attachmentsAllowedState = AttachmentsState.WARNED;
             if (!userData.messagesToDeleteOnTimeout) {
@@ -383,6 +383,7 @@ export class GuildHolder {
             }
 
             userData.messagesToDeleteOnTimeout.push(message.id);
+            userData.messagesToDeleteOnTimeout.push(warningMsg.id);
 
             await this.userManager.saveUserData(userData);
             
