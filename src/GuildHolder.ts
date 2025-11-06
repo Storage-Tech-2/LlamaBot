@@ -332,8 +332,22 @@ export class GuildHolder {
                         if (modChannel && modChannel.isSendable()) {
                             await modChannel.send({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
                         }
+                        return true;
                     }
                     await message.delete();
+
+                    const embed = new EmbedBuilder()
+                        .setColor(0xFF0000) // Red color for timeout message
+                        .setTitle(`User Timed Out for Attachment Spam!`)
+                        .setDescription(`Timed out <@${message.author.id}> for sending attachments again after warning.`)
+                        .setFooter({ text: `Repeat offender.` });
+
+                    const modChannel = await this.guild.channels.fetch(this.getConfigManager().getConfig(GuildConfigs.MOD_LOG_CHANNEL_ID)).catch(() => null);
+                    if (modChannel && modChannel.isSendable()) {
+                        await modChannel.send({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
+                    }
+
+
                 }
                 return true;
             }
