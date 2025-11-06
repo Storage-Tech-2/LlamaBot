@@ -1,4 +1,4 @@
-import { AnyThreadChannel, ChannelType, EmbedBuilder, ForumChannel, Guild, GuildMember, Message, MessageFlags, Snowflake } from "discord.js";
+import { ActionRowBuilder, AnyThreadChannel, ChannelType, EmbedBuilder, ForumChannel, Guild, GuildMember, Message, MessageFlags, Snowflake } from "discord.js";
 import { Bot } from "./Bot.js";
 import { ConfigManager } from "./config/ConfigManager.js";
 import Path from "path";
@@ -8,12 +8,13 @@ import { RepositoryManager } from "./archive/RepositoryManager.js";
 import { ArchiveEntryData } from "./archive/ArchiveEntry.js";
 import { escapeDiscordString, getAuthorsString, getChanges, splitIntoChunks } from "./utils/Util.js";
 import { UserManager } from "./support/UserManager.js";
-import { UserData } from "./support/UserData.js";
+import { AttachmentsState, UserData } from "./support/UserData.js";
 import { SubmissionConfigs } from "./submissions/SubmissionConfigs.js";
 import { SubmissionStatus } from "./submissions/SubmissionStatus.js";
 import fs from "fs/promises";
 import { countCharactersInRecord } from "./utils/MarkdownUtils.js";
 import { Author, AuthorType } from "./submissions/Author.js";
+import { NotABotButton } from "./components/buttons/NotABotButton.js";
 /**
  * GuildHolder is a class that manages guild-related data.
  */
@@ -125,6 +126,11 @@ export class GuildHolder {
         //         await message.reply('Nothing here is unload safe. Never assume anything redstone is unload safe. Have a good day!');
         //     }
         // }
+
+        // handle anti spam
+        if (await this.handleSpamCheck(message)) {
+            return;
+        }
 
         if (message.reference && this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_ID)) {
             // Check if message contains "thanks" or "thank you"
@@ -290,6 +296,70 @@ export class GuildHolder {
                 }
             }
         }
+    }
+
+    public async handleSpamCheck(message: Message): Promise<boolean> {
+        // if moderation channel is not set, skip
+        if (!this.getConfigManager().getConfig(GuildConfigs.MOD_LOG_CHANNEL_ID)) {
+            return false;
+        }
+
+        if (message.author.bot) {
+            return false;
+        }
+        // check if message contains any attachments
+        if (message.attachments.size > 0) {
+            const userData = await this.userManager.getOrCreateUserData(message.author.id, message.author.username);
+            if (userData.attachmentsAllowedState === AttachmentsState.ALLOWED) {
+                return false;
+            }
+
+            // immediate timeout for repeat offenders
+            if (userData.attachmentsAllowedState === AttachmentsState.WARNED) {
+                const member = await this.guild.members.fetch(message.author.id).catch(() => null);
+                if (member && member.manageable) {
+                    try {
+                        const duration = 28 * 24 * 60 * 60 * 1000; // 28 days in milliseconds
+                        await member.timeout(duration, 'Attachment spam - repeat offender');
+                    } catch (e: any) {
+                        console.error(e);
+                        const embed = new EmbedBuilder()
+                        embed.setColor(0xFF0000) // Red color for honeypot message
+                        embed.setTitle(`Failed to Timeout!`)
+                        embed.setDescription(`Tried to timeout <@${message.author.id}> for attachment spam, but I do not have permission to timeout them.`);
+
+                        const modChannel = await this.guild.channels.fetch(this.getConfigManager().getConfig(GuildConfigs.MOD_LOG_CHANNEL_ID)).catch(() => null);
+                        if (modChannel && modChannel.isSendable()) {
+                            await modChannel.send({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
+                        }
+                    }
+                    await message.delete();
+                }
+                return true;
+            }
+
+            // First offense - warn the user, give them rules and a button to allow attachments
+
+            const embed = new EmbedBuilder()
+                .setColor(0xFFFF00) // Yellow color for warning message
+                .setTitle(`Spam Check!`)
+                .setDescription(`Hi <@${message.author.id}>, it looks like you sent a message with attachments. To prevent spam, attachments are not allowed until you verify that you're not a bot. To enable attachments, please click the "I am not a bot" button below.`)
+                .addFields(
+                    { name: 'Note', value: 'You will be timed out automatically if you send attachments again without verifying.' },
+                )
+                .setFooter({ text: `If you believe this is a mistake, please contact the moderators.` });
+            const row = new ActionRowBuilder()
+                .addComponents(await new NotABotButton().getBuilder(message.author.id));
+            await message.reply({ embeds: [embed], components: [row as any], flags: [MessageFlags.SuppressNotifications] });
+
+            userData.attachmentsAllowedState = AttachmentsState.WARNED;
+            await this.userManager.saveUserData(userData);
+            await message.delete();
+
+            return true;
+        }
+
+        return false;
     }
 
     public async handleMessageUpdate(_oldMessage: Message, newMessage: Message) {

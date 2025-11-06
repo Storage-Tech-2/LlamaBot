@@ -206,6 +206,18 @@ export class Mwa implements Command {
             )
             .addSubcommand(subcommand =>
                 subcommand
+                    .setName('setmodlog')
+                    .setDescription('Setup Llamabot to send moderation logs to a channel')
+                    .addChannelOption(option =>
+                        option
+                            .setName('channel')
+                            .setDescription('Channel to send moderation logs to')
+                            .setRequired(true)
+                            .addChannelTypes(ChannelType.GuildAnnouncement, ChannelType.GuildText)
+                    )
+            )
+            .addSubcommand(subcommand =>
+                subcommand
                     .setName('sethoneypot')
                     .setDescription('Setup Llamabot to timeout anyone who sends a message to a channel')
                     .addChannelOption(option =>
@@ -286,7 +298,7 @@ export class Mwa implements Command {
             await replyEphemeral(interaction, 'Invalid URL')
             return
         }
-        
+
         guildHolder.getConfigManager().setConfig(GuildConfigs.WEBSITE_URL, url)
         await interaction.reply(`Successfully set website URL to ${url}!`);
     }
@@ -453,6 +465,17 @@ export class Mwa implements Command {
 
         guildHolder.getConfigManager().setConfig(GuildConfigs.HONEYPOT_CHANNEL_ID, channel.id)
         await interaction.reply(`Llamabot will now timeout anyone who sends a message to ${channel.name}!`);
+    }
+
+    async setModLog(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const channel = interaction.options.getChannel('channel')
+        if (!channel) {
+            await replyEphemeral(interaction, 'Invalid channel')
+            return
+        }
+
+        guildHolder.getConfigManager().setConfig(GuildConfigs.MOD_LOG_CHANNEL_ID, channel.id)
+        await interaction.reply(`Llamabot will now send moderation logs to ${channel.name}!`);
     }
 
     async setArchives(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {

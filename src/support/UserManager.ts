@@ -1,6 +1,6 @@
 import Path from 'path';
 import fs from 'fs/promises';
-import { UserData } from './UserData.js';
+import { AttachmentsState, UserData } from './UserData.js';
 import { Snowflake } from 'discord.js';
 
 export class UserManager {
@@ -38,6 +38,7 @@ export class UserManager {
                 disableRole: false,
                 lastThanked: 0,
                 archivedPosts: [],
+                attachmentsAllowedState: AttachmentsState.DISALLOWED,
             }
         }
         return userData;

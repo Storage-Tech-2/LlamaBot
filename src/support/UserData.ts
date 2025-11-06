@@ -7,6 +7,12 @@ export type ThankEntry = {
     timestamp: number;
 }
 
+export enum AttachmentsState {
+    DISALLOWED = "disallowed",
+    WARNED = "warned",
+    ALLOWED = "allowed",
+}
+
 export type UserData = {
     id: Snowflake;
     username: string;
@@ -18,5 +24,7 @@ export type UserData = {
     lastThanked?: number; // Timestamp of the last thanked message
 
     archivedPosts?: Snowflake[]; // List of archived post IDs
+
+    attachmentsAllowedState?: AttachmentsState;
 }
 

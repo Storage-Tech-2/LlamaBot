@@ -108,6 +108,11 @@ export const GuildConfigs = {
     HONEYPOT_CHANNEL_ID: new Config<Snowflake>("honeypotChannelId", ""),
 
     /**
+     * Moderation log channel ID
+     */
+    MOD_LOG_CHANNEL_ID: new Config<Snowflake>("modLogChannelId", ""),
+
+    /**
      * Conversational LLM enabled
      */
     CONVERSATIONAL_LLM_ENABLED: new Config<boolean>("conversationalLlmEnabled", false),
