@@ -278,6 +278,8 @@ export class Mwa implements Command {
             this.toggleLlm(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'setwebsite') {
             this.setWebsite(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'setmodlog') {
+            this.setModLog(guildHolder, interaction);
         } else {
             await replyEphemeral(interaction, 'Invalid subcommand. Use `/mwa setsubmissions`, `/mwa setlogs`, `/mwa setarchives`, `/mwa setuparchives`, `/mwa setendorseroles`, `/mwa seteditorroles`, `/mwa sethelperrole` or `/mwa setrepo`.');
             return;
