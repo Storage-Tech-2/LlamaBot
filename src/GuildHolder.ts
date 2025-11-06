@@ -317,7 +317,7 @@ export class GuildHolder {
             // immediate timeout for repeat offenders
             if (userData.attachmentsAllowedState === AttachmentsState.WARNED) {
                 const member = await this.guild.members.fetch(message.author.id).catch(() => null);
-                if (member && member.manageable) {
+                if (member) {
                     try {
                         const duration = 28 * 24 * 60 * 60 * 1000; // 28 days in milliseconds
                         await member.timeout(duration, 'Attachment spam - repeat offender');
