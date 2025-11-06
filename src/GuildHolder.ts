@@ -336,6 +336,17 @@ export class GuildHolder {
                     }
                     await message.delete();
 
+                    if (userData.messagesToDeleteOnTimeout) {
+                        for (const msgId of userData.messagesToDeleteOnTimeout) {
+                            const msg = await message.channel.messages.fetch(msgId).catch(() => null);
+                            if (msg) {
+                                await msg.delete().catch(() => null);
+                            }
+                        }
+                        userData.messagesToDeleteOnTimeout = [];
+                        await this.userManager.saveUserData(userData);
+                    }
+
                     const embed = new EmbedBuilder()
                         .setColor(0xFF0000) // Red color for timeout message
                         .setTitle(`User Timed Out for Attachment Spam!`)
@@ -367,8 +378,14 @@ export class GuildHolder {
             await message.reply({ embeds: [embed], components: [row as any], flags: [MessageFlags.SuppressNotifications] });
 
             userData.attachmentsAllowedState = AttachmentsState.WARNED;
+            if (!userData.messagesToDeleteOnTimeout) {
+                userData.messagesToDeleteOnTimeout = [];
+            }
+
+            userData.messagesToDeleteOnTimeout.push(message.id);
+
             await this.userManager.saveUserData(userData);
-            await message.delete();
+            
 
             return true;
         }

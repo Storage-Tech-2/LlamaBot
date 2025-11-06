@@ -26,5 +26,7 @@ export type UserData = {
     archivedPosts?: Snowflake[]; // List of archived post IDs
 
     attachmentsAllowedState?: AttachmentsState;
+
+    messagesToDeleteOnTimeout?: Snowflake[]; // List of message IDs to delete
 }
 
