@@ -17,8 +17,11 @@ export class UserManager {
     public async getUserData(userId: string): Promise<UserData | null> {
         const userPath = Path.join(this.folderPath, `${userId}.json`);
         try {
-            const data = await fs.readFile(userPath, 'utf-8');
-            return JSON.parse(data) as UserData;
+            const data = JSON.parse(await fs.readFile(userPath, 'utf-8')) as UserData;
+            if (!data.attachmentsAllowedState) {
+                data.attachmentsAllowedState = AttachmentsState.ALLOWED;
+            }
+            return data;
         } catch (error: any) {
             if (error.code === 'ENOENT') {
                 return null; // User data not found
@@ -39,6 +42,7 @@ export class UserManager {
                 lastThanked: 0,
                 archivedPosts: [],
                 attachmentsAllowedState: AttachmentsState.DISALLOWED,
+                messagesToDeleteOnTimeout: [],
             }
         }
         return userData;
