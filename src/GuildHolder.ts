@@ -338,7 +338,12 @@ export class GuildHolder {
 
                     if (userData.messagesToDeleteOnTimeout) {
                         for (const msgId of userData.messagesToDeleteOnTimeout) {
-                            const msg = await message.channel.messages.fetch(msgId).catch(() => null);
+                            const [channelId, messageId] = msgId.split('-');
+                            const channel = await this.guild.channels.fetch(channelId).catch(() => null);
+                            if (!channel || !channel.isTextBased()) {
+                                continue;
+                            }
+                            const msg = await channel.messages.fetch(messageId).catch(() => null);
                             if (msg) {
                                 await msg.delete().catch(() => null);
                             }
@@ -382,8 +387,8 @@ export class GuildHolder {
                 userData.messagesToDeleteOnTimeout = [];
             }
 
-            userData.messagesToDeleteOnTimeout.push(message.id);
-            userData.messagesToDeleteOnTimeout.push(warningMsg.id);
+            userData.messagesToDeleteOnTimeout.push([message.channel.id, message.id].join('-'));
+            userData.messagesToDeleteOnTimeout.push([warningMsg.channel.id, warningMsg.id].join('-'));
 
             await this.userManager.saveUserData(userData);
             
