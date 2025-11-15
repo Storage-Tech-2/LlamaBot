@@ -1,4 +1,4 @@
-import { ChannelType, ForumChannel, Snowflake, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
+import { ChannelType, ForumChannel, MessageFlags, Snowflake, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
 import { canEditSubmission, getCodeAndDescriptionFromTopic, replyEphemeral } from "../../utils/Util.js";
@@ -39,7 +39,7 @@ export class SetArchiveChannelMenu implements Menu {
             .setPlaceholder('Select archive channel')
             .addOptions(
                 categoryChannels.map(channel => {
-                    const {description} = getCodeAndDescriptionFromTopic(channel.topic || '');
+                    const { description } = getCodeAndDescriptionFromTopic(channel.topic || '');
                     return new StringSelectMenuOptionBuilder().setLabel(channel.name)
                         .setValue(channel.id)
                         .setDescription(description.substring(0, 100) || 'No description')
@@ -72,7 +72,10 @@ export class SetArchiveChannelMenu implements Menu {
 
         const channel = await guildHolder.getGuild().channels.fetch(newChannel).catch(() => null);
         if (!channel || channel.type !== ChannelType.GuildForum) {
-            await interaction.reply({ content: `Archive channel <#${newChannel}> not found`, ephemeral: true });
+            await interaction.reply({
+                content: `Archive channel <#${newChannel}> not found`,
+                flags: MessageFlags.Ephemeral,
+            });
             return;
         }
 

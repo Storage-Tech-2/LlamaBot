@@ -1,4 +1,4 @@
-import { ButtonBuilder, ButtonInteraction, ButtonStyle, Snowflake } from "discord.js";
+import { ButtonBuilder, ButtonInteraction, ButtonStyle, MessageFlags, Snowflake } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Button } from "../../interface/Button.js";
 import { replyEphemeral } from "../../utils/Util.js";
@@ -28,7 +28,7 @@ export class NotABotButton implements Button {
 
         await interaction.reply({
             content: `Thank you for confirming you're not a bot! You can now send messages with attachments.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
         });
 
         // check if the interaction user is the same as the original user, then delete original message
