@@ -376,8 +376,7 @@ export class GuildHolder {
                 .setDescription(`Hi <@${message.author.id}>, it looks like you sent a message with attachments. To prevent spam, attachments are not allowed until you verify that you're not a bot. To enable attachments, please click the "I am not a bot" button below.`)
                 .addFields(
                     { name: 'Note', value: 'You will be timed out automatically if you send attachments again without verifying.' },
-                )
-                .setFooter({ text: `If you believe this is a mistake, please contact the moderators.` });
+                );
             const row = new ActionRowBuilder()
                 .addComponents(await new NotABotButton().getBuilder(message.author.id));
             const warningMsg = await message.reply({ embeds: [embed], components: [row as any], flags: [MessageFlags.SuppressNotifications] });

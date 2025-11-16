@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, InteractionContextType, ChannelType, ActionRowBuilder, ForumChannel, GuildForumTag, SortOrderType, Snowflake, CategoryChannel, MessageFlags } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, InteractionContextType, ChannelType, ActionRowBuilder, ForumChannel, GuildForumTag, SortOrderType, Snowflake, CategoryChannel, MessageFlags, EmbedBuilder } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { areAuthorsSame, getAuthorFromIdentifier, getAuthorsString, getCodeAndDescriptionFromTopic, replyEphemeral, splitIntoChunks } from "../utils/Util.js";
@@ -12,6 +12,7 @@ import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
 import { SetTemplateModal } from "../components/modals/SetTemplateModal.js";
 import { SetDesignerRoleMenu } from "../components/menus/SetDesignerRoleMenu.js";
+import { NotABotButton } from "../components/buttons/NotABotButton.js";
 
 export class Mwa implements Command {
     getID(): string {
@@ -227,6 +228,17 @@ export class Mwa implements Command {
                             .setRequired(true)
                             .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
                     )
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('sendbotcheck')
+                    .setDescription('Send a bot check button in the current channel')
+                    .addUserOption(option =>
+                        option
+                            .setName('user')
+                            .setDescription('Optionally auto delete the message when this user verifies')
+                            .setRequired(false)
+                    )
             );
         return data;
     }
@@ -280,10 +292,28 @@ export class Mwa implements Command {
             this.setWebsite(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'setmodlog') {
             this.setModLog(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'sendbotcheck') {
+            this.sendNotBotMessage(guildHolder, interaction);
         } else {
             await replyEphemeral(interaction, 'Invalid subcommand. Use `/mwa setsubmissions`, `/mwa setlogs`, `/mwa setarchives`, `/mwa setuparchives`, `/mwa setendorseroles`, `/mwa seteditorroles`, `/mwa sethelperrole` or `/mwa setrepo`.');
             return;
         }
+    }
+
+    async sendNotBotMessage(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const chosenUser = interaction.options.getUser('user');
+        if (!interaction.channel || !interaction.channel.isTextBased() || !interaction.channel.isSendable()) {
+            await replyEphemeral(interaction, 'This command can only be used in text channels.');
+            return;
+        }
+        
+        const embed = new EmbedBuilder()
+            .setColor(0xFFFF00) // Yellow color for warning message
+            .setTitle(`Spam Check!`)
+            .setDescription(`To prevent spam, attachments are not allowed until you verify that you're not a bot. To enable attachments, please click the "I am not a bot" button below.`);
+        const row = new ActionRowBuilder()
+            .addComponents(await new NotABotButton().getBuilder(chosenUser ? chosenUser.id : interaction.user.id));
+        await interaction.channel.send({ embeds: [embed], components: [row as any], flags: [MessageFlags.SuppressNotifications] });
     }
 
     async setWebsite(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
