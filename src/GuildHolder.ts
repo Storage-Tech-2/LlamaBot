@@ -298,6 +298,55 @@ export class GuildHolder {
         }
     }
 
+
+    public async timeoutUserForSpam(message: Message, userData: UserData, autoTimeout: boolean = false) {
+        const member = await this.guild.members.fetch(message.author.id).catch(() => null);
+        if (member) {
+            try {
+                const duration = 28 * 24 * 60 * 60 * 1000; // 28 days in milliseconds
+                await member.timeout(duration, 'Attachment spam - repeat offender');
+            } catch (e: any) {
+                console.error(e);
+                const embed = new EmbedBuilder()
+                embed.setColor(0xFF0000) // Red color for honeypot message
+                embed.setTitle(`Failed to Timeout!`)
+                embed.setDescription(`Tried to timeout <@${message.author.id}> for attachment spam, but I do not have permission to timeout them.`);
+
+                const modChannel = await this.guild.channels.fetch(this.getConfigManager().getConfig(GuildConfigs.MOD_LOG_CHANNEL_ID)).catch(() => null);
+                if (modChannel && modChannel.isSendable()) {
+                    await modChannel.send({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
+                }
+                return;
+            }
+            await message.delete();
+
+            if (userData.messagesToDeleteOnTimeout) {
+                for (const msgId of userData.messagesToDeleteOnTimeout) {
+                    const [channelId, messageId] = msgId.split('-');
+                    const channel = await this.guild.channels.fetch(channelId).catch(() => null);
+                    if (!channel || !channel.isTextBased()) {
+                        continue;
+                    }
+                    const msg = await channel.messages.fetch(messageId).catch(() => null);
+                    if (msg) {
+                        await msg.delete().catch(() => null);
+                    }
+                }
+                userData.messagesToDeleteOnTimeout = [];
+                await this.userManager.saveUserData(userData);
+            }
+
+            const embed = new EmbedBuilder()
+                .setColor(0xFF0000) // Red color for timeout message
+                .setTitle(`User Timed Out for Attachment Spam!`)
+                .setDescription(`Timed out <@${message.author.id}> for ${autoTimeout ? `not verifying within the allotted time` :  `sending attachments again after warning` }.`)
+
+            const modChannel = await this.guild.channels.fetch(this.getConfigManager().getConfig(GuildConfigs.MOD_LOG_CHANNEL_ID)).catch(() => null);
+            if (modChannel && modChannel.isSendable()) {
+                await modChannel.send({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
+            }
+        }
+    }
     public async handleSpamCheck(message: Message): Promise<boolean> {
         // if moderation channel is not set, skip
         if (!this.getConfigManager().getConfig(GuildConfigs.MOD_LOG_CHANNEL_ID)) {
@@ -316,55 +365,7 @@ export class GuildHolder {
 
             // immediate timeout for repeat offenders
             if (userData.attachmentsAllowedState === AttachmentsState.WARNED) {
-                const member = await this.guild.members.fetch(message.author.id).catch(() => null);
-                if (member) {
-                    try {
-                        const duration = 28 * 24 * 60 * 60 * 1000; // 28 days in milliseconds
-                        await member.timeout(duration, 'Attachment spam - repeat offender');
-                    } catch (e: any) {
-                        console.error(e);
-                        const embed = new EmbedBuilder()
-                        embed.setColor(0xFF0000) // Red color for honeypot message
-                        embed.setTitle(`Failed to Timeout!`)
-                        embed.setDescription(`Tried to timeout <@${message.author.id}> for attachment spam, but I do not have permission to timeout them.`);
-
-                        const modChannel = await this.guild.channels.fetch(this.getConfigManager().getConfig(GuildConfigs.MOD_LOG_CHANNEL_ID)).catch(() => null);
-                        if (modChannel && modChannel.isSendable()) {
-                            await modChannel.send({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
-                        }
-                        return true;
-                    }
-                    await message.delete();
-
-                    if (userData.messagesToDeleteOnTimeout) {
-                        for (const msgId of userData.messagesToDeleteOnTimeout) {
-                            const [channelId, messageId] = msgId.split('-');
-                            const channel = await this.guild.channels.fetch(channelId).catch(() => null);
-                            if (!channel || !channel.isTextBased()) {
-                                continue;
-                            }
-                            const msg = await channel.messages.fetch(messageId).catch(() => null);
-                            if (msg) {
-                                await msg.delete().catch(() => null);
-                            }
-                        }
-                        userData.messagesToDeleteOnTimeout = [];
-                        await this.userManager.saveUserData(userData);
-                    }
-
-                    const embed = new EmbedBuilder()
-                        .setColor(0xFF0000) // Red color for timeout message
-                        .setTitle(`User Timed Out for Attachment Spam!`)
-                        .setDescription(`Timed out <@${message.author.id}> for sending attachments again after warning.`)
-                        .setFooter({ text: `Repeat offender.` });
-
-                    const modChannel = await this.guild.channels.fetch(this.getConfigManager().getConfig(GuildConfigs.MOD_LOG_CHANNEL_ID)).catch(() => null);
-                    if (modChannel && modChannel.isSendable()) {
-                        await modChannel.send({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
-                    }
-
-
-                }
+                await this.timeoutUserForSpam(message, userData);
                 return true;
             }
 
@@ -390,7 +391,14 @@ export class GuildHolder {
             userData.messagesToDeleteOnTimeout.push([warningMsg.channel.id, warningMsg.id].join('-'));
 
             await this.userManager.saveUserData(userData);
-            
+
+            // five minutes later, check if user has clicked the button
+            setTimeout(async () => {
+                const updatedUserData = await this.userManager.getUserData(userData.id);
+                if (updatedUserData && updatedUserData.attachmentsAllowedState === AttachmentsState.WARNED) {
+                    await this.timeoutUserForSpam(message, updatedUserData, true);
+                }
+            }, 5 * 60 * 1000);
 
             return true;
         }
