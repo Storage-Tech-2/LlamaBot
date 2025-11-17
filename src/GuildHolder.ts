@@ -299,8 +299,8 @@ export class GuildHolder {
     }
 
 
-    public async timeoutUserForSpam(message: Message, userData: UserData, autoTimeout: boolean = false) {
-        const member = await this.guild.members.fetch(message.author.id).catch(() => null);
+    public async timeoutUserForSpam(userData: UserData, autoTimeout: boolean = false) {
+        const member = await this.guild.members.fetch(userData.id).catch(() => null);
         if (member) {
             try {
                 const duration = 28 * 24 * 60 * 60 * 1000; // 28 days in milliseconds
@@ -310,7 +310,7 @@ export class GuildHolder {
                 const embed = new EmbedBuilder()
                 embed.setColor(0xFF0000) // Red color for honeypot message
                 embed.setTitle(`Failed to Timeout!`)
-                embed.setDescription(`Tried to timeout <@${message.author.id}> for attachment spam, but I do not have permission to timeout them.`);
+                embed.setDescription(`Tried to timeout <@${userData.id}> for attachment spam, but I do not have permission to timeout them.`);
 
                 const modChannel = await this.guild.channels.fetch(this.getConfigManager().getConfig(GuildConfigs.MOD_LOG_CHANNEL_ID)).catch(() => null);
                 if (modChannel && modChannel.isSendable()) {
@@ -318,7 +318,6 @@ export class GuildHolder {
                 }
                 return;
             }
-            await message.delete();
 
             if (userData.messagesToDeleteOnTimeout) {
                 for (const msgId of userData.messagesToDeleteOnTimeout) {
@@ -339,7 +338,7 @@ export class GuildHolder {
             const embed = new EmbedBuilder()
                 .setColor(0xFF0000) // Red color for timeout message
                 .setTitle(`User Timed Out for Attachment Spam!`)
-                .setDescription(`Timed out <@${message.author.id}> for ${autoTimeout ? `not verifying within the allotted time` :  `sending attachments again after warning` }.`)
+                .setDescription(`Timed out <@${userData.id}> for ${autoTimeout ? `not verifying within the allotted time` : `sending attachments again after warning`}.`)
 
             const modChannel = await this.guild.channels.fetch(this.getConfigManager().getConfig(GuildConfigs.MOD_LOG_CHANNEL_ID)).catch(() => null);
             if (modChannel && modChannel.isSendable()) {
@@ -347,6 +346,7 @@ export class GuildHolder {
             }
         }
     }
+
     public async handleSpamCheck(message: Message): Promise<boolean> {
         // if moderation channel is not set, skip
         if (!this.getConfigManager().getConfig(GuildConfigs.MOD_LOG_CHANNEL_ID)) {
@@ -365,7 +365,8 @@ export class GuildHolder {
 
             // immediate timeout for repeat offenders
             if (userData.attachmentsAllowedState === AttachmentsState.WARNED) {
-                await this.timeoutUserForSpam(message, userData);
+                await message.delete();
+                await this.timeoutUserForSpam(userData);
                 return true;
             }
 
@@ -396,7 +397,7 @@ export class GuildHolder {
             setTimeout(async () => {
                 const updatedUserData = await this.userManager.getUserData(userData.id);
                 if (updatedUserData && updatedUserData.attachmentsAllowedState === AttachmentsState.WARNED) {
-                    await this.timeoutUserForSpam(message, updatedUserData, true);
+                    await this.timeoutUserForSpam(updatedUserData, true);
                 }
             }, 5 * 60 * 1000);
 
