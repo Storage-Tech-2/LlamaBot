@@ -375,7 +375,7 @@ export class GuildHolder {
             const embed = new EmbedBuilder()
                 .setColor(0xFFFF00) // Yellow color for warning message
                 .setTitle(`Spam Check!`)
-                .setDescription(`Hi <@${message.author.id}>, it looks like you sent a message with attachments. To prevent spam, attachments are not allowed until you verify that you're not a bot. To enable attachments, please click the "I am not a bot" button below.`)
+                .setDescription(`Hi <@${message.author.id}>, it looks like you sent a message with attachments. To prevent spam, attachments are not allowed until you verify that you're not a bot. To enable attachments, please click the "I am not a bot" button below. You have 5 minutes to verify before you are timed out.`)
                 .addFields(
                     { name: 'Note', value: 'You will be timed out automatically if you send attachments again without verifying.' },
                 );
