@@ -18,7 +18,7 @@ export class NotABotButton implements Button {
     async execute(guildHolder: GuildHolder, interaction: ButtonInteraction, userID: Snowflake): Promise<void> {
         const userData = await guildHolder.getUserManager().getOrCreateUserData(interaction.user.id, interaction.user.username);
         if (userData.attachmentsAllowedState === AttachmentsState.ALLOWED) {
-            replyEphemeral(interaction, `You have already confirmed you're not a bot and can send attachments.`);
+            replyEphemeral(interaction, `You have already confirmed you're not a bot and can send attachments or links.`);
             return;
         }
 
@@ -27,7 +27,7 @@ export class NotABotButton implements Button {
         await guildHolder.getUserManager().saveUserData(userData);
 
         await interaction.reply({
-            content: `Thank you for confirming you're not a bot! You can now send messages with attachments.`,
+            content: `Thank you for confirming you're not a bot! You can now send messages with attachments or links.`,
             flags: MessageFlags.Ephemeral,
         });
 

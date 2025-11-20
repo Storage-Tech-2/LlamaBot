@@ -304,13 +304,13 @@ export class GuildHolder {
         if (member) {
             try {
                 const duration = 28 * 24 * 60 * 60 * 1000; // 28 days in milliseconds
-                await member.timeout(duration, 'Attachment spam - repeat offender');
+                await member.timeout(duration, 'Link/attachment spam - repeat offender');
             } catch (e: any) {
                 console.error(e);
                 const embed = new EmbedBuilder()
                 embed.setColor(0xFF0000) // Red color for honeypot message
                 embed.setTitle(`Failed to Timeout!`)
-                embed.setDescription(`Tried to timeout <@${userData.id}> for attachment spam, but I do not have permission to timeout them.`);
+                embed.setDescription(`Tried to timeout <@${userData.id}> for link/attachment spam, but I do not have permission to timeout them.`);
 
                 const modChannel = await this.guild.channels.fetch(this.getConfigManager().getConfig(GuildConfigs.MOD_LOG_CHANNEL_ID)).catch(() => null);
                 if (modChannel && modChannel.isSendable()) {
@@ -340,8 +340,8 @@ export class GuildHolder {
 
             const embed = new EmbedBuilder()
                 .setColor(0xFF0000) // Red color for timeout message
-                .setTitle(`User Timed Out for Attachment Spam!`)
-                .setDescription(`Timed out <@${userData.id}> for ${autoTimeout ? `not verifying within the allotted time` : `sending attachments again after warning`}.`)
+                .setTitle(`User Timed Out for Spam!`)
+                .setDescription(`Timed out <@${userData.id}> for ${autoTimeout ? `not verifying within the allotted time` : `sending links/attachments again after warning`}.`)
 
             const modChannel = await this.guild.channels.fetch(this.getConfigManager().getConfig(GuildConfigs.MOD_LOG_CHANNEL_ID)).catch(() => null);
             if (modChannel && modChannel.isSendable()) {
@@ -359,55 +359,64 @@ export class GuildHolder {
         if (message.author.bot) {
             return false;
         }
-        // check if message contains any attachments
-        if (message.attachments.size > 0) {
-            const userData = await this.userManager.getOrCreateUserData(message.author.id, message.author.username);
-            if (userData.attachmentsAllowedState === AttachmentsState.ALLOWED) {
-                return false;
-            }
 
-            // immediate timeout for repeat offenders
-            if (userData.attachmentsAllowedState === AttachmentsState.WARNED || userData.attachmentsAllowedState === AttachmentsState.FAILED) {
-                await message.delete();
-                await this.timeoutUserForSpam(userData);
-                return true;
-            }
+        const urlRegex = /(?:https?:\/\/|www\.)[^\s<]+/gi;
+        const urls = Array.from(message.content.matchAll(urlRegex)).map(match => match[0]);
+        const hasUrl = urls.some(url => {
+            const lowered = url.toLowerCase();
+            return !(lowered.includes('discord.com/channels/') || lowered.includes('discordapp.com/channels/'));
+        });
+        const hasAttachment = message.attachments.size > 0;
 
-            // First offense - warn the user, give them rules and a button to allow attachments
+        if (!hasAttachment && !hasUrl) {
+            return false;
+        }
 
-            const embed = new EmbedBuilder()
-                .setColor(0xFFFF00) // Yellow color for warning message
-                .setTitle(`Spam Check!`)
-                .setDescription(`Hi <@${message.author.id}>, it looks like you sent a message with attachments. To prevent spam, attachments are not allowed until you verify that you're not a bot. To enable attachments, please click the "I am not a bot" button below. You have 5 minutes to verify before you are timed out.`)
-                .addFields(
-                    { name: 'Note', value: 'You will be timed out automatically if you send attachments again without verifying.' },
-                );
-            const row = new ActionRowBuilder()
-                .addComponents(await new NotABotButton().getBuilder(message.author.id));
-            const warningMsg = await message.reply({ embeds: [embed], components: [row as any], flags: [MessageFlags.SuppressNotifications] });
+        const userData = await this.userManager.getOrCreateUserData(message.author.id, message.author.username);
+        if (userData.attachmentsAllowedState === AttachmentsState.ALLOWED) {
+            return false;
+        }
 
-            userData.attachmentsAllowedState = AttachmentsState.WARNED;
-            if (!userData.messagesToDeleteOnTimeout) {
-                userData.messagesToDeleteOnTimeout = [];
-            }
-
-            userData.messagesToDeleteOnTimeout.push([message.channel.id, message.id].join('-'));
-            userData.messagesToDeleteOnTimeout.push([warningMsg.channel.id, warningMsg.id].join('-'));
-
-            await this.userManager.saveUserData(userData);
-
-            // five minutes later, check if user has clicked the button
-            setTimeout(async () => {
-                const updatedUserData = await this.userManager.getUserData(userData.id);
-                if (updatedUserData && updatedUserData.attachmentsAllowedState === AttachmentsState.WARNED) {
-                    await this.timeoutUserForSpam(updatedUserData, true);
-                }
-            }, 5 * 60 * 1000);
-
+        // immediate timeout for repeat offenders
+        if (userData.attachmentsAllowedState === AttachmentsState.WARNED || userData.attachmentsAllowedState === AttachmentsState.FAILED) {
+            await message.delete();
+            await this.timeoutUserForSpam(userData);
             return true;
         }
 
-        return false;
+        // First offense - warn the user, give them rules and a button to allow attachments/links
+        const spamContent = hasAttachment && hasUrl ? 'attachments and links' : hasAttachment ? 'attachments' : 'links';
+
+        const embed = new EmbedBuilder()
+            .setColor(0xFFFF00) // Yellow color for warning message
+            .setTitle(`Spam Check!`)
+            .setDescription(`Hi <@${message.author.id}>, it looks like you sent a message containing ${spamContent}. To prevent spam, attachments and links are not allowed until you verify that you're not a bot. To enable them, please click the "I am not a bot" button below. You have 5 minutes to verify before you are timed out.`)
+            .addFields(
+                { name: 'Note', value: 'You will be timed out automatically if you send attachments or links again without verifying.' },
+            );
+        const row = new ActionRowBuilder()
+            .addComponents(await new NotABotButton().getBuilder(message.author.id));
+        const warningMsg = await message.reply({ embeds: [embed], components: [row as any], flags: [MessageFlags.SuppressNotifications] });
+
+        userData.attachmentsAllowedState = AttachmentsState.WARNED;
+        if (!userData.messagesToDeleteOnTimeout) {
+            userData.messagesToDeleteOnTimeout = [];
+        }
+
+        userData.messagesToDeleteOnTimeout.push([message.channel.id, message.id].join('-'));
+        userData.messagesToDeleteOnTimeout.push([warningMsg.channel.id, warningMsg.id].join('-'));
+
+        await this.userManager.saveUserData(userData);
+
+        // five minutes later, check if user has clicked the button
+        setTimeout(async () => {
+            const updatedUserData = await this.userManager.getUserData(userData.id);
+            if (updatedUserData && updatedUserData.attachmentsAllowedState === AttachmentsState.WARNED) {
+                await this.timeoutUserForSpam(updatedUserData, true);
+            }
+        }, 5 * 60 * 1000);
+
+        return true;
     }
 
     public async handleMessageUpdate(_oldMessage: Message, newMessage: Message) {
