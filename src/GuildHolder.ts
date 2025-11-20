@@ -332,8 +332,11 @@ export class GuildHolder {
                     }
                 }
                 userData.messagesToDeleteOnTimeout = [];
-                await this.userManager.saveUserData(userData);
             }
+
+            userData.attachmentsAllowedState = AttachmentsState.DISALLOWED;
+
+            await this.userManager.saveUserData(userData);
 
             const embed = new EmbedBuilder()
                 .setColor(0xFF0000) // Red color for timeout message
@@ -364,7 +367,7 @@ export class GuildHolder {
             }
 
             // immediate timeout for repeat offenders
-            if (userData.attachmentsAllowedState === AttachmentsState.WARNED) {
+            if (userData.attachmentsAllowedState === AttachmentsState.WARNED || userData.attachmentsAllowedState === AttachmentsState.DISALLOWED) {
                 await message.delete();
                 await this.timeoutUserForSpam(userData);
                 return true;
