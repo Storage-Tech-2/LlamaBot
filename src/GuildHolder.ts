@@ -334,7 +334,7 @@ export class GuildHolder {
                 userData.messagesToDeleteOnTimeout = [];
             }
 
-            userData.attachmentsAllowedState = AttachmentsState.DISALLOWED;
+            userData.attachmentsAllowedState = AttachmentsState.FAILED;
 
             await this.userManager.saveUserData(userData);
 
