@@ -10,6 +10,7 @@ export type ThankEntry = {
 export enum AttachmentsState {
     DISALLOWED = "disallowed",
     WARNED = "warned",
+    FAILED = "failed",
     ALLOWED = "allowed",
 }
 

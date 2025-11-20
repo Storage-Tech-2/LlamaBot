@@ -367,7 +367,7 @@ export class GuildHolder {
             }
 
             // immediate timeout for repeat offenders
-            if (userData.attachmentsAllowedState === AttachmentsState.WARNED) {
+            if (userData.attachmentsAllowedState === AttachmentsState.WARNED || userData.attachmentsAllowedState === AttachmentsState.FAILED) {
                 await message.delete();
                 await this.timeoutUserForSpam(userData);
                 return true;
