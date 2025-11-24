@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, InteractionContextType, ChannelType, ActionRowBuilder, ForumChannel, GuildForumTag, SortOrderType, Snowflake, CategoryChannel, MessageFlags, EmbedBuilder, Role } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, InteractionContextType, ChannelType, ActionRowBuilder, ForumChannel, GuildForumTag, SortOrderType, Snowflake, CategoryChannel, MessageFlags, EmbedBuilder } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { areAuthorsSame, getAuthorFromIdentifier, getAuthorsString, getCodeAndDescriptionFromTopic, replyEphemeral, splitIntoChunks } from "../utils/Util.js";
@@ -239,17 +239,6 @@ export class Mwa implements Command {
                             .setDescription('Optionally auto delete the message when this user verifies')
                             .setRequired(false)
                     )
-            )
-            .addSubcommand(subcommand =>
-                subcommand
-                    .setName('kickrole')
-                    .setDescription('Kick every member with the given role')
-                    .addRoleOption(option =>
-                        option
-                            .setName('role')
-                            .setDescription('Role to kick from the guild')
-                            .setRequired(true)
-                    )
             );
         return data;
     }
@@ -305,8 +294,6 @@ export class Mwa implements Command {
             this.setModLog(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'sendbotcheck') {
             this.sendNotBotMessage(guildHolder, interaction);
-        } else if (interaction.options.getSubcommand() === 'kickrole') {
-            this.kickRole(guildHolder, interaction);
         } else {
             await replyEphemeral(interaction, 'Invalid subcommand. Use `/mwa setsubmissions`, `/mwa setlogs`, `/mwa setarchives`, `/mwa setuparchives`, `/mwa setendorseroles`, `/mwa seteditorroles`, `/mwa sethelperrole` or `/mwa setrepo`.');
             return;
@@ -452,46 +439,6 @@ export class Mwa implements Command {
             const message = await interaction.followUp({ content: 'pending...', flags: MessageFlags.SuppressNotifications });
             await message.edit({ content: chunks[i] });
         }
-    }
-
-    async kickRole(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
-        const ALLOWED_USER_ID = '239078039831445504';
-        if (interaction.user.id !== ALLOWED_USER_ID) {
-            await replyEphemeral(interaction, 'You are not authorized to use this command.');
-            return;
-        }
-
-        const role = interaction.options.getRole('role');
-        if (!role || !interaction.guild) {
-            await replyEphemeral(interaction, 'Invalid role.');
-            return;
-        }
-
-        await interaction.deferReply();
-
-        const members = await interaction.guild.members.fetch();
-        const membersWithRole = members.filter(member => member.roles.cache.has(role.id));
-
-        let kicked = 0;
-        const failed: string[] = [];
-
-        for (const member of membersWithRole.values()) {
-            if (!member.kickable) {
-                failed.push(`${member.user.tag} (${member.id}) - insufficient permissions`);
-                continue;
-            }
-
-            try {
-                await member.kick(`Removed via /mwa kickrole by ${interaction.user.tag}`);
-                kicked++;
-            } catch (error: any) {
-                failed.push(`${member.user.tag} (${member.id}) - ${error.message || 'unknown error'}`);
-            }
-        }
-
-        const attempted = membersWithRole.size;
-        const failedSummary = failed.length > 0 ? `\nFailed (${failed.length}):\n${failed.slice(0, 10).join('\n')}${failed.length > 10 ? '\n...' : ''}` : '';
-        await interaction.editReply(`Attempted to kick ${attempted} member${attempted === 1 ? '' : 's'} with role ${role.name}.\nKicked: ${kicked}${failedSummary}`);
     }
 
     async setRepo(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {

@@ -6,6 +6,7 @@ import { GetPostCommand } from "./GetPostCommand.js";
 import { GetPostsByCommand } from "./GetPostsByCommand.js";
 import { GetStatsCommand } from "./GetStatsCommand.js";
 import { GetThanksCommand } from "./GetThanksCommand.js";
+import { KickRoleCommand } from "./KickRoleCommand.js";
 import { MoveConvoCommand } from "./MoveConvoCommand.js";
 import { MoveConvoEndContextCommand } from "./MoveConvoEndContextCommand.js";
 import { MoveConvoStartContextCommand } from "./MoveConvoStartContextCommand.js";
@@ -25,7 +26,8 @@ export function getCommands() {
         new MoveConvoStartContextCommand(),
         new MoveConvoEndContextCommand(),
         new MoveConvoCommand(),
-        new BulkDeleteCommand()
+        new BulkDeleteCommand(),
+        new KickRoleCommand()
     ];
     return Commands;
 }
