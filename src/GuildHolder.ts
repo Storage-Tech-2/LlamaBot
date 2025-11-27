@@ -554,12 +554,6 @@ export class GuildHolder {
         }
 
         if (!thanksReceiverID) {
-            const embed = new EmbedBuilder()
-                .setColor(0xFFFF00)
-                .setTitle(`Couldn't figure out who was thanked`)
-                .setDescription(`Please reply directly to the person you're thanking so I can award the point.`)
-                .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
-            await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
             return;
         }
 
