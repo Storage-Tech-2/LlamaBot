@@ -655,6 +655,18 @@ export class GuildHolder {
         return content.slice(0, maxLength) + '... (truncated)';
     }
 
+    private formatRelativeTime(timestamp: number) {
+        const diffMs = Math.max(0, Date.now() - timestamp);
+        const seconds = Math.floor(diffMs / 1000);
+        if (seconds < 60) return `${seconds}s ago`;
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes}m ago`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours}h ago`;
+        const days = Math.floor(hours / 24);
+        return `${days}d ago`;
+    }
+
     private parseThanksLlmResponse(text: string): { thanked_user_id?: string, reason?: string } | null {
         const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
         const rawText = fenceMatch ? fenceMatch[1] : text;
@@ -690,11 +702,13 @@ export class GuildHolder {
         const sortedMessages = fetchedMessages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
         const participants = new Set(sortedMessages.map(msg => msg.author.id));
 
-        const history = sortedMessages.map((msg, index) => {
+        const history = sortedMessages.map((msg) => {
             const baseContent = msg.content && msg.content.length > 0 ? msg.content : (msg.attachments.size > 0 ? '[attachment]' : '[no content]');
             const content = this.truncateContentForLLM(baseContent);
             const marker = msg.id === message.id ? ' (thanks message)' : '';
-            return `[${index}] <@${msg.author.id}> ${msg.author.username}${marker}: ${content}`;
+            const displayName = msg.member?.displayName || msg.author.username;
+            const relativeTime = this.formatRelativeTime(msg.createdTimestamp);
+            return `<@${msg.author.id}> (${displayName})${marker} sent ${relativeTime}: ${content}`;
         }).join('\n');
 
         const systemPrompt = `You are an assistant that identifies which Discord user a thank-you message targets. Use the recent messages to decide who the thanks is for. Always reply with JSON only: {"thanked_user_id": "<id or null>", "reason": "short reason"}. Use null if unsure. Use only user IDs shown in the messages and never invent new ones. Never pick the thanking user (${message.author.id}).`;
