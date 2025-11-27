@@ -15,6 +15,7 @@ import fs from "fs/promises";
 import { countCharactersInRecord } from "./utils/MarkdownUtils.js";
 import { Author, AuthorType } from "./submissions/Author.js";
 import { NotABotButton } from "./components/buttons/NotABotButton.js";
+import { generateText, ModelMessage } from "ai";
 /**
  * GuildHolder is a class that manages guild-related data.
  */
@@ -132,7 +133,7 @@ export class GuildHolder {
             return;
         }
 
-        if (message.reference && this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_ID)) {
+        if (this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_ID)) {
             // Check if message contains "thanks" or "thank you"
             // /\b(thanks|thank you|thank u)[!\.]?\b/i
             // don't if theres a no before it
@@ -142,14 +143,15 @@ export class GuildHolder {
 
                 // check if reference message is from the bot itself
                 let skip = false;
-                if (message.reference.messageId) {
-                    const referencedMessage = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
+                let referencedMessage = null;
+                if (message.reference?.messageId) {
+                    referencedMessage = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
                     if (referencedMessage && referencedMessage.author.id === this.getBot().client.user?.id) {
                         skip = true;
                     }
                 }
                 if (!skip) {
-                    this.handleThanksMessage(message).catch(e => {
+                    this.handleThanksMessage(message, referencedMessage).catch(e => {
                         console.error('Error handling thanks message:', e);
                     });
                     return;
@@ -505,32 +507,64 @@ export class GuildHolder {
         }
     }
 
-    public async handleThanksMessage(message: Message) {
-        // Check if it's a reply to another message
-        if (!message.reference || !message.reference.messageId) {
-            console.warn('Message is not a reply, skipping thanks handling');
-            return;
-        }
-
-        // Fetch the original message being replied to
-        const originalMessage = await message.channel.messages.fetch(message.reference.messageId);
-        if (!originalMessage) {
-            console.warn('Original message not found, skipping thanks handling');
-            return;
-        }
-
-        // Get author of the original message
+    public async handleThanksMessage(message: Message, referencedMessage?: Message | null) {
+        const botId = this.getBot().client.user?.id;
         const thanksSenderID = message.author.id;
-        const thanksRecieverID = originalMessage.author.id;
 
-        // Check if in blacklist
+        // Check if sender is blacklisted
         const blacklistedUsers = this.getConfigManager().getConfig(GuildConfigs.THANKS_BLACKLIST);
         if (blacklistedUsers.some(user => user.id === thanksSenderID)) {
             return;
         }
 
+        let originalMessage = referencedMessage;
+        if (!originalMessage && message.reference?.messageId) {
+            originalMessage = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
+        }
+
+        let thanksReceiverID: Snowflake | null = null;
+        let receiverUsername: string | undefined;
+        let inferred = false;
+
+        if (originalMessage) {
+            thanksReceiverID = originalMessage.author.id;
+            receiverUsername = originalMessage.author.username;
+
+            // Check if the receiver is a bot
+            if (originalMessage.author.bot) {
+                if (originalMessage.author.id === botId) {
+                    const embed = new EmbedBuilder()
+                        .setColor(0x00FF00) // Green color for thank you message
+                        .setTitle(`Thank you too!`)
+                        .setDescription(`We appreciate your gratitude, but as a large language model, I am not a person so I cannot give you points.`)
+                        .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
+                    await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
+                }
+                return;
+            }
+        }
+
+        if (!thanksReceiverID) {
+            const inferredResult = await this.inferThanksRecipient(message);
+            if (inferredResult.userId) {
+                thanksReceiverID = inferredResult.userId;
+                receiverUsername = inferredResult.usernameHint;
+                inferred = true;
+            }
+        }
+
+        if (!thanksReceiverID) {
+            const embed = new EmbedBuilder()
+                .setColor(0xFFFF00)
+                .setTitle(`Couldn't figure out who was thanked`)
+                .setDescription(`Please reply directly to the person you're thanking so I can award the point.`)
+                .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
+            await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
+            return;
+        }
+
         // Check if the sender and receiver are the same
-        if (thanksSenderID === thanksRecieverID) {
+        if (thanksSenderID === thanksReceiverID) {
             const embed = new EmbedBuilder()
                 .setColor(0x00FF00) // Green color for thank you message
                 .setTitle(`Good Job!`)
@@ -540,10 +574,9 @@ export class GuildHolder {
             return;
         }
 
-        // Check if the receiver is a bot
-        if (originalMessage.author.bot) {
-            // If the bot is the Storage Tech Bot itself
-            if (originalMessage.author.id === this.getBot().client.user?.id) {
+        const receiverMember = await this.guild.members.fetch(thanksReceiverID).catch(() => null);
+        if (receiverMember?.user.bot) {
+            if (receiverMember.id === botId) {
                 const embed = new EmbedBuilder()
                     .setColor(0x00FF00) // Green color for thank you message
                     .setTitle(`Thank you too!`)
@@ -554,48 +587,38 @@ export class GuildHolder {
             return;
         }
 
-        // get user data for reciever
-        let userData = await this.userManager.getOrCreateUserData(thanksRecieverID, originalMessage.author.username);
+        // Check if receiver is blacklisted
+        const blacklistedReceiver = this.getConfigManager().getConfig(GuildConfigs.THANKS_BLACKLIST).find(user => user.id === thanksReceiverID);
+        if (blacklistedReceiver) {
+            const embed = new EmbedBuilder()
+                .setColor(0xFF0000) // Red color for error message
+                .setTitle(`User Blacklisted!`)
+                .setDescription(`<@${thanksReceiverID}> is blacklisted from receiving points because of reason: ${blacklistedReceiver.reason}. Thank you for appreciating them anyway!`)
+                .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
+            await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
+            return;
+        }
+
+        const receiverName = receiverMember?.user.username || receiverUsername || thanksReceiverID;
+
+        // get user data for receiver
+        let userData = await this.userManager.getOrCreateUserData(thanksReceiverID, receiverName);
 
         // get user data for sender
         let senderData = await this.userManager.getOrCreateUserData(thanksSenderID, message.author.username);
 
-        // const doesSenderHaveEnoughPoints = senderData.thankedBuffer.length >= this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_THRESHOLD);
-
-
         // Check if the sender has already thanked the receiver in the last 24 hours
         const now = Date.now();
         const minTime = 24 * 60 * 60 * 1000; // 24 hours
-        // if (senderData.lastThanked && (now - senderData.lastThanked < minTime)) {
-        //     const embed = new EmbedBuilder()
-        //         .setColor(0x00FF00) // Green color for thank you message
-        //         .setTitle(`No Points Given!`)
-        //         .setDescription(`You've already given a point to someone in the last 24 hours. Thank you anyway for being great!`)
-        //         .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
-        //     await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
-        //     return;
-        // }
         if (userData.thankedBuffer.some(thank => thank.thankedBy === thanksSenderID && now - thank.timestamp < minTime)) {
             const embed = new EmbedBuilder()
                 .setColor(0x00FF00) // Green color for thank you message
                 .setTitle(`Point Already Given!`)
-                .setDescription(`You've already thanked <@${thanksRecieverID}> in the last 24 hours. Thank you anyway for being great!`)
+                .setDescription(`You've already thanked <@${thanksReceiverID}> in the last 24 hours. Thank you anyway for being great!`)
                 .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
             await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
 
             return; // Already thanked in the last 24 hours
-        }
-
-        // check if reciever is blacklisted
-        const blacklistedReciever = this.getConfigManager().getConfig(GuildConfigs.THANKS_BLACKLIST).find(user => user.id === thanksRecieverID);
-        if (blacklistedReciever) {
-            const embed = new EmbedBuilder()
-                .setColor(0xFF0000) // Red color for error message
-                .setTitle(`User Blacklisted!`)
-                .setDescription(`<@${thanksRecieverID}> is blacklisted from receiving points because of reason: ${blacklistedReciever.reason}. Thank you for appreciating them anyway!`)
-                .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
-            await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
-            return;
         }
 
         // Add the thank you to the buffer
@@ -619,14 +642,90 @@ export class GuildHolder {
         const embed = new EmbedBuilder()
             .setColor(0x00FF00) // Green color for thank you message
             .setTitle(`Point Received!`)
-            .setDescription(`<@${thanksSenderID}> gave a point to <@${thanksRecieverID}>!`)
-            // .addFields(
-            //     { name: 'Total points', value: `${userData.thankedCountTotal}`, inline: true },
-            //     { name: 'In the past month', value: `${userData.thankedBuffer.length}`, inline: true },
-            // )
+            .setDescription(`<@${thanksSenderID}> gave a point to <@${thanksReceiverID}>!${inferred ? ' (inferred from recent messages)' : ''}`)
             .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
         await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
         await this.checkHelper(userData);
+    }
+
+    private truncateContentForLLM(content: string, maxLength: number = 400) {
+        if (content.length <= maxLength) {
+            return content;
+        }
+        return content.slice(0, maxLength) + '... (truncated)';
+    }
+
+    private parseThanksLlmResponse(text: string): { thanked_user_id?: string, reason?: string } | null {
+        const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+        const rawText = fenceMatch ? fenceMatch[1] : text;
+        const jsonStart = rawText.indexOf('{');
+        const jsonEnd = rawText.lastIndexOf('}');
+        if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
+            return null;
+        }
+        try {
+            return JSON.parse(rawText.slice(jsonStart, jsonEnd + 1).trim());
+        } catch (e) {
+            console.warn('Failed to parse thanks LLM response:', e);
+            return null;
+        }
+    }
+
+    private async inferThanksRecipient(message: Message): Promise<{ userId: Snowflake | null, usernameHint?: string }> {
+        const model = this.getBot().paidLlmModel;
+        if (!model) {
+            return { userId: null };
+        }
+
+        const channel = message.channel;
+        if (!channel.isTextBased()) {
+            return { userId: null };
+        }
+
+        const fetchedMessages = await channel.messages.fetch({ limit: 20 }).catch(() => null);
+        if (!fetchedMessages) {
+            return { userId: null };
+        }
+
+        const sortedMessages = fetchedMessages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+        const participants = new Set(sortedMessages.map(msg => msg.author.id));
+
+        const history = sortedMessages.map((msg, index) => {
+            const baseContent = msg.content && msg.content.length > 0 ? msg.content : (msg.attachments.size > 0 ? '[attachment]' : '[no content]');
+            const content = this.truncateContentForLLM(baseContent);
+            const marker = msg.id === message.id ? ' (thanks message)' : '';
+            return `[${index}] <@${msg.author.id}> ${msg.author.username}${marker}: ${content}`;
+        }).join('\n');
+
+        const systemPrompt = `You are an assistant that identifies which Discord user a thank-you message targets. Use the recent messages to decide who the thanks is for. Always reply with JSON only: {"thanked_user_id": "<id or null>", "reason": "short reason"}. Use null if unsure. Use only user IDs shown in the messages and never invent new ones. Never pick the thanking user (${message.author.id}).`;
+
+        const userPrompt = `Recent messages in the channel from oldest to newest:\n${history}\n\nFigure out who <@${message.author.id}> is thanking in the message marked "(thanks message)".`;
+
+        const response = await generateText({
+            model: model("grok-3-mini"),
+            messages: [
+                { role: 'system', content: systemPrompt } as ModelMessage,
+                { role: 'user', content: userPrompt } as ModelMessage
+            ],
+            maxOutputTokens: 300,
+        });
+
+        if (!response.text) {
+            return { userId: null };
+        }
+
+        const parsed = this.parseThanksLlmResponse(response.text);
+        const candidateId = parsed?.thanked_user_id;
+        if (!candidateId || !participants.has(candidateId) || candidateId === message.author.id || candidateId === this.getBot().client.user?.id) {
+            return { userId: null };
+        }
+
+        const candidateMessage = sortedMessages.find(msg => msg.author.id === candidateId);
+        if (candidateMessage?.author.bot) {
+            return { userId: null };
+        }
+
+        return { userId: candidateId as Snowflake, usernameHint: candidateMessage?.author.username };
     }
 
 
