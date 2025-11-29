@@ -696,14 +696,23 @@ export class GuildHolder {
         const sortedMessages = fetchedMessages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
         const participants = new Set(sortedMessages.map(msg => msg.author.id));
 
-        const history = sortedMessages.map((msg) => {
+        const indexMap = new Map<Snowflake, number>();
+        const historyLines: string[] = [];
+
+        sortedMessages.forEach(msg => {
             const baseContent = msg.content && msg.content.length > 0 ? msg.content : (msg.attachments.size > 0 ? '[attachment]' : '[no content]');
             const content = this.truncateContentForLLM(baseContent);
             const marker = msg.id === message.id ? ' (thanks message)' : '';
             const displayName = msg.member?.displayName || msg.author.username;
             const relativeTime = this.formatRelativeTime(msg.createdTimestamp);
-            return `<@${msg.author.id}> (${displayName})${marker} sent ${relativeTime}: ${content}`;
-        }).join('\n');
+            const replyTo = msg.reference?.messageId ? indexMap.get(msg.reference.messageId) : undefined;
+            const action = replyTo !== undefined ? `replying to [${replyTo}]` : 'sent';
+            const idx = historyLines.length;
+            historyLines.push(`[${idx}] <@${msg.author.id}> (${displayName}) ${action}${marker}: ${content} [${relativeTime}]`);
+            indexMap.set(msg.id, idx);
+        });
+
+        const history = historyLines.join('\n');
 
         const systemPrompt = `You are an assistant that identifies which Discord user a thank-you message targets. Use the recent messages to decide who the thanks is for. Always reply with JSON only: {"thanked_user_id": "<id or null>", "reason": "short reason"}. Use null if unsure. Use only user IDs shown in the messages and never invent new ones. Never pick the thanking user (${message.author.id}).`;
 
