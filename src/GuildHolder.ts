@@ -706,7 +706,7 @@ export class GuildHolder {
             const displayName = msg.member?.displayName || msg.author.username;
             const relativeTime = this.formatRelativeTime(msg.createdTimestamp);
             const replyTo = msg.reference?.messageId ? indexMap.get(msg.reference.messageId) : undefined;
-            const action = replyTo !== undefined ? `replying to [${replyTo}]` : 'sent';
+            const action = replyTo !== undefined ? `replied to [${replyTo}]` : 'sent';
             const idx = historyLines.length;
             historyLines.push(`[${idx}] <@${msg.author.id}> (${displayName}) ${action}${marker}: ${content} [${relativeTime}]`);
             indexMap.set(msg.id, idx);
