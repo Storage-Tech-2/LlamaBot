@@ -8,7 +8,7 @@ import { LLMResponseFuture } from "../llm/LLMResponseFuture.js";
 import { LLMResponseStatus } from "../llm/LLMResponseStatus.js";
 import { LLMRequest } from "../llm/LLMRequest.js";
 import { ExtractionPrompt } from "../llm/prompts/ExtractionPrompt.js";
-import { extractUserIdsFromText, reclassifyAuthors } from "../utils/Util.js";
+import { extractUserIdsFromText, reclassifyAuthors, splitIntoChunks } from "../utils/Util.js";
 import { Attachment } from "./Attachment.js";
 import { RevisionManager } from "./RevisionManager.js";
 import { Revision, RevisionType } from "./Revision.js";
@@ -178,12 +178,16 @@ export class Submission {
         }
 
         const endorsers = this.config.getConfig(SubmissionConfigs.ENDORSERS);
-        if (endorsers.length === 0 && this.guildHolder.getConfigManager().getConfig(GuildConfigs.ENDORSE_ROLE_IDS).length > 0) {
+        if (endorsers.length === 0 && this.areEndorsersRequired()) {
             // If there are no endorsers, we cannot proceed
             return false;
         }
 
         return true; // All conditions met, submission is publishable
+    }
+
+    public areEndorsersRequired(): boolean {
+        return this.guildHolder.getConfigManager().getConfig(GuildConfigs.ENDORSE_ROLE_IDS).length > 0
     }
 
     public async checkReview() {
@@ -327,6 +331,25 @@ export class Submission {
     }
 
 
+    public async sendNotificationsToSubscribers(channel: TextThreadChannel) {
+        const subscriptionManager = this.guildHolder.getSubscriptionManager();
+        const archiveChannelId = this.getConfigManager().getConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID);
+        const subscribers = await subscriptionManager.getSubscribersForChannel(archiveChannelId);
+        const members = await this.guildHolder.getGuild().members.fetch();
+        const ids = [];
+        for (const userId of subscribers) {
+            if (members.has(userId)) {
+                ids.push(userId);
+            }
+        }
+
+        if (ids.length > 0) {
+            const message = splitIntoChunks(members.map(m => `<@${m.id}>`).join(' '), 2000);
+            for (const msg of message) {
+                await channel.send({ content: msg });
+            }
+        }
+    }
 
     public async statusUpdated() {
         try {
@@ -369,6 +392,9 @@ export class Submission {
                         await channel.send({
                             content: `<@${channel.ownerId}> Your submission now requires endorsement before it can be published. Please wait for the endorsers to review it. Do not ping them directly, they will review it when they have time.`,
                         });
+                        if (this.areEndorsersRequired()) {
+                            this.sendNotificationsToSubscribers(channel);
+                        }
                     }
                 }
             } else if (this.isPublishable()) {
@@ -386,6 +412,10 @@ export class Submission {
                             content: `<@${channel.ownerId}> Congratulations! Your submission is now ready to be published! Click the button below to proceed.`,
                             components: [(new ActionRowBuilder().addComponents(publishButton)) as any]
                         });
+
+                        if (!this.areEndorsersRequired()) {
+                            this.sendNotificationsToSubscribers(channel);
+                        }
                     }
                 }
             }

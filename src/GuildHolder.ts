@@ -16,6 +16,7 @@ import { countCharactersInRecord } from "./utils/MarkdownUtils.js";
 import { Author, AuthorType } from "./submissions/Author.js";
 import { NotABotButton } from "./components/buttons/NotABotButton.js";
 import { generateText, ModelMessage } from "ai";
+import { SubscriptionManager } from "./config/SubscriptionManager.js";
 /**
  * GuildHolder is a class that manages guild-related data.
  */
@@ -40,6 +41,11 @@ export class GuildHolder {
      */
     private submissions: SubmissionsManager;
 
+    /**
+     * Subscription manager
+     */
+    private subscriptionManager: SubscriptionManager;
+
     private cachedChannelIds: Snowflake[] = [];
 
     private repositoryManager: RepositoryManager;
@@ -60,6 +66,7 @@ export class GuildHolder {
         this.submissions = new SubmissionsManager(this, Path.join(this.getGuildFolder(), 'submissions'));
         this.repositoryManager = new RepositoryManager(this, Path.join(this.getGuildFolder(), 'archive'));
         this.userManager = new UserManager(Path.join(this.getGuildFolder(), 'users'));
+        this.subscriptionManager = new SubscriptionManager(Path.join(this.getGuildFolder(), 'subscriptions.json'));
         this.config.loadConfig().then(async () => {
             // Set guild name and ID in the config
             this.config.setConfig(GuildConfigs.GUILD_NAME, guild.name);
@@ -1175,5 +1182,9 @@ export class GuildHolder {
 
     public getUserManager(): UserManager {
         return this.userManager;
+    }
+
+    public getSubscriptionManager(): SubscriptionManager {
+        return this.subscriptionManager;
     }
 }

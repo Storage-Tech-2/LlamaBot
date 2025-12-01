@@ -11,7 +11,9 @@ import { MoveConvoCommand } from "./MoveConvoCommand.js";
 import { MoveConvoEndContextCommand } from "./MoveConvoEndContextCommand.js";
 import { MoveConvoStartContextCommand } from "./MoveConvoStartContextCommand.js";
 import { Mwa } from "./MwaCommand.js";
+import { SubscribeCommand } from "./SubscribeCommand.js";
 import { ToggleHelper } from "./ToggleHelper.js";
+import { UnsubscribeCommand } from "./UnsubscribeCommand.js";
 export function getCommands() {
     const Commands = [
         new Mwa(),
@@ -27,7 +29,9 @@ export function getCommands() {
         new MoveConvoEndContextCommand(),
         new MoveConvoCommand(),
         new BulkDeleteCommand(),
-        new KickRoleCommand()
+        new KickRoleCommand(),
+        new SubscribeCommand(),
+        new UnsubscribeCommand()
     ];
     return Commands;
 }
