@@ -344,7 +344,7 @@ export class Submission {
         }
 
         if (ids.length > 0) {
-            const message = splitIntoChunks(members.map(m => `<@${m.id}>`).join(' '), 2000);
+            const message = splitIntoChunks(`Notifying ${ids.length} members subscribed to <#${archiveChannelId}>: ${ids.map(m => `<@${m}>`).join(' ')}`, 2000);
             for (const msg of message) {
                 await channel.send({ content: msg });
             }
