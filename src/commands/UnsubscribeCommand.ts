@@ -20,11 +20,6 @@ export class UnsubscribeCommand implements Command {
                 .setRequired(true)
         );
 
-        data.addSubcommand(subcommand =>
-            subcommand.setName('all')
-                .setDescription('Unsubscribe from all channels')
-        );
-
         return data;
     }
 
@@ -36,8 +31,10 @@ export class UnsubscribeCommand implements Command {
             return;
         }
 
-
-        if (interaction.options.getSubcommand(false) === 'all') {
+        const submissionsChannel = guildHolder.getConfigManager().getConfig(GuildConfigs.SUBMISSION_CHANNEL_ID);
+        const channel = interaction.options.getChannel('channel', true);
+           
+        if (channel.id === submissionsChannel) {
             const count = await guildHolder.getSubscriptionManager().unsubscribeUserFromAll(interaction.user.id);
 
             if (count === 0) {
@@ -52,7 +49,6 @@ export class UnsubscribeCommand implements Command {
                 flags: [MessageFlags.Ephemeral]
             });
         } else {
-            const channel = interaction.options.getChannel('channel', true);
             const count = await guildHolder.getSubscriptionManager().unsubscribeUserFrom(interaction.user.id, [channel.id]);
             if (count === 0) {
                 await interaction.reply({

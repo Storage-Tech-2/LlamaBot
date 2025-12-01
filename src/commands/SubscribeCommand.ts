@@ -20,11 +20,6 @@ export class SubscribeCommand implements Command {
                 .setRequired(true)
         );
 
-        data.addSubcommand(subcommand =>
-            subcommand.setName('all')
-                .setDescription('Subscribe to all channels')
-        );
-
         return data;
     }
 
@@ -40,8 +35,10 @@ export class SubscribeCommand implements Command {
 
         const channels = await guildHolder.getGuild().channels.fetch();
         const currentCategories = guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS) as Snowflake[];
+        const submissionsChannel = guildHolder.getConfigManager().getConfig(GuildConfigs.SUBMISSION_CHANNEL_ID);
+        const channel = interaction.options.getChannel('channel', true);
            
-        if (interaction.options.getSubcommand(false) === 'all') {
+        if (channel.id === submissionsChannel) {
             channels.filter(channel => {
                 return channel && channel.type === ChannelType.GuildForum && channel.parentId && currentCategories.includes(channel.parentId)
             }).forEach(channel => {
@@ -50,7 +47,6 @@ export class SubscribeCommand implements Command {
                 }
             });
         } else {
-            const channel = interaction.options.getChannel('channel', true);
             const forumChannel = channels.get(channel.id);
             if (!forumChannel || forumChannel.type !== ChannelType.GuildForum) {
                 await replyEphemeral(interaction, 'The specified channel is not a valid archive channel.');
