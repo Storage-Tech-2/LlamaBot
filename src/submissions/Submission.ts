@@ -393,7 +393,9 @@ export class Submission {
                             content: `<@${channel.ownerId}> Your submission now requires endorsement before it can be published. Please wait for the endorsers to review it. Do not ping them directly, they will review it when they have time.`,
                         });
                         if (this.areEndorsersRequired()) {
-                            this.sendNotificationsToSubscribers(channel);
+                            this.sendNotificationsToSubscribers(channel).catch((e) => {
+                                console.error('Error sending notifications to subscribers:', e);
+                            });
                         }
                     }
                 }
@@ -414,7 +416,9 @@ export class Submission {
                         });
 
                         if (!this.areEndorsersRequired()) {
-                            this.sendNotificationsToSubscribers(channel);
+                            this.sendNotificationsToSubscribers(channel).catch((e) => {
+                                console.error('Error sending notifications to subscribers:', e);
+                            });
                         }
                     }
                 }
