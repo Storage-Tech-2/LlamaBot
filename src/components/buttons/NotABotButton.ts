@@ -24,6 +24,8 @@ export class NotABotButton implements Button {
 
         userData.attachmentsAllowedState = AttachmentsState.ALLOWED;
         userData.messagesToDeleteOnTimeout = []; // Clear messages to delete on timeout
+        // expire in 6 months
+        userData.attachmentsAllowedExpiry = Date.now() + (6 * 30 * 24 * 60 * 60 * 1000);
         await guildHolder.getUserManager().saveUserData(userData);
 
         await interaction.reply({

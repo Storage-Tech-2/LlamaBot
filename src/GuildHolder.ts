@@ -383,7 +383,19 @@ export class GuildHolder {
 
         const userData = await this.userManager.getOrCreateUserData(message.author.id, message.author.username);
         if (userData.attachmentsAllowedState === AttachmentsState.ALLOWED) {
-            return false;
+            // check if expiry is within one month, if so, extend by 6 months
+            const now = Date.now();
+            if (!userData.attachmentsAllowedExpiry || (userData.attachmentsAllowedExpiry < now + 30 * 24 * 60 * 60 * 1000 && userData.attachmentsAllowedExpiry > now)) {
+                userData.attachmentsAllowedExpiry = now + 6 * 30 * 24 * 60 * 60 * 1000; // extend by 6 months
+                await this.userManager.saveUserData(userData);
+            }
+
+            // if expiry is past, reset to disallowed
+            if (userData.attachmentsAllowedExpiry > now) {
+                return false;
+            } else {
+                userData.attachmentsAllowedState = AttachmentsState.DISALLOWED;
+            }
         }
 
         // immediate timeout for repeat offenders

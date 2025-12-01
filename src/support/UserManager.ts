@@ -42,6 +42,7 @@ export class UserManager {
                 lastThanked: 0,
                 archivedPosts: [],
                 attachmentsAllowedState: AttachmentsState.DISALLOWED,
+                attachmentsAllowedExpiry: 0,
                 messagesToDeleteOnTimeout: [],
             }
         }
