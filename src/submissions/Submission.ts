@@ -1,4 +1,4 @@
-import { ActionRowBuilder, AnyThreadChannel, ChannelType, EmbedBuilder, Message, MessageReferenceType, Snowflake, TextThreadChannel } from "discord.js";
+import { ActionRowBuilder, AnyThreadChannel, ChannelType, EmbedBuilder, Message, MessageFlags, MessageReferenceType, Snowflake, TextThreadChannel } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
@@ -389,7 +389,10 @@ export class Submission {
             }
 
             if (logChannel && logChannel.isSendable()) {
-                await logChannel.send({ embeds: [embed] });
+                await logChannel.send({ 
+                    embeds: [embed],
+                    allowedMentions: { parse: [] }
+                });
             }
         }
     }
