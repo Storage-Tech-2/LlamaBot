@@ -203,7 +203,6 @@ export class Mwa implements Command {
                 subcommand
                     .setName('refreshdesignerroles')
                     .setDescription('Refresh designer roles based on the current archive')
-            )
             );
         return data;
     }

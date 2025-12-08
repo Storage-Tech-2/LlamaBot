@@ -61,7 +61,7 @@ export class AntiSpamCommand implements Command {
         } else if (interaction.options.getSubcommand() === 'sethoneypot') {
             await this.setHoneypot(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'sendbotcheck') {
-            await this.sendBotCheck(guildHolder, interaction);
+            await this.sendBotCheck(interaction);
         } else {
             await replyEphemeral(interaction, 'Invalid subcommand. Use `/antispam sethoneypot`, `/antispam setmodlog`, or `/antispam sendbotcheck`.');
             return;
@@ -90,7 +90,7 @@ export class AntiSpamCommand implements Command {
         await interaction.reply(`Llamabot will now send moderation logs to ${channel.name}!`);
     }
 
-    private async sendBotCheck(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+    private async sendBotCheck(interaction: ChatInputCommandInteraction) {
         const chosenUser = interaction.options.getUser('user');
         if (!interaction.channel || !interaction.channel.isTextBased() || !interaction.channel.isSendable()) {
             await replyEphemeral(interaction, 'This command can only be used in text channels.');
