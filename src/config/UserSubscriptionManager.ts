@@ -1,23 +1,23 @@
 import { Snowflake } from 'discord.js';
 import fs from 'fs/promises';
-export type Subscriptions = Record<Snowflake, Snowflake[]>;
+export type UserSubscriptions = Record<Snowflake, Snowflake[]>;
 
-export class SubscriptionManager {
+export class UserSubscriptionManager {
     constructor(private filePath: string) {
 
     }
 
-    async getSubscriptions(): Promise<Subscriptions> {
+    async getSubscriptions(): Promise<UserSubscriptions> {
         try {
             const data = await fs.readFile(this.filePath, 'utf-8');
             const parsed = JSON.parse(data);
-            return parsed as Subscriptions;
+            return parsed as UserSubscriptions;
         } catch {
             return {};
         }
     }
 
-    async saveSubscriptions(subscriptions: Subscriptions): Promise<void> {
+    async saveSubscriptions(subscriptions: UserSubscriptions): Promise<void> {
         try {
             await fs.writeFile(this.filePath, JSON.stringify(subscriptions, null, 2), 'utf-8');
         } catch (err) {

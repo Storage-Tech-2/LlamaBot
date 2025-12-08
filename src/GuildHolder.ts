@@ -16,7 +16,8 @@ import { countCharactersInRecord } from "./utils/MarkdownUtils.js";
 import { Author, AuthorType } from "./submissions/Author.js";
 import { NotABotButton } from "./components/buttons/NotABotButton.js";
 import { generateText, ModelMessage } from "ai";
-import { SubscriptionManager } from "./config/SubscriptionManager.js";
+import { UserSubscriptionManager } from "./config/UserSubscriptionManager.js";
+import { ChannelSubscriptionManager } from "./config/ChannelSubscriptionManager.js";
 /**
  * GuildHolder is a class that manages guild-related data.
  */
@@ -42,9 +43,15 @@ export class GuildHolder {
     private submissions: SubmissionsManager;
 
     /**
-     * Subscription manager
+     * User Subscription manager
      */
-    private subscriptionManager: SubscriptionManager;
+    private userSubscriptionManager: UserSubscriptionManager;
+
+    /**
+     * Channel subscription manager
+     */
+    private channelSubscriptionManager: ChannelSubscriptionManager
+
 
     private cachedChannelIds: Snowflake[] = [];
 
@@ -66,7 +73,8 @@ export class GuildHolder {
         this.submissions = new SubmissionsManager(this, Path.join(this.getGuildFolder(), 'submissions'));
         this.repositoryManager = new RepositoryManager(this, Path.join(this.getGuildFolder(), 'archive'));
         this.userManager = new UserManager(Path.join(this.getGuildFolder(), 'users'));
-        this.subscriptionManager = new SubscriptionManager(Path.join(this.getGuildFolder(), 'subscriptions.json'));
+        this.userSubscriptionManager = new UserSubscriptionManager(Path.join(this.getGuildFolder(), 'subscriptions.json'));
+        this.channelSubscriptionManager = new ChannelSubscriptionManager(Path.join(this.getGuildFolder(), 'channel_subscriptions.json'));
         this.config.loadConfig().then(async () => {
             // Set guild name and ID in the config
             this.config.setConfig(GuildConfigs.GUILD_NAME, guild.name);
@@ -1196,7 +1204,11 @@ export class GuildHolder {
         return this.userManager;
     }
 
-    public getSubscriptionManager(): SubscriptionManager {
-        return this.subscriptionManager;
+    public getUserSubscriptionManager(): UserSubscriptionManager {
+        return this.userSubscriptionManager;
+    }
+
+    public getChannelSubscriptionManager(): ChannelSubscriptionManager {
+        return this.channelSubscriptionManager;
     }
 }

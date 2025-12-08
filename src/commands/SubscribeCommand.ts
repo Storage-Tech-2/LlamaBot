@@ -59,7 +59,7 @@ export class SubscribeCommand implements Command {
             channelsToSubscribe.push(forumChannel.id);
         }
 
-        const subscriptionManager = guildHolder.getSubscriptionManager();
+        const subscriptionManager = guildHolder.getUserSubscriptionManager();
         const count = await subscriptionManager.subscribeUserTo(interaction.user.id, channelsToSubscribe);
 
         if (count === 0) {

@@ -332,7 +332,7 @@ export class Submission {
 
 
     public async sendNotificationsToSubscribers(channel: TextThreadChannel) {
-        const subscriptionManager = this.guildHolder.getSubscriptionManager();
+        const subscriptionManager = this.guildHolder.getUserSubscriptionManager();
         const archiveChannelId = this.getConfigManager().getConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID);
         const subscribers = await subscriptionManager.getSubscribersForChannel(archiveChannelId);
         const members = await this.guildHolder.getGuild().members.fetch();

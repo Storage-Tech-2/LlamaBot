@@ -6,6 +6,7 @@ import { GetPostCommand } from "./GetPostCommand.js";
 import { GetPostsByCommand } from "./GetPostsByCommand.js";
 import { GetStatsCommand } from "./GetStatsCommand.js";
 import { GetThanksCommand } from "./GetThanksCommand.js";
+import { AntiSpamCommand } from "./AntiSpamCommand.js";
 import { KickRoleCommand } from "./KickRoleCommand.js";
 import { MoveConvoCommand } from "./MoveConvoCommand.js";
 import { MoveConvoEndContextCommand } from "./MoveConvoEndContextCommand.js";
@@ -19,6 +20,7 @@ export function getCommands() {
         new Mwa(),
         new EndorseCommand(),
         new EditorPowersCommand(),
+        new AntiSpamCommand(),
         new GetPostCommand(),
         new GetThanksCommand(),
         new GetPostsByCommand(),

@@ -35,7 +35,7 @@ export class UnsubscribeCommand implements Command {
         const channel = interaction.options.getChannel('channel', true);
            
         if (channel.id === submissionsChannel) {
-            const count = await guildHolder.getSubscriptionManager().unsubscribeUserFromAll(interaction.user.id);
+            const count = await guildHolder.getUserSubscriptionManager().unsubscribeUserFromAll(interaction.user.id);
 
             if (count === 0) {
                 await interaction.reply({
@@ -49,7 +49,7 @@ export class UnsubscribeCommand implements Command {
                 flags: [MessageFlags.Ephemeral]
             });
         } else {
-            const count = await guildHolder.getSubscriptionManager().unsubscribeUserFrom(interaction.user.id, [channel.id]);
+            const count = await guildHolder.getUserSubscriptionManager().unsubscribeUserFrom(interaction.user.id, [channel.id]);
             if (count === 0) {
                 await interaction.reply({
                     content: `You are not subscribed to the specified channel.`,
