@@ -96,7 +96,7 @@ export class SetScriptModal implements Modal {
         }
 
         if (!errored) {
-            await runningMessage?.edit(`Script run complete. ${matchCount} out of ${submissions.length} submissions matched the script.`);
+            await runningMessage?.edit(`Script run complete. ${matchCount} out of ${submissions.length} submissions matched.`);
         } else {
             await runningMessage?.edit(`Script run aborted due to errors.`);
         }
