@@ -56,8 +56,8 @@ export class SetScriptModal implements Modal {
         await channelSubscriptionManager.saveSubscriptions(existingSubscription);
 
         const embed = new EmbedBuilder()
-            .setTitle('Rules Script Set')
-            .setDescription('The rules script for this channel has been set: ```javascript\n' + scriptCode + '\n```')
+            .setTitle('Filter Script Set')
+            .setDescription('Matching submissions will be announced automatically: ```javascript\n' + scriptCode + '\n```')
             .setColor(0x00FF00);
         await interaction.reply({ embeds: [embed] });
 
