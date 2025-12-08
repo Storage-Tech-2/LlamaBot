@@ -336,7 +336,9 @@ export class Submission {
         const subscriptionManager = this.guildHolder.getUserSubscriptionManager();
         const archiveChannelId = this.getConfigManager().getConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID);
         const subscribers = await subscriptionManager.getSubscribersForChannel(archiveChannelId);
-        const members = await this.guildHolder.getGuild().members.fetch();
+        const members = await this.guildHolder.getGuild().members.fetch({
+            user: subscribers
+        });
         const ids = [];
         for (const userId of subscribers) {
             if (members.has(userId)) {
