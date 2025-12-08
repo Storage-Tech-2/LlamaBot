@@ -78,6 +78,11 @@ export class EditorPowersCommand implements Command {
                         option.setName('refresh')
                             .setDescription('Force remaking the post thread entirely')
                     )
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('announce')
+                    .setDescription('Announce a submission to subscribed users and channels')
             );
 
         return data;
@@ -235,6 +240,15 @@ export class EditorPowersCommand implements Command {
                     content: `<@${interaction.user.id}> has published this submission silently! ${url}\nNote that the submission has been locked to prevent further edits. Contact an editor/endorser if you need to make changes.`,
                 });
                 break;
+            case 'announce':
+                await interaction.deferReply();
+                const channel = await submission.getSubmissionChannel();
+                if (!channel) {
+                    interaction.editReply('Submission channel not found.');
+                    return;
+                }
+                await submission.sendNotificationsToSubscribers(channel);
+                await interaction.editReply('Announcement sent to all subscribed users and channels.');
             default:
                 replyEphemeral(interaction, 'Invalid subcommand. Please use one of the available subcommands.');
                 return;

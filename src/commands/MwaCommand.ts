@@ -209,7 +209,7 @@ export class Mwa implements Command {
                 subcommand
                     .setName('setscript')
                     .setDescription('Set the rules script for a channel subscription')
-            );
+            )
         return data;
     }
 
