@@ -12,6 +12,7 @@ import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
 import { SetTemplateModal } from "../components/modals/SetTemplateModal.js";
 import { SetDesignerRoleMenu } from "../components/menus/SetDesignerRoleMenu.js";
+import { SetScriptModal } from "../components/modals/SetScriptModal.js";
 
 export class Mwa implements Command {
     getID(): string {
@@ -203,6 +204,11 @@ export class Mwa implements Command {
                 subcommand
                     .setName('refreshdesignerroles')
                     .setDescription('Refresh designer roles based on the current archive')
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('setscript')
+                    .setDescription('Set the rules script for a channel subscription')
             );
         return data;
     }
@@ -252,6 +258,8 @@ export class Mwa implements Command {
             this.toggleLlm(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'setwebsite') {
             this.setWebsite(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'setscript') {
+            this.setScript(guildHolder, interaction);
         } else {
             await replyEphemeral(interaction, 'Invalid subcommand. Use `/mwa setsubmissions`, `/mwa setlogs`, `/mwa setarchives`, `/mwa setuparchives`, `/mwa setendorseroles`, `/mwa seteditorroles`, `/mwa sethelperrole` or `/mwa setrepo`.');
             return;
@@ -441,6 +449,12 @@ export class Mwa implements Command {
 
     async setTemplate(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         const modal = new SetTemplateModal().getBuilder(guildHolder);
+        await interaction.showModal(modal);
+    }
+
+    async setScript(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const channelSubscriptions = await guildHolder.getChannelSubscriptionManager().getSubscriptions();
+        const modal = new SetScriptModal().getBuilder(channelSubscriptions[interaction.channelId]?.code || '');
         await interaction.showModal(modal);
     }
 

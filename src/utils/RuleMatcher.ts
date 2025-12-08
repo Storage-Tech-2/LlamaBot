@@ -2,7 +2,7 @@ import { VM } from 'vm2';
 import { Submission } from '../submissions/Submission.js';
 import { SubmissionConfigs } from '../submissions/SubmissionConfigs.js';
 import { splitIntoChunks } from './Util.js';
-import { EmbedBuilder, Snowflake } from 'discord.js';
+import { Channel, EmbedBuilder, Snowflake } from 'discord.js';
 import { ChannelSubscription, ChannelSubscriptions } from '../config/ChannelSubscriptionManager.js';
 
 export class RuleMatcher {
@@ -12,7 +12,12 @@ export class RuleMatcher {
 
         for (const [channelId, data] of Object.entries(subscriptions)) {
             const code = data.code;
-            const isMatch = await this.isMatch(submission, code);
+            const logChannel = await submission.getGuildHolder().getGuild().channels.fetch(channelId).catch(() => null);
+            if (!logChannel) {
+                continue;
+            }
+
+            const isMatch = await this.isMatch(submission, code, logChannel).catch(() => false);
             if (isMatch) {
                 matchedChannels[channelId] = data;
             }
@@ -20,7 +25,10 @@ export class RuleMatcher {
         return matchedChannels;
     }
 
-    static async isMatch(submission: Submission, code: string): Promise<boolean> {
+    static async isMatch(submission: Submission, code: string, logChannel?: Channel): Promise<boolean> {
+        if (!code) {
+            return false;
+        }
 
         const name = submission.getConfigManager().getConfig(SubmissionConfigs.NAME);
         const tags = (submission.getConfigManager().getConfig(SubmissionConfigs.TAGS) || []).map(tag => tag.name);
@@ -33,9 +41,6 @@ export class RuleMatcher {
         const archiveChannelName = archiveChannel ? archiveChannel.name : null;
         const archiveCategory = (archiveChannel && archiveChannel.parent) ? archiveChannel.parent : null;
         const archiveCategoryName = archiveCategory ? archiveCategory.name : null;
-
-        const submissionsThread = await submission.getSubmissionChannel();
-
         const log: {
             type: 'info' | 'error' | 'warn';
             message: string;
@@ -88,7 +93,7 @@ export class RuleMatcher {
             });
         }
 
-        if (submissionsThread) {
+        if (logChannel && logChannel.isSendable()) {
             for (const item of log) {
                 const messageSplit = splitIntoChunks(item.message, 4000);
                 for (const messagePart of messageSplit) {
@@ -97,9 +102,16 @@ export class RuleMatcher {
                         .setDescription(messagePart)
                         .setColor(item.type === 'error' ? 0xFF0000 : (item.type === 'warn' ? 0xFFFF00 : 0x00FF00))
 
-                    await submissionsThread.send({ embeds: [embed] });
+                    await logChannel.send({ embeds: [embed] });
                 }
             }
+        }
+
+        // if there is an error, throw the error
+        const errors = log.filter(l => l.type === 'error');
+        if (errors.length > 0) {
+            const combinedErrors = errors.map(e => e.message).join('\n');
+            throw new Error(combinedErrors);
         }
 
         return finalResult;

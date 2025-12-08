@@ -1,4 +1,4 @@
-import { ActionRowBuilder, AnyThreadChannel, ChannelType, Message, MessageReferenceType, Snowflake, TextThreadChannel } from "discord.js";
+import { ActionRowBuilder, AnyThreadChannel, ChannelType, EmbedBuilder, Message, MessageReferenceType, Snowflake, TextThreadChannel } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
@@ -20,6 +20,7 @@ import { SubmissionTagNames, SubmissionTags } from "./SubmissionTags.js";
 import { Author, AuthorType } from "./Author.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { processImages, processAttachments, getAllAttachments } from "../utils/AttachmentUtils.js";
+import { RuleMatcher } from "../utils/RuleMatcher.js";
 
 export class Submission {
     private guildHolder: GuildHolder;
@@ -347,6 +348,31 @@ export class Submission {
             const message = splitIntoChunks(`Notifying ${ids.length} members subscribed to <#${archiveChannelId}>: ${ids.map(m => `<@${m}>`).join(' ')}`, 2000);
             for (const msg of message) {
                 await channel.send({ content: msg });
+            }
+        }
+
+        // channel subscriptions
+        const channelSubscriptionManager = this.guildHolder.getChannelSubscriptionManager();
+        const channelSubscriptions = await channelSubscriptionManager.getSubscriptions();
+
+        const matched = await RuleMatcher.matchAll(this, channelSubscriptions);
+
+        for (const [logChannelId, data] of Object.entries(matched)) {
+            const logChannel = await this.guildHolder.getGuild().channels.fetch(logChannelId).catch(() => null);
+            const embed = new EmbedBuilder()
+                .setTitle('New Submission')
+                .setDescription(this.getConfigManager().getConfig(SubmissionConfigs.NAME) || 'Unnamed Submission')
+                .setURL(channel.url)
+                .setColor(0x00FF00)
+
+            // check if it has image
+            const images = this.getConfigManager().getConfig(SubmissionConfigs.IMAGES) || [];
+            if (images.length > 0) {
+                embed.setThumbnail(images[0].url);
+            }
+
+            if (logChannel && logChannel.isSendable()) {
+                await logChannel.send({ embeds: [embed] });
             }
         }
     }
@@ -707,7 +733,7 @@ export class Submission {
         if (this.areEndorsersRequired()) {
             this.setLock(true, 'Auto-locked after publish. Please contact an editor/endorser to unlock it if needed.');
         }
-        
+
         await this.statusUpdated();
         this.publishLock = false;
     }
