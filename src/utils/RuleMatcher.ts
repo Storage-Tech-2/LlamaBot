@@ -112,7 +112,7 @@ export class RuleMatcher {
 
         let finalResult = false;
         try {
-            const result = vm.run(code);
+            const result = vm.run(`(() => { ${code} })()`);
             if (typeof result !== 'boolean') {
                 log.push({
                     type: 'error',
