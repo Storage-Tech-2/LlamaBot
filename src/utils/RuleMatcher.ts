@@ -4,6 +4,7 @@ import { SubmissionConfigs } from '../submissions/SubmissionConfigs.js';
 import { splitIntoChunks } from './Util.js';
 import { Channel, EmbedBuilder, Snowflake } from 'discord.js';
 import { ChannelSubscription, ChannelSubscriptions } from '../config/ChannelSubscriptionManager.js';
+import { warn } from 'console';
 
 export class RuleMatcher {
 
@@ -45,7 +46,15 @@ export class RuleMatcher {
             type: 'info' | 'error' | 'warn';
             message: string;
         }[] = [];
-        
+
+        const allContent = {
+            ...records,
+            name,
+            tags,
+            channel: archiveChannelName,
+            category: archiveCategoryName,
+        }
+
         const vm = new VM({
             timeout: 1000,
             allowAsync: false,
@@ -53,11 +62,7 @@ export class RuleMatcher {
             wasm: false,
 
             sandbox: {
-                ...records,
-                name,
-                tags,
-                channel: archiveChannelName,
-                category: archiveCategoryName,
+                ...allContent,
                 log: (...args: any[]) => {
                     log.push({
                         type: 'info',
@@ -70,6 +75,37 @@ export class RuleMatcher {
                             }
                         }).join(' ')
                     });
+                },
+                warn: (...args: any[]) => {
+                    log.push({
+                        type: 'warn',
+                        message: args.map(arg => {
+                            if (typeof arg === 'string') return arg;
+                            try {
+                                return JSON.stringify(arg);
+                            } catch {
+                                return String(arg);
+                            }
+                        }).join(' ')
+                    });
+                },
+                match: (toMatch: string | string[] | RegExp | RegExp[]) => {
+                    const contentString = JSON.stringify(allContent);
+                    const patterns = Array.isArray(toMatch) ? toMatch : [toMatch];
+                    for (const pattern of patterns) {
+                        if (typeof pattern === 'string') {
+                            if (contentString.includes(pattern)) {
+                                return true;
+                            }
+                        } else if (pattern instanceof RegExp) {
+                            if (pattern.test(contentString)) {
+                                return true;
+                            }
+                        } else {
+                            throw new Error(`Invalid pattern type: ${typeof pattern}`);
+                        }
+                    }
+                    return false;
                 }
             }
         });
