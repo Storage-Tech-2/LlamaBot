@@ -8,7 +8,7 @@ import { LLMResponseFuture } from "../llm/LLMResponseFuture.js";
 import { LLMResponseStatus } from "../llm/LLMResponseStatus.js";
 import { LLMRequest } from "../llm/LLMRequest.js";
 import { ExtractionPrompt } from "../llm/prompts/ExtractionPrompt.js";
-import { extractUserIdsFromText, reclassifyAuthors, splitIntoChunks } from "../utils/Util.js";
+import { extractUserIdsFromText, getAuthorsString, reclassifyAuthors, splitIntoChunks } from "../utils/Util.js";
 import { Attachment } from "./Attachment.js";
 import { RevisionManager } from "./RevisionManager.js";
 import { Revision, RevisionType } from "./Revision.js";
@@ -357,11 +357,26 @@ export class Submission {
 
         const matched = await RuleMatcher.matchAll(this, channelSubscriptions);
 
+        const authorsString = getAuthorsString(this.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || []);
+        const recordref = this.getRevisionsManager().getCurrentRevision();
+        const record = recordref ? await this.getRevisionsManager().getRevisionById(recordref.id) : null;
+        const tagString = (this.getConfigManager().getConfig(SubmissionConfigs.TAGS) || []).map((tag) => tag.name).join(', ');
+        const textArr = [
+            `**Authors:** ${authorsString}`,
+            `**Tags:** ${tagString || 'None'}`,
+            `**Channel:** <#${archiveChannelId}>`,
+        ];
+        
+        if (record && record.records.description) {
+            textArr.push(`${record.records.description}`);
+        }
+
+        const text = textArr.join('\n');
         for (const [logChannelId, data] of Object.entries(matched)) {
             const logChannel = await this.guildHolder.getGuild().channels.fetch(logChannelId).catch(() => null);
             const embed = new EmbedBuilder()
-                .setTitle('New Submission')
-                .setDescription(this.getConfigManager().getConfig(SubmissionConfigs.NAME) || 'Unnamed Submission')
+                .setTitle(this.getConfigManager().getConfig(SubmissionConfigs.NAME) || 'Unnamed Submission')
+                .setDescription(text)
                 .setURL(channel.url)
                 .setColor(0x00FF00)
 

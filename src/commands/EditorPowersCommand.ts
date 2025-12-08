@@ -249,6 +249,7 @@ export class EditorPowersCommand implements Command {
                 }
                 await submission.sendNotificationsToSubscribers(channel);
                 await interaction.editReply('Announcement sent to all subscribed users and channels.');
+                break;
             default:
                 replyEphemeral(interaction, 'Invalid subcommand. Please use one of the available subcommands.');
                 return;
