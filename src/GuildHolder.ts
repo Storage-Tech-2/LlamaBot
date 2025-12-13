@@ -148,6 +148,10 @@ export class GuildHolder {
             return;
         }
 
+        await this.handlePostReferences(message).catch(e => {
+            console.error('Error handling post references:', e);
+        });
+
         if (this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_ID)) {
             // Check if message contains "thanks" or "thank you"
             // /\b(thanks|thank you|thank u)[!\.]?\b/i
@@ -315,6 +319,76 @@ export class GuildHolder {
         }
     }
 
+    public async handlePostReferences(message: Message) {
+        // match pattern
+        const postReferenceRegex = /\b([A-Z]+[0-9]{3})\b/g;
+        const matches = Array.from(message.content.matchAll(postReferenceRegex)).map(match => match[1]);
+        if (matches.length === 0) {
+            return;
+        }
+
+        // limit to 5 matches per message
+        if (matches.length > 5) {
+            matches.splice(5);
+        }
+
+        const repositoryManager = this.getRepositoryManager();
+
+        const embeds = [];
+        for (const postCode of matches) {
+            const found = await repositoryManager.findEntryBySubmissionCode(postCode);
+            if (!found) {
+                continue;
+            }
+
+            const entryData = found.entry.getData();
+            if (!entryData.post) {
+                continue;
+            }
+
+            const name = entryData.code + ': ' + entryData.name;
+            const authors = getAuthorsString(entryData.authors);
+            const tags = entryData.tags.map(tag => tag.name).join(', ');
+            const description = entryData.records.description as string || '';
+            const image = entryData.images.length > 0 ? entryData.images[0].url : null;
+
+            const textArr = [
+                `**Authors:** ${authors}`,
+                `**Tags:** ${tags || 'None'}`,
+            ];
+            if (description) {
+                textArr.push(description);
+            }
+
+            const submissionThread = await this.getGuild().channels.fetch(entryData.id).catch(() => null);
+            if (submissionThread) {
+                textArr.push(`\n[Submission Thread](${submissionThread.url})`);
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle(name)
+                .setDescription(textArr.join('\n'))
+                .setColor(0x00AE86)
+                .setURL(entryData.post.threadURL);
+            if (image) {
+                embed.setThumbnail(image);
+            }
+
+            embeds.push(embed);
+        }
+
+        if (embeds.length > 0) {
+            await message.reply({
+                embeds: embeds,
+                flags: [
+                    MessageFlags.SuppressNotifications,
+                ],
+                allowedMentions: {
+                    parse: []
+                }
+            }).catch(console.error);
+        }
+    }
 
     public async timeoutUserForSpam(userData: UserData, autoTimeout: boolean = false) {
         const member = await this.guild.members.fetch(userData.id).catch(() => null);
@@ -445,7 +519,7 @@ export class GuildHolder {
             }
         }, 5 * 60 * 1000);
 
-        return true;
+        return false;
     }
 
     public async handleMessageUpdate(_oldMessage: Message, newMessage: Message) {

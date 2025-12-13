@@ -495,29 +495,35 @@ export class RepositoryManager {
         entryRef: ArchiveEntryReference,
         entryIndex: number
     }> {
+        const {
+            channelCode,
+        } = splitCode(submissionCode);
+
         const channelReferences = this.getChannelReferences();
-        for (const channelRef of channelReferences) {
-            const channelPath = Path.join(this.folderPath, channelRef.path);
-            const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
-            const entries = archiveChannel.getData().entries;
-            const entryIndex = entries.findIndex(e => e.code === submissionCode);
-            if (entryIndex !== -1) {
-                const entryRef = entries[entryIndex];
-                const entryPath = Path.join(channelPath, entryRef.path);
-                const entry = await ArchiveEntry.fromFolder(entryPath);
-                if (!entry) {
-                    continue; // Skip if entry could not be loaded
-                }
-                return {
-                    channelRef,
-                    channel: archiveChannel,
-                    entry,
-                    entryRef,
-                    entryIndex
-                };
-            }
+        const channelRef = channelReferences.find(c => c.code === channelCode);
+        if (!channelRef) {
+            return null;
         }
 
+        const channelPath = Path.join(this.folderPath, channelRef.path);
+        const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
+        const entries = archiveChannel.getData().entries;
+        const entryIndex = entries.findIndex(e => e.code === submissionCode);
+        if (entryIndex !== -1) {
+            const entryRef = entries[entryIndex];
+            const entryPath = Path.join(channelPath, entryRef.path);
+            const entry = await ArchiveEntry.fromFolder(entryPath);
+            if (!entry) {
+                return null; // Skip if entry could not be loaded
+            }
+            return {
+                channelRef,
+                channel: archiveChannel,
+                entry,
+                entryRef,
+                entryIndex
+            };
+        }
         return null;
     }
 
@@ -1044,7 +1050,7 @@ export class RepositoryManager {
                 for (const comment of comments) {
                     const author = (await reclassifyAuthors(this.guildHolder, [comment.sender]))[0];
                     comment.sender = author;
-                    
+
                     const textAttachments = getAttachmentsFromText(comment.content);
 
                     const files: AttachmentBuilder[] = [];
