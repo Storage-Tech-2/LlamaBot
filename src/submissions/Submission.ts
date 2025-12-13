@@ -370,7 +370,7 @@ export class Submission {
         ];
         
         if (record && record.records.description) {
-            textArr.push(`${record.records.description}`);
+            textArr.push(`\n${record.records.description}`);
         }
 
         const text = textArr.join('\n');

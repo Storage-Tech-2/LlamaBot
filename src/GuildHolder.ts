@@ -357,7 +357,7 @@ export class GuildHolder {
                 `**Tags:** ${tags || 'None'}`,
             ];
             if (description) {
-                textArr.push(description);
+                textArr.push('\n' + description);
             }
 
             const submissionThread = await this.getGuild().channels.fetch(entryData.id).catch(() => null);
