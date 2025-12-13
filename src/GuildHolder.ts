@@ -359,12 +359,6 @@ export class GuildHolder {
             if (description) {
                 textArr.push('\n' + description);
             }
-
-            const submissionThread = await this.getGuild().channels.fetch(entryData.id).catch(() => null);
-            if (submissionThread) {
-                textArr.push(`\n[Submission Thread](${submissionThread.url})`);
-            }
-
             const embed = new EmbedBuilder()
                 .setTitle(name)
                 .setDescription(textArr.join('\n'))
