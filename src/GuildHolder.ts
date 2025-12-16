@@ -143,41 +143,6 @@ export class GuildHolder {
         //     }
         // }
 
-        // handle anti spam
-        if (await this.handleSpamCheck(message)) {
-            return;
-        }
-
-        await this.handlePostReferences(message).catch(e => {
-            console.error('Error handling post references:', e);
-        });
-
-        if (this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_ID)) {
-            // Check if message contains "thanks" or "thank you"
-            // /\b(thanks|thank you|thank u)[!\.]?\b/i
-            // don't if theres a no before it
-            const words = message.content.split(/\s+/).map(word => word.toLowerCase().trim().replace(/[^a-z0-9]/gi, ''));
-            const thankIndex = words.findIndex(word => word === 'thanks' || word === 'thank' || word === 'thankyou' || word === 'thanku' || word === 'thx' || word === 'tysm' || word === 'ty');
-            if (thankIndex !== -1 && (thankIndex === 0 || words[thankIndex - 1] !== 'no')) {
-
-                // check if reference message is from the bot itself
-                let skip = false;
-                let referencedMessage = null;
-                if (message.reference?.messageId) {
-                    referencedMessage = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
-                    if (referencedMessage && referencedMessage.author.id === this.getBot().client.user?.id) {
-                        skip = true;
-                    }
-                }
-                if (!skip) {
-                    this.handleThanksMessage(message, referencedMessage).catch(e => {
-                        console.error('Error handling thanks message:', e);
-                    });
-                    return;
-                }
-            }
-        }
-
         // Handle message inside archived post
         if (message.channel.isThread() && message.channel.parentId && this.cachedChannelIds.includes(message.channel.parentId)) {
             this.getRepositoryManager().handlePostOrUpdateMessage(message).catch(e => {
@@ -187,14 +152,35 @@ export class GuildHolder {
         }
 
         // Handle submissions
-        if (message.channel.isThread() && message.channel.parentId === this.getSubmissionsChannelId()) {
+        else if (message.channel.isThread() && message.channel.parentId === this.getSubmissionsChannelId()) {
             if (await this.handleSubmissionMessage(message).catch(e => {
                 console.error('Error handling submission message:', e);
                 return true;
             })) {
+
+                await this.handlePostReferences(message).catch(e => {
+                    console.error('Error handling post references:', e);
+                });
+
+                await this.handleThanks(message).catch(e => {
+                    console.error('Error handling thanks message:', e);
+                });
                 return;
             }
         }
+
+        // handle anti spam
+        if (await this.handleSpamCheck(message)) {
+            return;
+        }
+
+        await this.handlePostReferences(message).catch(e => {
+            console.error('Error handling post references:', e);
+        });
+
+        await this.handleThanks(message).catch(e => {
+            console.error('Error handling thanks message:', e);
+        });
 
         // Handle honeypot channel
         const honeypotChannelId = this.getConfigManager().getConfig(GuildConfigs.HONEYPOT_CHANNEL_ID);
@@ -314,6 +300,34 @@ export class GuildHolder {
                     } else {
                         await channel.send({ content: reply, flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
                     }
+                }
+            }
+        }
+    }
+
+    public async handleThanks(message: Message) {
+        if (this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_ID)) {
+            // Check if message contains "thanks" or "thank you"
+            // /\b(thanks|thank you|thank u)[!\.]?\b/i
+            // don't if theres a no before it
+            const words = message.content.split(/\s+/).map(word => word.toLowerCase().trim().replace(/[^a-z0-9]/gi, ''));
+            const thankIndex = words.findIndex(word => word === 'thanks' || word === 'thank' || word === 'thankyou' || word === 'thanku' || word === 'thx' || word === 'tysm' || word === 'ty');
+            if (thankIndex !== -1 && (thankIndex === 0 || words[thankIndex - 1] !== 'no')) {
+
+                // check if reference message is from the bot itself
+                let skip = false;
+                let referencedMessage = null;
+                if (message.reference?.messageId) {
+                    referencedMessage = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
+                    if (referencedMessage && referencedMessage.author.id === this.getBot().client.user?.id) {
+                        skip = true;
+                    }
+                }
+                if (!skip) {
+                    this.handleThanksMessage(message, referencedMessage).catch(e => {
+                        console.error('Error handling thanks message:', e);
+                    });
+
                 }
             }
         }
