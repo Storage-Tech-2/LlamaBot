@@ -993,6 +993,11 @@ export class GuildHolder {
 
 
         const embed = new EmbedBuilder();
+
+        if (newEntryData.images.length > 0 && newEntryData.images[0].url) {
+            embed.setThumbnail(newEntryData.images[0].url);
+        }
+
         if (!oldEntryData) {
             embed.setTitle(`Added ${newEntryData.code} to ${forumChannel.name}`)
             embed.setDescription(`**Name:** ${newEntryData.name}\n[Submission Thread](${submissionThread.url})`);
