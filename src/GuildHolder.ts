@@ -1268,6 +1268,10 @@ export class GuildHolder {
 
         const embed = new EmbedBuilder();
 
+        if (oldEntryData.images.length > 0 && oldEntryData.images[0].url) {
+            embed.setThumbnail(oldEntryData.images[0].url);
+        }
+
         embed.setTitle(`Retracted ${oldEntryData.code} from ${forumChannel.name}`)
         embed.setURL(submissionThread.url);
         embed.setDescription(`**Name:** ${oldEntryData.name}\n[Submission Thread](${submissionThread.url})`)
