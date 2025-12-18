@@ -15,6 +15,7 @@ import { Mwa } from "./MwaCommand.js";
 import { SubscribeCommand } from "./SubscribeCommand.js";
 import { ToggleHelper } from "./ToggleHelper.js";
 import { UnsubscribeCommand } from "./UnsubscribeCommand.js";
+import { TopHelpersCommand } from "./TopHelpersCommand.js";
 export function getCommands() {
     const Commands = [
         new Mwa(),
@@ -33,7 +34,8 @@ export function getCommands() {
         new BulkDeleteCommand(),
         new KickRoleCommand(),
         new SubscribeCommand(),
-        new UnsubscribeCommand()
+        new UnsubscribeCommand(),
+        new TopHelpersCommand()
     ];
     return Commands;
 }
