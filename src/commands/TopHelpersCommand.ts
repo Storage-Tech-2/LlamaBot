@@ -77,7 +77,6 @@ export class TopHelpersCommand implements Command {
         });
 
         const content = [
-            '**Top Helpers (last 30 days)**',
             ...lines
         ].join('\n');
 
@@ -86,7 +85,7 @@ export class TopHelpersCommand implements Command {
         
         for (let i = 0; i < split.length; i++) {
             const embed = new EmbedBuilder()
-                .setTitle('Top Helpers' + (split.length > 1 ? ` (Part ${i + 1}/${split.length})` : ''))
+                .setTitle('Top 10 helpers in the last 30 days' + (split.length > 1 ? ` (Part ${i + 1}/${split.length})` : ''))
                 .setDescription(split[i])
                 .setColor(0x00AE86);
             if (i === 0) {
