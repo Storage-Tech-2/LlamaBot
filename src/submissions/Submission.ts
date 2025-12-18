@@ -369,9 +369,9 @@ export class Submission {
             `**Channel:** <#${archiveChannelId}>`,
         ];
         
-        if (record && record.records.description) {
-            textArr.push(`\n${record.records.description}`);
-        }
+        // if (record && record.records.description) {
+        //     textArr.push(`\n${record.records.description}`);
+        // }
 
         const text = textArr.join('\n');
         for (const [logChannelId, data] of Object.entries(matched)) {
