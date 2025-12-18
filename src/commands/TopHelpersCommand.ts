@@ -58,7 +58,22 @@ export class TopHelpersCommand implements Command {
             const member = fetchedMembers?.get(entry.id);
             const displayName = member?.displayName || entry.username || entry.id;
             const thanksLabel = entry.thanks === 1 ? 'thank' : 'thanks';
-            return `${index + 1}. <@${entry.id}> (${displayName}) — ${entry.thanks} ${thanksLabel}`;
+            let ranktext = '';
+            switch (index) {
+                case 0:
+                    ranktext = '🥇';
+                    break;
+                case 1:
+                    ranktext = '🥈';
+                    break;
+                case 2:
+                    ranktext = '🥉';
+                    break;
+                default:
+                    ranktext = `**#${index + 1}**`;
+                    break;
+            }
+            return `${ranktext} <@${entry.id}> (${displayName}) — ${entry.thanks} ${thanksLabel}`;
         });
 
         const content = [
