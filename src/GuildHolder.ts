@@ -714,12 +714,12 @@ export class GuildHolder {
         const now = Date.now();
         const minTime = 24 * 60 * 60 * 1000; // 24 hours
         if (userData.thankedBuffer.some(thank => thank.thankedBy === thanksSenderID && now - thank.timestamp < minTime)) {
-            const embed = new EmbedBuilder()
-                .setColor(0x00FF00) // Green color for thank you message
-                .setTitle(`Point Already Given!`)
-                .setDescription(`You've already thanked <@${thanksReceiverID}> in the last 24 hours. Thank you anyway for being great!`)
-                .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
-            await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
+            // const embed = new EmbedBuilder()
+            //     .setColor(0x00FF00) // Green color for thank you message
+            //     .setTitle(`Point Already Given!`)
+            //     .setDescription(`You've already thanked <@${thanksReceiverID}> in the last 24 hours. Thank you anyway for being great!`)
+            //     .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
+            // await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
 
             return; // Already thanked in the last 24 hours
         }
