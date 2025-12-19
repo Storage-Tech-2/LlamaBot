@@ -922,12 +922,22 @@ export class RepositoryManager {
 
         // Next, create the post
         const message = PostEmbed.createInitialMessage(this.guildHolder, newEntryData, entryPathPart);
-        const messageChunks = splitIntoChunks(message, 2000);
+        const messageChunks = splitIntoChunks(message, 2000).map((m) => {
+            return {
+                content: m,
+                showEmbed: false
+            }
+        });
 
         const hasAttachments = newEntryData.attachments.length > 0;
         if (hasAttachments) {
             const attachmentMessageChunks = splitIntoChunks(await PostEmbed.createAttachmentMessage(this.guildHolder, newEntryData, branchName, entryPathPart, uploadMessage), 2000);
-            messageChunks.push(...attachmentMessageChunks);
+            attachmentMessageChunks.forEach(c =>{
+                messageChunks.push({
+                    content: c,
+                    showEmbed: true
+                })
+            })
         }
 
         let wasThreadCreated = false;
@@ -1020,8 +1030,8 @@ export class RepositoryManager {
         // Update the initial message with the first chunk
         if (messageChunks.length > 0) {
             await initialMessage.edit({
-                content: messageChunks[0],
-                flags: [MessageFlags.SuppressEmbeds]
+                content: messageChunks[0].content,
+                flags: messageChunks[0].showEmbed  ? [] : [MessageFlags.SuppressEmbeds]
             });
         }
 
@@ -1033,8 +1043,8 @@ export class RepositoryManager {
                 throw new Error(`Message with ID ${messageId} not found in thread ${thread.id}`);
             }
             await message.edit({
-                content: messageChunks[i],
-                flags: [MessageFlags.SuppressEmbeds]
+                content: messageChunks[i].content,
+                flags: messageChunks[i].showEmbed  ? [] : [MessageFlags.SuppressEmbeds]
             });
         }
 
