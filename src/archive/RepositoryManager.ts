@@ -993,7 +993,7 @@ export class RepositoryManager {
         }
 
         // Detect if thread needs to be refreshed
-        const continuingMessageIds = newEntryData.post.continuingMessageIds || [];
+        let continuingMessageIds = newEntryData.post.continuingMessageIds || [];
         const shouldRefreshThread = (messageChunks.length > 1 + continuingMessageIds.length) && comments && comments.length > 0;
         if (shouldRefreshThread) {
             // Delete all previous messages in the thread that are not part of the continuing messages
@@ -1010,7 +1010,7 @@ export class RepositoryManager {
                     break; // No more messages to delete
                 }
             }
-            newEntryData.post.continuingMessageIds = []; // Reset continuing message IDs to force re-creation
+            continuingMessageIds = []; // Reset continuing message IDs to force re-creation
         }
 
         // Delete excess messages if they exist
@@ -1035,7 +1035,7 @@ export class RepositoryManager {
                 content: 'Pending...',
                 flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications]
             });
-            newEntryData.post.continuingMessageIds.push(message.id);
+            continuingMessageIds.push(message.id);
         }
 
         // Update the initial message with the first chunk
@@ -1048,7 +1048,7 @@ export class RepositoryManager {
 
         // If there are more chunks, send them as separate messages
         for (let i = 1; i < messageChunks.length; i++) {
-            const messageId = newEntryData.post.continuingMessageIds[i - 1];
+            const messageId = continuingMessageIds[i - 1];
             const message = await thread.messages.fetch(messageId).catch(() => null);
             if (!message) {
                 throw new Error(`Message with ID ${messageId} not found in thread ${thread.id}`);
@@ -1059,6 +1059,8 @@ export class RepositoryManager {
                 flags: messageChunks[i].showEmbed ? [] : [MessageFlags.SuppressEmbeds]
             });
         }
+
+        newEntryData.post.continuingMessageIds = continuingMessageIds;
 
         if (wasThreadCreated || shouldRefreshThread) { // check if there are comments to post
             if (comments.length > 0 && thread.parent) {
