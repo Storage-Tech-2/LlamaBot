@@ -1001,7 +1001,7 @@ export class RepositoryManager {
                 const messages = await thread.messages.fetch({ limit: 100 });
                 let deletedCount = 0;
                 for (const message of messages.values()) {
-                    if (message.id !== initialMessage.id && !continuingMessageIds.includes(message.id)) {
+                    if (message.id !== initialMessage.id) {
                         await message.delete();
                         deletedCount++;
                     }
