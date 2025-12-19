@@ -141,6 +141,54 @@ export class PostEmbed {
         return description;
     }
 
+    public static filterAttachmentsForViewer(attachments: Attachment[]): Attachment[] {
+        return attachments.filter((attachment) => {
+            if (attachment.contentType.startsWith("image") || attachment.contentType.startsWith("video")) {
+                return true;
+            }
+
+            if (attachment.contentType === 'youtube') {
+                return true;
+            }
+
+            if (attachment.contentType !== 'discord') {
+                return false;
+            }
+
+            const allowedExt = [
+                ".png",
+                ".jpg",
+                ".jpeg",
+                ".mp4",
+                ".mp3"
+            ]
+
+            if (allowedExt.some((o)=> attachment.name.endsWith(o))) {
+                return true;
+            }
+
+            return false;
+        })
+    }
+
+    public static async createAttachmentViewerMessage(viewerAttachments: Attachment[], uploadMessage: Message | null): Promise<string> {
+        const attachmentURLs = new Map();
+        if (uploadMessage) {
+            uploadMessage.attachments.forEach(attachment => {
+                attachmentURLs.set(attachment.name, attachment.url);
+            });
+        }
+
+        let description = ``;
+
+        viewerAttachments.forEach((attachment)=>{
+            description += attachmentURLs.get(attachment.name) || attachment.url + '\n';
+        });
+
+        return description;
+    }
+
+
     public static createInitialMessage(guildHolder: GuildHolder, entryData: ArchiveEntryData, entryPathPart: string): string {
         let content = [];
 

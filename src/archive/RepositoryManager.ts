@@ -935,7 +935,7 @@ export class RepositoryManager {
             attachmentMessageChunks.forEach(c =>{
                 messageChunks.push({
                     content: c,
-                    showEmbed: true
+                    showEmbed: false
                 })
             })
         }
