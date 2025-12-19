@@ -17,7 +17,7 @@ import { ArchiveComment } from "./ArchiveComments.js";
 import { Author, AuthorType } from "../submissions/Author.js";
 import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
 import { makeEntryReadMe } from "./ReadMeMaker.js";
-import { analyzeAttachments, getAttachmentsFromMessage, getAttachmentsFromText, getFileKey, processAttachments } from "../utils/AttachmentUtils.js";
+import { analyzeAttachments, filterAttachmentsForViewer, getAttachmentsFromMessage, getAttachmentsFromText, getFileKey, processAttachments } from "../utils/AttachmentUtils.js";
 export class RepositoryManager {
     private folderPath: string;
     private git?: SimpleGit;
@@ -932,12 +932,23 @@ export class RepositoryManager {
         const hasAttachments = newEntryData.attachments.length > 0;
         if (hasAttachments) {
             const attachmentMessageChunks = splitIntoChunks(await PostEmbed.createAttachmentMessage(this.guildHolder, newEntryData, branchName, entryPathPart, uploadMessage), 2000);
-            attachmentMessageChunks.forEach(c =>{
+            attachmentMessageChunks.forEach(c => {
                 messageChunks.push({
                     content: c,
                     showEmbed: false
                 })
             })
+
+            const filtered = filterAttachmentsForViewer(newEntryData.attachments);
+            if (filtered.length > 0) {
+                const viewerChunks = splitIntoChunks(PostEmbed.createAttachmentViewerMessage(filtered, uploadMessage), 2000);
+                viewerChunks.forEach(c => {
+                    messageChunks.push({
+                        content: c,
+                        showEmbed: true
+                    })
+                })
+            }
         }
 
         let wasThreadCreated = false;
@@ -1031,7 +1042,7 @@ export class RepositoryManager {
         if (messageChunks.length > 0) {
             await initialMessage.edit({
                 content: messageChunks[0].content,
-                flags: messageChunks[0].showEmbed  ? [] : [MessageFlags.SuppressEmbeds]
+                flags: messageChunks[0].showEmbed ? [] : [MessageFlags.SuppressEmbeds]
             });
         }
 
@@ -1044,7 +1055,7 @@ export class RepositoryManager {
             }
             await message.edit({
                 content: messageChunks[i].content,
-                flags: messageChunks[i].showEmbed  ? [] : [MessageFlags.SuppressEmbeds]
+                flags: messageChunks[i].showEmbed ? [] : [MessageFlags.SuppressEmbeds]
             });
         }
 

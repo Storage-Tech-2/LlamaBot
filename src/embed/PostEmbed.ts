@@ -141,37 +141,7 @@ export class PostEmbed {
         return description;
     }
 
-    public static filterAttachmentsForViewer(attachments: Attachment[]): Attachment[] {
-        return attachments.filter((attachment) => {
-            if (attachment.contentType.startsWith("image") || attachment.contentType.startsWith("video")) {
-                return true;
-            }
-
-            if (attachment.contentType === 'youtube') {
-                return true;
-            }
-
-            if (attachment.contentType !== 'discord') {
-                return false;
-            }
-
-            const allowedExt = [
-                ".png",
-                ".jpg",
-                ".jpeg",
-                ".mp4",
-                ".mp3"
-            ]
-
-            if (allowedExt.some((o)=> attachment.name.endsWith(o))) {
-                return true;
-            }
-
-            return false;
-        })
-    }
-
-    public static async createAttachmentViewerMessage(viewerAttachments: Attachment[], uploadMessage: Message | null): Promise<string> {
+    public static createAttachmentViewerMessage(viewerAttachments: Attachment[], uploadMessage: Message | null): string {
         const attachmentURLs = new Map();
         if (uploadMessage) {
             uploadMessage.attachments.forEach(attachment => {

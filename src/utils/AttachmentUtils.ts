@@ -280,6 +280,36 @@ async function processLitematic(attachment: Attachment, attachmentPath: string, 
     }
 }
 
+export function filterAttachmentsForViewer(attachments: Attachment[]): Attachment[] {
+    return attachments.filter((attachment) => {
+        if (attachment.contentType.startsWith("image") || attachment.contentType.startsWith("video")) {
+            return true;
+        }
+
+        if (attachment.contentType === 'youtube') {
+            return true;
+        }
+
+        if (attachment.contentType !== 'discord') {
+            return false;
+        }
+
+        const allowedExt = [
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".mp4",
+            ".mp3"
+        ]
+
+        if (allowedExt.some((o) => attachment.name.endsWith(o))) {
+            return true;
+        }
+
+        return false;
+    })
+}
+
 
 
 async function processWDLs(attachment: Attachment, attachmentPath: string): Promise<void> {
@@ -367,7 +397,7 @@ export function getAttachmentsFromText(text: string, attachments: Attachment[] =
                 const urlCleaned = new URL(url);
                 // remove the si parameter if exists for anti-tracking
                 urlCleaned.searchParams.delete('si');
-                
+
                 attachments.push({
                     id: videoId,
                     name: `YouTube Video ${videoId}`,
