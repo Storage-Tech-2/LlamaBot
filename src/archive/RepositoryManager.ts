@@ -1053,7 +1053,6 @@ export class RepositoryManager {
             if (!message) {
                 throw new Error(`Message with ID ${messageId} not found in thread ${thread.id}`);
             }
-            console.log(message)
             await message.edit({
                 content: messageChunks[i].content,
                 flags: messageChunks[i].showEmbed ? [] : [MessageFlags.SuppressEmbeds]
