@@ -197,8 +197,7 @@ export function markdownMatchSchema(markdown: string, schema: any): SubmissionRe
         const propKey = section.key;
         const prop: {description: string, type: string} | null = Object.hasOwn(schemaProps, propKey) ? schemaProps[propKey] : null;
         const listTokens = section.tokens.filter((t) => t.type === "list");
-        const shouldBeList = (prop && prop.type === "array") || listTokens.length === 1;
-           
+        const shouldBeList = (prop && prop.type === "array");           
         if (!shouldBeList) {
             // If the property is a string, check if the first token is a paragraph
             const raw = section.tokens.map((t) => t.raw).join("").trim();
