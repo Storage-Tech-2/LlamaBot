@@ -622,6 +622,29 @@ export class Mwa implements Command {
                 id: null
             });
 
+            const dictionaryChannelId = guildHolder.getConfigManager().getConfig(GuildConfigs.DICTIONARY_CHANNEL_ID);
+            if (dictionaryChannelId) {
+                const dictionaryChannel = await guildHolder.getGuild().channels.fetch(dictionaryChannelId).catch(() => null);
+                if (dictionaryChannel && dictionaryChannel.type === ChannelType.GuildForum) {
+                    const dictionaryStatusTags: GuildForumTag[] = [
+                        { name: 'Pending', emoji: { name: '🕒' } },
+                        { name: 'Approved', emoji: { name: '✅' }, moderated: true },
+                        { name: 'Rejected', emoji: { name: '🚫' } },
+                    ];
+
+                    const existingDictionaryTags = dictionaryChannel.availableTags.filter(tag => {
+                        return !dictionaryStatusTags.some(t => t.name === tag.name);
+                    });
+
+                    const mergedDictionaryTags = dictionaryStatusTags.map(t => {
+                        const existing = dictionaryChannel.availableTags.find(tag => tag.name === t.name);
+                        return existing || t;
+                    }).concat(existingDictionaryTags);
+
+                    await dictionaryChannel.setAvailableTags(mergedDictionaryTags);
+                }
+            }
+
             const currentCategories = guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
 
             const allchannels = await guildHolder.getGuild().channels.fetch()

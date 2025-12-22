@@ -19,6 +19,7 @@ import { generateText, JSONSchema7, ModelMessage } from "ai";
 import { UserSubscriptionManager } from "./config/UserSubscriptionManager.js";
 import { ChannelSubscriptionManager } from "./config/ChannelSubscriptionManager.js";
 import { AntiNukeManager } from "./support/AntiNukeManager.js";
+import { DictionaryManager } from "./dictionary/DictionaryManager.js";
 /**
  * GuildHolder is a class that manages guild-related data.
  */
@@ -42,6 +43,7 @@ export class GuildHolder {
      * The submissions for this guild.
      */
     private submissions: SubmissionsManager;
+    private dictionaryManager: DictionaryManager;
 
     /**
      * User Subscription manager
@@ -75,10 +77,14 @@ export class GuildHolder {
         this.antiNukeManager = new AntiNukeManager(this);
         this.config = new ConfigManager(Path.join(this.getGuildFolder(), 'config.json'));
         this.submissions = new SubmissionsManager(this, Path.join(this.getGuildFolder(), 'submissions'));
+        this.dictionaryManager = new DictionaryManager(this, Path.join(this.getGuildFolder(), 'dictionary'));
         this.repositoryManager = new RepositoryManager(this, Path.join(this.getGuildFolder(), 'archive'));
         this.userManager = new UserManager(Path.join(this.getGuildFolder(), 'users'));
         this.userSubscriptionManager = new UserSubscriptionManager(Path.join(this.getGuildFolder(), 'subscriptions.json'));
         this.channelSubscriptionManager = new ChannelSubscriptionManager(Path.join(this.getGuildFolder(), 'channel_subscriptions.json'));
+        this.dictionaryManager.init().catch(e => {
+            console.error('Error initializing dictionary manager:', e);
+        });
         this.config.loadConfig().then(async () => {
             // Set guild name and ID in the config
             this.config.setConfig(GuildConfigs.GUILD_NAME, guild.name);
@@ -192,6 +198,14 @@ export class GuildHolder {
 
                 await this.handleThanks(message).catch(e => {
                     console.error('Error handling thanks message:', e);
+                });
+                return;
+            }
+        } else if (message.channel.isThread()) {
+            const dictionaryChannelId = this.getConfigManager().getConfig(GuildConfigs.DICTIONARY_CHANNEL_ID);
+            if (dictionaryChannelId && message.channel.parentId === dictionaryChannelId) {
+                await this.dictionaryManager.handleDictionaryMessage(message).catch(e => {
+                    console.error('Error handling dictionary message:', e);
                 });
                 return;
             }
@@ -618,6 +632,13 @@ export class GuildHolder {
                 console.error('Error handling submission thread deletion:', e);
             }
         }
+
+        const dictionaryChannelId = this.getConfigManager().getConfig(GuildConfigs.DICTIONARY_CHANNEL_ID);
+        if (dictionaryChannelId && thread.parentId === dictionaryChannelId) {
+            await this.dictionaryManager.deleteEntry(thread.id).catch(e => {
+                console.error('Error handling dictionary thread deletion:', e);
+            });
+        }
     }
 
     public async handleThreadUpdate(oldThread: AnyThreadChannel, newThread: AnyThreadChannel) {
@@ -992,6 +1013,10 @@ export class GuildHolder {
 
     public getSubmissionsManager(): SubmissionsManager {
         return this.submissions;
+    }
+
+    public getDictionaryManager(): DictionaryManager {
+        return this.dictionaryManager;
     }
 
     public getRepositoryManager(): RepositoryManager {

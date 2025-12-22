@@ -12,6 +12,7 @@ import { MoveConvoCommand } from "./MoveConvoCommand.js";
 import { MoveConvoEndContextCommand } from "./MoveConvoEndContextCommand.js";
 import { MoveConvoStartContextCommand } from "./MoveConvoStartContextCommand.js";
 import { Mwa } from "./MwaCommand.js";
+import { DictionaryEditCommand } from "./DictionaryEditCommand.js";
 import { SubscribeCommand } from "./SubscribeCommand.js";
 import { ToggleHelper } from "./ToggleHelper.js";
 import { UnsubscribeCommand } from "./UnsubscribeCommand.js";
@@ -35,7 +36,8 @@ export function getCommands() {
         new KickRoleCommand(),
         new SubscribeCommand(),
         new UnsubscribeCommand(),
-        new TopHelpersCommand()
+        new TopHelpersCommand(),
+        new DictionaryEditCommand()
     ];
     return Commands;
 }
