@@ -29,19 +29,22 @@ export function splitMarkdownByHeadings(markdown: string): SchemaSection[] {
                 splitTokens.push(currentSection);
             }
             // Start a new section
-            let key = token.text.toLowerCase().trim();
+            let text = token.text.trim();
             let isOptional = false;
-            if (key.includes("(optional)")) {
+            if (text.toLowerCase().includes("(optional)")) {
                 isOptional = true;
-                key = key.replace("(optional)", "").trim();
+                text = text.replace(/\(optional\)/i, "").trim();
             }
 
+            let key = text.toLowerCase().replaceAll(/\s+/g, "-");
+
+
             currentSection = {
-                key: key.replaceAll(/[^a-z0-9]+/g, "_"),
+                key,
                 isOptional: isOptional,
                 tokens: [],
                 depth: token.depth,
-                headerText: token.text,
+                headerText: text,
             };
         } else {
             // Add the token to the current section
@@ -291,7 +294,7 @@ export function markdownMatchSchema(markdown: string, schema: JSONSchema7, schem
                 throw new Error(`Section "${propKey}" should contain at least ${prop.minItems} items, but found ${filteredItems.length}.`);
             }
 
-            if (filteredItems.length === 0 ) {
+            if (filteredItems.length === 0) {
                 // If the section is optional and the list matches the description, skip it
                 continue;
             }
