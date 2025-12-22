@@ -1,6 +1,6 @@
 import { Attachment } from "../submissions/Attachment.js";
-import { postToMarkdown } from "../utils/MarkdownUtils.js";
-import { escapeDiscordString, escapeString, getAuthorsString } from "../utils/Util.js";
+import { postToMarkdown, StyleInfo } from "../utils/MarkdownUtils.js";
+import { escapeDiscordString, escapeString } from "../utils/Util.js";
 import { ArchiveComment } from "./ArchiveComments.js";
 import { ArchiveEntryData } from "./ArchiveEntry.js";
 
@@ -28,7 +28,8 @@ function formatAttachment(attachment: Attachment): string {
 
 export function makeEntryReadMe(
     entryData: ArchiveEntryData,
-    comments: ArchiveComment[]
+    comments: ArchiveComment[],
+    schemaStyles: Record<string, StyleInfo>
 ): string {
     let text = [];
     text.push(`# ${entryData.name}\n`);
@@ -48,7 +49,7 @@ export function makeEntryReadMe(
         text.push(`**Original post:** [View on Discord](${entryData.post.threadURL})\n\n`);
     }
 
-    text.push(`${postToMarkdown(entryData.records)}\n`);
+    text.push(`${postToMarkdown(entryData.records, entryData.styles || {}, schemaStyles)}\n`);
 
 
     const authorsWithReasons = entryData.authors.filter(author => author.reason);

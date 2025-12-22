@@ -1,7 +1,7 @@
 import { ChatInputCommandInteraction, EmbedBuilder, InteractionContextType, MessageFlags, SlashCommandBuilder } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
-import { replyEphemeral, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
+import { replyEphemeral, splitIntoChunks } from "../utils/Util.js";
 
 export class TopHelpersCommand implements Command {
     getID(): string {

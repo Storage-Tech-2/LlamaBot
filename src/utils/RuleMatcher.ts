@@ -4,7 +4,6 @@ import { SubmissionConfigs } from '../submissions/SubmissionConfigs.js';
 import { splitIntoChunks } from './Util.js';
 import { Channel, EmbedBuilder, Snowflake } from 'discord.js';
 import { ChannelSubscription, ChannelSubscriptions } from '../config/ChannelSubscriptionManager.js';
-import { warn } from 'console';
 
 export class RuleMatcher {
 

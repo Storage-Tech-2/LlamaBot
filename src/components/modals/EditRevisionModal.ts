@@ -40,7 +40,7 @@ export class EditRevisionModal implements Modal {
         }
 
         if (preset.length === 0) {
-            preset = schemaToMarkdownTemplate(guildHolder.getSchema(), revision.records, true);
+            preset = schemaToMarkdownTemplate(guildHolder.getSchema(), guildHolder.getSchemaStyles(), revision.records, revision.styles, true);
         }
 
         const split = splitIntoChunks(preset, 4000);
@@ -87,10 +87,10 @@ export class EditRevisionModal implements Modal {
         const input2 = interaction.fields.getTextInputValue('input2');
         const input = input1 + (input2 ? '\n' + input2 : ''); 
 
-        let records;
+        let result;
 
         try {
-            records = markdownMatchSchema(input, guildHolder.getSchema());
+            result = markdownMatchSchema(input, guildHolder.getSchema(), guildHolder.getSchemaStyles());
         } catch (error: any) {
 
             // store
@@ -111,7 +111,8 @@ export class EditRevisionModal implements Modal {
             type: RevisionType.Manual,
             parentRevision: revision.id,
             timestamp: Date.now(),
-            records
+            records: result.records,
+            styles: result.styles,
         }
 
         const isCurrent = submission.getRevisionsManager().isRevisionCurrent(revision.id);

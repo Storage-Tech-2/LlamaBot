@@ -20,7 +20,7 @@ export class SetTemplateModal implements Modal {
             .setCustomId('input')
             .setLabel('Markdown Template:')
             .setStyle(TextInputStyle.Paragraph)
-            .setValue(schemaToMarkdownTemplate(guildHolder.getSchema(), undefined, true))
+            .setValue(schemaToMarkdownTemplate(guildHolder.getSchema(), guildHolder.getSchemaStyles(), undefined, undefined, true))
             .setRequired(true)
 
         const row1 = new ActionRowBuilder().addComponents(descriptionInput);
@@ -36,16 +36,19 @@ export class SetTemplateModal implements Modal {
         }
 
         const templateInput = interaction.fields.getTextInputValue('input');
-        let schema;
+        let schema, style;
 
         try {
-            schema = markdownToSchema(templateInput);
+            const result = markdownToSchema(templateInput);
+            schema = result.schema;
+            style = result.style;
         } catch (error: any) {
             replyEphemeral(interaction, `Invalid template: ${error.message}`);
             return;
         }
 
         guildHolder.getConfigManager().setConfig(GuildConfigs.POST_SCHEMA, schema);
+        guildHolder.getConfigManager().setConfig(GuildConfigs.POST_STYLE, style);
 
         await interaction.reply({
             content: 'Post template has been set successfully!',

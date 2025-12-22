@@ -622,6 +622,7 @@ export class RepositoryManager {
                 images: submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) || [],
                 attachments: submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) || [],
                 records: revision.records,
+                styles: revision.styles,
                 timestamp: Date.now(),
                 post: undefined
             });
@@ -1997,7 +1998,7 @@ export class RepositoryManager {
                 console.error("Error reading comments file:", e);
             }
         }
-        const readmeContent = makeEntryReadMe(entryData, comments);
+        const readmeContent = makeEntryReadMe(entryData, comments, this.guildHolder.getSchemaStyles());
 
         // Write the README file
         await fs.writeFile(readmePath, readmeContent, 'utf-8');

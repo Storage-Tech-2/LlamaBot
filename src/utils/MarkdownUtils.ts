@@ -1,39 +1,54 @@
+import { JSONSchema7, JSONSchema7Definition } from "json-schema";
 import { marked, Token } from "marked";
 
-export function splitMarkdownByHeadings(markdown: string): { key: string; isOptional: boolean, tokens: Token[] }[] {
+export type SchemaSection = {
+    key: string;
+    isOptional: boolean;
+    tokens: Token[];
+    depth: number;
+    headerText: string;
+}
+
+export function splitMarkdownByHeadings(markdown: string): SchemaSection[] {
     const tokens = marked.lexer(markdown);
 
     // First, split by headings
     let splitTokens = [];
-    let currentSection: { key: string; isOptional: boolean, tokens: Token[] } = {
+    let currentSection: SchemaSection = {
         key: "description",
         isOptional: false,
         tokens: [],
+        depth: 0,
+        headerText: "",
     }
 
     for (const token of tokens) {
-        if (token.type === "heading" && token.depth <= 2) {
+        if (token.type === "heading") {
             // If we have a current section, push it to the splitTokens
             if (currentSection.tokens.length > 0) {
                 splitTokens.push(currentSection);
             }
             // Start a new section
-            let key = token.text.toLowerCase().trim();
+            let key = token.text.toLowerCase().replaceAll(/[^a-z0-9]+/g, "_").trim();
             let isOptional = false;
             if (key.includes("(optional)")) {
                 isOptional = true;
                 key = key.replace("(optional)", "").trim();
             }
+
             currentSection = {
                 key: key,
                 isOptional: isOptional,
                 tokens: [],
+                depth: token.depth,
+                headerText: token.text,
             };
         } else {
             // Add the token to the current section
             currentSection.tokens.push(token);
         }
     }
+
     if (currentSection.tokens.length > 0) {
         splitTokens.push(currentSection);
     }
@@ -55,18 +70,31 @@ export function splitMarkdownByHeadings(markdown: string): { key: string; isOpti
 }
 
 
-export function markdownToSchema(markdown: string): any {
-    const schema: any = {
-        type: "submission",
-        properties: {},
-        required: [],
+export type StyleInfo = {
+    depth?: number;
+    headerText?: string;
+    isOrdered?: boolean;
+}
+
+export function markdownToSchema(markdown: string): {
+    schema: JSONSchema7,
+    style: Record<string, StyleInfo>,
+} {
+    const schema: JSONSchema7 = {
+        title: "Submission",
+        type: "object",
     };
+    const style: Record<string, StyleInfo> = {};
 
     // Split the markdown by headings
     const splitTokens = splitMarkdownByHeadings(markdown);
 
     // Now process each section
     for (const section of splitTokens) {
+        if (!schema.properties) {
+            schema.properties = {};
+        }
+
         let key = section.key;
 
         // Process the tokens in the section
@@ -77,6 +105,12 @@ export function markdownToSchema(markdown: string): any {
                 type: "string",
                 description: firstToken.text.trim(),
             };
+
+            style[key] = {
+                depth: section.depth,
+                headerText: section.headerText,
+            };
+
         } else if (firstToken.type === "list") {
             // If the first token is a list, treat it as an array of strings
             const items = firstToken.items.map((item: any) => item.text.trim());
@@ -85,17 +119,36 @@ export function markdownToSchema(markdown: string): any {
                 items: { type: "string" },
                 description: items.join(", "),
             };
+
+            style[key] = {
+                depth: section.depth,
+                headerText: section.headerText,
+                isOrdered: firstToken.ordered,
+            };
+
+            if (!section.isOptional) {
+                schema.properties[key].minItems = 1;
+            }
         }
         else {
             continue; // Skip unsupported token types
         }
+
         // Add to required if not optional
         if (!section.isOptional) {
+            if (!schema.required) {
+                schema.required = [];
+            }
+
             schema.required.push(key);
         }
     }
-    return schema;
+    return {
+        schema,
+        style,
+    }
 }
+
 
 export type NestedListItem = { title: string; isOrdered: boolean, items: (string | NestedListItem)[] };
 
@@ -161,10 +214,11 @@ export function countCharactersInRecord(record: SubmissionRecord): number {
 }
 
 
-export function markdownMatchSchema(markdown: string, schema: any): SubmissionRecords {
+export function markdownMatchSchema(markdown: string, schema: JSONSchema7, schemaStyles: Record<string, StyleInfo>): { records: SubmissionRecords, styles: Record<string, StyleInfo> } {
     const requiredKeys = schema.required || [];
     const schemaProps = schema.properties || {};
     const resultObject: Record<string, string | (string | NestedListItem)[]> = {};
+    const newStyles: Record<string, StyleInfo> = {};
 
     const splitTokens = splitMarkdownByHeadings(markdown);
     // Check if all required keys are present in the markdown
@@ -192,12 +246,22 @@ export function markdownMatchSchema(markdown: string, schema: any): SubmissionRe
         }
     }
 
-    
+
     for (const section of splitTokens) {
         const propKey = section.key;
-        const prop: {description: string, type: string} | null = Object.hasOwn(schemaProps, propKey) ? schemaProps[propKey] : null;
+        const prop: JSONSchema7Definition | null = Object.hasOwn(schemaProps, propKey) ? schemaProps[propKey] : null;
+        if (typeof prop === "boolean") continue;
+
         const listTokens = section.tokens.filter((t) => t.type === "list");
-        const shouldBeList = (prop && prop.type === "array");           
+        const shouldBeList = (prop && prop.type === "array");
+        const newStyle: StyleInfo = {};
+        if (section.depth !== (schemaStyles[propKey]?.depth ?? undefined)) {
+            newStyle.depth = section.depth;
+        }
+        if (section.headerText !== (schemaStyles[propKey]?.headerText ?? undefined)) {
+            newStyle.headerText = section.headerText;
+        }
+
         if (!shouldBeList) {
             // If the property is a string, check if the first token is a paragraph
             const raw = section.tokens.map((t) => t.raw).join("").trim();
@@ -226,9 +290,19 @@ export function markdownMatchSchema(markdown: string, schema: any): SubmissionRe
             // Convert the list token to a nested list structure
             const nestedList = tokensToNestedListRecursive(listToken, propKey);
             resultObject[propKey] = nestedList.items;
+            if (listToken.ordered !== (schemaStyles[propKey]?.isOrdered ?? undefined)) {
+                newStyle.isOrdered = listToken.ordered;
+            }
+        }
+
+        if (Object.keys(newStyle).length > 0) {
+            newStyles[propKey] = newStyle;
         }
     }
-    return resultObject;
+    return {
+        records: resultObject,
+        styles: newStyles,
+    };
 }
 
 export function nestedListToMarkdown(nestedList: NestedListItem, indentLevel: number = 0): string {
@@ -261,16 +335,16 @@ export function nestedListToMarkdown(nestedList: NestedListItem, indentLevel: nu
 }
 
 
-export function submissionRecordToMarkdown(value: SubmissionRecord): string {
+export function submissionRecordToMarkdown(value: SubmissionRecord, style?: StyleInfo): string {
     let markdown = "";
     if (Array.isArray(value)) {
         if (value.length === 0) {
         } else {
-            markdown += value.map(item => {
+            markdown += value.map((item, i) => {
                 if (typeof item === "string") {
-                    return `- ${item}`;
+                    return style?.isOrdered ? `${i + 1}. ${item}` : `- ${item}`;
                 } else if (typeof item === "object") {
-                    return `- ${item.title}\n${nestedListToMarkdown(item, 1)}`;
+                    return style?.isOrdered ? `${i + 1}. ${item.title}\n${nestedListToMarkdown(item, 1)}` : `- ${item.title}\n${nestedListToMarkdown(item, 1)}`;
                 }
                 return "";
             }).join("\n");
@@ -286,16 +360,22 @@ export function capitalizeFirstLetter(str: string): string {
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-export function postToMarkdown(record: SubmissionRecords): string {
+export function postToMarkdown(record: SubmissionRecords, recordStyles?: Record<string, StyleInfo>, schemaStyles?: Record<string, StyleInfo>): string {
     let markdown = "";
 
     let isFirst = true;
     for (const key in record) {
         const recordValue = record[key];
-        const text = submissionRecordToMarkdown(recordValue);
+        const styles = {
+            depth: recordStyles?.[key]?.depth ?? schemaStyles?.[key]?.depth ?? 2,
+            headerText: recordStyles?.[key]?.headerText ?? schemaStyles?.[key]?.headerText ?? capitalizeFirstLetter(key),
+            isOrdered: recordStyles?.[key]?.isOrdered,
+        }
+
+        const text = submissionRecordToMarkdown(recordValue, styles);
         if (text.length > 0) {
             if (key !== "description" || !isFirst) {
-                markdown += `\n## ${capitalizeFirstLetter(key)}\n`;
+                markdown += `\n${'#'.repeat(styles.depth)} ${styles.headerText}\n`;
             }
             isFirst = false;
         }
@@ -307,7 +387,7 @@ export function postToMarkdown(record: SubmissionRecords): string {
 
 
 
-export function schemaToMarkdownTemplate(schema: any, record?: SubmissionRecords, addExtraNewline: boolean = false): string {
+export function schemaToMarkdownTemplate(schema: JSONSchema7, schemaStyles: Record<string, StyleInfo>, record?: SubmissionRecords, recordStyles?: Record<string, StyleInfo>, addExtraNewline: boolean = false): string {
     let markdown = "";
     const properties = schema.properties || {};
 
@@ -346,10 +426,20 @@ export function schemaToMarkdownTemplate(schema: any, record?: SubmissionRecords
         const isRequired = requiredKeys.includes(key);
 
         const schemaProp = Object.hasOwn(properties, key) ? properties[key] : null;
+        if (typeof schemaProp === "boolean") {
+            continue;
+        }
+
         const recordValue = (record && Object.hasOwn(record, key)) ? record[key] : null;
 
+        const style = {
+            depth: recordStyles?.[key]?.depth ?? schemaStyles[key]?.depth ?? 2,
+            headerText: recordStyles?.[key]?.headerText ?? schemaStyles[key]?.headerText ?? capitalizeFirstLetter(key),
+            isOrdered: recordStyles?.[key]?.isOrdered,
+        }
+
         if (key !== "description" || !isFirst) {
-            markdown += (addExtraNewline ? '\n' : '') + `\n## ${capitalizeFirstLetter(key)}${isRequired ? "" : " (Optional)"}\n`;
+            markdown += (addExtraNewline ? '\n' : '') + `\n## ${style.headerText}${isRequired ? "" : " (Optional)"}\n`;
         }
         isFirst = false;
 
@@ -358,7 +448,7 @@ export function schemaToMarkdownTemplate(schema: any, record?: SubmissionRecords
             if (schemaProp.type === "string") {
                 markdown += schemaProp.description;
             } else if (schemaProp.type === "array") {
-                markdown += `- ${schemaProp.description}`;
+                markdown += style.isOrdered ? `1. ${schemaProp.description}` : `- ${schemaProp.description}`;
             }
         }
 

@@ -41,7 +41,7 @@ export class TemplateEmbed {
 
         description += `**Authors:** <@${guildHolder.getBot().client.user?.id}>\n\n`
 
-        description += schemaToMarkdownTemplate(schema);
+        description += schemaToMarkdownTemplate(schema, guildHolder.getSchemaStyles());
 
         description += `\n## Acknowledgements\n`;
 

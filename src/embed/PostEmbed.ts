@@ -177,7 +177,7 @@ export class PostEmbed {
             content.push(`**Endorsed by:** ${getAuthorsString(entryData.endorsers)}\n`);
         }
 
-        content.push('\n' + postToMarkdown(entryData.records));
+        content.push('\n' + postToMarkdown(entryData.records, entryData.styles, guildHolder.getSchemaStyles()));
 
         const authorsWithReasons = entryData.authors.filter(author => author.reason);
         if (authorsWithReasons.length > 0) {

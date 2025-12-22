@@ -259,6 +259,7 @@ export class Submission {
                 parentRevision: null,
                 timestamp: Date.now(),
                 records: response.result,
+                styles: {}
             }
             return revision;
         } else {
@@ -280,7 +281,8 @@ export class Submission {
                 type: RevisionType.Initial,
                 parentRevision: null,
                 timestamp: Date.now(),
-                records: {}
+                records: {},
+                styles: {}
             }
             return revision;
         }
@@ -361,7 +363,6 @@ export class Submission {
 
         const authorsString = getAuthorsString(this.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || []);
         const recordref = this.getRevisionsManager().getCurrentRevision();
-        const record = recordref ? await this.getRevisionsManager().getRevisionById(recordref.id) : null;
         const tagString = (this.getConfigManager().getConfig(SubmissionConfigs.TAGS) || []).map((tag) => tag.name).join(', ');
         const textArr = [
             `**Authors:** ${authorsString}`,
@@ -374,7 +375,7 @@ export class Submission {
         // }
 
         const text = textArr.join('\n');
-        for (const [logChannelId, data] of Object.entries(matched)) {
+        for (const [logChannelId, _] of Object.entries(matched)) {
             const logChannel = await this.guildHolder.getGuild().channels.fetch(logChannelId).catch(() => null);
             const embed = new EmbedBuilder()
                 .setTitle(this.getConfigManager().getConfig(SubmissionConfigs.NAME) || 'Unnamed Submission')
@@ -618,6 +619,7 @@ export class Submission {
             parentRevision: revision.id,
             timestamp: Date.now(),
             records: response.result,
+            styles: {}
         }
 
         await message.reply({

@@ -1,6 +1,8 @@
 import { Snowflake } from "discord.js";
 import { Config } from "./ConfigManager.js";
 import { Author } from "../submissions/Author.js";
+import { JSONSchema7 } from "json-schema";
+import { StyleInfo } from "../utils/MarkdownUtils.js";
 
 export const GuildConfigs = {
     /**
@@ -67,7 +69,7 @@ export const GuildConfigs = {
     /**
      * Schema for the posts
      */
-    POST_SCHEMA: new Config<any>("postSchema", {
+    POST_SCHEMA: new Config<JSONSchema7>("postSchema", {
         "title": "Submission",
         "type": "object",
         "properties": {
@@ -100,6 +102,8 @@ export const GuildConfigs = {
             "features"
         ]
     }),
+
+    POST_STYLE: new Config<Record<string, StyleInfo>>("postStyle", {}),
 
 
     /**

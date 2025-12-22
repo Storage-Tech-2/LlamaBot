@@ -5,7 +5,7 @@ import { Image } from "../submissions/Image.js";
 import { Tag } from "../submissions/Tag.js";
 import fs from "fs/promises";
 import Path from "path";
-import { SubmissionRecords } from "../utils/MarkdownUtils.js";
+import { StyleInfo, SubmissionRecords } from "../utils/MarkdownUtils.js";
 
 export type DiscordPostReference = {
     forumId: Snowflake;
@@ -27,6 +27,7 @@ export type ArchiveEntryData = {
     attachments: Attachment[];
 
     records: SubmissionRecords;
+    styles: Record<string, StyleInfo>;
 
     /// For routing
     post?: DiscordPostReference;

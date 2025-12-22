@@ -1,4 +1,4 @@
-import { ActionRowBuilder, AnyThreadChannel, AuditLogEvent, ChannelType, EmbedBuilder, ForumChannel, Guild, GuildAuditLogsEntry, GuildMember, Message, MessageFlags, Role, PartialGuildMember, Snowflake } from "discord.js";
+import { ActionRowBuilder, AnyThreadChannel, ChannelType, EmbedBuilder, ForumChannel, Guild, GuildAuditLogsEntry, GuildMember, Message, MessageFlags, Role, PartialGuildMember, Snowflake } from "discord.js";
 import { Bot } from "./Bot.js";
 import { ConfigManager } from "./config/ConfigManager.js";
 import Path from "path";
@@ -12,10 +12,10 @@ import { AttachmentsState, UserData } from "./support/UserData.js";
 import { SubmissionConfigs } from "./submissions/SubmissionConfigs.js";
 import { SubmissionStatus } from "./submissions/SubmissionStatus.js";
 import fs from "fs/promises";
-import { countCharactersInRecord } from "./utils/MarkdownUtils.js";
+import { countCharactersInRecord, StyleInfo } from "./utils/MarkdownUtils.js";
 import { Author, AuthorType } from "./submissions/Author.js";
 import { NotABotButton } from "./components/buttons/NotABotButton.js";
-import { generateText, ModelMessage } from "ai";
+import { generateText, JSONSchema7, ModelMessage } from "ai";
 import { UserSubscriptionManager } from "./config/UserSubscriptionManager.js";
 import { ChannelSubscriptionManager } from "./config/ChannelSubscriptionManager.js";
 import { AntiNukeManager } from "./support/AntiNukeManager.js";
@@ -1325,8 +1325,12 @@ export class GuildHolder {
         });
     }
 
-    public getSchema(): any {
+    public getSchema(): JSONSchema7 {
         return this.getConfigManager().getConfig(GuildConfigs.POST_SCHEMA);
+    }
+
+    public getSchemaStyles(): Record<string, StyleInfo> {
+        return this.getConfigManager().getConfig(GuildConfigs.POST_STYLE);
     }
 
     public getUserManager(): UserManager {
