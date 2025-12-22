@@ -455,7 +455,7 @@ export function schemaToMarkdownTemplate(schema: JSONSchema7, schemaStyles: Reco
         }
         isFirst = false;
 
-        let text = recordValue ? submissionRecordToMarkdown(recordValue) : "";
+        let text = recordValue ? submissionRecordToMarkdown(recordValue, style) : "";
         if (text.length === 0 && schemaProp) {
             if (schemaProp.type === "string") {
                 markdown += schemaProp.description;
