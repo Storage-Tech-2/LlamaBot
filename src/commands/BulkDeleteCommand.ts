@@ -109,6 +109,8 @@ export class BulkDeleteCommand implements Command {
                 }
             }
             lastId = fetched.last()?.id;
+
+            break; // limit to 100 for now, antinuke
         }
 
        

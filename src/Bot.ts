@@ -179,6 +179,57 @@ export class Bot {
             this.guilds.delete(guild.id)
         })
 
+
+        this.client.on(Events.GuildAuditLogEntryCreate, async (entry, guild) => {
+            const guildHolder = this.guilds.get(guild.id)
+            if (!guildHolder) return;
+            try {
+                await guildHolder.handleAuditLogEntry(entry)
+            } catch (error) {
+                console.error('Error handling audit log entry:', error)
+            }
+        });
+
+        this.client.on(Events.GuildRoleDelete, async (role) => {
+            const guildHolder = this.guilds.get(role.guild.id)
+            if (!guildHolder) return;
+            try {
+                await guildHolder.handleRoleDelete(role)
+            } catch (error) {
+                console.error('Error handling role delete:', error)
+            }
+        });
+
+        this.client.on(Events.GuildMemberAdd, async (member) => {
+            const guildHolder = this.guilds.get(member.guild.id)
+            if (!guildHolder) return;
+            try {
+                await guildHolder.handleMemberAdd(member)
+            } catch (error) {
+                console.error('Error handling member add:', error)
+            }
+        });
+
+        this.client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
+            const guildHolder = this.guilds.get(newMember.guild.id)
+            if (!guildHolder) return;
+            try {
+                await guildHolder.handleMemberUpdate(oldMember, newMember)
+            } catch (error) {
+                console.error('Error handling member update:', error)
+            }
+        });
+
+        this.client.on(Events.GuildMemberRemove, async (member) => {
+            const guildHolder = this.guilds.get(member.guild.id)
+            if (!guildHolder) return;
+            try {
+                await guildHolder.handleMemberRemove(member)
+            } catch (error) {
+                console.error('Error handling member remove:', error)
+            }
+        });
+        
         this.client.on(Events.InteractionCreate, async (interaction) => {
             if (!interaction.inGuild()) {
                 replyEphemeral(interaction, 'Cannot use outside of guild!')
@@ -251,7 +302,6 @@ export class Bot {
                     });
             }
 
-            if (message.author.bot) return
             if (!message.inGuild()) {
                 await this.handleAdminMessage(message)
                 return
@@ -277,7 +327,6 @@ export class Bot {
                     });
             }
 
-            if (newMessage.author.bot) return
             if (!oldMessage.inGuild() || !newMessage.inGuild()) return
 
             const guildHolder = this.guilds.get(newMessage.guildId)

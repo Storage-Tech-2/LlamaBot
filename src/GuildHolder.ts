@@ -1,4 +1,4 @@
-import { ActionRowBuilder, AnyThreadChannel, ChannelType, EmbedBuilder, ForumChannel, Guild, GuildMember, Message, MessageFlags, Snowflake } from "discord.js";
+import { ActionRowBuilder, AnyThreadChannel, AuditLogEvent, ChannelType, EmbedBuilder, ForumChannel, Guild, GuildAuditLogsEntry, GuildMember, Message, MessageFlags, Role, PartialGuildMember, Snowflake } from "discord.js";
 import { Bot } from "./Bot.js";
 import { ConfigManager } from "./config/ConfigManager.js";
 import Path from "path";
@@ -18,6 +18,7 @@ import { NotABotButton } from "./components/buttons/NotABotButton.js";
 import { generateText, ModelMessage } from "ai";
 import { UserSubscriptionManager } from "./config/UserSubscriptionManager.js";
 import { ChannelSubscriptionManager } from "./config/ChannelSubscriptionManager.js";
+import { AntiNukeManager } from "./support/AntiNukeManager.js";
 /**
  * GuildHolder is a class that manages guild-related data.
  */
@@ -61,6 +62,8 @@ export class GuildHolder {
     private lastDayLoop: number = 0;
     private ready: boolean = false;
 
+    private antiNukeManager: AntiNukeManager;
+
     /**
      * Creates a new GuildHolder instance.
      * @param bot The bot instance associated with this guild holder.
@@ -69,6 +72,7 @@ export class GuildHolder {
     constructor(bot: Bot, guild: Guild) {
         this.bot = bot;
         this.guild = guild;
+        this.antiNukeManager = new AntiNukeManager(this);
         this.config = new ConfigManager(Path.join(this.getGuildFolder(), 'config.json'));
         this.submissions = new SubmissionsManager(this, Path.join(this.getGuildFolder(), 'submissions'));
         this.repositoryManager = new RepositoryManager(this, Path.join(this.getGuildFolder(), 'archive'));
@@ -129,10 +133,34 @@ export class GuildHolder {
         this.cachedChannelIds = channels.map(channel => channel.id);
     }
 
+    handleAuditLogEntry(entry: GuildAuditLogsEntry) {
+        this.antiNukeManager.handleAuditLogEntry(entry).catch(e => console.error('Error handling audit log entry:', e));
+    }
+
+    handleRoleDelete(role: Role) {
+        this.antiNukeManager.handleRoleDelete(role).catch(e => console.error('Error handling role delete:', e));
+    }
+
+    handleMemberAdd(member: GuildMember) {
+        this.antiNukeManager.handleMemberAdd(member).catch(e => console.error('Error handling member add:', e));
+    }
+    
+    handleMemberUpdate(oldMember: GuildMember | PartialGuildMember, newMember: GuildMember) {
+        this.antiNukeManager.handleMemberUpdate(oldMember, newMember).catch(e => console.error('Error handling member update:', e));
+    }
+
+
+    handleMemberRemove(member: GuildMember | PartialGuildMember) {
+        this.antiNukeManager.handleMemberRemove(member).catch(e => console.error('Error handling member remove:', e));
+    }
+
     /**
      * Handles a message received in the guild.
      */
     public async handleMessage(message: Message) {
+
+
+        if (message.author.bot) return; // skip bot messages
 
         // const match = message.content.match(/\b(isn'?t |not |never )?unload (?:safe|proof)\??\b/i);
         // if (match) {
@@ -531,6 +559,10 @@ export class GuildHolder {
     }
 
     public async handleMessageUpdate(_oldMessage: Message, newMessage: Message) {
+        this.antiNukeManager.handleMessageUpdate(_oldMessage, newMessage).catch(e => console.error('Error handling message update:', e));
+
+        if (newMessage.author.bot) return
+
         // Handle message inside archived post
         if (newMessage.channel.isThread() && newMessage.channel.parentId && this.cachedChannelIds.includes(newMessage.channel.parentId)) {
             this.getRepositoryManager().handlePostOrUpdateMessage(newMessage).catch(e => {
@@ -544,6 +576,8 @@ export class GuildHolder {
      * Handles a message deletion in the guild.
      */
     public async handleMessageDelete(message: Message) {
+        this.antiNukeManager.handleMessageDelete(message).catch(e => console.error('Error handling message delete:', e));
+
         // Handle message inside archived post
         const channelId = message.channelId;
         const channel = message.channel || await this.guild.channels.fetch(channelId).catch(() => null);
@@ -559,6 +593,8 @@ export class GuildHolder {
      * Handles a thread deletion in the guild.
      */
     public async handleThreadDelete(thread: AnyThreadChannel) {
+        this.antiNukeManager.handleThreadDelete(thread).catch(e => console.error('Error handling thread delete:', e));
+
         // Handle message inside archived post
         if (thread.parentId && this.cachedChannelIds.includes(thread.parentId)) {
             this.getRepositoryManager().handlePostThreadDelete(thread).catch(e => {
@@ -585,6 +621,8 @@ export class GuildHolder {
     }
 
     public async handleThreadUpdate(oldThread: AnyThreadChannel, newThread: AnyThreadChannel) {
+        this.antiNukeManager.handleThreadUpdate(oldThread, newThread).catch(e => console.error('Error handling thread update:', e));
+        
         if (newThread.parentId && this.cachedChannelIds.includes(newThread.parentId)) {
             this.getRepositoryManager().handlePostThreadUpdate(oldThread, newThread).catch(e => {
                 console.error('Error handling post thread update:', e);
