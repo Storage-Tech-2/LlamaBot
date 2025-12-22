@@ -966,10 +966,14 @@ export class GuildHolder {
 
         const hasHelperRole = member.roles.cache.has(helperRoleId);
         if (shouldHaveHelperRole && !hasHelperRole) {
-            await member.roles.add(helperRole);
+            await member.roles.add(helperRole).catch(e => {
+                console.error(`[${guild.name}] Error adding helper role to user ${member.user.username}`);
+            });
         }
         else if (!shouldHaveHelperRole && hasHelperRole) {
-            await member.roles.remove(helperRole);
+            await member.roles.remove(helperRole).catch(e => {
+                console.error(`[${guild.name}] Error removing helper role from user ${member.user.username}`);
+            });
         }
 
     }
