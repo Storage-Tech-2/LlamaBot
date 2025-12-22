@@ -170,7 +170,12 @@ export class LLMQueue {
                 return await this.localModelProcess(request);
             }
 
-            return await this.paidModelProcess(request);
+            try {
+                return await this.paidModelProcess(request);
+            } catch (error) {
+                console.error('Error with paid LLM model, falling back to local model:', error);
+                return await this.localModelProcess(request);
+            }
         } catch (error) {
             console.error('Error fetching LLM response:', error)
             throw error
