@@ -125,4 +125,9 @@ export const GuildConfigs = {
      * Website URL
      */
     WEBSITE_URL: new Config<string>("websiteUrl", ""),
+
+    /**
+     * Dictionary channel ID
+     */
+    DICTIONARY_CHANNEL_ID: new Config<Snowflake>("dictionaryChannelId", ""),
 }

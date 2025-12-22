@@ -9,7 +9,6 @@ import { SubmissionTags } from "../submissions/SubmissionTags.js";
 import { SetEditorRolesMenu } from "../components/menus/SetEditorRolesMenu.js";
 import { SetHelperRoleMenu } from "../components/menus/SetHelperRoleMenu.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
-import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
 import { SetTemplateModal } from "../components/modals/SetTemplateModal.js";
 import { SetDesignerRoleMenu } from "../components/menus/SetDesignerRoleMenu.js";
 import { SetScriptModal } from "../components/modals/SetScriptModal.js";
@@ -142,6 +141,18 @@ export class Mwa implements Command {
                     .setName('settemplate')
                     .setDescription('Set the post template for the archive')
             )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('setdictionary')
+                    .setDescription('Set the dictionary forum channel')
+                    .addChannelOption(option =>
+                        option
+                            .setName('channel')
+                            .setDescription('Dictionary forum channel')
+                            .setRequired(true)
+                            .addChannelTypes(ChannelType.GuildForum)
+                    )
+            )
 
             .addSubcommand(subcommand =>
                 subcommand
@@ -174,16 +185,6 @@ export class Mwa implements Command {
                             .setName('silent')
                             .setDescription('Do not send a message to the submission channels')
                     )
-            )
-            .addSubcommand(subcommand =>
-                subcommand
-                    .setName('closeposts')
-                    .setDescription('Close all open threads in the archive')
-            )
-            .addSubcommand(subcommand =>
-                subcommand
-                    .setName('closesubmissions')
-                    .setDescription('Close all open threads in submissions')
             )
             .addSubcommand(subcommand =>
                 subcommand
@@ -232,6 +233,8 @@ export class Mwa implements Command {
             this.setRepo(guildHolder, interaction)
         } else if (interaction.options.getSubcommand() === 'makeindex') {
             this.makeIndex(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'setdictionary') {
+            this.setDictionary(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'blacklistadd') {
             this.addToBlacklist(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'blacklistremove') {
@@ -240,10 +243,6 @@ export class Mwa implements Command {
             this.listBlacklist(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'republisheverything') {
             this.republishEverything(guildHolder, interaction);
-        } else if (interaction.options.getSubcommand() === 'closeposts') {
-            this.closeEverythingPosts(guildHolder, interaction);
-        } else if (interaction.options.getSubcommand() === 'closesubmissions') {
-            this.closeEverythingSubmissions(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'updatesubmissionsstatus') {
             this.updateAllSubmissionsStatus(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'checkposts') {
@@ -450,6 +449,17 @@ export class Mwa implements Command {
     async setTemplate(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         const modal = new SetTemplateModal().getBuilder(guildHolder);
         await interaction.showModal(modal);
+    }
+
+    async setDictionary(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const channel = interaction.options.getChannel('channel');
+        if (!channel || channel.type !== ChannelType.GuildForum) {
+            await replyEphemeral(interaction, 'Dictionary channel must be a forum.');
+            return;
+        }
+
+        guildHolder.getConfigManager().setConfig(GuildConfigs.DICTIONARY_CHANNEL_ID, channel.id);
+        await interaction.reply(`Dictionary channel set to ${channel.name}.`);
     }
 
     async setScript(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
@@ -809,66 +819,6 @@ export class Mwa implements Command {
         }
 
         await interaction.followUp(`<@${interaction.user.id}> Republishing all entries complete!`);
-    }
-
-    async closeEverythingPosts(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
-
-        await interaction.reply('Starting to close all threads. This may take a while depending on the number of open threads. You will be notified when it is complete.');
-
-        const currentCategories = guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
-        const allchannels = await guildHolder.getGuild().channels.fetch()
-        // get all channels in categories
-        const channels = allchannels.filter(channel => {
-            return channel && channel.type === ChannelType.GuildForum && channel.parentId && currentCategories.includes(channel.parentId)
-        }) as unknown as ForumChannel[];
-
-        for (const channel of channels.values()) {
-            const threads = await channel.threads.fetchActive();
-            for (const thread of threads.threads.values()) {
-                try {
-                    await thread.setArchived(true, 'Closing thread as part of closeEverything command');
-                } catch (error) {
-                    console.error(`Error closing thread ${thread.name} (${thread.id}):`, error);
-                }
-            }
-        }
-
-        await interaction.followUp(`<@${interaction.user.id}> Closing all threads complete!`);
-    }
-
-    async closeEverythingSubmissions(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
-
-        const submissionChannelId = guildHolder.getConfigManager().getConfig(GuildConfigs.SUBMISSION_CHANNEL_ID);
-        if (!submissionChannelId) {
-            await interaction.followUp('Submission channel is not set. Please set it using `/mwa setsubmissions` command.');
-            return;
-        }
-        const submissionChannel = await guildHolder.getGuild().channels.fetch(submissionChannelId);
-        if (!submissionChannel || submissionChannel.type !== ChannelType.GuildForum) {
-            await interaction.followUp('Submission channel is not a valid forum channel. Please set it using `/mwa setsubmissions` command.');
-            return;
-        }
-
-        await interaction.reply('Starting to close all submission channels. This may take a while depending on the number of open submissions. You will be notified when it is complete.');
-
-        const threads = await submissionChannel.threads.fetchActive();
-        const blacklist = [SubmissionStatus.NEW, SubmissionStatus.WAITING, SubmissionStatus.NEED_ENDORSEMENT];
-        for (const thread of threads.threads.values()) {
-
-            const id = thread.id;
-            const submission = await guildHolder.getSubmissionsManager().getSubmission(id);
-            if (submission && blacklist.includes(submission.getConfigManager().getConfig(SubmissionConfigs.STATUS))) {
-                // Dont archive if status is in blacklist
-                continue;
-            }
-
-            try {
-                await thread.setArchived(true, 'Closing submission as part of closeEverything command');
-            } catch (error) {
-                console.error(`Error closing submission ${thread.name} (${thread.id}):`, error);
-            }
-        }
-        await interaction.followUp(`<@${interaction.user.id}> Closing all submissions complete!`);
     }
 
     async updateAllSubmissionsStatus(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
