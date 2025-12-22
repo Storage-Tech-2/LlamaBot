@@ -381,7 +381,7 @@ export function postToMarkdown(record: SubmissionRecords, recordStyles?: Record<
         const styles = {
             depth: recordStyles?.[key]?.depth ?? schemaStyles?.[key]?.depth ?? 2,
             headerText: recordStyles?.[key]?.headerText ?? schemaStyles?.[key]?.headerText ?? capitalizeFirstLetter(key),
-            isOrdered: recordStyles?.[key]?.isOrdered,
+            isOrdered: recordStyles?.[key]?.isOrdered ?? schemaStyles?.[key]?.isOrdered ?? false,
         }
 
         const text = submissionRecordToMarkdown(recordValue, styles);
@@ -447,7 +447,7 @@ export function schemaToMarkdownTemplate(schema: JSONSchema7, schemaStyles: Reco
         const style = {
             depth: recordStyles?.[key]?.depth ?? schemaStyles[key]?.depth ?? 2,
             headerText: recordStyles?.[key]?.headerText ?? schemaStyles[key]?.headerText ?? capitalizeFirstLetter(key),
-            isOrdered: recordStyles?.[key]?.isOrdered,
+            isOrdered: recordStyles?.[key]?.isOrdered ?? schemaStyles[key]?.isOrdered ?? false,
         }
 
         if (key !== "description" || !isFirst) {
