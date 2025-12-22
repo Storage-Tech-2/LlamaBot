@@ -12,6 +12,7 @@
   "author": "andrews54757",
   "license": "AGPL-3.0",
   "devDependencies": {
+    "@types/pako": "^2.0.4",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
@@ -19,13 +20,13 @@
   },
   "dependencies": {
     "@ai-sdk/xai": "^2.0.42",
-    "@kleppe/litematic-reader": "^1.0.11",
     "@types/json-schema": "^7.0.15",
     "ai": "^5.0.116",
     "discord.js": "^14.25.1",
     "got": "^14.6.5",
     "marked": "^16.4.2",
     "octokit": "^5.0.5",
+    "pako": "^2.1.0",
     "prismarine-nbt": "^2.8.0",
     "sharp": "^0.34.5",
     "simple-git": "^3.30.0",

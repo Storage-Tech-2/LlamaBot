@@ -6,11 +6,11 @@ import Path from 'path'
 import fs from 'fs/promises'
 import got from 'got'
 import sharp from 'sharp'
-import { Litematic } from '@kleppe/litematic-reader'
 import { MCMeta } from './MCMeta.js'
 import { escapeString } from './Util.js'
 import yauzl from "yauzl"
 import nbt from 'prismarine-nbt'
+import { Litematic } from '../lib/litematic-reader/main.js'
 
 export async function processImages(images: Image[], download_folder: string, processed_folder: string, bot: Bot): Promise<Image[]> {
     if (images.length > 0) {
