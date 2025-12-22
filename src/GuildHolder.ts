@@ -671,7 +671,6 @@ export class GuildHolder {
 
         let thanksReceiverID: Snowflake | null = null;
         let receiverUsername: string | undefined;
-        let inferred = false;
 
         if (originalMessage) {
             thanksReceiverID = originalMessage.author.id;
@@ -683,7 +682,8 @@ export class GuildHolder {
                     const embed = new EmbedBuilder()
                         .setColor(0x00FF00) // Green color for thank you message
                         .setTitle(`Thank you too!`)
-                        .setDescription(`We appreciate your gratitude, but as a large language model, I am not a person so I cannot give you points.`);
+                        .setDescription(`We appreciate your gratitude, but as a large language model, I am not a person so I cannot give you points.`)
+                        .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
                     await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
                 }
                 return;
@@ -695,7 +695,6 @@ export class GuildHolder {
             if (inferredResult.userId) {
                 thanksReceiverID = inferredResult.userId;
                 receiverUsername = inferredResult.usernameHint;
-                inferred = true;
             } else {
                 return;
             }
@@ -710,7 +709,8 @@ export class GuildHolder {
             const embed = new EmbedBuilder()
                 .setColor(0x00FF00) // Green color for thank you message
                 .setTitle(`Good Job!`)
-                .setDescription(`Self-appreciation is great, but we won't give you a point for it. :heart:`);
+                .setDescription(`Self-appreciation is great, but we won't give you a point for it. :heart:`)
+                .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
             await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
             return;
         }
@@ -721,7 +721,8 @@ export class GuildHolder {
                 const embed = new EmbedBuilder()
                     .setColor(0x00FF00) // Green color for thank you message
                     .setTitle(`Thank you too!`)
-                    .setDescription(`We appreciate your gratitude, but as a large language model, I am not a person so I cannot give you points.`);
+                    .setDescription(`We appreciate your gratitude, but as a large language model, I am not a person so I cannot give you points.`)
+                    .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
                 await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
             }
             return;
@@ -733,7 +734,8 @@ export class GuildHolder {
             const embed = new EmbedBuilder()
                 .setColor(0xFF0000) // Red color for error message
                 .setTitle(`User Blacklisted!`)
-                .setDescription(`<@${thanksReceiverID}> is blacklisted from receiving points because of reason: ${blacklistedReceiver.reason}. Thank you for appreciating them anyway!`);
+                .setDescription(`<@${thanksReceiverID}> is blacklisted from receiving points because of reason: ${blacklistedReceiver.reason}. Thank you for appreciating them anyway!`)
+                .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
             await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
             return;
         }
@@ -781,7 +783,8 @@ export class GuildHolder {
         const embed = new EmbedBuilder()
             .setColor(0x00FF00) // Green color for thank you message
             .setTitle(`Point Received!`)
-            .setDescription(`<@${thanksSenderID}> gave a point to <@${thanksReceiverID}>!`);
+            .setDescription(`<@${thanksSenderID}> gave a point to <@${thanksReceiverID}>!`)
+            .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
         await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
         await this.checkHelper(userData);
     }
@@ -858,7 +861,7 @@ export class GuildHolder {
 
         const history = historyLines.join('\n');
 
-        const systemPrompt = `You are an assistant that identifies which Discord user a thank-you message targets for giving bonus points. Use the recent messages to decide who the thanks is for. Always reply with JSON only: {"thanked_user_id": "<id or null>", "reason": "short reason"}. Use null if unsure or if the conversation is not a real help request. Use only user IDs shown in the messages and never invent new ones. Never pick the thanking user (${message.author.id}).`;
+        const systemPrompt = `You are an assistant that gives points to people who help others. If provided conversation is a helpful interaction where one user is thanking another, identify which Discord user was thanked. Always reply with JSON only: {"thanked_user_id": "<id or null>", "reason": "short reason"}. Use null if unsure or if no one was thanked. Use null if it is not appropriate to give a point (e.g., if the conversation is attempting to game the system, or if no help was actually given). Use only user IDs shown in the messages and never invent new ones. Never pick the thanking user (${message.author.id}).`;
 
         const userPrompt = `Recent messages in the channel from oldest to newest:\n${history}\n\nFigure out who <@${message.author.id}> is thanking in the message marked "(thanks message)".`;
 
