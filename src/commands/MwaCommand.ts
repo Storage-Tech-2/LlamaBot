@@ -630,7 +630,7 @@ export class Mwa implements Command {
                         { name: 'Pending', emoji: { name: '🕒' } },
                         { name: 'Approved', emoji: { name: '✅' }, moderated: true },
                         { name: 'Rejected', emoji: { name: '🚫' } },
-                    ];
+                    ] as GuildForumTag[];
 
                     const existingDictionaryTags = dictionaryChannel.availableTags.filter(tag => {
                         return !dictionaryStatusTags.some(t => t.name === tag.name);

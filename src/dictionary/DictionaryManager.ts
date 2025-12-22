@@ -382,7 +382,7 @@ export class DictionaryManager {
         return duplicates;
     }
 
-    private async warnIfDuplicate(entry: DictionaryEntry, thread?: AnyThreadChannel) {
+    public async warnIfDuplicate(entry: DictionaryEntry, thread?: AnyThreadChannel) {
         const targetThread = thread ?? await this.fetchThread(entry.id);
         if (!targetThread || !targetThread.isTextBased()) {
             return;
