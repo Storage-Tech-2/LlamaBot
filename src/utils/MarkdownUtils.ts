@@ -282,7 +282,16 @@ export function markdownMatchSchema(markdown: string, schema: JSONSchema7, schem
                 throw new Error(`Section "${propKey}" should be a list, but found ${listToken.type}.`);
             }
 
-            if (listToken.items.length === 1 && listToken.items[0].text.trim() === prop?.description) {
+            const filteredItems = listToken.items.filter((item: any) => {
+                // Remove items that are just the description
+                return item.text.trim() !== prop?.description;
+            });
+
+            if (prop && prop.minItems && filteredItems.length < prop.minItems) {
+                throw new Error(`Section "${propKey}" should contain at least ${prop.minItems} items, but found ${filteredItems.length}.`);
+            }
+
+            if (filteredItems.length === 0 ) {
                 // If the section is optional and the list matches the description, skip it
                 continue;
             }
