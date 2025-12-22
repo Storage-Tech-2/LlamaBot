@@ -29,7 +29,7 @@ export function splitMarkdownByHeadings(markdown: string): SchemaSection[] {
                 splitTokens.push(currentSection);
             }
             // Start a new section
-            let key = token.text.toLowerCase().replaceAll(/[^a-z0-9]+/g, "_").trim();
+            let key = token.text.toLowerCase().trim();
             let isOptional = false;
             if (key.includes("(optional)")) {
                 isOptional = true;
@@ -37,7 +37,7 @@ export function splitMarkdownByHeadings(markdown: string): SchemaSection[] {
             }
 
             currentSection = {
-                key: key,
+                key: key.replaceAll(/[^a-z0-9]+/g, "_"),
                 isOptional: isOptional,
                 tokens: [],
                 depth: token.depth,
