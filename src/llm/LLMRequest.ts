@@ -1,3 +1,4 @@
+import { JSONSchema7 } from "json-schema";
 import { Prompt } from "./prompts/Prompt.js";
 
 /**
@@ -20,7 +21,7 @@ export class LLMRequest {
      * The schema for the LLM response.
      * This is a JSON schema string that defines the structure of the response
      */
-    private _schema: string = "";
+    private _schema: JSONSchema7;
 
 
     /**
@@ -28,7 +29,7 @@ export class LLMRequest {
      * @param priority The priority of the request. Higher numbers indicate higher priority.
      * @param prompt The prompt for the LLM request.
      */
-    constructor(priority: number, prompt: Prompt, schema: string) {
+    constructor(priority: number, prompt: Prompt, schema: JSONSchema7) {
         this._priority = priority;
         this._prompt = prompt;
         this._schema = schema;
@@ -46,7 +47,7 @@ export class LLMRequest {
      * Gets the schema for the LLM response.
      * @returns The JSON schema string.
      */
-    public get schema(): string {
+    public get schema(): JSONSchema7 {
         return this._schema;
     }
     

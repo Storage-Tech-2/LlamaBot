@@ -3,6 +3,9 @@ import { LLMRequest } from "./LLMRequest.js";
 import { LLMResponseFuture as LLMResponseFuture } from "./LLMResponseFuture.js";
 import { LLMRequestAndPromise } from "./LLMRequestAndPromise.js";
 import { LLMResponse } from "./LLMResponse.js";
+import { Bot } from "../Bot.js";
+import { generateObject, jsonSchema } from "ai";
+import { SubmissionRecord, SubmissionRecords } from "../utils/MarkdownUtils.js";
 
 
 const URL = 'http://localhost:8000/generate'
@@ -18,10 +21,10 @@ export class LLMQueue {
 
     private _processing: boolean = false;
 
-    constructor() {
+    constructor(private bot: Bot) {
         this._llmQueue = [];
     }
-    
+
     /**
      * Adds a new request to the queue and processes it if the queue is empty.
      * @param request The LLMRequest to add to the queue.
@@ -68,7 +71,7 @@ export class LLMQueue {
         }
 
         this._processing = true;
-        
+
 
         // Pop the next request from the queue
         const request = this.popQueue();
@@ -121,22 +124,53 @@ export class LLMQueue {
         return this._llmQueue.shift();
     }
 
+    private async localModelProcess(request: LLMRequest): Promise<LLMResponse> {
+        const prompt = request.prompt.generatePrompt();
+        const res = await got.post(URL, {
+            json: {
+                schema_text: JSON.stringify(request.schema),
+                input_text: prompt
+            },
+            timeout: {
+                request: 60000 // 60 seconds
+            }
+        }).json() as LLMResponse;
+        if (res.error) {
+            throw new Error(res.error);
+        }
+        return res;
+    }
+
+    private async paidModelProcess(request: LLMRequest): Promise<LLMResponse> {
+        const paidLLMClient = this.bot.paidLlmClient;
+        if (!paidLLMClient) {
+            throw new Error('Paid LLM client is not configured');
+        }
+
+        const result = await generateObject({
+            model: paidLLMClient("grok-4"),
+            schema: jsonSchema(request.schema),
+            prompt: request.prompt.generatePrompt(),
+        })
+
+        if (!result.object) {
+            throw new Error('LLM did not return a valid object');
+        }
+
+        return {
+            result: result.object as SubmissionRecords,
+            error: undefined
+        }
+    }
+
     private async processRequest(request: LLMRequest): Promise<LLMResponse> {
         try {
-            const prompt = request.prompt.generatePrompt();
-            const res = await got.post(URL, {
-                json: {
-                    schema_text: request.schema,
-                    input_text: prompt
-                },
-                timeout: {
-                    request: 60000 // 60 seconds
-                }
-            }).json() as LLMResponse;
-            if (res.error) {
-                throw new Error(res.error);
+            const paidLLMClient = this.bot.paidLlmClient;
+            if (!paidLLMClient) {
+                return await this.localModelProcess(request);
             }
-            return res;
+
+            return await this.paidModelProcess(request);
         } catch (error) {
             console.error('Error fetching LLM response:', error)
             throw error

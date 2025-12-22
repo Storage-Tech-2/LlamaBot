@@ -825,7 +825,7 @@ export class GuildHolder {
     }
 
     private async inferThanksRecipient(message: Message): Promise<{ userId: Snowflake | null, usernameHint?: string }> {
-        const model = this.getBot().paidLlmModel;
+        const model = this.getBot().paidLlmClient;
         if (!model) {
             return { userId: null };
         }

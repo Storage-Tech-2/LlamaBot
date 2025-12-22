@@ -1,4 +1,4 @@
-import { ActionRowBuilder, AnyThreadChannel, ChannelType, EmbedBuilder, Message, MessageFlags, MessageReferenceType, Snowflake, TextThreadChannel } from "discord.js";
+import { ActionRowBuilder, AnyThreadChannel, ChannelType, EmbedBuilder, Message, MessageReferenceType, Snowflake, TextThreadChannel } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
@@ -144,7 +144,7 @@ export class Submission {
         // If no revisions, we can start the extraction process
         try {
             const prompt = new ExtractionPrompt(message.content)
-            const request = new LLMRequest(1, prompt, JSON.stringify(this.guildHolder.getSchema()));
+            const request = new LLMRequest(1, prompt, this.guildHolder.getSchema());
             this.extractionResults = this.guildHolder.getBot().llmQueue.addRequest(request);
             await this.extractionResults.getResponse();
         } catch (error: any) {
@@ -362,7 +362,6 @@ export class Submission {
         const matched = await RuleMatcher.matchAll(this, channelSubscriptions);
 
         const authorsString = getAuthorsString(this.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || []);
-        const recordref = this.getRevisionsManager().getCurrentRevision();
         const tagString = (this.getConfigManager().getConfig(SubmissionConfigs.TAGS) || []).map((tag) => tag.name).join(', ');
         const textArr = [
             `**Authors:** ${authorsString}`,
@@ -656,7 +655,7 @@ export class Submission {
             prompt,
             revision
         )
-        const request = new LLMRequest(1, llmPrompt, JSON.stringify(this.guildHolder.getSchema()));
+        const request = new LLMRequest(1, llmPrompt, this.guildHolder.getSchema());
         return this.guildHolder.getBot().llmQueue.addRequest(request);
     }
 

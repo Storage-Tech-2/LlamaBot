@@ -84,12 +84,12 @@ export class Bot {
     /**
      * Xai bot client
      */
-    paidLlmModel?: XaiProvider;
+    paidLlmClient?: XaiProvider;
 
 
     constructor() {
         this.guilds = new Map()
-        this.llmQueue = new LLMQueue()
+        this.llmQueue = new LLMQueue(this)
         this.commands = new Map()
         this.buttons = new Map()
         this.menus = new Map()
@@ -139,7 +139,7 @@ export class Bot {
                 apiKey: secrets.xaiApiKey
             });
             // const model = xaiClient("grok-3-mini");
-            this.paidLlmModel = xaiClient;
+            this.paidLlmClient = xaiClient;
         }
 
         return new Promise((resolve, reject) => {
@@ -479,11 +479,11 @@ export class Bot {
     }
 
     public async canConverse() {
-        return this.paidLlmModel !== undefined;
+        return this.paidLlmClient !== undefined;
     }
 
     public async respondToConversation(channel: TextChannel | TextThreadChannel, message: Message): Promise<string> {
-        if (!this.paidLlmModel) {
+        if (!this.paidLlmClient) {
             throw new Error('LLM client not configured');
         }
 
@@ -496,12 +496,12 @@ export class Bot {
         const specialQuestions = ['who is right', 'is this true', 'translate'];
         if (specialQuestions.some(q => message.content.toLowerCase().includes(q))) {
             contextLength = 50; // more context for "who is right" questions
-            model = this.paidLlmModel("grok-4"); // use better model for complex questions
+            model = this.paidLlmClient("grok-4"); // use better model for complex questions
             systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration. You are friendly and talk casually. You are logical and do not flatter. User mentions are in the format <@UserID> and will be prepended to messages they send. NEVER use emojis or em-dashes. Mention the correct user to keep the conversation clear. EG: If a message says "<@123456789012345678> tell them" and a previous message from user 4987654321012345678 said "I love Minecraft", you should respond with "<@4987654321012345678> Minecraft is great!"`;
             maxOutputLength = 20000;
         } else {
             contextLength = 10;
-            model = this.paidLlmModel("grok-3-mini");
+            model = this.paidLlmClient("grok-3-mini");
 
             // get channel list
             const channelList = channel.guild.channels.cache
