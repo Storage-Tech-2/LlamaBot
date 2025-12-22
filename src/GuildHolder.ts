@@ -866,7 +866,7 @@ export class GuildHolder {
         const userPrompt = `Recent messages in the channel from oldest to newest:\n${history}\n\nFigure out who <@${message.author.id}> is thanking in the message marked "(thanks message)".`;
 
         const response = await generateText({
-            model: model("grok-3-mini"),
+            model: model("grok-4-1-fast-reasoning"),
             messages: [
                 { role: 'system', content: systemPrompt } as ModelMessage,
                 { role: 'user', content: userPrompt } as ModelMessage

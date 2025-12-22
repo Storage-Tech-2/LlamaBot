@@ -12,23 +12,23 @@
   "author": "andrews54757",
   "license": "AGPL-3.0",
   "devDependencies": {
-    "tsup": "^8.5.0",
-    "tsx": "^4.19.4",
-    "typescript": "^5.8.3",
-    "typescript-eslint": "^8.34.0"
+    "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.50.1"
   },
   "dependencies": {
-    "@ai-sdk/xai": "^2.0.11",
+    "@ai-sdk/xai": "^2.0.42",
     "@kleppe/litematic-reader": "^1.0.11",
     "@types/json-schema": "^7.0.15",
-    "ai": "^5.0.22",
-    "discord.js": "^14.20.0",
-    "got": "^14.4.7",
-    "marked": "^16.0.0",
-    "octokit": "^5.0.3",
-    "prismarine-nbt": "^2.7.0",
-    "sharp": "^0.34.2",
-    "simple-git": "^3.28.0",
+    "ai": "^5.0.116",
+    "discord.js": "^14.25.1",
+    "got": "^14.6.5",
+    "marked": "^16.4.2",
+    "octokit": "^5.0.5",
+    "prismarine-nbt": "^2.8.0",
+    "sharp": "^0.34.5",
+    "simple-git": "^3.30.0",
     "vm2": "^3.10.0",
     "yauzl": "^3.2.0"
   }
