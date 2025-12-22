@@ -500,7 +500,7 @@ export class RepositoryManager {
         } = splitCode(submissionCode);
 
         const channelReferences = this.getChannelReferences();
-        const channelRef = channelReferences.find(c => c.code === channelCode);
+        const channelRef = channelReferences.find(c => c.code.toLowerCase() === channelCode.toLowerCase());
         if (!channelRef) {
             return null;
         }
@@ -508,7 +508,7 @@ export class RepositoryManager {
         const channelPath = Path.join(this.folderPath, channelRef.path);
         const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
         const entries = archiveChannel.getData().entries;
-        const entryIndex = entries.findIndex(e => e.code === submissionCode);
+        const entryIndex = entries.findIndex(e => e.code.toLowerCase() === submissionCode.toLowerCase());
         if (entryIndex !== -1) {
             const entryRef = entries[entryIndex];
             const entryPath = Path.join(channelPath, entryRef.path);

@@ -363,7 +363,7 @@ export class GuildHolder {
 
     public async handlePostReferences(message: Message) {
         // match pattern
-        const postReferenceRegex = /\b([A-Z]+[0-9]{3})\b/g;
+        const postReferenceRegex = /\b([A-Za-z]+[0-9]{3})\b/g;
         const matches = Array.from(message.content.matchAll(postReferenceRegex)).map(match => match[1]);
         if (matches.length === 0) {
             return;
