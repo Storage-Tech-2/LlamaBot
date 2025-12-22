@@ -38,6 +38,15 @@ export function splitMarkdownByHeadings(markdown: string): SchemaSection[] {
 
             let key = text.toLowerCase().replaceAll(/\s+/g, "-");
 
+            // try to find parent headings to prefix the key
+            for (let i = splitTokens.length - 1; i > 0; i--) {
+                const prevSection = splitTokens[i];
+                if (prevSection.depth < token.depth) {
+                    key = `${prevSection.key}:${key}`;
+                    break;
+                }
+            }
+
 
             currentSection = {
                 key,
