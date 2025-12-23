@@ -117,6 +117,7 @@ export class SetAttachmentsMenu implements Menu {
             description += '**Litematics:**\n'
             litematics.forEach(attachment => {
                 description += `- [${escapeDiscordString(escapeString(attachment.name))}](${attachment.url}): ${attachment.litematic?.error || `MC ${attachment.litematic?.version}, ${attachment.litematic?.size}`}\n`
+                if (attachment.description) description += `  - ${attachment.description}`
             })
         }
 
@@ -124,6 +125,7 @@ export class SetAttachmentsMenu implements Menu {
             description += '**WDLs:**\n'
             wdls.forEach(attachment => {
                 description += `- [${escapeDiscordString(escapeString(attachment.name))}](${attachment.url}): ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}\n`
+                if (attachment.description) description += `  - ${attachment.description}`
             })
         }
 
@@ -132,13 +134,16 @@ export class SetAttachmentsMenu implements Menu {
             videos.forEach(attachment => {
                 if (attachment.contentType === 'bilibili') {
                     description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Bilibili video\n`
+                    if (attachment.description) description += `  - ${attachment.description}`
                     return;
                 }
                 if (!attachment.youtube) {
                     description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link\n`
+                    if (attachment.description) description += `  - ${attachment.description}`
                     return;
                 }
                 description += `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): by [${escapeDiscordString(attachment.youtube?.author_name)}](${attachment.youtube?.author_url})\n`
+                if (attachment.description) description += `  - ${attachment.description}`
             })
         }
 
@@ -155,6 +160,7 @@ export class SetAttachmentsMenu implements Menu {
                         break;
                 }
                 description += `- [${escapeDiscordString(escapeString(attachment.name))}](${attachment.url}): ${type}\n`
+                if (attachment.description) description += `  - ${attachment.description}`
             })
         }
 
