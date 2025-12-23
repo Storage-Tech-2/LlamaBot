@@ -143,7 +143,7 @@ export class Bot {
         }
 
         return new Promise((resolve, reject) => {
-            this.client.once('ready', async () => {
+            this.client.once('clientReady', async () => {
                 this.ready = true
 
                 const guilds = await Promise.all((await this.client.guilds.fetch()).map((guild) => guild.fetch()))
