@@ -132,15 +132,22 @@ export class AddAttachmentModal implements Modal {
 
         const member = interaction.guild?.members.cache.get(interaction.user.id);
 
-        await webhook.send({
+         await webhook.send({
             username: member?.displayName || interaction.user.username,
             avatarURL: member?.displayAvatarURL(),
-            content: description.length > 0 ? `${description}: ${attachmentObj.url}` : attachmentObj.url,
+            content: description.length > 0 ? `Description: ${description}` : '',
             allowedMentions: { parse: [] },
-            threadId: submissionChannel.id
+            threadId: submissionChannel.id,
+            files: [
+                {
+                    name: attachmentObj.name,
+                    attachment: attachmentObj.url
+                }
+            ]
         }).catch((e) => {
             console.log("Failed to post with webhook", e)
-        })
+        });
+
 
         await webhook.delete().catch(() => { /* ignore */ });
 

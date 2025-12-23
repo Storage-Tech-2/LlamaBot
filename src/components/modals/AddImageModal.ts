@@ -1,4 +1,4 @@
-import { AttachmentBuilder, EmbedBuilder, FileUploadBuilder, LabelBuilder, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
+import { AttachmentBuilder, EmbedBuilder, FileBuilder, FileUploadBuilder, LabelBuilder, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
 import { canEditSubmission, escapeDiscordString, replyEphemeral } from "../../utils/Util.js";
@@ -110,9 +110,15 @@ export class AddImageModal implements Modal {
         await webhook.send({
             username: member?.displayName || interaction.user.username,
             avatarURL: member?.displayAvatarURL(),
-            content: description.length > 0 ? `${description}: ${imageObj.url}` : imageObj.url,
+            content: description.length > 0 ? `Description: ${description}` : '',
             allowedMentions: { parse: [] },
-            threadId: submissionChannel.id
+            threadId: submissionChannel.id,
+            files: [
+                {
+                    name: imageObj.name,
+                    attachment: imageObj.url
+                }
+            ]
         }).catch((e) => {
             console.log("Failed to post with webhook", e)
         });
