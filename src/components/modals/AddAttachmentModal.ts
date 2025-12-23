@@ -137,7 +137,10 @@ export class AddAttachmentModal implements Modal {
             avatarURL: interaction.user.displayAvatarURL(),
             content: description.length > 0 ? `${description}: ${attachmentObj.url}` : attachmentObj.url,
             allowedMentions: { parse: [] },
-        });
+            threadId: submissionChannel.id
+        }).catch((e) => {
+            console.log("Failed to post with webhook", e)
+        })
 
         await webhook.delete().catch(() => { /* ignore */ });
 
