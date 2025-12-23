@@ -89,7 +89,7 @@ export class AddImageModal implements Modal {
             id: uploadedAttachment.id,
             name: uploadedAttachment.name,
             url: uploadedAttachment.url,
-            description: description || `Added by ${interaction.user.username} at ${Date.toLocaleString()}`,
+            description: description || `Added by ${interaction.user.username} at ${(new Date()).toLocaleString()}`,
             contentType: uploadedAttachment.contentType || 'unknown'
         };
 
