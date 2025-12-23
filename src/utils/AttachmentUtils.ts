@@ -533,6 +533,7 @@ export async function getAllAttachments(channel: TextThreadChannel, selfID: Snow
     let attachments: Attachment[] = [];
 
     await iterateAllMessages(channel, async (message: Message) => {
+        console.log(message.content)
         if (message.author.id === selfID && !message.webhookId) {
             return true;
         }
