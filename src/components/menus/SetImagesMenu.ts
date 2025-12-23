@@ -27,7 +27,7 @@ export class SetImagesMenu implements Menu {
                 imageAttachments.map(image => {
                     return new StringSelectMenuOptionBuilder().setLabel(truncateFileName(image.name, 50))
                         .setValue(image.id)
-                        .setDescription(image.description)
+                        .setDescription(image.description.substring(0, 100) || "No description")
                         .setDefault(currentImages.some(img => img.id === image.id))
                 })
             )

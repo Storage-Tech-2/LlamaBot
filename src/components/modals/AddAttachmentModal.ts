@@ -106,7 +106,7 @@ export class AddAttachmentModal implements Modal {
             return;
         }
 
-        if (textAttachments.length > 0) {
+        if (textAttachments.length > 0 && description) {
             textAttachments[0].description = description;
         }
 
@@ -114,7 +114,7 @@ export class AddAttachmentModal implements Modal {
             id: uploadedAttachment.id,
             name: uploadedAttachment.name,
             url: uploadedAttachment.url,
-            description: description,
+            description: description || `Added by ${interaction.user.username} at ${Date.toLocaleString()}`,
             contentType: uploadedAttachment.contentType || 'unknown',
             canDownload: true,
         };
