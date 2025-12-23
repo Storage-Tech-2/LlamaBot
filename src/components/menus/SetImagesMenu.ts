@@ -7,10 +7,10 @@ import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Image } from "../../submissions/Image.js";
 import path from "path";
 import { SetAttachmentsMenu } from "./SetAttachmentsMenu.js";
-import { SetAttachmentsButton } from "../buttons/SetAttachmentsButton.js";
 import { SkipImagesButton } from "../buttons/SkipImagesButton.js";
 import { filterImages, getFileKey } from "../../utils/AttachmentUtils.js";
 import { AddImageButton } from "../buttons/AddImageButton.js";
+import { RefreshListButton } from "../buttons/RefreshListButton.js";
 
 export class SetImagesMenu implements Menu {
     getID(): string {
@@ -196,7 +196,7 @@ export class SetImagesMenu implements Menu {
                 components: rows
             })
         } else {
-            const row = new ActionRowBuilder().addComponents(new SetAttachmentsButton().getBuilder(false), new AddImageButton().getBuilder());
+            const row = new ActionRowBuilder().addComponents(new RefreshListButton().getBuilder(true), new AddImageButton().getBuilder());
             if (submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null) {
                 row.addComponents(new SkipImagesButton().getBuilder())
             }

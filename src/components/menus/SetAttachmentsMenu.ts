@@ -6,9 +6,9 @@ import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Attachment } from "../../submissions/Attachment.js";
 import { SkipAttachmentsButton } from "../buttons/SkipAttachmentsButton.js";
-import { SetAttachmentsButton } from "../buttons/SetAttachmentsButton.js";
 import { filterAttachments } from "../../utils/AttachmentUtils.js";
 import { AddAttachmentButton } from "../buttons/AddAttachmentButton.js";
+import { RefreshListButton } from "../buttons/RefreshListButton.js";
 
 export class SetAttachmentsMenu implements Menu {
     getID(): string {
@@ -197,7 +197,7 @@ export class SetAttachmentsMenu implements Menu {
                 components: rows
             })
         } else {
-            const row = new ActionRowBuilder().addComponents(new SetAttachmentsButton().getBuilder(false), new AddAttachmentButton().getBuilder());
+            const row = new ActionRowBuilder().addComponents(new RefreshListButton().getBuilder(false), new AddAttachmentButton().getBuilder());
             if (submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) === null) {
                 row.addComponents(new SkipAttachmentsButton().getBuilder())
             }

@@ -9,6 +9,7 @@ import { MoveConvoCancelButton } from "./MoveConvoCancelButton.js";
 import { MoveConvoConfirmButton } from "./MoveConvoConfirmButton.js";
 import { NotABotButton } from "./NotABotButton.js";
 import { PublishButton } from "./PublishButton.js";
+import { RefreshListButton } from "./RefreshListButton.js";
 import { SetArchiveChannelButton } from "./SetArchiveChannelButton.js";
 import { SetAttachmentsButton } from "./SetAttachmentsButton.js";
 import { SetAuthorsButton } from "./SetAuthorsButton.js";
@@ -34,7 +35,8 @@ export function getButtons() {
         new MoveConvoCancelButton(),
         new NotABotButton(),
         new AddImageButton(),
-        new AddAttachmentButton()
+        new AddAttachmentButton(),
+        new RefreshListButton()
     ];
     return Buttons;
 }

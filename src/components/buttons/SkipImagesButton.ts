@@ -13,8 +13,8 @@ export class SkipImagesButton implements Button {
     getBuilder(): ButtonBuilder {
         return new ButtonBuilder()
             .setCustomId(this.getID())
-            .setLabel('Skip Setting Images')
-            .setStyle(ButtonStyle.Success);
+            .setLabel('Skip Images')
+            .setStyle(ButtonStyle.Danger);
     }
 
     async execute(guildHolder: GuildHolder, interaction: ButtonInteraction): Promise<void> {

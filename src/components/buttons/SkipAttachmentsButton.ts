@@ -12,8 +12,8 @@ export class SkipAttachmentsButton implements Button {
     getBuilder(): ButtonBuilder {
         return new ButtonBuilder()
             .setCustomId(this.getID())
-            .setLabel('Skip Setting Other Attachments')
-            .setStyle(ButtonStyle.Success);
+            .setLabel('Skip Attachments')
+            .setStyle(ButtonStyle.Danger);
     }
 
     async execute(guildHolder: GuildHolder, interaction: ButtonInteraction): Promise<void> {
