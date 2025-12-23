@@ -134,7 +134,7 @@ export class AddAttachmentModal implements Modal {
 
         await webhook.send({
             username: member?.displayName || interaction.user.username,
-            avatarURL: interaction.user.displayAvatarURL(),
+            avatarURL: member?.displayAvatarURL(),
             content: description.length > 0 ? `${description}: ${attachmentObj.url}` : attachmentObj.url,
             allowedMentions: { parse: [] },
             threadId: submissionChannel.id

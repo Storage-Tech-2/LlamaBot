@@ -109,7 +109,7 @@ export class AddImageModal implements Modal {
 
         await webhook.send({
             username: member?.displayName || interaction.user.username,
-            avatarURL: interaction.user.displayAvatarURL(),
+            avatarURL: member?.displayAvatarURL(),
             content: description.length > 0 ? `${description}: ${imageObj.url}` : imageObj.url,
             allowedMentions: { parse: [] },
             threadId: submissionChannel.id
