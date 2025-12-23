@@ -168,7 +168,7 @@ export class SetImagesMenu implements Menu {
             embeds.push(embed);
         }
         await interaction.editReply({
-            content: `<@${interaction.user.id}> set main image${newImages.length > 1 ? 's' : ''} for submission`,
+            content: newImages.length === 0 ? `<@${interaction.user.id}> marked this submission as containing no images` : `<@${interaction.user.id}> set main image${newImages.length > 1 ? 's' : ''} for submission`,
             embeds,
             files
         })
