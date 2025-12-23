@@ -1,5 +1,5 @@
 import { Bot } from '../Bot.js'
-import { Message, TextBasedChannel, TextThreadChannel } from 'discord.js'
+import { Message, Snowflake, TextBasedChannel, TextThreadChannel } from 'discord.js'
 import { Attachment } from '../submissions/Attachment.js'
 import { Image } from '../submissions/Image.js'
 import Path from 'path'
@@ -88,6 +88,54 @@ export async function processImages(images: Image[], download_folder: string, pr
 
     return images;
 
+}
+
+
+export function filterAttachments<T>(attachments: (T & {
+    contentType: string;
+    name: string;
+})[]): T[] {
+    return attachments.filter(attachment => {
+        if (!attachment.contentType) {
+            return false;
+        }
+        if (attachment.contentType === 'application/x-msdos-program') {
+            return false;
+        }
+        // make sure .exe files are excluded
+        if (attachment.name.endsWith('.exe')) {
+            return false;
+        }
+        return true;
+    });
+}
+
+export function filterImages<T>(attachments: (T & {
+    contentType: string;
+    name: string;
+})[]): T[] {
+    return attachments.filter(attachment => {
+        if (!attachment.contentType) {
+            return false;
+        }
+        if (attachment.contentType === 'application/x-msdos-program') {
+            return false;
+        }
+        // make sure .exe files are excluded
+        if (attachment.name.endsWith('.exe')) {
+            return false;
+        }
+
+        if (attachment.name.endsWith('.png') || attachment.name.endsWith('.jpg') || attachment.name.endsWith('.jpeg')) {
+            return true;
+        }
+
+        if (attachment.contentType.startsWith('image/png') || attachment.contentType.startsWith('image/jpeg')) {
+            return true;
+        }
+
+        return false;
+    });
 }
 
 
@@ -368,6 +416,15 @@ export function getAttachmentsFromText(text: string, attachments: Attachment[] =
     const urls = text.match(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g)
     if (urls) {
         urls.forEach(url => {
+            // check first match location, if it is preceded by a colon + space, it has a description
+            const index = text.indexOf(url);
+            let description;
+            if (index > 2 && text.charAt(index - 1) === ' ' && text.charAt(index - 2) === ':') {
+                // then get whole line before that
+                const lineStart = text.lastIndexOf('\n', index - 2) + 1;
+                description = text.substring(lineStart, index - 2).trim();
+            }
+
             // Check if mediafire
             // https://www.mediafire.com/file/idjbw9lc1kt4obj/1_17_Crafter-r2.zip/file
             // https://www.mediafire.com/folder/5ajiire4a6cs5/Scorpio+MIS
@@ -383,7 +440,7 @@ export function getAttachmentsFromText(text: string, attachments: Attachment[] =
                     name: name,
                     contentType: 'mediafire',
                     url: url,
-                    description: `[MediaFire]${suffix}`,
+                    description: description || `[MediaFire]${suffix}`,
                     canDownload: false // MediaFire links cannot be downloaded directly
                 })
             } else if (url.startsWith('https://youtu.be/') || url.startsWith('https://www.youtube.com/watch')) {
@@ -403,7 +460,7 @@ export function getAttachmentsFromText(text: string, attachments: Attachment[] =
                     name: `YouTube Video ${videoId}`,
                     contentType: 'youtube',
                     url: urlCleaned.toString(),
-                    description: `[YouTube]${suffix}`,
+                    description: description || `[YouTube]${suffix}`,
                     canDownload: false // YouTube links cannot be downloaded directly
                 })
             } else if (url.startsWith('https://cdn.discordapp.com/attachments/')) {
@@ -418,7 +475,7 @@ export function getAttachmentsFromText(text: string, attachments: Attachment[] =
                     name: name,
                     contentType: 'discord',
                     url: url,
-                    description: `[DiscordCDN]${suffix}`,
+                    description: description || `[DiscordCDN]${suffix}`,
                     canDownload: true // Discord CDN links can be downloaded directly
                 })
             } else if (url.startsWith('https://bilibili.com/') || url.startsWith('https://www.bilibili.com/')) {
@@ -434,7 +491,7 @@ export function getAttachmentsFromText(text: string, attachments: Attachment[] =
                     name: `Bilibili Video ${videoId}`,
                     contentType: 'bilibili',
                     url: url,
-                    description: `[Bilibili]${suffix}`,
+                    description: description || `[Bilibili]${suffix}`,
                     canDownload: false // Bilibili links cannot be downloaded directly
                 })
             }
@@ -448,6 +505,9 @@ export function getAttachmentsFromMessage(message: Message, attachments: Attachm
         getAttachmentsFromText(message.content, attachments, ` Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`);
     }
     if (message.attachments.size > 0) {
+        const hasDescription = message.content.startsWith("Description:");
+        const description = hasDescription ? message.content.substring(12).trim() : '';
+
         message.attachments.forEach(attachment => {
             const index = attachments.findIndex(attachment2 => attachment2.id === attachment.id);
 
@@ -461,7 +521,7 @@ export function getAttachmentsFromMessage(message: Message, attachments: Attachm
                 name: attachment.name,
                 contentType: attachment.contentType || 'unknown',
                 url: attachment.url,
-                description: `Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`,
+                description: description ? description : `Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`,
                 canDownload: true, // Discord attachments can be downloaded directly
             });
         })
@@ -469,11 +529,11 @@ export function getAttachmentsFromMessage(message: Message, attachments: Attachm
     return attachments;
 }
 
-export async function getAllAttachments(channel: TextThreadChannel): Promise<Attachment[]> {
+export async function getAllAttachments(channel: TextThreadChannel, selfID: Snowflake): Promise<Attachment[]> {
     let attachments: Attachment[] = [];
 
     await iterateAllMessages(channel, async (message: Message) => {
-        if (message.author.bot && message.author.id !== '1392335374722007261') {
+        if (message.author.id === selfID) {
             return true;
         }
         // Get attachments from the message

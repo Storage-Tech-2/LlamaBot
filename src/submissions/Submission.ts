@@ -709,7 +709,7 @@ export class Submission {
             throw new Error('Submission channel not found');
         }
 
-        const attachments = await getAllAttachments(channel)
+        const attachments = await getAllAttachments(channel, this.guildHolder.getBot().client.user?.id || '');
         this.cachedAttachments = attachments
 
         setTimeout(() => {

@@ -1,4 +1,6 @@
+import { AddAttachmentButton } from "./AddAttachmentButton.js";
 import { AddAuthorButton } from "./AddAuthorButton.js";
+import { AddImageButton } from "./AddImageButton.js";
 import { ConfirmAuthorsButton } from "./ConfirmAuthorsButton.js";
 import { EditSubmissionButton } from "./EditSubmissionButton.js";
 import { FixErrorsButton } from "./FixErrorsButton.js";
@@ -30,7 +32,9 @@ export function getButtons() {
         new FixErrorsButton(),
         new MoveConvoConfirmButton(),
         new MoveConvoCancelButton(),
-        new NotABotButton()
+        new NotABotButton(),
+        new AddImageButton(),
+        new AddAttachmentButton()
     ];
     return Buttons;
 }

@@ -4,40 +4,33 @@ import { Command } from "../interface/Command.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { DictionaryEntryStatus } from "../dictionary/DictionaryManager.js";
 import { isEditor, isModerator, replyEphemeral } from "../utils/Util.js";
+import { DictionaryEditModal } from "../components/modals/DictionaryEditModal.js";
 
 export class DictionaryEditCommand implements Command {
     getID(): string {
-        return "dictionaryedit";
+        return "dictionary";
     }
 
     getBuilder(_guildHolder: GuildHolder): SlashCommandBuilder {
         const data = new SlashCommandBuilder();
         data
             .setName(this.getID())
-            .setDescription('Edit or approve a dictionary entry')
+            .setDescription('Edit or review a dictionary entry')
             .setContexts(InteractionContextType.Guild)
-            .addStringOption(option =>
-                option
-                    .setName('terms')
-                    .setDescription('Comma-separated list of terms for this entry')
-                    .setRequired(false)
+            .addSubcommand(sub =>
+                sub
+                    .setName('edit')
+                    .setDescription('Edit dictionary terms/definition via modal')
             )
-            .addStringOption(option =>
-                option
-                    .setName('definition')
-                    .setDescription('Updated dictionary definition')
-                    .setRequired(false)
+            .addSubcommand(sub =>
+                sub
+                    .setName('approve')
+                    .setDescription('Approve this dictionary entry')
             )
-            .addStringOption(option =>
-                option
-                    .setName('status')
-                    .setDescription('Set the status of this dictionary entry')
-                    .setRequired(false)
-                    .addChoices(
-                        { name: 'Pending', value: DictionaryEntryStatus.PENDING },
-                        { name: 'Approved', value: DictionaryEntryStatus.APPROVED },
-                        { name: 'Rejected', value: DictionaryEntryStatus.REJECTED },
-                    )
+            .addSubcommand(sub =>
+                sub
+                    .setName('reject')
+                    .setDescription('Reject this dictionary entry')
             );
         return data;
     }
@@ -64,15 +57,6 @@ export class DictionaryEditCommand implements Command {
             return;
         }
 
-        const termsInput = interaction.options.getString('terms');
-        const definition = interaction.options.getString('definition');
-        const status = interaction.options.getString('status') as DictionaryEntryStatus | null;
-
-        if (!termsInput && definition === null && !status) {
-            await replyEphemeral(interaction, 'Provide at least one field to update.');
-            return;
-        }
-
         const dictionaryManager = guildHolder.getDictionaryManager();
         const thread = interaction.channel as AnyThreadChannel;
         const entry = await dictionaryManager.ensureEntryForThread(thread);
@@ -81,41 +65,18 @@ export class DictionaryEditCommand implements Command {
             return;
         }
 
-        const previousTerms = [...entry.terms];
-        let updated = false;
-
-        if (termsInput) {
-            const parsedTerms = termsInput.split(',').map(term => term.trim()).filter(term => term.length > 0);
-            if (parsedTerms.length > 0) {
-                entry.terms = parsedTerms;
-                updated = true;
-                const newName = parsedTerms[0];
-                if (newName && thread.name !== newName) {
-                    await thread.setName(newName).catch(() => { /* ignore rename errors */ });
-                }
-            }
-        }
-
-        if (definition !== null) {
-            entry.definition = definition;
-            updated = true;
-        }
-
-        if (status) {
-            entry.status = status;
-            updated = true;
-        }
-
-        if (!updated) {
-            await replyEphemeral(interaction, 'No changes were applied.');
+        const subcommand = interaction.options.getSubcommand();
+        if (subcommand === 'edit') {
+            const modal = await new DictionaryEditModal().getBuilder(entry);
+            await interaction.showModal(modal);
             return;
         }
 
+        const newStatus = subcommand === 'approve' ? DictionaryEntryStatus.APPROVED : DictionaryEntryStatus.REJECTED;
+        entry.status = newStatus;
         entry.updatedAt = Date.now();
-        await dictionaryManager.saveEntry(entry, previousTerms);
+        await dictionaryManager.saveEntry(entry);
         await dictionaryManager.updateStatusMessage(entry, thread);
-        await dictionaryManager.warnIfDuplicate(entry, thread);
-
-        await interaction.reply({ content: 'Dictionary entry updated.', ephemeral: true });
+        await interaction.reply({ content: `Dictionary entry ${newStatus.toLowerCase()}ed.`, ephemeral: true });
     }
 }

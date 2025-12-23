@@ -1,4 +1,4 @@
-import { ActionRowBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
+import { LabelBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
 import { areAuthorsSame, canEditSubmission, reclassifyAuthors, replyEphemeral } from "../../utils/Util.js";
@@ -19,49 +19,78 @@ export class AddAuthorModal implements Modal {
 
 
 
+        
         const userIDInput = new TextInputBuilder()
             .setCustomId('idInput')
-            .setLabel('Discord User ID:')
+           
             .setPlaceholder('A number. Leave empty for non-Discord users')
             .setStyle(TextInputStyle.Short)
             .setRequired(false)
 
+        const userIDLabel = new LabelBuilder()
+            .setLabel('Discord User ID:')
+            .setTextInputComponent(userIDInput);
+
         const name = new TextInputBuilder()
             .setCustomId('nameInput')
-            .setLabel('or Name (for non-Discord users only):')
             .setPlaceholder('Leave empty for Discord users')
             .setStyle(TextInputStyle.Short)
             .setRequired(false)
 
+        const nameLabel = new LabelBuilder()
+            .setLabel('or Name (for non-Discord users only):')
+            .setTextInputComponent(name);
+
         
         const url = new TextInputBuilder()
             .setCustomId('urlInput')
-            .setLabel('Optional URL for the author:')
             .setPlaceholder('e.g. https://reddit.com/u/username')
             .setStyle(TextInputStyle.Short)
             .setRequired(false)
+        
+        const urlLabel = new LabelBuilder()
+            .setLabel('Optional URL for the author:')
+            .setTextInputComponent(url);
 
         const reason = new TextInputBuilder()
             .setCustomId('reasonInput')
-            .setLabel('Optional reason for adding:')
             .setPlaceholder('e.g. "for emotional support"')
             .setStyle(TextInputStyle.Paragraph)
             .setRequired(false)
 
-        const shouldDisplay = new TextInputBuilder()
+        const reasonLabel = new LabelBuilder()
+            .setLabel('Reason for adding (optional):')
+            .setTextInputComponent(reason);
+
+        const shouldDisplay = new StringSelectMenuBuilder()
             .setCustomId('shouldDisplay')
-            .setLabel('Display in the "by" line?')
-            .setStyle(TextInputStyle.Short)
-            .setValue('Yes')
-            .setPlaceholder('Yes/No')
+            .setMinValues(1)
+            .setMaxValues(1)
+            .setOptions(
+                new StringSelectMenuOptionBuilder()
+                    .setLabel('Yes')
+                    .setValue('yes')
+                    .setDescription('Display this author on the by line')
+                    .setDefault(true),
+                new StringSelectMenuOptionBuilder()
+                    .setLabel('No')
+                    .setValue('no')
+                    .setDescription('Do not display this author on the by line'),
+            )
             .setRequired(true)
 
-        const row1 = new ActionRowBuilder().addComponents(userIDInput)
-        const row2 = new ActionRowBuilder().addComponents(name)
-        const row3 = new ActionRowBuilder().addComponents(url)
-        const row4 = new ActionRowBuilder().addComponents(reason)
-        const row5 = new ActionRowBuilder().addComponents(shouldDisplay)
-        modal.addComponents(row1 as any, row2 as any, row3 as any, row4 as any, row5 as any);
+        const shouldDisplayLabel = new LabelBuilder()
+            .setLabel('Display this author on the by line?')
+            .setStringSelectMenuComponent(shouldDisplay);
+
+        modal.addLabelComponents(
+            userIDLabel,
+            nameLabel,
+            urlLabel,
+            reasonLabel,
+            shouldDisplayLabel
+        );
+
         return modal
     }
 
@@ -88,7 +117,7 @@ export class AddAuthorModal implements Modal {
         const name = interaction.fields.getTextInputValue('nameInput');
         const userId = interaction.fields.getTextInputValue('idInput') || null;
         const reason = interaction.fields.getTextInputValue('reasonInput') || undefined;
-        const shouldDisplay = interaction.fields.getTextInputValue('shouldDisplay').toLowerCase() === 'yes' || interaction.fields.getTextInputValue('shouldDisplay').toLowerCase() === 'y';
+        const shouldDisplay = interaction.fields.getStringSelectValues('shouldDisplay')[0] === 'yes';
         const url = interaction.fields.getTextInputValue('urlInput') || undefined;
         
         let author: Author = {

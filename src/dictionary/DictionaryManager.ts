@@ -3,6 +3,7 @@ import fs from "fs/promises";
 import Path from "path";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { GuildHolder } from "../GuildHolder.js";
+import { buildDictionaryIndex, decodeDictionaryTermIndex, encodeDictionaryTermIndex, findDictionaryMatches, DictionaryTermIndex, DictionaryIndex } from "../utils/ReferenceUtils.js";
 
 export enum DictionaryEntryStatus {
     PENDING = "PENDING",
@@ -34,7 +35,7 @@ export class DictionaryManager {
     }
 
     private getIndexPath(): string {
-        return Path.join(this.folderPath, 'terms_index.json');
+        return Path.join(this.folderPath, 'terms_index.bin');
     }
 
     async getEntry(id: Snowflake): Promise<DictionaryEntry | null> {
@@ -202,7 +203,7 @@ export class DictionaryManager {
         }
     }
 
-    private async fetchThread(threadId: Snowflake): Promise<AnyThreadChannel | null> {
+    public async fetchThread(threadId: Snowflake): Promise<AnyThreadChannel | null> {
         const channel = await this.guildHolder.getGuild().channels.fetch(threadId).catch(() => null);
         if (!channel || !channel.isThread()) {
             return null;
@@ -283,39 +284,40 @@ export class DictionaryManager {
         return term.trim().toLowerCase();
     }
 
-    private async loadTermIndex() {
+    private async loadTermIndex(): Promise<DictionaryTermIndex> {
         try {
-            const data = await fs.readFile(this.getIndexPath(), 'utf-8');
-            const parsed: Record<string, Snowflake[]> = JSON.parse(data);
-            return new Map(Object.entries(parsed).map(([term, ids]) => [term, new Set(ids)]));
+            const data = await fs.readFile(this.getIndexPath());
+            return decodeDictionaryTermIndex(data);
         } catch {
             return await this.rebuildTermIndex();
         }
     }
 
-    private async rebuildTermIndex() {
+    private buildAhoFromMap(map: Map<string, Set<Snowflake>>): DictionaryIndex {
+        return buildDictionaryIndex(Array.from(map.keys()), true);
+    }
+
+    private async rebuildTermIndex(): Promise<DictionaryTermIndex> {
         const entries = await this.listEntries();
-        const index: Map<string, Set<Snowflake>> = new Map();
+        const map: Map<string, Set<Snowflake>> = new Map();
         for (const entry of entries) {
             const normalizedTerms = (entry.terms || []).map(t => this.normalizeTerm(t)).filter(Boolean);
             for (const term of normalizedTerms) {
-                if (!index.has(term)) {
-                    index.set(term, new Set());
+                if (!map.has(term)) {
+                    map.set(term, new Set());
                 }
-                index.get(term)!.add(entry.id);
+                map.get(term)!.add(entry.id);
             }
         }
-        await this.persistTermIndex(index);
-        return index;
+        const termIndex: DictionaryTermIndex = { map, aho: this.buildAhoFromMap(map) };
+        await this.persistTermIndex(termIndex);
+        return termIndex;
     }
 
-    private async persistTermIndex(index: Map<string, Set<Snowflake>>) {
-        const obj: Record<string, Snowflake[]> = {};
-        for (const [term, ids] of index.entries()) {
-            obj[term] = Array.from(ids);
-        }
+    private async persistTermIndex(index: DictionaryTermIndex) {
+        const payload = encodeDictionaryTermIndex(index);
         await fs.mkdir(this.folderPath, { recursive: true });
-        await fs.writeFile(this.getIndexPath(), JSON.stringify(obj, null, 2), 'utf-8');
+        await fs.writeFile(this.getIndexPath(), payload);
     }
 
     private async upsertIndexForEntry(entry: DictionaryEntry, previousTerms?: string[]) {
@@ -326,39 +328,41 @@ export class DictionaryManager {
         // remove old links
         if (prev.length) {
             for (const term of prev) {
-                const set = termIndex.get(term);
+                const set = termIndex.map.get(term);
                 if (set) {
                     set.delete(entry.id);
                     if (set.size === 0) {
-                        termIndex.delete(term);
+                        termIndex.map.delete(term);
                     }
                 }
             }
         }
 
         for (const term of newTerms) {
-            if (!termIndex.has(term)) {
-                termIndex.set(term, new Set());
+            if (!termIndex.map.has(term)) {
+                termIndex.map.set(term, new Set());
             }
-            termIndex.get(term)!.add(entry.id);
+            termIndex.map.get(term)!.add(entry.id);
         }
 
+        termIndex.aho = this.buildAhoFromMap(termIndex.map);
         await this.persistTermIndex(termIndex);
     }
 
     private async removeFromIndex(id: Snowflake) {
         const termIndex = await this.loadTermIndex();
         let changed = false;
-        for (const [term, ids] of termIndex.entries()) {
+        for (const [term, ids] of termIndex.map.entries()) {
             if (ids.has(id)) {
                 ids.delete(id);
                 changed = true;
                 if (ids.size === 0) {
-                    termIndex.delete(term);
+                    termIndex.map.delete(term);
                 }
             }
         }
         if (changed) {
+            termIndex.aho = this.buildAhoFromMap(termIndex.map);
             await this.persistTermIndex(termIndex);
         }
     }
@@ -370,13 +374,22 @@ export class DictionaryManager {
     private async findDuplicateEntries(entry: DictionaryEntry): Promise<{ term: string, ids: Snowflake[] }[]> {
         const termIndex = await this.loadTermIndex();
         const duplicates: { term: string, ids: Snowflake[] }[] = [];
+        const seenTerms = new Set<string>();
         for (const term of entry.terms || []) {
             const normalized = this.normalizeTerm(term);
-            const ids = termIndex.get(normalized);
-            if (!ids) continue;
-            const others = Array.from(ids).filter(id => id !== entry.id);
-            if (others.length > 0) {
-                duplicates.push({ term, ids: others });
+            if (!normalized) continue;
+
+            const matches = findDictionaryMatches(normalized, termIndex.aho, { wholeWords: true });
+            for (const match of matches) {
+                const lookup = termIndex.map.get(this.normalizeTerm(match.term));
+                if (!lookup) continue;
+                const others = Array.from(lookup).filter(id => id !== entry.id);
+                if (others.length === 0) continue;
+                if (seenTerms.has(match.term)) {
+                    continue;
+                }
+                seenTerms.add(match.term);
+                duplicates.push({ term: match.term, ids: others });
             }
         }
         return duplicates;

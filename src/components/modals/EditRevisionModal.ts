@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ModalBuilder, ModalSubmitInteraction, Snowflake, TextInputBuilder, TextInputStyle } from "discord.js";
+import { ActionRowBuilder, LabelBuilder, ModalBuilder, ModalSubmitInteraction, Snowflake, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
 import { Revision, RevisionType } from "../../submissions/Revision.js";
@@ -19,17 +19,23 @@ export class EditRevisionModal implements Modal {
 
         const descriptionInput = new TextInputBuilder()
             .setCustomId('input1')
-            .setLabel('Markdown Text:')
             .setStyle(TextInputStyle.Paragraph)
             .setPlaceholder('Formatted text for the submission.')
             .setRequired(true)
 
+        const descriptionLabel = new LabelBuilder()
+            .setLabel('Markdown Text:')
+            .setTextInputComponent(descriptionInput);
+
         const descriptionInput2 = new TextInputBuilder()
             .setCustomId('input2')
-            .setLabel('Markdown Text Continued:')
             .setStyle(TextInputStyle.Paragraph)
             .setPlaceholder('If the text is too long, you can continue it here.')
             .setRequired(false)
+
+        const descriptionLabel2 = new LabelBuilder()
+            .setLabel('Markdown Text Continued:')
+            .setTextInputComponent(descriptionInput2);
 
         let preset = '';
         if (storedID) {
@@ -51,9 +57,7 @@ export class EditRevisionModal implements Modal {
             descriptionInput.setValue(preset);
         }
 
-        const row1 = new ActionRowBuilder().addComponents(descriptionInput);
-        const row2 = new ActionRowBuilder().addComponents(descriptionInput2);
-        modal.addComponents(row1 as any, row2 as any);
+        modal.addLabelComponents(descriptionLabel, descriptionLabel2);
         return modal
     }
 

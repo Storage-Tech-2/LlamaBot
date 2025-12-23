@@ -150,7 +150,7 @@ export class GuildHolder {
     handleMemberAdd(member: GuildMember) {
         this.antiNukeManager.handleMemberAdd(member).catch(e => console.error('Error handling member add:', e));
     }
-    
+
     handleMemberUpdate(oldMember: GuildMember | PartialGuildMember, newMember: GuildMember) {
         this.antiNukeManager.handleMemberUpdate(oldMember, newMember).catch(e => console.error('Error handling member update:', e));
     }
@@ -643,7 +643,7 @@ export class GuildHolder {
 
     public async handleThreadUpdate(oldThread: AnyThreadChannel, newThread: AnyThreadChannel) {
         this.antiNukeManager.handleThreadUpdate(oldThread, newThread).catch(e => console.error('Error handling thread update:', e));
-        
+
         if (newThread.parentId && this.cachedChannelIds.includes(newThread.parentId)) {
             this.getRepositoryManager().handlePostThreadUpdate(oldThread, newThread).catch(e => {
                 console.error('Error handling post thread update:', e);
@@ -712,13 +712,13 @@ export class GuildHolder {
         }
 
         //if (!thanksReceiverID) {
-            const inferredResult = await this.inferThanksRecipient(message);
-            if (inferredResult.userId) {
-                thanksReceiverID = inferredResult.userId;
-                receiverUsername = inferredResult.usernameHint;
-            } else {
-                return;
-            }
+        const inferredResult = await this.inferThanksRecipient(message);
+        if (inferredResult.userId) {
+            thanksReceiverID = inferredResult.userId;
+            receiverUsername = inferredResult.usernameHint;
+        } else {
+            return;
+        }
         // }
 
         if (!thanksReceiverID) {
@@ -987,12 +987,12 @@ export class GuildHolder {
 
         const hasHelperRole = member.roles.cache.has(helperRoleId);
         if (shouldHaveHelperRole && !hasHelperRole) {
-            await member.roles.add(helperRole).catch(e => {
+            await member.roles.add(helperRole).catch(_ => {
                 console.error(`[${guild.name}] Error adding helper role to user ${member.user.username}`);
             });
         }
         else if (!shouldHaveHelperRole && hasHelperRole) {
-            await member.roles.remove(helperRole).catch(e => {
+            await member.roles.remove(helperRole).catch(_ => {
                 console.error(`[${guild.name}] Error removing helper role from user ${member.user.username}`);
             });
         }
@@ -1189,8 +1189,8 @@ export class GuildHolder {
             if (!member.roles.cache.has(designerRoleId)) {
                 const designerRole = this.getGuild().roles.cache.get(designerRoleId);
                 if (designerRole) {
-                    await member.roles.add(designerRole).catch((e)=> {
-                            console.error(`[${this.getGuild().name}] Error adding designer role to user ${member.user.username}`);
+                    await member.roles.add(designerRole).catch((_) => {
+                        console.error(`[${this.getGuild().name}] Error adding designer role to user ${member.user.username}`);
                     });
                 } else {
                     console.warn(`Designer role with ID ${designerRoleId} not found in guild ${this.getGuild().name}`);
@@ -1215,7 +1215,7 @@ export class GuildHolder {
             if (member.roles.cache.has(designerRoleId) && userData.archivedPosts.length === 0) {
                 const designerRole = this.getGuild().roles.cache.get(designerRoleId);
                 if (designerRole) {
-                    await member.roles.remove(designerRole).catch((e)=> {
+                    await member.roles.remove(designerRole).catch((_) => {
                         console.error(`[${this.getGuild().name}] Error removing designer role from user ${member.user.username}`);
                     });
                 } else {
@@ -1273,22 +1273,19 @@ export class GuildHolder {
                 if (designerRoleId && member.roles.cache.has(designerRoleId) && posts.length === 0) {
                     const designerRole = this.getGuild().roles.cache.get(designerRoleId);
                     if (designerRole) {
-                        try {
-                            await member.roles.remove(designerRole);
-                        } catch (e) {
-                            console.error(`Failed to remove designer role from ${member.user.username}:`, e);
-                        }
+                        await member.roles.remove(designerRole).catch((_) => {
+                            console.error(`[${this.getGuild().name}] Error removing designer role from user ${member.user.username}`);
+                        });
+
                     } else {
                         console.warn(`Designer role with ID ${designerRoleId} not found in guild ${this.getGuild().name}`);
                     }
                 } else if (designerRoleId && !member.roles.cache.has(designerRoleId) && posts.length > 0) {
                     const designerRole = this.getGuild().roles.cache.get(designerRoleId);
                     if (designerRole) {
-                        try {
-                            await member.roles.add(designerRole);
-                        } catch (e) {
-                            console.error(`Failed to add designer role to ${member.user.username}:`, e);
-                        }
+                        await member.roles.add(designerRole).catch((_) => {
+                            console.error(`[${this.getGuild().name}] Error adding designer role to user ${member.user.username}`);
+                        });
                     } else {
                         console.warn(`Designer role with ID ${designerRoleId} not found in guild ${this.getGuild().name}`);
                     }

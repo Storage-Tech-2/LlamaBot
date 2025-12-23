@@ -7,6 +7,8 @@ import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Attachment } from "../../submissions/Attachment.js";
 import { SkipAttachmentsButton } from "../buttons/SkipAttachmentsButton.js";
 import { SetAttachmentsButton } from "../buttons/SetAttachmentsButton.js";
+import { filterAttachments } from "../../utils/AttachmentUtils.js";
+import { AddAttachmentButton } from "../buttons/AddAttachmentButton.js";
 
 export class SetAttachmentsMenu implements Menu {
     getID(): string {
@@ -31,13 +33,20 @@ export class SetAttachmentsMenu implements Menu {
 
     async getBuilderOrNull(submission: Submission): Promise<StringSelectMenuBuilder | null> {
         const attachments = await submission.getAttachments()
-        const fileAttachments = attachments.filter(attachment => attachment.contentType && attachment.contentType !== 'application/x-msdos-program')
+        const currentAttachments = submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) ?? [];
+       
+        currentAttachments.forEach(file => {
+            if (!attachments.some(att => att.id === file.id)) {
+                attachments.push(file);
+            }
+        });
+
+        const fileAttachments = filterAttachments(attachments);
 
         if (!fileAttachments.length) {
             return null; // No file attachments available
         }
-        const currentFiles = submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) || [];
-        return this.getBuilder(fileAttachments, currentFiles);
+        return this.getBuilder(fileAttachments, currentAttachments);
     }
 
     async execute(guildHolder: GuildHolder, interaction: StringSelectMenuInteraction): Promise<void> {
@@ -66,11 +75,10 @@ export class SetAttachmentsMenu implements Menu {
         }
 
         await interaction.deferReply()
-
         const attachments = await submission.getAttachments()
-        // const currentAttachments = submission.submissionData.attachments || []
+        const currentAttachments = submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) ?? [];
         const newAttachments = interaction.values.map(id => {
-            return attachments.find(attachment => attachment.id === id)
+            return attachments.find(attachment => attachment.id === id) ?? currentAttachments.find(attachment => attachment.id === id);
         }).filter(o => !!o);
 
         submission.getConfigManager().setConfig(SubmissionConfigs.ATTACHMENTS, newAttachments);
@@ -123,7 +131,7 @@ export class SetAttachmentsMenu implements Menu {
             description += '**Videos:**\n'
             videos.forEach(attachment => {
                 if (attachment.contentType === 'bilibili') {
-                    description += `- [${attachment.name}](${attachment.url}): Bilibili video\n`
+                    description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Bilibili video\n`
                     return;
                 }
                 if (!attachment.youtube) {
@@ -172,15 +180,18 @@ export class SetAttachmentsMenu implements Menu {
     public static async sendAttachmentsMenuAndButton(submission: Submission, interaction: Interaction): Promise<Message> {
         const menu = await new SetAttachmentsMenu().getBuilderOrNull(submission);
         if (menu) {
-            const rows = [new ActionRowBuilder().addComponents(menu) as any];
+            const rows = [new ActionRowBuilder().addComponents(menu)];
+            const secondRow = new ActionRowBuilder().addComponents(new AddAttachmentButton().getBuilder());
             if (submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) === null) {
-                rows.push(new ActionRowBuilder().addComponents(new SkipAttachmentsButton().getBuilder()))
+                secondRow.addComponents(new SkipAttachmentsButton().getBuilder())
             }
+            rows.push(secondRow);
+
             return replyEphemeral(interaction, `Please choose other attachments (eg: Schematics/WDLs) for the submission`,{
                 components: rows
             })
         } else {
-            const row = new ActionRowBuilder().addComponents(new SetAttachmentsButton().getBuilder(false));
+            const row = new ActionRowBuilder().addComponents(new SetAttachmentsButton().getBuilder(false), new AddAttachmentButton().getBuilder());
             if (submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) === null) {
                 row.addComponents(new SkipAttachmentsButton().getBuilder())
             }
@@ -188,7 +199,7 @@ export class SetAttachmentsMenu implements Menu {
                 {
                     flags: MessageFlags.Ephemeral,
                     components: [
-                        row as any
+                        row
                     ]
                 });
         }

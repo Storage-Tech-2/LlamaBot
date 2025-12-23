@@ -5,7 +5,7 @@ import { LLMRequestAndPromise } from "./LLMRequestAndPromise.js";
 import { LLMResponse } from "./LLMResponse.js";
 import { Bot } from "../Bot.js";
 import { generateObject, jsonSchema } from "ai";
-import { SubmissionRecord, SubmissionRecords } from "../utils/MarkdownUtils.js";
+import { SubmissionRecords } from "../utils/MarkdownUtils.js";
 
 
 const URL = 'http://localhost:8000/generate'

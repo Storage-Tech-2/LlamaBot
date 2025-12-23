@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
+import { LabelBuilder, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
 import { isAdmin, replyEphemeral } from "../../utils/Util.js";
@@ -18,13 +18,15 @@ export class SetTemplateModal implements Modal {
 
         const descriptionInput = new TextInputBuilder()
             .setCustomId('input')
-            .setLabel('Markdown Template:')
             .setStyle(TextInputStyle.Paragraph)
             .setValue(schemaToMarkdownTemplate(guildHolder.getSchema(), guildHolder.getSchemaStyles(), undefined, undefined, true))
             .setRequired(true)
 
-        const row1 = new ActionRowBuilder().addComponents(descriptionInput);
-        modal.addComponents(row1 as any);
+        const descriptionLabel = new LabelBuilder()
+            .setLabel('Markdown Template:')
+            .setTextInputComponent(descriptionInput);
+
+        modal.addLabelComponents(descriptionLabel);
         return modal
     }
 

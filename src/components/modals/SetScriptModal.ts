@@ -1,4 +1,4 @@
-import { ActionRowBuilder, EmbedBuilder, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
+import { EmbedBuilder, LabelBuilder, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
 import { replyEphemeral, splitIntoChunks } from "../../utils/Util.js";
@@ -16,16 +16,18 @@ export class SetScriptModal implements Modal {
 
         const descriptionInput = new TextInputBuilder()
             .setCustomId('input')
-            .setLabel('Script Code:')
             .setStyle(TextInputStyle.Paragraph)
             .setPlaceholder('JavaScript code for the script.')
+
+        const descriptionLabel = new LabelBuilder()
+            .setLabel('Script Code:')
+            .setTextInputComponent(descriptionInput);
 
         if (existingCode) {
             descriptionInput.setValue(existingCode);
         }
 
-        const row1 = new ActionRowBuilder().addComponents(descriptionInput);
-        modal.addComponents(row1 as any);
+        modal.addLabelComponents(descriptionLabel);
         return modal
     }
 
