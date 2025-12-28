@@ -15,8 +15,9 @@ export class DiscordServersDictionary {
     private cacheTimeout?: NodeJS.Timeout;
 
     constructor(
-        private folderPath: string, 
-        private repositoryManager: RepositoryManager
+        private folderPath: string,
+        private repositoryManager?: RepositoryManager,
+        private fallbackDictionary?: DiscordServersDictionary
     ) {
 
     }
@@ -39,6 +40,24 @@ export class DiscordServersDictionary {
         return this.cache;
     }
 
+    async getCachedServersWithFallback(): Promise<DiscordServerEntry[]> {
+        const servers = await this.getCachedServers();
+        if (!this.fallbackDictionary) {
+            return servers;
+        }
+
+        const combined = [...servers];
+        const ids = new Set(servers.map(s => s.id));
+        const fallbackServers = await this.fallbackDictionary.getCachedServersWithFallback();
+        for (const server of fallbackServers) {
+            if (!ids.has(server.id)) {
+                combined.push(server);
+            }
+        }
+
+        return combined;
+    }
+
     async getServers(): Promise<DiscordServerEntry[]> {
         await fs.mkdir(this.folderPath, { recursive: true });
         const entryPath = this.getConfigPath();
@@ -47,11 +66,18 @@ export class DiscordServersDictionary {
 
     async getByID(id: Snowflake): Promise<DiscordServerEntry | undefined> {
         const servers = await this.getCachedServers();
-        return servers.find(s => s.id === id)
+        const entry = servers.find(s => s.id === id);
+        if (entry) {
+            return entry;
+        }
+        return this.fallbackDictionary?.getByID(id);
     }
 
     async updateReferences() {
-        const servers = await this.getCachedServers();
+        if (!this.repositoryManager) {
+            return;
+        }
+        const servers = await this.getCachedServersWithFallback();
         const idToServer = new Map<Snowflake, DiscordServerEntry>();
         for (const server of servers) {
             if (server.id === this.repositoryManager.getGuildHolder().getGuild().id) {
@@ -79,6 +105,9 @@ export class DiscordServersDictionary {
             }
 
             if (modified) {
+                if (!this.repositoryManager) {
+                    return;
+                }
                 await this.repositoryManager.addOrUpdateEntryFromData(
                     data,
                     channelRef.id,
@@ -139,16 +168,24 @@ export class DiscordServersDictionary {
         const entryPath = this.getConfigPath();
         await fs.writeFile(entryPath, JSON.stringify(servers, null, 2), 'utf-8');
 
-        await this.repositoryManager.getLock().acquire();
-        await this.repositoryManager.add(entryPath).catch((e) => {
-            console.error("Error adding Discord servers dictionary to repository:", e);
-        });
-        if (!existing) {
-            await this.updateReferences().catch((e) => {
-                console.error("Error updating Discord server references after adding new server:", e);
-            });
+        if (!this.repositoryManager) {
+            return;
         }
-        this.repositoryManager.getLock().release();
+
+        const lock = this.repositoryManager.getLock();
+        await lock.acquire();
+        try {
+            await this.repositoryManager.add(entryPath).catch((e) => {
+                console.error("Error adding Discord servers dictionary to repository:", e);
+            });
+            if (!existing) {
+                await this.updateReferences().catch((e) => {
+                    console.error("Error updating Discord server references after adding new server:", e);
+                });
+            }
+        } finally {
+            lock.release();
+        }
     }
 
     async removeServer(id: Snowflake): Promise<boolean> {
@@ -161,14 +198,22 @@ export class DiscordServersDictionary {
         const entryPath = this.getConfigPath();
         await fs.writeFile(entryPath, JSON.stringify(servers, null, 2), 'utf-8');
 
-        await this.repositoryManager.getLock().acquire();
-        await this.repositoryManager.add(entryPath).catch((e) => {
-            console.error("Error adding Discord servers dictionary to repository:", e);
-        });
-        await this.updateReferences().catch((e) => {
-            console.error("Error updating Discord server references after removing server:", e);
-        });
-        this.repositoryManager.getLock().release();
+        if (!this.repositoryManager) {
+            return true;
+        }
+
+        const lock = this.repositoryManager.getLock();
+        await lock.acquire();
+        try {
+            await this.repositoryManager.add(entryPath).catch((e) => {
+                console.error("Error adding Discord servers dictionary to repository:", e);
+            });
+            await this.updateReferences().catch((e) => {
+                console.error("Error updating Discord server references after removing server:", e);
+            });
+        } finally {
+            lock.release();
+        }
         return true;
     }
 

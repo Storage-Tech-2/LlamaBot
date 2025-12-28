@@ -2,8 +2,7 @@ import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextTyp
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { replyEphemeral } from "../utils/Util.js";
-
-const ALLOWED_USER_ID = '239078039831445504';
+import { SysAdmin } from "../Bot.js";
 
 export class KickRoleCommand implements Command {
     getID(): string {
@@ -33,7 +32,7 @@ export class KickRoleCommand implements Command {
             return;
         }
 
-        if (interaction.user.id !== ALLOWED_USER_ID) {
+        if (interaction.user.id !== SysAdmin) {
             await replyEphemeral(interaction, 'You are not authorized to use this command.');
             return;
         }

@@ -60,6 +60,7 @@ export class GuildHolder {
     private channelSubscriptionManager: ChannelSubscriptionManager
 
     private discordServersDictionary: DiscordServersDictionary
+    private globalDiscordServersDictionary: DiscordServersDictionary
 
     private cachedChannelIds: Snowflake[] = [];
 
@@ -78,13 +79,14 @@ export class GuildHolder {
      * @param bot The bot instance associated with this guild holder.
      * @param guild The guild this holder is managing.
      */
-    constructor(bot: Bot, guild: Guild) {
+    constructor(bot: Bot, guild: Guild, globalDiscordServersDictionary: DiscordServersDictionary) {
         this.bot = bot;
         this.guild = guild;
+        this.globalDiscordServersDictionary = globalDiscordServersDictionary;
         this.antiNukeManager = new AntiNukeManager(this);
         this.config = new ConfigManager(Path.join(this.getGuildFolder(), 'config.json'));
         this.submissions = new SubmissionsManager(this, Path.join(this.getGuildFolder(), 'submissions'));
-        this.repositoryManager = new RepositoryManager(this, Path.join(this.getGuildFolder(), 'archive'));
+        this.repositoryManager = new RepositoryManager(this, Path.join(this.getGuildFolder(), 'archive'), this.globalDiscordServersDictionary);
         this.dictionaryManager = this.repositoryManager.getDictionaryManager();
         this.discordServersDictionary = this.repositoryManager.getDiscordServersDictionary();
         this.userManager = new UserManager(Path.join(this.getGuildFolder(), 'users'));

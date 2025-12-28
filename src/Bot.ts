@@ -17,6 +17,10 @@ import { App } from "octokit";
 import { createXai, XaiProvider } from "@ai-sdk/xai";
 import { generateText, ModelMessage } from "ai";
 import { ContextMenuCommand } from "./interface/ContextMenuCommand.js";
+import { DiscordServersDictionary } from "./archive/DiscordServersDictionary.js";
+
+export const SysAdmin = '239078039831445504';
+
 /**
  * The Secrets type defines the structure for the bot's secrets, including the token and client ID.
  */
@@ -86,6 +90,10 @@ export class Bot {
      */
     paidLlmClient?: XaiProvider;
 
+    /**
+     * Global Discord servers dictionary, shared across guilds.
+     */
+    globalDiscordServersDictionary: DiscordServersDictionary;
 
     constructor() {
         this.guilds = new Map()
@@ -95,6 +103,7 @@ export class Bot {
         this.menus = new Map()
         this.modals = new Map()
         this.tempData = new TempDataStore();
+        this.globalDiscordServersDictionary = new DiscordServersDictionary(path.join(process.cwd(), 'config', 'global'));
 
         this.client = new Client({
             intents: [
@@ -111,6 +120,10 @@ export class Bot {
                 Partials.Reaction
             ]
         });
+    }
+
+    public getGlobalDiscordServersDictionary(): DiscordServersDictionary {
+        return this.globalDiscordServersDictionary;
     }
 
     async start() {
@@ -148,7 +161,7 @@ export class Bot {
 
                 const guilds = await Promise.all((await this.client.guilds.fetch()).map((guild) => guild.fetch()))
                 guilds.forEach((guild) => {
-                    const holder = new GuildHolder(this, guild);
+                    const holder = new GuildHolder(this, guild, this.globalDiscordServersDictionary);
                     this.guilds.set(guild.id, holder);
                     deployCommands(this.commands, holder, secrets)
                 })
@@ -169,7 +182,7 @@ export class Bot {
     setupListeners(secrets: Secrets) {
         this.client.on(Events.GuildCreate, (guild) => {
             console.log(`Joined guild: ${guild.name} (${guild.id})`)
-            const holder = this.guilds.get(guild.id) ?? new GuildHolder(this, guild);
+            const holder = this.guilds.get(guild.id) ?? new GuildHolder(this, guild, this.globalDiscordServersDictionary);
             this.guilds.set(guild.id, holder);
             deployCommands(this.commands, holder, secrets)
         })
@@ -437,10 +450,9 @@ export class Bot {
     }
 
     public async handleAdminMessage(message: Message) {
-        // Check if dm and author is `239078039831445504`
         console.log(`Received admin message: ${message.content} from ${message.author.tag} (${message.author.id})`);
         if (message.inGuild()) return;
-        if (message.author.id !== '239078039831445504') return;
+        if (message.author.id !== SysAdmin) return;
 
         // Check if the message starts with `/`
         if (!message.content.startsWith('/')) {

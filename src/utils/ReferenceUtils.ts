@@ -381,7 +381,7 @@ export async function tagReferences(string: string, prevReferences: Reference[],
     const dictionaryIndex = skipTerms ? undefined : await dictionaryManager.getDictionaryTermIndex();
 
     const archiveIndex = await dictionaryManager.getArchiveIndex();
-    const discords = await guildHolder.getDiscordServersDictionary().getCachedServers();
+    const discords = await guildHolder.getDiscordServersDictionary().getCachedServersWithFallback();
     const currentServerID = guildHolder.getGuild().id;
 
     const revisionText = stripHyperlinkNames(string);

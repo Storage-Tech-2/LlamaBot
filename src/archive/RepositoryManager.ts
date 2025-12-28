@@ -32,14 +32,14 @@ export class RepositoryManager {
     private dictionaryManager: DictionaryManager;
     private indexManager: IndexManager;
     private discordServersDictionary: DiscordServersDictionary;
-    constructor(guildHolder: GuildHolder, folderPath: string) {
+    constructor(guildHolder: GuildHolder, folderPath: string, globalDiscordServersDictionary?: DiscordServersDictionary) {
         this.guildHolder = guildHolder;
         this.folderPath = folderPath;
         this.configManager = new ConfigManager(Path.join(folderPath, 'config.json'));
         this.dictionaryManager = new DictionaryManager(this.guildHolder, Path.join(this.folderPath, 'dictionary'), this);
         this.indexManager = new IndexManager(this.dictionaryManager, this, this.folderPath);
         this.dictionaryManager.setIndexManager(this.indexManager);
-        this.discordServersDictionary = new DiscordServersDictionary(this.folderPath, this);
+        this.discordServersDictionary = new DiscordServersDictionary(this.folderPath, this, globalDiscordServersDictionary);
 
         this.configManager.setChangeListener(async () => {
             if (this.git) {

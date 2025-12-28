@@ -4,6 +4,7 @@ import { Command } from "../interface/Command.js";
 import { isAdmin, replyEphemeral } from "../utils/Util.js";
 import { DiscordJoinMenu } from "../components/menus/DiscordJoinMenu.js";
 import { DiscordServersDictionary } from "../archive/DiscordServersDictionary.js";
+import { SysAdmin } from "../Bot.js";
 
 export class DiscordsCommand implements Command {
     getID(): string {
@@ -39,6 +40,12 @@ export class DiscordsCommand implements Command {
                             .setDescription('Invite or join URL')
                             .setRequired(true)
                     )
+                    .addBooleanOption(opt =>
+                        opt
+                            .setName('global')
+                            .setDescription('Use the global dictionary (SysAdmin only)')
+                            .setRequired(false)
+                    )
             )
             .addSubcommand(sub =>
                 sub
@@ -62,6 +69,12 @@ export class DiscordsCommand implements Command {
                             .setDescription('Invite or join URL')
                             .setRequired(false)
                     )
+                    .addBooleanOption(opt =>
+                        opt
+                            .setName('global')
+                            .setDescription('Use the global dictionary (SysAdmin only)')
+                            .setRequired(false)
+                    )
             )
             .addSubcommand(sub =>
                 sub
@@ -72,6 +85,12 @@ export class DiscordsCommand implements Command {
                             .setName('id')
                             .setDescription('Server ID')
                             .setRequired(true)
+                    )
+                    .addBooleanOption(opt =>
+                        opt
+                            .setName('global')
+                            .setDescription('Use the global dictionary (SysAdmin only)')
+                            .setRequired(false)
                     )
             )
             .addSubcommand(sub =>
@@ -95,10 +114,20 @@ export class DiscordsCommand implements Command {
         }
 
         const sub = interaction.options.getSubcommand();
-        const dictionary = guildHolder.getDiscordServersDictionary();
+        const requiresManage = ['add', 'edit', 'remove'].includes(sub);
+        const isSysAdmin = interaction.user.id === SysAdmin;
+        const useGlobal = requiresManage ? (interaction.options.getBoolean('global') ?? false) : false;
+        const dictionary = useGlobal
+            ? guildHolder.getBot().getGlobalDiscordServersDictionary()
+            : guildHolder.getDiscordServersDictionary();
 
-        if (['add', 'edit', 'remove'].includes(sub) && !isAdmin(interaction)) {
+        if (requiresManage && !isSysAdmin && !isAdmin(interaction)) {
             await replyEphemeral(interaction, 'You do not have permission to manage Discord servers.');
+            return;
+        }
+
+        if (useGlobal && !isSysAdmin) {
+            await replyEphemeral(interaction, 'Global dictionary can only be used by the SysAdmin.');
             return;
         }
 
@@ -113,7 +142,7 @@ export class DiscordsCommand implements Command {
                 await this.handleRemove(dictionary, interaction);
                 break;
             case 'list':
-                await this.handleList(dictionary, interaction);
+                await this.handleList(dictionary, guildHolder, interaction);
                 break;
             case 'join':
                 await this.handleJoin(dictionary, guildHolder, interaction);
@@ -172,17 +201,25 @@ export class DiscordsCommand implements Command {
         });
     }
 
-    private async handleList(dictionary: DiscordServersDictionary, interaction: ChatInputCommandInteraction) {
-        const servers = await dictionary.getServers();
-        if (servers.length === 0) {
+    private async handleList(dictionary: DiscordServersDictionary, guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const localServers = await dictionary.getServers();
+        const globalServers = await guildHolder.getBot().getGlobalDiscordServersDictionary().getServers();
+        const localIds = new Set(localServers.map(s => s.id));
+        const globalOnly = globalServers.filter(s => !localIds.has(s.id));
+
+        if (localServers.length === 0 && globalOnly.length === 0) {
             await replyEphemeral(interaction, 'No servers registered yet.');
             return;
         }
 
-        const lines = servers.map(s => `• **${s.name}** (${s.id}) — ${s.joinURL}`);
+        const format = (servers: typeof localServers) => servers.map(s => `• **${s.name}** (${s.id}) — ${s.joinURL}`).join('\n') || 'None';
+
         const embed = new EmbedBuilder()
             .setTitle('Registered Discord servers')
-            .setDescription(lines.join('\n'))
+            .addFields(
+                { name: 'Local', value: format(localServers), inline: false },
+                { name: 'Global', value: format(globalOnly), inline: false },
+            )
             .setColor(0x5865F2);
 
         await interaction.reply({
@@ -193,7 +230,7 @@ export class DiscordsCommand implements Command {
     }
 
     private async handleJoin(dictionary: DiscordServersDictionary, guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
-        const servers = await dictionary.getServers();
+        const servers = await dictionary.getCachedServersWithFallback();
         if (servers.length === 0) {
             await replyEphemeral(interaction, 'No servers registered to join.');
             return;
