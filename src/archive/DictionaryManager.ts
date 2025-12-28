@@ -108,13 +108,14 @@ export class DictionaryManager {
         const entryPath = Path.join(this.getEntriesPath(), `${entry.id}.json`);
         await fs.mkdir(this.getEntriesPath(), { recursive: true });
         await fs.writeFile(entryPath, JSON.stringify(entry, null, 2), 'utf-8');
-        if (!oldEntry) {
+        const rebuildNeeded = !oldEntry || oldEntry.status !== entry.status || this.haveTermsChanged(oldEntry.terms, entry.terms);
+        if (rebuildNeeded) {
             await this.rebuildConfigIndex();
         }
         if (push) {
             await this.repositoryManager.getLock().acquire();
             await this.repositoryManager.add(entryPath).catch(() => { });
-            if (!oldEntry) {
+            if (rebuildNeeded) {
                 await this.repositoryManager.add(this.getConfigPath()).catch(() => { });
             }
             await this.repositoryManager.commit(oldEntry ? `Updated dictionary entry ${entry.terms[0]}` : `Added dictionary entry ${entry.terms[0]}`).catch(() => { });
@@ -122,7 +123,7 @@ export class DictionaryManager {
             this.repositoryManager.getLock().release();
         } else {
             await this.repositoryManager.add(entryPath).catch(() => { });
-            if (!oldEntry) {
+            if (rebuildNeeded) {
                 await this.repositoryManager.add(this.getConfigPath()).catch(() => { });
             }
         }
