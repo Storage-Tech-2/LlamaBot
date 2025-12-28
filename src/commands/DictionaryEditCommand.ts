@@ -109,12 +109,13 @@ export class DictionaryEditCommand implements Command {
                     first = false;
                     continue;
                 }
-                
+
                 await interaction.channel.send({ 
                     content: chunk,
                     allowedMentions: { parse: [] }
                 });
             }
+            return;
         } else if (subcommand === 'edit') {
             const modal = await new DictionaryEditModal().getBuilder(entry);
             await interaction.showModal(modal);
