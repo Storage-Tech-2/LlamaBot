@@ -2,7 +2,7 @@ import { GuildHolder } from "../GuildHolder.js";
 import fs from "fs/promises";
 import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
-import { AnyThreadChannel, AttachmentBuilder, ChannelType, ChatInputCommandInteraction, EmbedBuilder, ForumChannel, ForumLayoutType, GuildTextBasedChannel, Message, MessageFlags, Snowflake } from "discord.js";
+import { AnyThreadChannel, AttachmentBuilder, ChannelType, EmbedBuilder, ForumChannel, ForumLayoutType, GuildTextBasedChannel, Message, MessageFlags, Snowflake } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
 import { areAuthorsListEqual, areAuthorsSame, deepClone, escapeString, generateCommitMessage, getChangeIDs, getCodeAndDescriptionFromTopic, getGithubOwnerAndProject, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";

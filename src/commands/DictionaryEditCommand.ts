@@ -77,6 +77,12 @@ export class DictionaryEditCommand implements Command {
         entry.updatedAt = Date.now();
         await dictionaryManager.saveEntry(entry, true);
         await dictionaryManager.updateStatusMessage(entry, thread);
-        await interaction.reply({ content: `Dictionary entry ${newStatus.toLowerCase()}ed.`, ephemeral: true });
+        await interaction.reply({ 
+            content: 
+                newStatus === DictionaryEntryStatus.APPROVED ?
+                `<@${interaction.user.id}> has approved this dictionary entry. A request to retag the archives has been sent, and will be completed within 24 hours.` :
+                `<@${interaction.user.id}> has rejected this dictionary entry.`, 
+            allowedMentions: { parse: [] }
+        });
     }
 }

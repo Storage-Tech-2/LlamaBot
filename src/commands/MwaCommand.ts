@@ -12,7 +12,7 @@ import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import { SetTemplateModal } from "../components/modals/SetTemplateModal.js";
 import { SetDesignerRoleMenu } from "../components/menus/SetDesignerRoleMenu.js";
 import { SetScriptModal } from "../components/modals/SetScriptModal.js";
-import { republishAllEntries } from "../archive/Tasks.js";
+import { republishAllEntries, retagEverythingTask } from "../archive/Tasks.js";
 
 export class Mwa implements Command {
     getID(): string {
@@ -258,12 +258,22 @@ export class Mwa implements Command {
             this.setWebsite(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'setscript') {
             this.setScript(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'forceretag') {
+            this.forceRetag(guildHolder, interaction);
         } else {
             await replyEphemeral(interaction, 'Invalid subcommand. Use `/mwa setsubmissions`, `/mwa setlogs`, `/mwa setarchives`, `/mwa setuparchives`, `/mwa setendorseroles`, `/mwa seteditorroles`, `/mwa sethelperrole` or `/mwa setrepo`.');
             return;
         }
     }
 
+    async forceRetag(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        await interaction.reply('Starting retagging of all archive and dictionary entries. This may take a while...');
+        await retagEverythingTask(guildHolder).catch(async (e) => {
+            await interaction.followUp('Error during retagging: ' + e.message);
+        });
+        await interaction.followUp('<@' + interaction.user.id + '> Retagging of all archive and dictionary entries completed.');
+    }
+    
     async setWebsite(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         const url = interaction.options.getString('url')
         if (!url) {
