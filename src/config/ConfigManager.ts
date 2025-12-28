@@ -17,6 +17,8 @@ export class Config<T> {
  * ConfigManager is a class that manages the configuration settings for various classes.
  */
 export class ConfigManager {
+    private changeListener?: () => void;
+
     /** The configuration map */
     private configMap = new Map<string, unknown>();
 
@@ -30,6 +32,10 @@ export class ConfigManager {
         this.configFilePath = filePath;
     }
 
+    public setChangeListener(listener: () => void): void {
+        this.changeListener = listener;
+    }
+    
     /**
      * Loads the configuration from the file.
      */
@@ -57,6 +63,9 @@ export class ConfigManager {
             const obj = Object.fromEntries(this.configMap);
             await fs.writeFile(this.configFilePath, JSON.stringify(obj, null, 2), 'utf-8');
             this.configChanged = false;
+            if (this.changeListener) {
+                this.changeListener();
+            }
         } catch (err) {
             console.error(`Failed to save config to ${this.configFilePath}:`, err);
         }
@@ -70,6 +79,17 @@ export class ConfigManager {
             return this.configMap.get(config.id) as T;
         }
         return JSON.parse(JSON.stringify(config.default)) as T; // Return a deep copy of the default value
+    }
+
+    public isConfigSet<T>(config: Config<T>): boolean {
+        return this.configMap.has(config.id);
+    }
+
+    public deleteConfig<T>(config: Config<T>): void {
+        if (this.configMap.has(config.id)) {
+            this.configChanged = true;
+            this.configMap.delete(config.id);
+        }
     }
 
     /**

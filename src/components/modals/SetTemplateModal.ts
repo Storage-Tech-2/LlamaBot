@@ -3,8 +3,8 @@ import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
 import { isAdmin, replyEphemeral } from "../../utils/Util.js";
 import { markdownToSchema, schemaToMarkdownTemplate } from "../../utils/MarkdownUtils.js";
-import { GuildConfigs } from "../../config/GuildConfigs.js";
 import { TemplateEmbed } from "../../embed/TemplateEmbed.js";
+import { RepositoryConfigs } from "../../archive/RepositoryConfigs.js";
 
 export class SetTemplateModal implements Modal {
     getID(): string {
@@ -49,8 +49,8 @@ export class SetTemplateModal implements Modal {
             return;
         }
 
-        guildHolder.getConfigManager().setConfig(GuildConfigs.POST_SCHEMA, schema);
-        guildHolder.getConfigManager().setConfig(GuildConfigs.POST_STYLE, style);
+        guildHolder.getRepositoryManager().getConfigManager().setConfig(RepositoryConfigs.POST_SCHEMA, schema);
+        guildHolder.getRepositoryManager().getConfigManager().setConfig(RepositoryConfigs.POST_STYLE, style);
 
         await interaction.reply({
             content: 'Post template has been set successfully!',

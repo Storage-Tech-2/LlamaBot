@@ -23,6 +23,7 @@ import { DictionaryManager } from "./archive/DictionaryManager.js";
 import { DiscordServersDictionary } from "./archive/DiscordServersDictionary.js";
 import { ReferenceType } from "./utils/ReferenceUtils.js";
 import { retagEverythingTask, updateEntryAuthorsTask } from "./archive/Tasks.js";
+import { RepositoryConfigs } from "./archive/RepositoryConfigs.js";
 /**
  * GuildHolder is a class that manages guild-related data.
  */
@@ -101,8 +102,12 @@ export class GuildHolder {
             }
 
             await this.updatePostChannelsCache();
+
+            this.getSchema(); // migrate schema if needed
+            this.getSchemaStyles(); // migrate styles if needed
             console.log(`GuildHolder initialized for guild: ${guild.name} (${guild.id})`);
             this.ready = true;
+            
         });
     }
 
@@ -1479,11 +1484,21 @@ export class GuildHolder {
     }
 
     public getSchema(): JSONSchema7 {
-        return this.getConfigManager().getConfig(GuildConfigs.POST_SCHEMA);
+        if (this.getConfigManager().isConfigSet(RepositoryConfigs.POST_SCHEMA) && !this.repositoryManager.getConfigManager().isConfigSet(RepositoryConfigs.POST_SCHEMA)) {
+            const schema = this.getConfigManager().getConfig(RepositoryConfigs.POST_SCHEMA);
+            this.repositoryManager.getConfigManager().setConfig(RepositoryConfigs.POST_SCHEMA, schema);
+            this.getConfigManager().deleteConfig(RepositoryConfigs.POST_SCHEMA);
+        }
+        return this.repositoryManager.getConfigManager().getConfig(RepositoryConfigs.POST_SCHEMA);
     }
 
     public getSchemaStyles(): Record<string, StyleInfo> {
-        return this.getConfigManager().getConfig(GuildConfigs.POST_STYLE);
+        if (this.getConfigManager().isConfigSet(RepositoryConfigs.POST_STYLE) && !this.repositoryManager.getConfigManager().isConfigSet(RepositoryConfigs.POST_STYLE)) {
+            const styles = this.getConfigManager().getConfig(RepositoryConfigs.POST_STYLE);
+            this.repositoryManager.getConfigManager().setConfig(RepositoryConfigs.POST_STYLE, styles);
+            this.getConfigManager().deleteConfig(RepositoryConfigs.POST_STYLE);
+        }
+        return this.repositoryManager.getConfigManager().getConfig(RepositoryConfigs.POST_STYLE);
     }
 
     public getUserManager(): UserManager {

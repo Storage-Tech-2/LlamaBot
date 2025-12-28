@@ -39,6 +39,13 @@ export class RepositoryManager {
         this.indexManager = new IndexManager(this.dictionaryManager, this, this.folderPath);
         this.dictionaryManager.setIndexManager(this.indexManager);
         this.discordServersDictionary = new DiscordServersDictionary(this.folderPath, this);
+
+        this.configManager.setChangeListener(async () => {
+            if (this.git) {
+                await this.git.commit('Updated repository configuration', [Path.join(this.folderPath, 'config.json')]).catch(() => { });
+                await this.push().catch(() => { });
+            }
+        });
     }
 
     async init() {
@@ -919,7 +926,7 @@ export class RepositoryManager {
         const serverLinks = message.serverLinks;
         if (serverLinks.size > 0) {
             const serverLinkMessage: string[] = [];
-            serverLinks.forEach((link, id) => {
+            serverLinks.forEach((link) => {
                 serverLinkMessage.push(`**${link.name}**: ${link.joinURL}`);
             });
             const serverLinkMsg = truncateStringWithEllipsis(serverLinkMessage.join('\n'), 4000);
