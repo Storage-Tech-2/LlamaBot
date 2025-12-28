@@ -1,4 +1,4 @@
-import { AnyThreadChannel, ChatInputCommandInteraction, InteractionContextType, SlashCommandBuilder } from "discord.js";
+import { AnyThreadChannel, ChannelType, ChatInputCommandInteraction, ForumChannel, InteractionContextType, SlashCommandBuilder } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
@@ -36,19 +36,64 @@ export class DictionaryEditCommand implements Command {
                 sub
                     .setName('references')
                     .setDescription('Show the archive entries that reference this dictionary entry')
+            )
+            .addSubcommand(sub =>
+                sub
+                    .setName('closeposts')
+                    .setDescription('Close all open dictionary threads')
             );
         return data;
     }
 
     async execute(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction): Promise<void> {
-        if (!interaction.inGuild() || !interaction.channel || !interaction.channel.isThread()) {
-            await replyEphemeral(interaction, 'This command can only be used inside a dictionary thread.');
+        if (!interaction.inGuild()) {
+            await replyEphemeral(interaction, 'This command can only be used in a guild.');
             return;
         }
+
+        const subcommand = interaction.options.getSubcommand();
 
         const dictionaryChannelId = guildHolder.getConfigManager().getConfig(GuildConfigs.DICTIONARY_CHANNEL_ID);
         if (!dictionaryChannelId) {
             await replyEphemeral(interaction, 'Dictionary channel is not configured.');
+            return;
+        }
+
+        if (subcommand === 'closeposts') {
+            if (!isEditor(interaction, guildHolder) && !isModerator(interaction)) {
+                await replyEphemeral(interaction, 'You do not have permission to use this command.');
+                return;
+            }
+
+            const dictionaryChannel = await guildHolder.getGuild().channels.fetch(dictionaryChannelId).catch(() => null) as ForumChannel | null;
+            if (!dictionaryChannel || dictionaryChannel.type !== ChannelType.GuildForum) {
+                await replyEphemeral(interaction, 'Dictionary channel is not configured as a forum.');
+                return;
+            }
+
+            await interaction.reply('Starting to close all dictionary threads. This may take a while depending on the number of open threads. You will be notified when it is complete.');
+
+            const dictionaryManager = guildHolder.getDictionaryManager();
+            const threads = await dictionaryChannel.threads.fetchActive();
+            for (const thread of threads.threads.values()) {
+                const entry = await dictionaryManager.getEntry(thread.id);
+                if (entry && entry.status === DictionaryEntryStatus.PENDING) {
+                    continue;
+                }
+
+                try {
+                    await thread.setArchived(true, 'Closing dictionary thread via closeposts command');
+                } catch (error) {
+                    console.error(`Error closing dictionary thread ${thread.name} (${thread.id}):`, error);
+                }
+            }
+
+            await interaction.followUp(`<@${interaction.user.id}> Closing all dictionary threads complete!`);
+            return;
+        }
+
+        if (!interaction.channel || !interaction.channel.isThread()) {
+            await replyEphemeral(interaction, 'This command can only be used inside a dictionary thread.');
             return;
         }
 
@@ -69,8 +114,6 @@ export class DictionaryEditCommand implements Command {
             return;
         }
 
-
-        const subcommand = interaction.options.getSubcommand();
 
         if (subcommand === 'references') {
 

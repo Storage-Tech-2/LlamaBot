@@ -506,9 +506,9 @@ export class Mwa implements Command {
         }
 
         const dictionaryStatusTags: GuildForumTag[] = [
-            { name: 'Pending', emoji: { name: '🕒' } },
+            { name: 'Pending', emoji: { name: '🕒' }, moderated: true },
             { name: 'Approved', emoji: { name: '✅' }, moderated: true },
-            { name: 'Rejected', emoji: { name: '🚫' } },
+            { name: 'Rejected', emoji: { name: '🚫' }, moderated: true },
         ] as GuildForumTag[];
 
         const existingDictionaryTags = dictionaryChannel.availableTags.filter(tag => {
@@ -846,9 +846,9 @@ export class Mwa implements Command {
                 const dictionaryChannel = await guildHolder.getGuild().channels.fetch(dictionaryChannelId).catch(() => null);
                 if (dictionaryChannel && dictionaryChannel.type === ChannelType.GuildForum) {
                     const dictionaryStatusTags: GuildForumTag[] = [
-                        { name: 'Pending', emoji: { name: '🕒' } },
+                        { name: 'Pending', emoji: { name: '🕒' }, moderated: true },
                         { name: 'Approved', emoji: { name: '✅' }, moderated: true },
-                        { name: 'Rejected', emoji: { name: '🚫' } },
+                        { name: 'Rejected', emoji: { name: '🚫' }, moderated: true },
                     ] as GuildForumTag[];
 
                     const existingDictionaryTags = dictionaryChannel.availableTags.filter(tag => {
