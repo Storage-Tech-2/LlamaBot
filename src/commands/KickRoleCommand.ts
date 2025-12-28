@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType, PermissionFlagsBits, Role } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType, PermissionFlagsBits, Role, MessageFlags } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { replyEphemeral } from "../utils/Util.js";
@@ -44,7 +44,7 @@ export class KickRoleCommand implements Command {
             return;
         }
 
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
         const members = await interaction.guild.members.fetch();
         const membersWithRole = members.filter(member => member.roles.cache.has(role.id));

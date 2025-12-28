@@ -8,7 +8,7 @@ import { GuildHolder } from "../GuildHolder.js";
 import fs from "fs/promises";
 import { processImageForDiscord } from "../utils/AttachmentUtils.js";
 import { postToMarkdown } from "../utils/MarkdownUtils.js";
-import { transformOutputWithReferences } from "../utils/ReferenceUtils.js";
+import { ServerLinksMap, transformOutputWithReferences } from "../utils/ReferenceUtils.js";
 
 export class PostEmbed {
     private embed: EmbedBuilder;
@@ -160,7 +160,10 @@ export class PostEmbed {
     }
 
 
-    public static createInitialMessage(guildHolder: GuildHolder, entryData: ArchiveEntryData, entryPathPart: string): string {
+    public static createInitialMessage(guildHolder: GuildHolder, entryData: ArchiveEntryData, entryPathPart: string): {
+        content: string,
+        serverLinks: ServerLinksMap
+    } {
         let content = [];
 
         const authors = entryData.authors;
@@ -211,7 +214,10 @@ export class PostEmbed {
             content.push(` | [Website](${postURLObj.href})`);
         }
         content.push(`\nArchived on <t:${Math.floor(entryData.archivedAt / 1000)}:F>`);
-        return content.join('');
+        return {
+            content: content.join(''),
+            serverLinks: transformed.serverLinks
+        };
     }
 
     public static async createImageFiles(entryData: ArchiveEntryData, archivePath: string, entryPathPart: string, isGalleryView: boolean): Promise<{ files: AttachmentBuilder[], paths: string[] }> {

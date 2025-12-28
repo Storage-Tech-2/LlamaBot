@@ -283,7 +283,7 @@ export function tagReferencesInText(text: string, dictionaryIndex?: DictionaryTe
                 if (entry.status !== DictionaryEntryStatus.APPROVED) {
                     continue;
                 }
-               
+
                 references.push({
                     start: match.start,
                     end: match.end,
@@ -448,7 +448,7 @@ export async function tagReferences(string: string, prevReferences: Reference[],
         }
 
         return ref;
-    }).filter((r)=>{
+    }).filter((r) => {
         if (r.type === ReferenceType.DICTIONARY_TERM || r.type === ReferenceType.ARCHIVED_POST) {
             if (r.id === selfID) {
                 return false;
@@ -507,16 +507,18 @@ export function findMatchesWithinText(text: string, references: Reference[]): {
 }
 
 
+export type ServerLinksMap = Map<Snowflake, { id: Snowflake, name: string, joinURL: string }>;
+
 export function transformOutputWithReferences(
     text: string,
     references: Reference[],
     isDiscord: boolean = false,
     excludedIDs: Set<Snowflake> = new Set(),
-    serverLinks: Map<Snowflake, { name: string, joinURL: string }> = new Map()
+    serverLinks: ServerLinksMap = new Map()
 ): {
-   result: string,
-   excludedIDs: Set<Snowflake>,
-   serverLinks: Map<Snowflake, { name: string, joinURL: string }>
+    result: string,
+    excludedIDs: Set<Snowflake>,
+    serverLinks: ServerLinksMap
 } {
     const matches = findMatchesWithinText(text, references);
     if (matches.length === 0) {
@@ -647,7 +649,11 @@ export function transformOutputWithReferences(
             }
         } else if (ref.type === ReferenceType.DISCORD_LINK) {
             if (ref.server && ref.serverJoinURL && !serverLinks.has(ref.server)) {
-                serverLinks.set(ref.server, { name: ref.serverName || "Unknown", joinURL: ref.serverJoinURL });
+                serverLinks.set(ref.server, {
+                    id: ref.server,
+                    name: ref.serverName || "Unknown",
+                    joinURL: ref.serverJoinURL
+                });
             }
 
             if (hyperlink) {

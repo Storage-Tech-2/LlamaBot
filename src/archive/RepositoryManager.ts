@@ -904,12 +904,34 @@ export class RepositoryManager {
 
         // Next, create the post
         const message = PostEmbed.createInitialMessage(this.guildHolder, newEntryData, entryPathPart);
-        const messageChunks = splitIntoChunks(message, 2000).map((m) => {
+        const messageChunks: {
+            content: string;
+            showEmbed: boolean;
+            embeds: EmbedBuilder[];
+        }[] = splitIntoChunks(message.content, 2000).map((m) => {
             return {
                 content: m,
-                showEmbed: false
+                showEmbed: false,
+                embeds: []
             }
         });
+
+        const serverLinks = message.serverLinks;
+        if (serverLinks.size > 0) {
+            const serverLinkMessage: string[] = [];
+            serverLinks.forEach((link, id) => {
+                serverLinkMessage.push(`**${link.name}**: ${link.joinURL}`);
+            });
+            const serverLinkMsg = truncateStringWithEllipsis(serverLinkMessage.join('\n'), 4000);
+            messageChunks.push({
+                content: '',
+                showEmbed: true,
+                embeds: [
+                    new EmbedBuilder().setTitle('Server Links').setDescription(serverLinkMsg).setColor(0x00AE86)
+                ]
+            });
+
+        }
 
         const hasAttachments = newEntryData.attachments.length > 0;
         if (hasAttachments) {
@@ -917,7 +939,8 @@ export class RepositoryManager {
             attachmentMessageChunks.forEach(c => {
                 messageChunks.push({
                     content: c,
-                    showEmbed: false
+                    showEmbed: false,
+                    embeds: []
                 })
             })
 
@@ -927,7 +950,8 @@ export class RepositoryManager {
                 viewerChunks.forEach(c => {
                     messageChunks.push({
                         content: c,
-                        showEmbed: true
+                        showEmbed: true,
+                        embeds: []
                     })
                 })
             }
@@ -1020,7 +1044,7 @@ export class RepositoryManager {
         for (let i = continuingMessageIds.length; i < messageChunks.length - 1; i++) {
             const message = await thread.send({
                 content: 'Pending...',
-                flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications]
+                flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications],
             });
             continuingMessageIds.push(message.id);
         }
@@ -1029,7 +1053,9 @@ export class RepositoryManager {
         if (messageChunks.length > 0) {
             await initialMessage.edit({
                 content: messageChunks[0].content,
-                flags: messageChunks[0].showEmbed ? [] : [MessageFlags.SuppressEmbeds]
+                flags: messageChunks[0].showEmbed ? [] : [MessageFlags.SuppressEmbeds],
+                embeds: messageChunks[0].embeds,
+                allowedMentions: { parse: [] }
             });
         }
 
@@ -1042,7 +1068,9 @@ export class RepositoryManager {
             }
             await message.edit({
                 content: messageChunks[i].content,
-                flags: messageChunks[i].showEmbed ? [] : [MessageFlags.SuppressEmbeds]
+                flags: messageChunks[i].showEmbed ? [] : [MessageFlags.SuppressEmbeds],
+                embeds: messageChunks[i].embeds,
+                allowedMentions: { parse: [] }
             });
         }
 

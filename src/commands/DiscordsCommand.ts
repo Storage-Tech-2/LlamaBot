@@ -206,7 +206,7 @@ export class DiscordsCommand implements Command {
         await interaction.reply({
             content: 'Select a server to view its invite.',
             components: [row],
-            ephemeral: true,
+            flags: [MessageFlags.SuppressNotifications, MessageFlags.Ephemeral],
         });
     }
 }

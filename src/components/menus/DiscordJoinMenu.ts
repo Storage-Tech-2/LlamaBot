@@ -41,7 +41,6 @@ export class DiscordJoinMenu implements Menu {
         await interaction.reply({
             embeds: [embed],
             allowedMentions: { parse: [] },
-            ephemeral: true,
         });
     }
 }
