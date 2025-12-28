@@ -7,6 +7,7 @@ import { RevisionEmbed } from "../../embed/RevisionEmbed.js";
 import { markdownMatchSchema, schemaToMarkdownTemplate } from "../../utils/MarkdownUtils.js";
 import { FixErrorsButton } from "../buttons/FixErrorsButton.js";
 import { tagReferencesInSubmissionRecords } from "../../utils/ReferenceUtils.js";
+import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 
 export class EditRevisionModal implements Modal {
     getID(): string {
@@ -132,7 +133,8 @@ export class EditRevisionModal implements Modal {
             return;
         }
 
-        newRevisionData.references = await tagReferencesInSubmissionRecords(newRevisionData.records, revision.references, guildHolder).catch(e =>{
+        const id = submission.getConfigManager().getConfig(SubmissionConfigs.SUBMISSION_THREAD_ID);
+        newRevisionData.references = await tagReferencesInSubmissionRecords(newRevisionData.records, revision.references, guildHolder, id).catch(e =>{
             console.error("Failed to tag references:", e)
             return [];
         })

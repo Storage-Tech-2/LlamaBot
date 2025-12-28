@@ -179,8 +179,8 @@ export async function retagEverythingTask(guildHolder: GuildHolder): Promise<voi
     let modifiedCount = 0;
     await repositoryManager.iterateAllEntries(async (entry: ArchiveEntry, channelRef: ArchiveChannelReference) => {
         const data = entry.getData();
-        const newReferences = await tagReferencesInSubmissionRecords(data.records, data.references, guildHolder);
-        const newAuthorReferences = await tagReferencesInAcknowledgements(data.authors, data.author_references, guildHolder);
+        const newReferences = await tagReferencesInSubmissionRecords(data.records, data.references, guildHolder, data.id);
+        const newAuthorReferences = await tagReferencesInAcknowledgements(data.authors, data.author_references, guildHolder, data.id);
 
         const changed = hasReferencesChanged(data.references, newReferences).changed ||
             hasReferencesChanged(data.author_references, newAuthorReferences).changed;
@@ -202,7 +202,7 @@ export async function retagEverythingTask(guildHolder: GuildHolder): Promise<voi
     // update definitions
     const dictionaryManager = guildHolder.getDictionaryManager();
     await dictionaryManager.iterateEntries(async (definition) => {
-        const newReferences = await tagReferences(definition.definition, definition.references, guildHolder);
+        const newReferences = await tagReferences(definition.definition, definition.references, guildHolder, definition.id);
         const changed = hasReferencesChanged(definition.references, newReferences).changed;
         if (!changed) {
             return;

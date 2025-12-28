@@ -100,7 +100,7 @@ export class IndexManager {
                 }
                 termToData.get(term)!.add({
                     id: entry.id,
-                    url: entry.threadURL,
+                    url: entry.statusURL || entry.threadURL,
                     status: entry.status,
                 });
             }

@@ -372,7 +372,7 @@ export function deduplicateReferences(references: Reference[]): Reference[] {
     return newList;
 }
 
-export async function tagReferences(string: string, prevReferences: Reference[], guildHolder: GuildHolder, skipTerms: boolean = false) {
+export async function tagReferences(string: string, prevReferences: Reference[], guildHolder: GuildHolder, selfID: Snowflake, skipTerms: boolean = false) {
     if (!string) {
         return [];
     }
@@ -448,25 +448,32 @@ export async function tagReferences(string: string, prevReferences: Reference[],
         }
 
         return ref;
-    });
+    }).filter((r)=>{
+        if (r.type === ReferenceType.DICTIONARY_TERM || r.type === ReferenceType.ARCHIVED_POST) {
+            if (r.id === selfID) {
+                return false;
+            }
+        }
+        return true;
+    })
 
     return deduplicateReferences(newReferences);
 }
 
-export async function tagReferencesInSubmissionRecords(records: SubmissionRecords, prevReferences: Reference[], guildHolder: GuildHolder) {
+export async function tagReferencesInSubmissionRecords(records: SubmissionRecords, prevReferences: Reference[], guildHolder: GuildHolder, selfID: Snowflake) {
     const rawText = recordsToRawTextNoHeaders(records).trim();
     if (!rawText) {
         return [];
     }
-    return tagReferences(rawText, prevReferences, guildHolder);
+    return tagReferences(rawText, prevReferences, guildHolder, selfID);
 }
 
-export async function tagReferencesInAcknowledgements(authors: Author[], prevReferences: Reference[], guildHolder: GuildHolder) {
+export async function tagReferencesInAcknowledgements(authors: Author[], prevReferences: Reference[], guildHolder: GuildHolder, selfID: Snowflake) {
     const rawText = authors.filter(a => a.reason?.trim()).map(a => a.reason).join('\n').trim();
     if (!rawText) {
         return [];
     }
-    return tagReferences(rawText, prevReferences, guildHolder, true);
+    return tagReferences(rawText, prevReferences, guildHolder, selfID, true);
 }
 
 export function findMatchesWithinText(text: string, references: Reference[]): {

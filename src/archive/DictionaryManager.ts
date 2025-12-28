@@ -19,6 +19,7 @@ export type DictionaryEntry = {
     terms: string[];
     definition: string;
     threadURL: string;
+    statusURL: string;
     status: DictionaryEntryStatus;
     statusMessageID?: Snowflake;
     updatedAt: number;
@@ -181,9 +182,10 @@ export class DictionaryManager {
             terms: [thread.name],
             definition,
             threadURL: thread.url,
+            statusURL: '',
             status: DictionaryEntryStatus.PENDING,
             updatedAt: Date.now(),
-            references: await tagReferences(definition, [], this.guildHolder).catch(() => []),
+            references: await tagReferences(definition, [], this.guildHolder, thread.id).catch(() => []),
         };
 
         const statusMessage = await this.sendStatusMessage(thread, entry).catch((e) => {
@@ -191,8 +193,10 @@ export class DictionaryManager {
             return null;
         });
         
+        
         if (statusMessage) {
             entry.statusMessageID = statusMessage.id;
+            entry.statusURL = statusMessage.url;
         }
 
         await this.saveEntry(entry).catch((e) => {
@@ -350,6 +354,7 @@ export class DictionaryManager {
             terms: raw.terms || [],
             definition: raw.definition || '',
             threadURL: raw.threadURL || '',
+            statusURL: raw.statusURL || '',
             status: raw.status || DictionaryEntryStatus.PENDING,
             statusMessageID: raw.statusMessageID,
             updatedAt: raw.updatedAt || Date.now(),

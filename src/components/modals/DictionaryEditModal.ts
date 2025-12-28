@@ -97,7 +97,7 @@ export class DictionaryEditModal implements Modal {
 
         await interaction.deferReply();
         if (retag) {
-            entry.references = await tagReferences(entry.definition, entry.references, guildHolder);
+            entry.references = await tagReferences(entry.definition, entry.references, guildHolder, entry.id);
         }
 
         entry.updatedAt = Date.now();

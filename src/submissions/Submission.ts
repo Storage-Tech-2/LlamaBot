@@ -265,7 +265,7 @@ export class Submission {
                 references: []
             }
 
-            revision.references = await tagReferencesInSubmissionRecords(revision.records, revision.references, this.guildHolder).catch(e => {
+            revision.references = await tagReferencesInSubmissionRecords(revision.records, revision.references, this.guildHolder, this.getId()).catch(e => {
                 console.error("Failed to tag references:", e)
                 return [];
             });
@@ -641,7 +641,7 @@ export class Submission {
             throw new Error('Cannot send messages in this channel');
         }
 
-        newRevisionData.references = await tagReferencesInSubmissionRecords(newRevisionData.records, revision.references, this.guildHolder).catch(e => {
+        newRevisionData.references = await tagReferencesInSubmissionRecords(newRevisionData.records, revision.references, this.guildHolder, this.getId()).catch(e => {
             console.error("Failed to tag references:", e)
             return [];
         });
@@ -877,7 +877,7 @@ export class Submission {
         const authors = this.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
         const old = this.getConfigManager().getConfig(SubmissionConfigs.AUTHORS_REFERENCES);
 
-        const newRefs = await tagReferencesInAcknowledgements(authors, old, this.guildHolder).catch(e => {
+        const newRefs = await tagReferencesInAcknowledgements(authors, old, this.guildHolder, this.getId()).catch(e => {
             console.error("Failed to tag references in acknowledgements:", e)
             return [];
         });
