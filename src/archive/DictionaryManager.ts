@@ -25,6 +25,7 @@ export type DictionaryEntry = {
     statusMessageID?: Snowflake;
     updatedAt: number;
     references: Reference[];
+    referencedBy: string[];
 }
 
 export type ArchiveIndex = {
@@ -221,6 +222,7 @@ export class DictionaryManager {
             status: DictionaryEntryStatus.PENDING,
             updatedAt: Date.now(),
             references: await tagReferences(definition, [], this.guildHolder, thread.id).catch(() => []),
+            referencedBy: [],
         };
 
         const statusMessage = await this.sendStatusMessage(thread, entry).catch((e) => {
@@ -348,6 +350,7 @@ export class DictionaryManager {
         embed.addFields(
             { name: 'Terms', value: entry.terms.length ? entry.terms.join(', ') : 'None', inline: false },
             { name: 'Status', value: this.statusLabel(entry.status), inline: true },
+            { name: 'References', value: `${entry.referencedBy.length}`, inline: true },
             { name: 'Last Updated', value: `<t:${Math.floor((entry.updatedAt || Date.now()) / 1000)}:R>`, inline: true },
         );
 
@@ -394,6 +397,7 @@ export class DictionaryManager {
             statusMessageID: raw.statusMessageID,
             updatedAt: raw.updatedAt || Date.now(),
             references: raw.references || [],
+            referencedBy: raw.referencedBy || []
         };
     }
 

@@ -76,17 +76,15 @@ export class DictionaryEditCommand implements Command {
         if (subcommand === 'references') {
 
             const matches: { name: string; url: string }[] = [];
-            await guildHolder.getRepositoryManager().iterateAllEntries(async (archiveEntry) => {
-                const data = archiveEntry.getData();
-                for (const reference of data.references) {
-                    if (reference.type === ReferenceType.DICTIONARY_TERM && reference.id === entry.id) {
-                        matches.push({
-                            name: data.name,
-                            url: data.post?.threadURL || '',
-                        });
-                    }
-                }
-            });
+            for (const code of entry.referencedBy) {
+                const archiveEntry = await guildHolder.getRepositoryManager().findEntryBySubmissionCode(code);
+                if (!archiveEntry) continue;
+                const data = archiveEntry.entry.getData();
+                matches.push({
+                    name: data.name,
+                    url: data.post?.threadURL || ''
+                });
+            }
 
             if (matches.length === 0) {
                 await replyEphemeral(interaction, 'No archive entries reference this dictionary entry.');

@@ -7,7 +7,7 @@ import { ChannelType, ChatInputCommandInteraction, ForumChannel } from "discord.
 import { ArchiveChannel } from "./ArchiveChannel.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import Path from "path";
-import { hasReferencesChanged, tagReferences, tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
+import { hasReferencesChanged, ReferenceType, tagReferences, tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
 
 export async function updateEntryAuthorsTask(guildHolder: GuildHolder): Promise<void> {
     const repositoryManager = guildHolder.getRepositoryManager();
@@ -175,6 +175,8 @@ export async function retagEverythingTask(guildHolder: GuildHolder): Promise<voi
     }
 
     await repositoryManager.getLock().acquire();
+    
+    const definitionToEntryCodes: Map<string, Set<string>> = new Map();
 
     let modifiedCount = 0;
     await repositoryManager.iterateAllEntries(async (entry: ArchiveEntry, channelRef: ArchiveChannelReference) => {
@@ -189,6 +191,16 @@ export async function retagEverythingTask(guildHolder: GuildHolder): Promise<voi
         }
 
         data.references = newReferences;
+
+        newReferences.forEach((ref) => {
+            if (ref.type !== ReferenceType.DICTIONARY_TERM) return;
+            const defID = ref.id;
+            if (!definitionToEntryCodes.has(defID)) {
+                definitionToEntryCodes.set(defID, new Set());
+            }
+            definitionToEntryCodes.get(defID)!.add(data.code);
+        });
+
         data.author_references = newAuthorReferences;
 
         await repositoryManager.addOrUpdateEntryFromData(data, channelRef.id, false, false, async () => { }).catch((e) => {
@@ -203,7 +215,13 @@ export async function retagEverythingTask(guildHolder: GuildHolder): Promise<voi
     const dictionaryManager = guildHolder.getDictionaryManager();
     await dictionaryManager.iterateEntries(async (definition) => {
         const newReferences = await tagReferences(definition.definition, definition.references, guildHolder, definition.id);
-        const changed = hasReferencesChanged(definition.references, newReferences).changed;
+        let changed = hasReferencesChanged(definition.references, newReferences).changed;
+        const entryCodes = definitionToEntryCodes.get(definition.id);
+        if (entryCodes && entryCodes.intersection(new Set(definition.referencedBy)).size !== entryCodes.size) {
+            changed = true;
+            definition.referencedBy = Array.from(entryCodes);
+        }
+
         if (!changed) {
             return;
         }
