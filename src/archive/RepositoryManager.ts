@@ -21,6 +21,7 @@ import { analyzeAttachments, filterAttachmentsForViewer, getAttachmentsFromMessa
 import { DictionaryManager } from "./DictionaryManager.js";
 import { IndexManager } from "./IndexManager.js";
 import { DiscordServersDictionary } from "./DiscordServersDictionary.js";
+import { tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
 export class RepositoryManager {
     public folderPath: string;
     private git?: SimpleGit;
@@ -576,19 +577,21 @@ export class RepositoryManager {
 
             config.setConfig(SubmissionConfigs.NAME, submissionChannel.name);
 
+            const oldRef = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS_REFERENCES);
+            const authors = await reclassifyAuthors(this.guildHolder, config.getConfig(SubmissionConfigs.AUTHORS) || []);
             entryData = deepClone({
                 id: submission.getId(),
                 name: config.getConfig(SubmissionConfigs.NAME),
                 code: newCode,
-                authors: await reclassifyAuthors(this.guildHolder, config.getConfig(SubmissionConfigs.AUTHORS) || []),
+                authors: authors,
                 endorsers: await reclassifyAuthors(this.guildHolder, config.getConfig(SubmissionConfigs.ENDORSERS)),
                 tags: config.getConfig(SubmissionConfigs.TAGS) || [],
                 images: submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) || [],
                 attachments: submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) || [],
                 records: revision.records,
                 styles: revision.styles,
-                references: revision.references,
-                author_references: submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS_REFERENCES),
+                references: await tagReferencesInSubmissionRecords(revision.records, revision.references, this.guildHolder, submission.getId()),
+                author_references: await tagReferencesInAcknowledgements(authors, oldRef, this.guildHolder, submission.getId()),
                 updatedAt: Date.now(),
                 archivedAt: Date.now(),
                 post: undefined
