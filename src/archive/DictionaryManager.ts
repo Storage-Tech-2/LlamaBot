@@ -132,11 +132,11 @@ export class DictionaryManager {
         
         this.invalidateDictionaryTermIndex();
         if (rebuildNeeded) {
-            if (push) {
-                await retagEverythingTask(this.guildHolder);
-            } else {
-                this.repositoryManager.getGuildHolder().requestRetagging();
-            }
+            // if (push) {
+            //     await retagEverythingTask(this.guildHolder);
+            // } else {
+            this.repositoryManager.getGuildHolder().requestRetagging();
+            //}
         }
     }
 
