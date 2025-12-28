@@ -317,6 +317,8 @@ export class DictionaryManager {
                 await this.saveEntry(entry);
             }
             await this.applyStatusTag(entry, targetThread);
+        } catch (e) {
+            console.error("Error updating status message for dictionary entry:", e);
         } finally {
             if (wasArchived) {
                 await targetThread.setArchived(true).catch(() => { });
