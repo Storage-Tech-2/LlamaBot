@@ -3,8 +3,9 @@ import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { DictionaryEntryStatus } from "../archive/DictionaryManager.js";
-import { isEditor, isModerator, replyEphemeral } from "../utils/Util.js";
+import { isEditor, isModerator, replyEphemeral, splitIntoChunks } from "../utils/Util.js";
 import { DictionaryEditModal } from "../components/modals/DictionaryEditModal.js";
+import { ReferenceType } from "../utils/ReferenceUtils.js";
 
 export class DictionaryEditCommand implements Command {
     getID(): string {
@@ -31,6 +32,11 @@ export class DictionaryEditCommand implements Command {
                 sub
                     .setName('reject')
                     .setDescription('Reject this dictionary entry')
+            )
+            .addSubcommand(sub =>
+                sub
+                    .setName('references')
+                    .setDescription('Show the archive entries that reference this dictionary entry')
             );
         return data;
     }
@@ -56,7 +62,6 @@ export class DictionaryEditCommand implements Command {
             await replyEphemeral(interaction, 'You do not have permission to use this command.');
             return;
         }
-
         const dictionaryManager = guildHolder.getDictionaryManager();
         const thread = interaction.channel as AnyThreadChannel;
         const entry = await dictionaryManager.ensureEntryForThread(thread);
@@ -65,8 +70,49 @@ export class DictionaryEditCommand implements Command {
             return;
         }
 
+
         const subcommand = interaction.options.getSubcommand();
-        if (subcommand === 'edit') {
+
+        if (subcommand === 'references') {
+
+            const matches: { name: string; url: string }[] = [];
+            await guildHolder.getRepositoryManager().iterateAllEntries(async (archiveEntry) => {
+                const data = archiveEntry.getData();
+                for (const reference of data.references) {
+                    if (reference.type === ReferenceType.DICTIONARY_TERM && reference.id === entry.id) {
+                        matches.push({
+                            name: data.name,
+                            url: data.post?.threadURL || '',
+                        });
+                    }
+                }
+            });
+
+            if (matches.length === 0) {
+                await replyEphemeral(interaction, 'No archive entries reference this dictionary entry.');
+                return;
+            }
+            
+            let response = `Archive entries referencing this dictionary entry:\n`;
+            for (const match of matches) {
+                response += `- [${match.name}](${match.url})\n`;
+            }
+
+            const split = splitIntoChunks(response, 2000);
+            for (const chunk of split) {
+                if (!interaction.replied) {
+                    await interaction.reply({ 
+                        content: chunk,
+                        allowedMentions: { parse: [] }
+                    });
+                    continue;
+                }
+                await interaction.channel.send({ 
+                    content: chunk,
+                    allowedMentions: { parse: [] }
+                });
+            }
+        } else if (subcommand === 'edit') {
             const modal = await new DictionaryEditModal().getBuilder(entry);
             await interaction.showModal(modal);
             return;
@@ -77,11 +123,11 @@ export class DictionaryEditCommand implements Command {
         entry.updatedAt = Date.now();
         await dictionaryManager.saveEntry(entry, true);
         await dictionaryManager.updateStatusMessage(entry, thread);
-        await interaction.reply({ 
-            content: 
+        await interaction.reply({
+            content:
                 newStatus === DictionaryEntryStatus.APPROVED ?
-                `<@${interaction.user.id}> has approved this dictionary entry. A request to retag the archives has been sent, and will be completed within 24 hours.` :
-                `<@${interaction.user.id}> has rejected this dictionary entry.`, 
+                    `<@${interaction.user.id}> has approved this dictionary entry. A request to retag the archives has been sent, and will be completed within 24 hours.` :
+                    `<@${interaction.user.id}> has rejected this dictionary entry.`,
             allowedMentions: { parse: [] }
         });
     }
