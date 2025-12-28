@@ -399,7 +399,7 @@ async function processWDLs(attachment: Attachment, attachmentPath: string): Prom
     }
 }
 
-async function iterateAllMessages(channel: TextBasedChannel, iterator: (message: Message) => Promise<boolean>) {
+export async function iterateAllMessages(channel: TextBasedChannel, iterator: (message: Message) => Promise<boolean>) {
     let messages = await channel.messages.fetch({ limit: 100 });
     while (messages.size > 0) {
         for (const msg of messages.values()) {

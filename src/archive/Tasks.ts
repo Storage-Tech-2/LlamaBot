@@ -1,13 +1,14 @@
 import { Author } from "../submissions/Author.js";
 import { ArchiveEntry } from "./ArchiveEntry.js";
-import { areAuthorsSame, reclassifyAuthors } from "../utils/Util.js";
+import { areAuthorsSame, reclassifyAuthors, splitIntoChunks } from "../utils/Util.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { ArchiveChannelReference } from "./RepositoryConfigs.js";
-import { ChannelType, ChatInputCommandInteraction, ForumChannel } from "discord.js";
+import { ChannelType, ChatInputCommandInteraction, ForumChannel, GuildForumTag, Message, MessageFlags } from "discord.js";
 import { ArchiveChannel } from "./ArchiveChannel.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import Path from "path";
 import { hasReferencesChanged, ReferenceType, tagReferences, tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
+import { iterateAllMessages } from "../utils/AttachmentUtils.js";
 
 export async function updateEntryAuthorsTask(guildHolder: GuildHolder): Promise<number> {
     const repositoryManager = guildHolder.getRepositoryManager();
@@ -430,4 +431,161 @@ export async function retagEverythingTask(guildHolder: GuildHolder): Promise<voi
         }
     }
     repositoryManager.getLock().release();
+}
+
+export async function importACAChannelTask(
+    guildHolder: GuildHolder,
+    channel: ForumChannel,
+    setStatus: (status: string) => Promise<void>
+) {
+    // get submission channel
+    const submissionsChannelId = guildHolder.getSubmissionsChannelId();
+    if (!submissionsChannelId) {
+        throw new Error("Submissions channel not configured.");
+    }
+
+    const submissionsChannel = await guildHolder.getGuild().channels.fetch(submissionsChannelId).catch(() => null);
+    if (!submissionsChannel || submissionsChannel.type !== ChannelType.GuildForum) {
+        throw new Error("Submissions channel is not a forum channel.");
+    }
+
+    // make sure submissions channel has an import tag
+    const importTag: GuildForumTag = {
+        name: 'ACA Import',
+        moderated: false,
+        emoji: { name: '📥' }
+    } as GuildForumTag;
+
+    let existingImportTag = submissionsChannel.availableTags.find(tag => tag.name === importTag.name);
+    if (!existingImportTag) {
+        const newTags = submissionsChannel.availableTags.slice();
+        newTags.push(importTag);
+        await submissionsChannel.setAvailableTags(newTags);
+
+        await submissionsChannel.fetch();
+    }
+
+    const importTagId = submissionsChannel.availableTags.find(tag => tag.name === importTag.name)?.id;
+    if (!importTagId) {
+        throw new Error("Failed to create or find import tag in submissions channel.");
+    }
+
+    // get threads
+    const threads = await channel.threads.fetch();
+
+    let importedCount = 0;
+
+    const webhook = await submissionsChannel.createWebhook({
+        name: 'Llamabot Importer',
+        reason: 'Importing ACA submissions',
+    })
+
+
+
+    for (const [, thread] of threads.threads) {
+        await thread.fetch();
+
+        // sure thread isn't authored by the bot
+        if (thread.ownerId === guildHolder.getBot().client.user?.id) {
+            continue;
+        }
+
+        await setStatus(`Importing thread ${thread.name}...`);
+        try {
+
+            // fetch starter message
+            const starterMessage = await thread.fetchStarterMessage();
+            if (!starterMessage) {
+                console.error(`Thread ${thread.name} has no starter message, skipping.`);
+                continue;
+            }
+
+
+
+            const threadName = thread.name;
+            const threadStarterAttachments = starterMessage.attachments;
+
+            const contentSplit = splitIntoChunks(starterMessage.content, 2000);
+
+            const newThreadMessage = await webhook.send({
+                threadName: threadName,
+                appliedTags: [importTagId],
+                content: contentSplit[0],
+                files: Array.from(threadStarterAttachments.values()),
+                flags: [MessageFlags.SuppressNotifications],
+                allowedMentions: { parse: [] },
+                username: starterMessage.author.username,
+                avatarURL: starterMessage.author.displayAvatarURL(),
+            });
+
+            const newThread = newThreadMessage.thread;
+
+            if (!newThreadMessage || !newThread) {
+                console.error(`Failed to create new thread for ${thread.name}, skipping.`);
+                continue;
+            }
+
+            // send remaining content if any
+            for (let i = 1; i < contentSplit.length; i++) {
+                await webhook.send({
+                    threadId: newThread.id,
+                    content: contentSplit[i],
+                    flags: [MessageFlags.SuppressNotifications],
+                    allowedMentions: { parse: [] },
+                    username: starterMessage.author.username,
+                    avatarURL: starterMessage.author.displayAvatarURL(),
+                });
+            }
+
+            // collect messages
+            const messages: Message[] = [];
+            await iterateAllMessages(thread, async (message: Message) => {
+                if (message.id === starterMessage.id) {
+                    return true; // skip starter message
+                }
+
+                messages.push(message);
+                return true;
+            });
+
+            // sort messages by oldest first
+            messages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+
+            for (const message of messages) {
+                await message.fetch();
+
+                const messageAttachments = message.attachments;
+                const messageContentSplit = splitIntoChunks(message.content, 2000);
+
+                // send first part with attachments
+                await webhook.send({
+                    threadId: newThread.id,
+                    content: messageContentSplit[0],
+                    files: Array.from(messageAttachments.values()),
+                    flags: [MessageFlags.SuppressNotifications],
+                    allowedMentions: { parse: [] },
+                    username: message.author.username,
+                    avatarURL: message.author.displayAvatarURL(),
+                });
+
+                // send remaining parts
+                for (let i = 1; i < messageContentSplit.length; i++) {
+                    await webhook.send({
+                        threadId: newThread.id,
+                        content: messageContentSplit[i],
+                        flags: [MessageFlags.SuppressNotifications],
+                        allowedMentions: { parse: [] },
+                        username: message.author.username,
+                        avatarURL: message.author.displayAvatarURL(),
+                    });
+                }
+            }
+
+            importedCount++;
+        } catch (e: any) {
+            console.error(`Error importing thread ${thread.name}:`, e);
+        }
+    }
+
+    await webhook.delete('Import complete');
 }
