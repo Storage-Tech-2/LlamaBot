@@ -754,6 +754,10 @@ export class RepositoryManager {
             tags: newEntryData.tags.map(tag => tag.name),
         }
 
+        if (existing) {
+            newEntryData.archivedAt = existing.entryRef.archivedAt;
+        }
+
         const entryFolderPath = Path.join(channelPath, entryRef.path);
 
         if (!newEntryData.post) {

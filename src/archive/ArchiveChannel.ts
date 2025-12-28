@@ -76,6 +76,10 @@ export class ArchiveChannel {
     public static async fromFolder(folder: string): Promise<ArchiveChannel> {
         const dataPath = Path.join(folder, 'data.json');
         const data: ArchiveChannelData = JSON.parse(await fs.readFile(dataPath, 'utf-8'));
+        data.entries.forEach(entry => {
+            if (!entry.archivedAt) entry.archivedAt = entry.timestamp || Date.now();
+            if (!entry.updatedAt) entry.updatedAt = entry.archivedAt;
+        });
         const entry = new ArchiveChannel(data, folder);
         return entry;
     }
