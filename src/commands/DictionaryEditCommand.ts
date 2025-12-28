@@ -165,9 +165,12 @@ export class DictionaryEditCommand implements Command {
         const newStatus = subcommand === 'approve' ? DictionaryEntryStatus.APPROVED : DictionaryEntryStatus.REJECTED;
         entry.status = newStatus;
         entry.updatedAt = Date.now();
+
+        await interaction.deferReply();
+
         await dictionaryManager.saveEntry(entry, true);
         await dictionaryManager.updateStatusMessage(entry, thread);
-        await interaction.reply({
+        await interaction.editReply({
             content:
                 newStatus === DictionaryEntryStatus.APPROVED ?
                     `<@${interaction.user.id}> has approved this dictionary entry.` :
