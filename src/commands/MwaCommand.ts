@@ -13,6 +13,9 @@ import { SetTemplateModal } from "../components/modals/SetTemplateModal.js";
 import { SetDesignerRoleMenu } from "../components/menus/SetDesignerRoleMenu.js";
 import { SetScriptModal } from "../components/modals/SetScriptModal.js";
 import { republishAllEntries, retagEverythingTask } from "../archive/Tasks.js";
+import got from "got";
+import { DictionaryEntryStatus } from "../archive/DictionaryManager.js";
+import { tagReferences } from "../utils/ReferenceUtils.js";
 
 export class Mwa implements Command {
     getID(): string {
@@ -154,6 +157,17 @@ export class Mwa implements Command {
                             .addChannelTypes(ChannelType.GuildForum)
                     )
             )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('importdictionary')
+                    .setDescription('Import dictionary entries from a JSON attachment')
+                    .addAttachmentOption(option =>
+                        option
+                            .setName('file')
+                            .setDescription('JSON file to import')
+                            .setRequired(true)
+                    )
+            )
 
             .addSubcommand(subcommand =>
                 subcommand
@@ -236,6 +250,8 @@ export class Mwa implements Command {
             this.makeIndex(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'setdictionary') {
             this.setDictionary(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'importdictionary') {
+            this.importDictionary(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'blacklistadd') {
             this.addToBlacklist(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'blacklistremove') {
@@ -469,6 +485,202 @@ export class Mwa implements Command {
 
         guildHolder.getConfigManager().setConfig(GuildConfigs.DICTIONARY_CHANNEL_ID, channel.id);
         await interaction.reply(`Dictionary channel set to ${channel.name}.`);
+    }
+
+    async importDictionary(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const attachment = interaction.options.getAttachment('file');
+        if (!attachment) {
+            await replyEphemeral(interaction, 'Attach a JSON file to import.');
+            return;
+        }
+
+        const dictionaryChannelId = guildHolder.getConfigManager().getConfig(GuildConfigs.DICTIONARY_CHANNEL_ID);
+        if (!dictionaryChannelId) {
+            await replyEphemeral(interaction, 'Dictionary channel is not configured.');
+            return;
+        }
+
+        const dictionaryChannel = await guildHolder.getGuild().channels.fetch(dictionaryChannelId).catch(() => null);
+        if (!dictionaryChannel || dictionaryChannel.type !== ChannelType.GuildForum) {
+            await replyEphemeral(interaction, 'Dictionary channel is not a forum.');
+            return;
+        }
+
+        const dictionaryStatusTags: GuildForumTag[] = [
+            { name: 'Pending', emoji: { name: '🕒' } },
+            { name: 'Approved', emoji: { name: '✅' }, moderated: true },
+            { name: 'Rejected', emoji: { name: '🚫' } },
+        ] as GuildForumTag[];
+
+        const existingDictionaryTags = dictionaryChannel.availableTags.filter(tag => {
+            return !dictionaryStatusTags.some(t => t.name === tag.name);
+        });
+
+        const mergedDictionaryTags = dictionaryStatusTags.map(t => {
+            const existing = dictionaryChannel.availableTags.find(tag => tag.name === t.name);
+            return existing || t;
+        }).concat(existingDictionaryTags);
+
+        await dictionaryChannel.setAvailableTags(mergedDictionaryTags).catch(() => { });
+
+        await interaction.deferReply();
+
+        let payload: any;
+        try {
+            const response = await got(attachment.url, { responseType: 'text' });
+            payload = JSON.parse(response.body);
+        } catch (e: any) {
+            await interaction.editReply(`Failed to load or parse the JSON file: ${e.message || e}`);
+            return;
+        }
+
+        if (!Array.isArray(payload)) {
+            await interaction.editReply('Invalid JSON format. Expected an array of entries.');
+            return;
+        }
+
+        const dictionaryManager = guildHolder.getDictionaryManager();
+        const normalizeTerm = (term: string) => dictionaryManager.normalizeTerm(term);
+
+        const existingEntries = await dictionaryManager.listEntries();
+        const existingTerms = new Map<string, Snowflake>();
+        for (const entry of existingEntries) {
+            for (const term of entry.terms || []) {
+                const normalized = normalizeTerm(term);
+                if (normalized) {
+                    existingTerms.set(normalized, entry.id);
+                }
+            }
+        }
+
+        const repositoryManager = guildHolder.getRepositoryManager();
+        await repositoryManager.getLock().acquire();
+
+        const results: string[] = [];
+        let created = 0;
+        let skipped = 0;
+
+        try {
+            for (let i = 0; i < payload.length; i++) {
+                const rawEntry = payload[i];
+                if (!rawEntry || typeof rawEntry !== 'object') {
+                    results.push(`Entry #${i + 1}: skipped (not an object).`);
+                    skipped++;
+                    continue;
+                }
+
+                const termSource = Array.isArray(rawEntry.terms) ? rawEntry.terms : [];
+                if (typeof rawEntry.term === 'string') {
+                    termSource.push(rawEntry.term);
+                }
+                if (typeof rawEntry.id === 'string' && termSource.length === 0) {
+                    termSource.push(rawEntry.id);
+                }
+
+                const terms = termSource.map((t: any) => String(t).trim()).filter(Boolean);
+                if (terms.length === 0) {
+                    results.push(`Entry #${i + 1}: skipped (no terms).`);
+                    skipped++;
+                    continue;
+                }
+
+                const normalizedTerms = terms.map(normalizeTerm).filter(Boolean) as string[];
+                const duplicateTerm = normalizedTerms.find(t => existingTerms.has(t));
+                if (duplicateTerm) {
+                    results.push(`Entry "${terms[0]}": skipped (term already exists).`);
+                    skipped++;
+                    continue;
+                }
+
+                const definition = (rawEntry.definition ?? '').toString().trim();
+                if (!definition) {
+                    results.push(`Entry "${terms[0]}": skipped (no definition).`);
+                    skipped++;
+                    continue;
+                }
+
+                let threadName = terms[0];
+                if (threadName.length > 90) {
+                    threadName = threadName.slice(0, 87) + '...';
+                }
+
+                try {
+                    const thread = await dictionaryChannel.threads.create({
+                        name: threadName,
+                        message: {
+                            content: definition,
+                            allowedMentions: { parse: [] },
+                        },
+                    }).catch(() => null);
+
+                    if (!thread) {
+                        results.push(`Entry "${terms[0]}": failed to create a thread.`);
+                        skipped++;
+                        continue;
+                    }
+
+                    const entry = await dictionaryManager.ensureEntryForThread(thread).catch(() => null);
+                    if (!entry) {
+                        results.push(`Entry "${terms[0]}": failed to record dictionary entry.`);
+                        skipped++;
+                        continue;
+                    }
+
+                    entry.terms = terms;
+                    entry.definition = definition;
+                    entry.status = DictionaryEntryStatus.APPROVED;
+                    entry.updatedAt = Date.now();
+                    entry.references = await tagReferences(entry.definition, entry.references, guildHolder, entry.id);
+
+                    await dictionaryManager.saveEntry(entry);
+                    await dictionaryManager.updateStatusMessage(entry, thread);
+                    await dictionaryManager.warnIfDuplicate(entry, thread);
+
+                    for (const term of normalizedTerms) {
+                        existingTerms.set(term, entry.id);
+                    }
+
+                    created++;
+                    results.push(`Entry "${terms[0]}": created at ${thread.url}`);
+                } catch (e: any) {
+                    results.push(`Entry "${terms[0]}": failed (${e.message || e}).`);
+                    skipped++;
+                }
+            }
+
+            if (created > 0) {
+                let commitError: string | null = null;
+                await repositoryManager.commit(`Imported ${created} dictionary ${created === 1 ? 'entry' : 'entries'}`).catch((e: any) => {
+                    commitError = e.message || String(e);
+                });
+                if (commitError) {
+                    results.push(`Warning: changes were staged but commit failed: ${commitError}`);
+                } else {
+                    await repositoryManager.push().catch((e: any) => {
+                        results.push(`Warning: commit succeeded but push failed: ${e.message || e}`);
+                    });
+                }
+            }
+        } finally {
+            repositoryManager.getLock().release();
+        }
+
+        if (results.length === 0) {
+            results.push('No entries were imported.');
+        } else {
+            results.unshift(`Import complete: created ${created}, skipped ${skipped}.`);
+        }
+
+        const chunks = splitIntoChunks(results.join('\n'), 2000);
+        if (chunks.length === 0) {
+            await interaction.editReply('Import complete.');
+            return;
+        }
+
+        await interaction.editReply({ content: chunks[0] });
+        for (let i = 1; i < chunks.length; i++) {
+            await interaction.followUp({ content: chunks[i], flags: MessageFlags.SuppressNotifications });
+        }
     }
 
     async setScript(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
