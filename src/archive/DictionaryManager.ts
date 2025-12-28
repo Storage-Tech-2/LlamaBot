@@ -354,10 +354,10 @@ export class DictionaryManager {
         embed.setColor(this.statusToColor(entry.status));
 
         const def = transformOutputWithReferences(entry.definition, entry.references, true);
-        embed.setDescription(this.trim(def.result || 'No definition provided yet.', 3500));
+        embed.setDescription(truncateStringWithEllipsis(def.result || 'No definition provided yet.', 3500));
 
         embed.addFields(
-            { name: 'Terms', value: entry.terms.length ? entry.terms.join(', ') : 'None', inline: false },
+            { name: 'Terms', value: truncateStringWithEllipsis(entry.terms.length ? entry.terms.join(', ') : 'None', 150), inline: false },
             { name: 'Status', value: this.statusLabel(entry.status), inline: true },
             { name: 'References', value: `${entry.referencedBy.length}`, inline: true },
             { name: 'Last Updated', value: `<t:${Math.floor((entry.updatedAt || Date.now()) / 1000)}:R>`, inline: true },
@@ -367,9 +367,20 @@ export class DictionaryManager {
     }
 
     private buildStatusComponents(entry: DictionaryEntry): ActionRowBuilder<ButtonBuilder>[] {
-        const editButton = new EditDictionaryEntryButton().getBuilder(entry.id);
+        const editButton = new EditDictionaryEntryButton().getBuilder(entry.id, entry.status === DictionaryEntryStatus.APPROVED);
         const row = new ActionRowBuilder<ButtonBuilder>()
             .addComponents(editButton);
+
+        // check if website URL is configured
+        const websiteURL = this.guildHolder.getConfigManager().getConfig(GuildConfigs.WEBSITE_URL);
+        if (websiteURL) {
+            const viewButton = new ButtonBuilder()
+                .setLabel('View on Website')
+                .setStyle(5) // Link button
+                .setURL(`${websiteURL}?view=dictionary&did=${entry.id}`);
+            row.addComponents(viewButton);
+        }
+
         return [row];
     }
 
@@ -393,13 +404,6 @@ export class DictionaryManager {
             default:
                 return 'Pending';
         }
-    }
-
-    private trim(text: string, maxLength: number): string {
-        if (text.length <= maxLength) {
-            return text;
-        }
-        return `${text.slice(0, maxLength - 3)}...`;
     }
 
     private hydrateEntry(raw: DictionaryEntry): DictionaryEntry {

@@ -11,11 +11,11 @@ export class EditDictionaryEntryButton implements Button {
         return "dictionary-edit-button";
     }
 
-    getBuilder(entryId: string): ButtonBuilder {
+    getBuilder(entryId: string, isApproved: boolean): ButtonBuilder {
         return new ButtonBuilder()
             .setCustomId(`${this.getID()}|${entryId}`)
-            .setLabel('Edit')
-            .setStyle(ButtonStyle.Secondary);
+            .setLabel('Edit Entry')
+            .setStyle(isApproved ? ButtonStyle.Secondary : ButtonStyle.Primary);
     }
 
     async execute(guildHolder: GuildHolder, interaction: ButtonInteraction, entryId?: string): Promise<void> {
