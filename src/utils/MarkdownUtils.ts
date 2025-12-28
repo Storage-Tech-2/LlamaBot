@@ -88,6 +88,12 @@ export type StyleInfo = {
     isOrdered?: boolean;
 }
 
+export type StrictStyleInfo = {
+    depth: number;
+    headerText: string;
+    isOrdered: boolean;
+}
+
 export function markdownToSchema(markdown: string): {
     schema: JSONSchema7,
     style: Record<string, StyleInfo>,
@@ -381,17 +387,35 @@ export function capitalizeFirstLetter(str: string): string {
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+export function getEffectiveStyle(key: string, schemaStyles?: Record<string, StyleInfo>, recordStyles?: Record<string, StyleInfo>): StrictStyleInfo {
+    const recordStyle = Object.hasOwn(recordStyles || {}, key) ? recordStyles![key] : null;
+    const schemaStyle = Object.hasOwn(schemaStyles || {}, key) ? schemaStyles![key] : null;
+    
+    const style = {
+        depth: 2,
+        headerText: capitalizeFirstLetter(key),
+        isOrdered: false,
+    }
+    if (schemaStyle) {
+        if (schemaStyle.depth !== undefined) style.depth = schemaStyle.depth;
+        if (schemaStyle.headerText !== undefined) style.headerText = schemaStyle.headerText;
+        if (schemaStyle.isOrdered !== undefined) style.isOrdered = schemaStyle.isOrdered;
+    }
+    if (recordStyle) {
+        if (recordStyle.depth !== undefined) style.depth = recordStyle.depth;
+        if (recordStyle.headerText !== undefined) style.headerText = recordStyle.headerText;
+        if (recordStyle.isOrdered !== undefined) style.isOrdered = recordStyle.isOrdered;
+    }
+    return style;
+}
+
 export function postToMarkdown(record: SubmissionRecords, recordStyles?: Record<string, StyleInfo>, schemaStyles?: Record<string, StyleInfo>): string {
     let markdown = "";
 
     let isFirst = true;
     for (const key in record) {
         const recordValue = record[key];
-        const styles = {
-            depth: recordStyles?.[key]?.depth ?? schemaStyles?.[key]?.depth ?? 2,
-            headerText: recordStyles?.[key]?.headerText ?? schemaStyles?.[key]?.headerText ?? capitalizeFirstLetter(key),
-            isOrdered: recordStyles?.[key]?.isOrdered ?? schemaStyles?.[key]?.isOrdered ?? false,
-        }
+        const styles = getEffectiveStyle(key, schemaStyles, recordStyles);
 
         const text = submissionRecordToMarkdown(recordValue, styles);
         if (text.length > 0) {
@@ -463,12 +487,7 @@ export function schemaToMarkdownTemplate(schema: JSONSchema7, schemaStyles: Reco
 
         const recordValue = (record && Object.hasOwn(record, key)) ? record[key] : null;
 
-        const style = {
-            depth: recordStyles?.[key]?.depth ?? schemaStyles[key]?.depth ?? 2,
-            headerText: recordStyles?.[key]?.headerText ?? schemaStyles[key]?.headerText ?? capitalizeFirstLetter(key),
-            isOrdered: recordStyles?.[key]?.isOrdered ?? schemaStyles[key]?.isOrdered ?? false,
-        }
-
+        const style = getEffectiveStyle(key, schemaStyles, recordStyles);
         if (key !== "description" || !isFirst) {
             markdown += (addExtraNewline ? '\n' : '') + `\n## ${style.headerText}${isRequired ? "" : " (Optional)"}\n`;
         }
