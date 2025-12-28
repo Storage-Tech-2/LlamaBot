@@ -520,10 +520,22 @@ export async function importACAChannelTask(
                 avatarURL: starterMessage.author.displayAvatarURL(),
             });
 
-            console.log(newThreadMessage);
-            await newThreadMessage.fetch();
-
-            const newThread = newThreadMessage.thread;
+            // try to find thead with same name and message id
+            const activeThreads = (await submissionsChannel.threads.fetchActive()).threads;
+            // first try to find by message id
+            const withSameName = activeThreads.filter(t => t.name === threadName);
+            let newThread;
+            if (withSameName.size === 1) {
+                newThread = withSameName.first();
+            } else {
+                for (const [_, t] of withSameName) {
+                    const tStarter = await t.fetchStarterMessage();
+                    if (tStarter && tStarter.id === newThreadMessage.id) {
+                        newThread = t;
+                        break;
+                    }
+                }
+            }
 
             if (!newThreadMessage || !newThread) {
                 console.error(`Failed to create new thread for ${thread.name}, skipping.`);
