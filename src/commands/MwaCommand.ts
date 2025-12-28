@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, InteractionContextType, ChannelType, ActionRowBuilder, ForumChannel, GuildForumTag, SortOrderType, Snowflake, CategoryChannel, MessageFlags } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
-import { areAuthorsSame, getAuthorFromIdentifier, getAuthorsString, getCodeAndDescriptionFromTopic, replyEphemeral, splitIntoChunks } from "../utils/Util.js";
+import { areAuthorsSame, getAuthorFromIdentifier, getAuthorsString, getCodeAndDescriptionFromTopic, replyEphemeral, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { SetArchiveCategoriesMenu } from "../components/menus/SetArchiveCategoriesMenu.js";
 import { SetEndorseRolesMenu } from "../components/menus/SetEndorseRolesMenu.js";
@@ -598,10 +598,7 @@ export class Mwa implements Command {
                     continue;
                 }
 
-                let threadName = terms[0];
-                if (threadName.length > 90) {
-                    threadName = threadName.slice(0, 87) + '...';
-                }
+                let threadName = truncateStringWithEllipsis(terms.join(', '), 100);
 
                 try {
                     const thread = await dictionaryChannel.threads.create({
