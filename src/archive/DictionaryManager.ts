@@ -129,7 +129,7 @@ export class DictionaryManager {
         }
         
         this.invalidateDictionaryTermIndex();
-        if (!oldEntry || this.haveTermsChanged(oldEntry.terms, entry.terms) || oldEntry.status !== entry.status) {
+        if (rebuildNeeded) {
             this.repositoryManager.getGuildHolder().requestRetagging();
         }
     }
