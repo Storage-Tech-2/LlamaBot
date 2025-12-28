@@ -7,6 +7,7 @@ import { findDictionaryMatches, DictionaryTermIndex, Reference, tagReferences, t
 import { IndexManager } from "./IndexManager.js";
 import { RepositoryManager } from "./RepositoryManager.js";
 import { Lock } from "../utils/Lock.js";
+import { truncateStringWithEllipsis } from "../utils/Util.js";
 
 export enum DictionaryEntryStatus {
     PENDING = "PENDING",
@@ -88,16 +89,17 @@ export class DictionaryManager {
 
     async rebuildConfigIndex(): Promise<void> {
         const configPath = this.getConfigPath();
-        const ids = [];
-        const files = await fs.readdir(this.getEntriesPath());
-        for (const file of files) {
-            if (file.endsWith('.json')) {
-                const id = file.slice(0, -5);
-                ids.push(id);
-            }
-        }
+        const entries = await this.listEntries();
         const configData = {
-            entryIDs: ids,
+            entries: entries.map(entry => {
+                return {
+                    id: entry.id,
+                    terms: entry.terms,
+                    summary: truncateStringWithEllipsis(entry.definition, 200),
+                    status: entry.status,
+                    updatedAt: entry.updatedAt,
+                };
+            }),
         };
         await fs.writeFile(configPath, JSON.stringify(configData, null, 2), 'utf-8');
     }
