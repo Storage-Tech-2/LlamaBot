@@ -4,6 +4,7 @@ import { GuildHolder } from "../../GuildHolder.js";
 import { DictionaryEntry } from "../../archive/DictionaryManager.js";
 import { isEditor, isModerator, replyEphemeral } from "../../utils/Util.js";
 import { GuildConfigs } from "../../config/GuildConfigs.js";
+import { tagReferences } from "../../utils/ReferenceUtils.js";
 
 export class DictionaryEditModal implements Modal {
     getID(): string {
@@ -30,7 +31,7 @@ export class DictionaryEditModal implements Modal {
             .setRequired(false)
             .setStyle(TextInputStyle.Paragraph)
             .setValue(entry.definition || '');
-        
+
         const definitionLabel = new LabelBuilder()
             .setLabel('Definition:')
             .setTextInputComponent(definitionInput);
@@ -82,9 +83,11 @@ export class DictionaryEditModal implements Modal {
             }
         }
 
+        let retag = false;
         if (definitionInput !== undefined && definitionInput !== entry.definition) {
             entry.definition = definitionInput;
             updated = true;
+            retag = true;
         }
 
         if (!updated) {
@@ -92,11 +95,16 @@ export class DictionaryEditModal implements Modal {
             return;
         }
 
+        await interaction.deferReply();
+        if (retag) {
+            entry.references = await tagReferences(entry.definition, entry.references, guildHolder);
+        }
+
         entry.updatedAt = Date.now();
         await dictionaryManager.saveEntry(entry, true);
         await dictionaryManager.updateStatusMessage(entry, thread);
         await dictionaryManager.warnIfDuplicate(entry, thread);
 
-        await interaction.reply({ content: 'Dictionary entry updated.', ephemeral: true });
+        await interaction.editReply({ content: `<@${interaction.user.id}> updated the dictionary entry.` });
     }
 }
