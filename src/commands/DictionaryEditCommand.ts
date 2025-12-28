@@ -5,7 +5,6 @@ import { GuildConfigs } from "../config/GuildConfigs.js";
 import { DictionaryEntryStatus } from "../archive/DictionaryManager.js";
 import { isEditor, isModerator, replyEphemeral, splitIntoChunks } from "../utils/Util.js";
 import { DictionaryEditModal } from "../components/modals/DictionaryEditModal.js";
-import { ReferenceType } from "../utils/ReferenceUtils.js";
 
 export class DictionaryEditCommand implements Command {
     getID(): string {
