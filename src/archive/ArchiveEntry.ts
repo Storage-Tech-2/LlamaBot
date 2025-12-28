@@ -85,6 +85,8 @@ export class ArchiveEntry {
             const data: ArchiveEntryData = JSON.parse(await fs.readFile(dataPath, 'utf-8'));
             if (!data.references) data.references = [];
             if (!data.author_references) data.author_references = [];
+            if (!data.archivedAt) data.archivedAt = data.timestamp || Date.now();
+            if (!data.updatedAt) data.updatedAt = data.archivedAt;
             const entry = new ArchiveEntry(data, folder);
             return entry;
         } catch (error) {
