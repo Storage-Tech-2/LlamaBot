@@ -247,7 +247,9 @@ export class EditorPowersCommand implements Command {
                 const refresh = interaction.options.getBoolean('refresh') || false;
                 await interaction.deferReply();
                 try {
-                    await submission.publish(true, refresh);
+                    await submission.publish(true, refresh, async (status: string) => {
+                        await interaction.editReply(status).catch(() => {});
+                    });
                 } catch (e: any) {
                     console.error(e);
                     interaction.editReply(`Failed to publish submission: ${e.message || 'Unknown error'}`);

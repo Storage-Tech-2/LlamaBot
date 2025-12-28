@@ -488,7 +488,11 @@ export class RepositoryManager {
         return null;
     }
 
-    async addOrUpdateEntryFromSubmission(submission: Submission, forceNew: boolean): Promise<{ oldEntryData?: ArchiveEntryData, newEntryData: ArchiveEntryData }> {
+    async addOrUpdateEntryFromSubmission(
+        submission: Submission,
+        forceNew: boolean,
+        statusCallback?: (status: string) => Promise<void>
+    ): Promise<{ oldEntryData?: ArchiveEntryData, newEntryData: ArchiveEntryData }> {
 
         if (!this.git) {
             throw new Error("Git not initialized");
@@ -663,7 +667,7 @@ export class RepositoryManager {
                     }
                 }
 
-            });
+            }, statusCallback);
 
             const newEntryData = result.newEntryData;
             const oldEntryData = result.oldEntryData;
@@ -686,13 +690,29 @@ export class RepositoryManager {
     }
 
 
-    async addOrUpdateEntryFromData(guildHolder: GuildHolder, newEntryData: ArchiveEntryData, archiveChannelId: Snowflake, forceNew: boolean, reanalyzeAttachments: boolean, moveAttachments: (entryData: ArchiveEntryData, imageFolder: string, attachmentFolder: string) => Promise<void>): Promise<{ oldEntryData?: ArchiveEntryData, newEntryData: ArchiveEntryData }> {
+    async addOrUpdateEntryFromData(
+        guildHolder: GuildHolder,
+        newEntryData: ArchiveEntryData,
+        archiveChannelId: Snowflake,
+        forceNew: boolean,
+        reanalyzeAttachments: boolean,
+        moveAttachments: (entryData: ArchiveEntryData, imageFolder: string, attachmentFolder: string) => Promise<void>,
+        statusCallback: (status: string) => Promise<void> | void = () => { }
+    ): Promise<{ oldEntryData?: ArchiveEntryData, newEntryData: ArchiveEntryData }> {
         // clone entryData
         newEntryData = deepClone(newEntryData);
 
         if (!this.git) {
             throw new Error("Git not initialized");
         }
+
+        const reportStatus = async (status: string) => {
+            try {
+                await statusCallback(status);
+            } catch (e) {
+                console.error("Status callback failed:", e);
+            }
+        };
 
         this.addToIgnoreUpdatesFrom(newEntryData.id);
 
@@ -705,6 +725,8 @@ export class RepositoryManager {
         if (!archiveChannelRef) {
             throw new Error("Archive channel reference not found");
         }
+
+        await reportStatus('Collecting information...');
 
         const archiveChannelDiscord = await guildHolder.getGuild().channels.fetch(archiveChannelId).catch(() => null);
         if (!archiveChannelDiscord || archiveChannelDiscord.type !== ChannelType.GuildForum) {
@@ -719,8 +741,6 @@ export class RepositoryManager {
         const channelPath = Path.join(this.folderPath, archiveChannelRef.path);
         const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
 
-
-        // Find old entry if it exists
         const existing = await this.findEntryBySubmissionId(newEntryData.id);
         const isSameChannel = existing && existing.channelRef.id === archiveChannelId;
 
@@ -823,6 +843,7 @@ export class RepositoryManager {
         await moveAttachments(newEntryData, imageFolder, attachmentFolder);
 
         if (reanalyzeAttachments) {
+            await reportStatus('Reanalyzing attachments');
             await analyzeAttachments(newEntryData.attachments, entryFolderPath);
         }
 
@@ -846,6 +867,7 @@ export class RepositoryManager {
 
         // First, upload attachments
         const entryPathPart = `${archiveChannelRef.path}/${entryRef.path}`;
+     
         const attachmentUpload = await PostEmbed.createAttachmentUpload(entryFolderPath, newEntryData);
 
         const hasUploadAttachments = attachmentUpload.files.length > 0;
@@ -856,6 +878,8 @@ export class RepositoryManager {
 
         let uploadArchived = false;
         if (!uploadMessage && hasUploadAttachments) {
+            await reportStatus('Uploading attachments...');
+
             if (uploadChannel.isThread() && uploadChannel.archived) {
                 uploadArchived = true;
                 await uploadChannel.setArchived(false);
@@ -917,6 +941,8 @@ export class RepositoryManager {
 
         let wasThreadCreated = false;
         if (!thread) {
+
+            await reportStatus('Creating thread...');
             newEntryData.post.threadId = '';
             newEntryData.post.threadURL = '';
             newEntryData.post.continuingMessageIds = [];
@@ -959,6 +985,7 @@ export class RepositoryManager {
         let continuingMessageIds = newEntryData.post.continuingMessageIds || [];
         const shouldRefreshThread = (messageChunks.length > 1 + continuingMessageIds.length) && comments && comments.length > 0;
         if (shouldRefreshThread) {
+            await reportStatus('Clearing old thread messages...');
             // Delete all previous messages in the thread that are not part of the continuing messages
             for (let i = 0; i < 100; i++) {
                 const messages = await thread.messages.fetch({ limit: 100 });
@@ -975,6 +1002,9 @@ export class RepositoryManager {
             }
             continuingMessageIds = []; // Reset continuing message IDs to force re-creation
         }
+
+
+        await reportStatus('Updating thread contents...');
 
         // Delete excess messages if they exist
         if (continuingMessageIds.length > messageChunks.length - 1) {
@@ -1027,6 +1057,7 @@ export class RepositoryManager {
         if (wasThreadCreated || shouldRefreshThread) { // check if there are comments to post
             if (comments.length > 0 && thread.parent) {
                 // make webhook
+                await reportStatus('Posting comments to thread');
                 const threadWebhook = await thread.parent.createWebhook({
                     name: 'LlamaBot Archiver'
                 });
@@ -1087,6 +1118,7 @@ export class RepositoryManager {
             await uploadChannel.setArchived(true, 'Upload thread was previously archived');
         }
 
+        await reportStatus('Saving data in repository...');
         await entry.save();
         await archiveChannel.save();
         await this.git.add(archiveChannel.getDataPath());
@@ -1101,10 +1133,12 @@ export class RepositoryManager {
 
 
         if (existing) {
+            await reportStatus('Running post-update tasks...');
             this.guildHolder.onPostUpdate(existing.entry.getData(), entry.getData()).catch(e => {
                 console.error("Error handling post update:", e);
             });
         } else {
+            await reportStatus('Running post-add tasks...');
             this.guildHolder.onPostAdd(entry.getData()).catch(e => {
                 console.error("Error handling post add:", e);
             });

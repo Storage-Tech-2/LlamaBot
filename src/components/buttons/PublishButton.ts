@@ -35,12 +35,14 @@ export class PublishButton implements Button {
             return;
         }
 
-        await interaction.reply({
+        const msg = await interaction.reply({
             content: `<@${interaction.user.id}> initiated publishing!`,
         });
 
         try {
-            await submission.publish();
+            await submission.publish(false, false, async (status: string) => {
+                await msg.edit({ content: `<@${interaction.user.id}> initiated publishing!\nStatus: ${status}` });
+            });
         } catch(e: any) {
             console.error(e);
             await interaction.followUp({
@@ -48,6 +50,8 @@ export class PublishButton implements Button {
             });
             return;
         }
+
+        msg.edit({ content: `<@${interaction.user.id}> published the submission!` });
 
         const url = submission.getConfigManager().getConfig(SubmissionConfigs.POST)?.threadURL;
         const isLocked = submission.getConfigManager().getConfig(SubmissionConfigs.IS_LOCKED);
