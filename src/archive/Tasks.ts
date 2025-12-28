@@ -9,10 +9,10 @@ import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import Path from "path";
 import { hasReferencesChanged, ReferenceType, tagReferences, tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
 
-export async function updateEntryAuthorsTask(guildHolder: GuildHolder): Promise<void> {
+export async function updateEntryAuthorsTask(guildHolder: GuildHolder): Promise<number> {
     const repositoryManager = guildHolder.getRepositoryManager();
     if (!repositoryManager.isReady()) {
-        return;
+        return 0;
     }
 
     await repositoryManager.getLock().acquire();
@@ -68,6 +68,7 @@ export async function updateEntryAuthorsTask(guildHolder: GuildHolder): Promise<
         }
     }
     repositoryManager.getLock().release();
+    return modifiedCount;
 }
 
 export async function republishAllEntries(
@@ -168,6 +169,182 @@ export async function republishAllEntries(
 
 }
 
+export async function updateAuthorAndChannelTagsTask(guildHolder: GuildHolder): Promise<void> {
+    const repositoryManager = guildHolder.getRepositoryManager();
+    if (!repositoryManager.isReady()) {
+        return;
+    }
+    await repositoryManager.getLock().acquire();
+
+    let modifiedCount = 0;
+
+
+    // First, collect authors
+    const authors: Author[] = [];
+    const channels: {
+        id: string;
+        name?: string;
+        url?: string
+    }[] = [];
+
+    await repositoryManager.iterateAllEntries(async (entry: ArchiveEntry) => {
+        const entryData = entry.getData();
+        entryData.references.forEach(ref => {
+            if (ref.type === ReferenceType.USER_MENTION) {
+                if (!authors.some(a => a.id === ref.user.id)) {
+                    authors.push(ref.user);
+                }
+            } else if (ref.type === ReferenceType.CHANNEL_MENTION) {
+                if (!channels.some(c => c.id === ref.channelID)) {
+                    channels.push({
+                        id: ref.channelID,
+                        name: ref.channelName,
+                        url: ref.channelURL
+                    });
+                }
+            }
+        });
+        entryData.author_references.forEach(ref => {
+            if (ref.type === ReferenceType.USER_MENTION) {
+                if (!authors.some(a => a.id === ref.user.id)) {
+                    authors.push(ref.user);
+                }
+            } else if (ref.type === ReferenceType.CHANNEL_MENTION) {
+                if (!channels.some(c => c.id === ref.channelID)) {
+                    channels.push({
+                        id: ref.channelID,
+                        name: ref.channelName,
+                        url: ref.channelURL
+                    });
+                }
+            }
+        });
+    });
+
+    const dictionaryManager = guildHolder.getDictionaryManager();
+
+    await dictionaryManager.iterateEntries(async (definition) => {
+        definition.references.forEach(ref => {
+            if (ref.type === ReferenceType.USER_MENTION) {
+                if (!authors.some(a => a.id === ref.user.id)) {
+                    authors.push(ref.user);
+                }
+            } else if (ref.type === ReferenceType.CHANNEL_MENTION) {
+                if (!channels.some(c => c.id === ref.channelID)) {
+                    channels.push({
+                        id: ref.channelID,
+                        name: ref.channelName,
+                        url: ref.channelURL
+                    });
+                }
+            }
+        });
+    });
+
+    const chunkSize = 10;
+    const reclassified: Author[] = [];
+    for (let i = 0; i < authors.length; i += chunkSize) {
+        const chunk = authors.slice(i, i + chunkSize);
+        const reclassifiedChunk = await reclassifyAuthors(guildHolder, chunk);
+        reclassified.push(...reclassifiedChunk);
+    }
+
+    await repositoryManager.iterateAllEntries(async (entry: ArchiveEntry, channelRef: ArchiveChannelReference) => {
+        const data = entry.getData();
+        const newReferences = data.references.map(ref => {
+            if (ref.type === ReferenceType.USER_MENTION) {
+                const updatedAuthor = reclassified.find(a => a.id === ref.user.id);
+                if (updatedAuthor) {
+                    ref.user = updatedAuthor;
+                }
+            } else if (ref.type === ReferenceType.CHANNEL_MENTION) {
+                const updatedChannel = channels.find(c => c.id === ref.channelID);
+                if (updatedChannel) {
+                    ref.channelName = updatedChannel.name;
+                    ref.channelURL = updatedChannel.url;
+                }
+            }
+            return ref;
+        });
+
+        const newAuthorReferences = data.author_references.map(ref => {
+            if (ref.type === ReferenceType.USER_MENTION) {
+                const updatedAuthor = reclassified.find(a => a.id === ref.user.id);
+                if (updatedAuthor) {
+                    ref.user = updatedAuthor;
+                }
+            } else if (ref.type === ReferenceType.CHANNEL_MENTION) {
+                const updatedChannel = channels.find(c => c.id === ref.channelID);
+                if (updatedChannel) {
+                    ref.channelName = updatedChannel.name;
+                    ref.channelURL = updatedChannel.url;
+                }
+            }
+            return ref;
+        });
+
+        const changed = hasReferencesChanged(data.references, newReferences).changed ||
+            hasReferencesChanged(data.author_references, newAuthorReferences).changed;
+        if (!changed) {
+            return;
+        }
+
+        data.references = newReferences;
+        data.author_references = newAuthorReferences;
+
+        await repositoryManager.addOrUpdateEntryFromData(data, channelRef.id, false, false, async () => { }).catch((e) => {
+            console.error(`Error updating references for entry ${data.name} in channel ${channelRef.name}:`, e.message);
+        });
+        modifiedCount++;
+    });
+
+    await dictionaryManager.iterateEntries(async (definition) => {
+        const newReferences = definition.references.map(ref => {
+            if (ref.type === ReferenceType.USER_MENTION) {
+                const updatedAuthor = reclassified.find(a => a.id === ref.user.id);
+                if (updatedAuthor) {
+                    ref.user = updatedAuthor;
+                }
+            } else if (ref.type === ReferenceType.CHANNEL_MENTION) {
+                const updatedChannel = channels.find(c => c.id === ref.channelID);
+                if (updatedChannel) {
+                    ref.channelName = updatedChannel.name;
+                    ref.channelURL = updatedChannel.url;
+                }
+            }
+            return ref;
+        });
+
+        const changed = hasReferencesChanged(definition.references, newReferences).changed;
+        if (!changed) {
+            return;
+        }
+        definition.references = newReferences;
+        await dictionaryManager.saveEntry(definition).catch((e) => {
+            console.error(`Error updating references for definition ${definition.terms[0]}:`, e.message);
+        });
+        await dictionaryManager.updateStatusMessage(definition).catch((e) => {
+            console.error(`Error updating status message for definition ${definition.terms[0]}:`, e.message);
+        });
+        modifiedCount++;
+    });
+
+    if (modifiedCount > 0) {
+        try {
+            await repositoryManager.commit(`Updated author and channel tags for ${modifiedCount} items`);
+            try {
+                await repositoryManager.push();
+            } catch (e: any) {
+                console.error("Error pushing to remote:", e.message);
+            }
+        }
+        catch (e: any) {
+            console.error("Error committing updated author and channel tags:", e.message);
+        }
+    }
+    repositoryManager.getLock().release();
+}
+
 export async function retagEverythingTask(guildHolder: GuildHolder): Promise<void> {
     const repositoryManager = guildHolder.getRepositoryManager();
     if (!repositoryManager.isReady()) {
@@ -175,7 +352,7 @@ export async function retagEverythingTask(guildHolder: GuildHolder): Promise<voi
     }
 
     await repositoryManager.getLock().acquire();
-    
+
     const definitionToEntryCodes: Map<string, Set<string>> = new Map();
 
     let modifiedCount = 0;

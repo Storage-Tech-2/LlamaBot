@@ -22,7 +22,7 @@ import { AntiNukeManager } from "./support/AntiNukeManager.js";
 import { DictionaryManager } from "./archive/DictionaryManager.js";
 import { DiscordServersDictionary } from "./archive/DiscordServersDictionary.js";
 import { ReferenceType } from "./utils/ReferenceUtils.js";
-import { retagEverythingTask, updateEntryAuthorsTask } from "./archive/Tasks.js";
+import { retagEverythingTask, updateAuthorAndChannelTagsTask, updateEntryAuthorsTask } from "./archive/Tasks.js";
 import { RepositoryConfigs } from "./archive/RepositoryConfigs.js";
 /**
  * GuildHolder is a class that manages guild-related data.
@@ -109,7 +109,7 @@ export class GuildHolder {
             this.getSchemaStyles(); // migrate styles if needed
             console.log(`GuildHolder initialized for guild: ${guild.name} (${guild.id})`);
             this.ready = true;
-            
+
         });
     }
 
@@ -948,15 +948,21 @@ export class GuildHolder {
         if (now - this.lastDayLoop >= 24 * 60 * 60 * 1000) { // Every 24 hours
             this.lastDayLoop = now;
             await this.purgeThanksBuffer();
+
+            await updateEntryAuthorsTask(this).catch(e => {
+                console.error('Error updating entry authors:', e);
+            });
+
             if (this.retaggingRequested) {
                 await retagEverythingTask(this).catch(e => {
                     console.error('Error retagging everything:', e);
                 });
                 this.retaggingRequested = false;
+            } else {
+                await updateAuthorAndChannelTagsTask(this).catch(e => {
+                    console.error('Error updating author and channel tags:', e);
+                });
             }
-            await updateEntryAuthorsTask(this).catch(e => {
-                console.error('Error updating entry authors:', e);
-            });
         }
     }
 
@@ -1292,7 +1298,7 @@ export class GuildHolder {
             if (newReferencedBy.length !== definition.referencedBy.length) {
                 updated = true;
             }
-            
+
             definition.references = newReferences;
             definition.referencedBy = newReferencedBy;
 

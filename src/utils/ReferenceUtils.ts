@@ -6,17 +6,15 @@
 import { Snowflake } from "discord.js";
 import { recordsToRawTextNoHeaders, stripHyperlinkNames, SubmissionRecords } from "./MarkdownUtils.js";
 import { GuildHolder } from "../GuildHolder.js";
-import { Author } from "../submissions/Author.js";
+import { Author, AuthorType } from "../submissions/Author.js";
 import { ArchiveIndex, DictionaryEntryStatus } from "../archive/DictionaryManager.js";
+import { getAuthorsString, reclassifyAuthors } from "./Util.js";
 
-// Example post references
-// "ABC123", "DEF456", "GHI789"
-
-// Example discord forum links
-// To the forum thread:
-// https://discord.com/channels/1375556143186837695/1388316667855241277
-// To a message in the forum thread:
-// https://discord.com/channels/1375556143186837695/1388316667855241277/1388316670208249948
+// Convenience patterns for dynamic reference extraction
+export const PostCodePattern = /\b([A-Za-z]+[0-9]{3})\b/g;
+export const DiscordForumLinkPattern = /https?:\/\/(?:canary\.|ptb\.)?discord(?:app)?\.com\/channels\/(\d+)\/(\d+)(?:\/(\d+))?/g
+export const UserMentionPattern = /<@!?(\d+)>/g;
+export const ChannelMentionPattern = /<#(\d+)>/g;
 
 type AhoNode = {
     children: Map<string, number>;
@@ -50,7 +48,9 @@ export type DictionaryTermIndex = {
 export enum ReferenceType {
     DISCORD_LINK = "discordLink",
     DICTIONARY_TERM = "dictionaryTerm",
-    ARCHIVED_POST = "archivedPost"
+    ARCHIVED_POST = "archivedPost",
+    USER_MENTION = "userMention",
+    CHANNEL_MENTION = "channelMention",
 }
 
 export type ReferenceBase = {
@@ -82,7 +82,19 @@ export type ArchivedPostReference = ReferenceBase & {
     url: string,
 }
 
-export type Reference = DiscordLinkReference | DictionaryTermReference | ArchivedPostReference;
+export type UserMentionReference = ReferenceBase & {
+    type: ReferenceType.USER_MENTION,
+    user: Author,
+}
+
+export type ChannelMentionReference = ReferenceBase & {
+    type: ReferenceType.CHANNEL_MENTION,
+    channelID: Snowflake,
+    channelName?: string,
+    channelURL?: string,
+}
+
+export type Reference = DiscordLinkReference | DictionaryTermReference | ArchivedPostReference | UserMentionReference | ChannelMentionReference;
 
 type ReferenceWithIndex = {
     start: number,
@@ -251,10 +263,6 @@ export function findRegexMatches(text: string, patterns: RegExp[]): RegexMatch[]
     }
 }
 
-// Convenience patterns for dynamic reference extraction
-export const PostCodePattern = /\b([A-Za-z]+[0-9]{3})\b/g;
-export const DiscordForumLinkPattern = /https?:\/\/(?:canary\.|ptb\.)?discord(?:app)?\.com\/channels\/(\d+)\/(\d+)(?:\/(\d+))?/g
-
 /**
  * Tag references in arbitrary text.
  */
@@ -277,6 +285,45 @@ export function tagReferencesInText(text: string, dictionaryIndex?: DictionaryTe
                 server: server as Snowflake,
                 channel: channel as Snowflake,
                 message: message as Snowflake | undefined,
+                matches: [match.match],
+            }
+        });
+    }
+
+    const userMentionMatches = findRegexMatches(text, [UserMentionPattern]);
+    for (const match of userMentionMatches) {
+        const [userID] = match.groups;
+        if (!userID) {
+            continue;
+        }
+
+        references.push({
+            start: match.start,
+            end: match.end,
+            ref: {
+                type: ReferenceType.USER_MENTION,
+                user: { 
+                    type: AuthorType.DiscordExternal,
+                    id: userID as Snowflake
+                },
+                matches: [match.match],
+            }
+        });
+    }
+
+    const channelMentionMatches = findRegexMatches(text, [ChannelMentionPattern]);
+    for (const match of channelMentionMatches) {
+        const [channelID] = match.groups;
+        if (!channelID) {
+            continue;
+        }
+
+        references.push({
+            start: match.start,
+            end: match.end,
+            ref: {
+                type: ReferenceType.CHANNEL_MENTION,
+                channelID: channelID as Snowflake,
                 matches: [match.match],
             }
         });
@@ -468,8 +515,23 @@ export async function tagReferences(string: string, prevReferences: Reference[],
         return true;
     })
 
-    return deduplicateReferences(newReferences);
+    const deduped = deduplicateReferences(newReferences);
+
+    await Promise.all(deduped.map(async (ref) => {
+        if (ref.type === ReferenceType.USER_MENTION) {
+            ref.user = (await reclassifyAuthors(guildHolder, [ref.user]))[0];
+        } else if (ref.type === ReferenceType.CHANNEL_MENTION) {
+            const channel = await guildHolder.getGuild().channels.fetch(ref.channelID).catch(() => null);
+            if (channel) {
+                ref.channelName = channel.name;
+                ref.channelURL = channel.url;
+            }
+        }
+    }));
+
+    return deduped;
 }
+
 
 export async function tagReferencesInSubmissionRecords(records: SubmissionRecords, prevReferences: Reference[], guildHolder: GuildHolder, selfID: Snowflake) {
     const rawText = recordsToRawTextNoHeaders(records).trim();
@@ -692,8 +754,37 @@ export function transformOutputWithReferences(
                 // add server
                 resultParts.push(` ([Join ${ref.serverName}](${ref.serverJoinURL}))`);
             }
+        } else if (ref.type === ReferenceType.USER_MENTION) {
+            if (hyperlink) { // skip
+                resultParts.push(text.slice(hyperlink.start, hyperlink.end));
+                currentIndex = hyperlink.end;
+            } else if (isDiscord) {
+                const text = getAuthorsString([ref.user]);
+                resultParts.push(text);
+                currentIndex = match.end;
+            } else {
+                const text = ref.user.displayName || ref.user.username || "Unknown User";
+                resultParts.push(`[@${text}](# "ID: ${ref.user.id}")`);
+                currentIndex = match.end;
+            }
+        } else if (ref.type === ReferenceType.CHANNEL_MENTION) {
+            if (hyperlink) { // skip
+                resultParts.push(text.slice(hyperlink.start, hyperlink.end));
+                currentIndex = hyperlink.end;
+            } else if (isDiscord && ref.channelName) {
+                const linkedText = `<#${ref.channelID}>`;
+                resultParts.push(linkedText);
+                currentIndex = match.end;
+            } else if (ref.channelName && ref.channelURL) {
+                const linkedText = `[#${ref.channelName}](${ref.channelURL})`;
+                resultParts.push(linkedText);
+                currentIndex = match.end;
+            } else {
+                const linkedText = `[Unknown Channel](# "ID: ${ref.channelID}")`;
+                resultParts.push(linkedText);
+                currentIndex = match.end;
+            }
         }
-
     }
 
     // add remaining text
@@ -716,6 +807,10 @@ export function areReferencesIdentical(a: Reference, b: Reference): boolean {
         return a.server === b.server && a.channel === b.channel && a.message === b.message && a.url === b.url && a.serverName === b.serverName && a.serverJoinURL === b.serverJoinURL;
     } else if (a.type === ReferenceType.DICTIONARY_TERM && b.type === ReferenceType.DICTIONARY_TERM) {
         return a.id === b.id && a.term === b.term && a.url === b.url;
+    } else if (a.type === ReferenceType.USER_MENTION && b.type === ReferenceType.USER_MENTION) {
+        return a.user.id === b.user.id && a.user.type === b.user.type && a.user.username === b.user.username && a.user.displayName === b.user.displayName;
+    } else if (a.type === ReferenceType.CHANNEL_MENTION && b.type === ReferenceType.CHANNEL_MENTION) {
+        return a.channelID === b.channelID && a.channelName === b.channelName && a.channelURL === b.channelURL;
     }
     return false;
 }
@@ -728,6 +823,10 @@ export function referenceKey(ref: Reference): string {
         return `discordLink:${ref.server}:${ref.channel}:${ref.message || ''}`;
     } else if (ref.type === ReferenceType.DICTIONARY_TERM) {
         return `dictionaryTerm:${ref.id}`;
+    } else if (ref.type === ReferenceType.USER_MENTION) {
+        return `userMention:${ref.user.id}`;
+    } else if (ref.type === ReferenceType.CHANNEL_MENTION) {
+        return `channelMention:${ref.channelID}`;
     } else {
         return 'unknown';
     }
