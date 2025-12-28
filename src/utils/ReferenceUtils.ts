@@ -199,7 +199,7 @@ export function findDictionaryMatches<T extends AhoNodeOutput>(text: string, ind
 }
 
 function shouldIncludeMatch(text: string, term: string, start: number, end: number): boolean {
-   
+
 
     const isTermAllCaps = term.toUpperCase() === term;
     const matchedText = text.slice(start, end);
@@ -222,14 +222,14 @@ function shouldIncludeMatch(text: string, term: string, start: number, end: numb
     }
 
     // check if term ends with trailing number
-    if (/[0-9]$/.test(term)) {
+    if (/[0-9x.]$/.test(term)) {
         // next char must not be a number
         if (after && /[0-9]/.test(after)) {
             return false;
         }
     }
-    
-   
+
+
     const isWordChar = (ch: string | undefined): boolean => {
         return ch !== undefined && /[A-Za-z]/.test(ch);
     }
@@ -241,7 +241,7 @@ function shouldIncludeMatch(text: string, term: string, start: number, end: numb
         return true;
     }
 
-     const hasNoNumbers = !/[0-9]/.test(term);
+    const hasNoNumbers = !/[0-9]/.test(term);
 
     if (hasNoNumbers && startSatisfied && !endingSatisfied) { // just some words
         // check if next character is possessive
