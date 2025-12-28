@@ -102,10 +102,6 @@ export class DictionaryEditCommand implements Command {
             return;
         }
 
-        if (!isEditor(interaction, guildHolder) && !isModerator(interaction)) {
-            await replyEphemeral(interaction, 'You do not have permission to use this command.');
-            return;
-        }
         const dictionaryManager = guildHolder.getDictionaryManager();
         const thread = interaction.channel as AnyThreadChannel;
         const entry = await dictionaryManager.ensureEntryForThread(thread);
@@ -114,6 +110,12 @@ export class DictionaryEditCommand implements Command {
             return;
         }
 
+        const isPrivileged = isEditor(interaction, guildHolder) || isModerator(interaction);
+        const isAllowed = isPrivileged || (subcommand === 'edit' && entry.status !== DictionaryEntryStatus.APPROVED);
+        if (!isAllowed) {
+            await replyEphemeral(interaction, 'You do not have permission to use this command.');
+            return;
+        }
 
         if (subcommand === 'references') {
 

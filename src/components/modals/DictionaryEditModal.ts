@@ -1,8 +1,8 @@
-import { LabelBuilder, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
+import { EmbedBuilder, LabelBuilder, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
 import { Modal } from "../../interface/Modal.js";
 import { GuildHolder } from "../../GuildHolder.js";
-import { DictionaryEntry } from "../../archive/DictionaryManager.js";
-import { isEditor, isModerator, replyEphemeral } from "../../utils/Util.js";
+import { DictionaryEntry, DictionaryEntryStatus } from "../../archive/DictionaryManager.js";
+import { isEditor, isModerator, replyEphemeral, truncateStringWithEllipsis } from "../../utils/Util.js";
 import { GuildConfigs } from "../../config/GuildConfigs.js";
 import { tagReferences } from "../../utils/ReferenceUtils.js";
 
@@ -42,11 +42,6 @@ export class DictionaryEditModal implements Modal {
     }
 
     async execute(guildHolder: GuildHolder, interaction: ModalSubmitInteraction, entryId: string): Promise<void> {
-        if (!isEditor(interaction, guildHolder) && !isModerator(interaction)) {
-            await replyEphemeral(interaction, 'You do not have permission to edit dictionary entries.');
-            return;
-        }
-
         const dictionaryManager = guildHolder.getDictionaryManager();
         const entry = await dictionaryManager.getEntry(entryId);
         if (!entry) {
@@ -65,6 +60,16 @@ export class DictionaryEditModal implements Modal {
             await replyEphemeral(interaction, 'This is not a dictionary thread.');
             return;
         }
+
+        const isPrivileged = isEditor(interaction, guildHolder) || isModerator(interaction);
+        const isAllowed = isPrivileged || entry.status !== DictionaryEntryStatus.APPROVED;
+        if (!isAllowed) {
+            await replyEphemeral(interaction, 'You do not have permission to edit dictionary entries.');
+            return;
+        }
+
+        const oldTerms = [...entry.terms];
+        const oldDefinition = entry.definition;
 
         const termsInput = interaction.fields.getTextInputValue('terms');
         const definitionInput = interaction.fields.getTextInputValue('definition');
@@ -104,6 +109,34 @@ export class DictionaryEditModal implements Modal {
         await dictionaryManager.saveEntry(entry, true);
         await dictionaryManager.updateStatusMessage(entry, thread);
         await dictionaryManager.warnIfDuplicate(entry, thread);
+
+        const fields = [];
+        if (oldTerms.join(', ') !== entry.terms.join(', ')) {
+            fields.push({
+                name: 'Terms',
+                value: `**Before:** ${truncateStringWithEllipsis(oldTerms.join(', ') || 'None', 1000)}\n**After:** ${truncateStringWithEllipsis(entry.terms.join(', ') || 'None', 1000)}`
+            });
+        }
+        if (oldDefinition !== entry.definition) {
+            fields.push({
+                name: 'Definition',
+                value: `**Before:** ${truncateStringWithEllipsis(oldDefinition || 'None', 1000)}\n**After:** ${truncateStringWithEllipsis(entry.definition || 'None', 1000)}`
+            });
+        }
+
+        if (fields.length > 0 && thread.isTextBased()) {
+            const embed = new EmbedBuilder()
+                .setTitle('Dictionary Entry Updated')
+                .setColor(0x0099ff)
+                .addFields(fields)
+                .setFooter({ text: `Updated by ${interaction.user.tag}` })
+                .setTimestamp(new Date(entry.updatedAt));
+            await thread.send({
+                content: `<@${interaction.user.id}> updated this dictionary entry.`,
+                embeds: [embed],
+                allowedMentions: { parse: [] },
+            }).catch(() => { /* ignore send errors */ });
+        }
 
         await interaction.editReply({ content: `<@${interaction.user.id}> updated the dictionary entry.` });
     }
