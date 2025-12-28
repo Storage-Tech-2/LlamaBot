@@ -102,6 +102,8 @@ export class DictionaryEditCommand implements Command {
                 }
 
                 if (thread.name === desiredName) {
+
+                    await dictionaryManager.updateStatusMessage(entry, thread);
                     skipped++;
                     continue;
                 }
@@ -113,7 +115,7 @@ export class DictionaryEditCommand implements Command {
                 }
 
                 await dictionaryManager.updateStatusMessage(entry, thread);
-                
+
                 try {
                     await thread.setName(desiredName);
                     renamed++;
@@ -221,7 +223,7 @@ export class DictionaryEditCommand implements Command {
                 await replyEphemeral(interaction, 'No archive entries reference this dictionary entry.');
                 return;
             }
-            
+
             let response = `Archive entries referencing this dictionary entry:\n`;
             for (const match of matches) {
                 response += `- [${match.name}](${match.url})\n`;
@@ -231,7 +233,7 @@ export class DictionaryEditCommand implements Command {
             let first = true;
             for (const chunk of split) {
                 if (first) {
-                    await interaction.reply({ 
+                    await interaction.reply({
                         content: chunk,
                         allowedMentions: { parse: [] }
                     });
@@ -239,7 +241,7 @@ export class DictionaryEditCommand implements Command {
                     continue;
                 }
 
-                await interaction.channel.send({ 
+                await interaction.channel.send({
                     content: chunk,
                     allowedMentions: { parse: [] }
                 });

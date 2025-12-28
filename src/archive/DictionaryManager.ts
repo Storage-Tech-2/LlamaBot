@@ -129,7 +129,7 @@ export class DictionaryManager {
                 await this.repositoryManager.add(this.getConfigPath()).catch(() => { });
             }
         }
-        
+
         this.invalidateDictionaryTermIndex();
         if (rebuildNeeded) {
             // if (push) {
@@ -234,8 +234,8 @@ export class DictionaryManager {
             console.error("Error sending status message for new dictionary entry:", e);
             return null;
         });
-        
-        
+
+
         if (statusMessage) {
             entry.statusMessageID = statusMessage.id;
             entry.statusURL = statusMessage.url;
@@ -305,7 +305,9 @@ export class DictionaryManager {
             if (entry.statusMessageID) {
                 const statusMessage = await targetThread.messages.fetch(entry.statusMessageID).catch(() => null);
                 if (statusMessage) {
-                    await statusMessage.edit({ embeds: [embed], components: this.buildStatusComponents(entry) }).catch(() => { });
+                    await statusMessage.edit({ embeds: [embed], components: this.buildStatusComponents(entry) }).catch((e) => {
+                        console.error("Error editing status message for dictionary entry:", e);
+                    });
                     await this.applyStatusTag(entry, targetThread);
                     return;
                 }
