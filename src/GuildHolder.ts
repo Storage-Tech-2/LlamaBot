@@ -1288,8 +1288,13 @@ export class GuildHolder {
 
             const newReferences = definition.references.filter(r => !(r.type === ReferenceType.ARCHIVED_POST && r.id === entryData.id));
             let updated = newReferences.length !== definition.references.length;
+            const newReferencedBy = definition.referencedBy.filter(r => r !== entryData.id);
+            if (newReferencedBy.length !== definition.referencedBy.length) {
+                updated = true;
+            }
+            
             definition.references = newReferences;
-            definition.referencedBy = definition.referencedBy.filter(r => r !== entryData.code );
+            definition.referencedBy = newReferencedBy;
 
             if (updated) {
                 await this.getDictionaryManager().saveEntry(definition);
