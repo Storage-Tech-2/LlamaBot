@@ -447,16 +447,19 @@ export class DictionaryManager {
     private async findDuplicateEntries(entry: DictionaryEntry): Promise<{ term: string, entry: DictionaryIndexEntry }[]> {
         const termIndex = await this.getDictionaryTermIndex();
         const duplicates: { term: string, entry: DictionaryIndexEntry }[] = [];
-        const seenTerms = new Set<string>();
+        const seenTerms = new Set<Snowflake>();
         for (const term of entry.terms || []) {
 
             const matches = findDictionaryMatches(term, termIndex.aho);
             for (const match of matches) {
-               
-                if (seenTerms.has(match.output.term)) {
+                if (match.output.id === entry.id) {
                     continue;
                 }
-                seenTerms.add(match.output.term);
+               
+                if (seenTerms.has(match.output.id)) {
+                    continue;
+                }
+                seenTerms.add(match.output.id);
                 duplicates.push({ term: match.output.term, entry: match.output });
             }
         }
