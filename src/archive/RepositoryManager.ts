@@ -21,7 +21,7 @@ import { analyzeAttachments, filterAttachmentsForViewer, getAttachmentsFromMessa
 import { DictionaryManager } from "./DictionaryManager.js";
 import { IndexManager } from "./IndexManager.js";
 import { DiscordServersDictionary } from "./DiscordServersDictionary.js";
-import { tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
+import { ReferenceType, tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
 export class RepositoryManager {
     public folderPath: string;
     private git?: SimpleGit;
@@ -596,6 +596,18 @@ export class RepositoryManager {
                 archivedAt: Date.now(),
                 post: undefined
             });
+
+            for (const ref of revision.references) {
+                if (ref.type === ReferenceType.DICTIONARY_TERM) {
+                    const item = await this.dictionaryManager.getEntry(ref.id);
+                    if (!item) continue;
+                    if (!item.referencedBy.some(r => r === entryData?.code)) {
+                        item.referencedBy.push(entryData.code);
+                        await this.dictionaryManager.saveEntry(item).catch(() => { });
+                        await this.dictionaryManager.updateStatusMessage(item).catch(() => { });
+                    }
+                }
+            }
 
             if (!submissionChannel || !entryData) {
                 throw new Error("Failed to get submission channel or entry data");
