@@ -35,10 +35,10 @@ export class RepositoryManager {
         this.guildHolder = guildHolder;
         this.folderPath = folderPath;
         this.configManager = new ConfigManager(Path.join(folderPath, 'config.json'));
-        this.dictionaryManager = new DictionaryManager(this.guildHolder, Path.join(this.folderPath, 'dictionary'), this.stageAndCommit.bind(this));
+        this.dictionaryManager = new DictionaryManager(this.guildHolder, Path.join(this.folderPath, 'dictionary'), this);
         this.indexManager = new IndexManager(this.dictionaryManager, this, this.folderPath);
         this.dictionaryManager.setIndexManager(this.indexManager);
-        this.discordServersDictionary = new DiscordServersDictionary(this.folderPath, this.stageAndCommit.bind(this));
+        this.discordServersDictionary = new DiscordServersDictionary(this.folderPath, this);
     }
 
     async init() {
@@ -87,26 +87,18 @@ export class RepositoryManager {
         await this.dictionaryManager.init();
     }
 
-    private async stageAndCommit(paths: string[], message: string) {
+    public async add(paths: string | string[]) {
         if (!this.git) {
             return;
         }
+        await this.git.add(paths).catch(() => { });
+    }
 
-        await this.lock.acquire();
-
-        try {
-            const relPaths = paths.map(p => Path.relative(this.folderPath, p));
-            await this.git.add(relPaths)
-            await this.git.commit(message);
-        } catch {
-            // ignore if nothing to commit
+    public async rm(paths: string | string[]) {
+        if (!this.git) {
+            return;
         }
-
-        await this.push().catch((e) => {
-            console.error("Error pushing to remote:", e.message);
-        });
-
-        await this.lock.release();
+        await this.git.rm(paths).catch(() => { });
     }
 
     addToIgnoreUpdatesFrom(id: Snowflake) {
@@ -341,7 +333,7 @@ export class RepositoryManager {
                         throw new Error(`Entry ${entryRef.name} (${entryRef.code}) not found in memory`);
                     }
                     // republish the entry
-                    await this.addOrUpdateEntryFromData(this.guildHolder, entry.getData(), channel.id, false, false, async () => { });
+                    await this.addOrUpdateEntryFromData(entry.getData(), channel.id, false, false, async () => { });
                     // update submission
                     const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entry.getData().id);
                     if (submission) {
@@ -597,7 +589,7 @@ export class RepositoryManager {
             if (!submissionChannel || !entryData) {
                 throw new Error("Failed to get submission channel or entry data");
             }
-            const result = await this.addOrUpdateEntryFromData(submission.getGuildHolder(), entryData, archiveChannelId, forceNew, false, async (entryData, imageFolder, attachmentFolder) => {
+            const result = await this.addOrUpdateEntryFromData(entryData, archiveChannelId, forceNew, false, async (entryData, imageFolder, attachmentFolder) => {
                 // remove all images and attachments that exist in the folder.
                 await fs.mkdir(imageFolder, { recursive: true });
                 await fs.mkdir(attachmentFolder, { recursive: true });
@@ -691,7 +683,6 @@ export class RepositoryManager {
 
 
     async addOrUpdateEntryFromData(
-        guildHolder: GuildHolder,
         newEntryData: ArchiveEntryData,
         archiveChannelId: Snowflake,
         forceNew: boolean,
@@ -699,6 +690,7 @@ export class RepositoryManager {
         moveAttachments: (entryData: ArchiveEntryData, imageFolder: string, attachmentFolder: string) => Promise<void>,
         statusCallback: (status: string) => Promise<void> | void = () => { }
     ): Promise<{ oldEntryData?: ArchiveEntryData, newEntryData: ArchiveEntryData }> {
+        const guildHolder = this.guildHolder;
         // clone entryData
         newEntryData = deepClone(newEntryData);
 
@@ -867,7 +859,7 @@ export class RepositoryManager {
 
         // First, upload attachments
         const entryPathPart = `${archiveChannelRef.path}/${entryRef.path}`;
-     
+
         const attachmentUpload = await PostEmbed.createAttachmentUpload(entryFolderPath, newEntryData);
 
         const hasUploadAttachments = attachmentUpload.files.length > 0;
@@ -1901,7 +1893,7 @@ export class RepositoryManager {
         await entry.save();
 
         if (newData.post && newData.post.forumId) {
-            await this.addOrUpdateEntryFromData(this.guildHolder, newData, newData.post.forumId, false, false, async () => { });
+            await this.addOrUpdateEntryFromData(newData, newData.post.forumId, false, false, async () => { });
         }
 
         return true;
@@ -2004,5 +1996,9 @@ export class RepositoryManager {
 
     public isReady(): boolean {
         return this.git !== null;
+    }
+
+    public getGuildHolder(): GuildHolder {
+        return this.guildHolder;
     }
 }

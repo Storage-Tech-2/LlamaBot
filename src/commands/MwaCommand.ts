@@ -207,6 +207,11 @@ export class Mwa implements Command {
                     .setName('setscript')
                     .setDescription('Set the rules script for a channel subscription')
             )
+            .addSubcommand(subcommand => 
+                subcommand
+                    .setName('forceretag')
+                    .setDescription('Force retagging of all archive and dictionary entries')
+            )
         return data;
     }
 

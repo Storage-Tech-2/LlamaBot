@@ -128,10 +128,10 @@ export class DiscordsCommand implements Command {
         const name = interaction.options.getString('name', true);
         const url = interaction.options.getString('url', true);
 
+        await interaction.deferReply();
         await dictionary.addOrEditServer(id, name, url);
-        await interaction.reply({
+        await interaction.editReply({
             content: `Saved server **${name}** (${id}).`,
-            flags: [MessageFlags.SuppressNotifications],
             allowedMentions: { parse: [] },
         });
     }
@@ -147,24 +147,27 @@ export class DiscordsCommand implements Command {
             return;
         }
 
+        await interaction.deferReply();
         await dictionary.addOrEditServer(id, name ?? existing.name, url ?? existing.joinURL);
-        await interaction.reply({
+        await interaction.editReply({
             content: `Updated server **${name ?? existing.name}** (${id}).`,
-            flags: [MessageFlags.SuppressNotifications],
             allowedMentions: { parse: [] },
         });
     }
 
     private async handleRemove(dictionary: DiscordServersDictionary, interaction: ChatInputCommandInteraction) {
         const id = interaction.options.getString('id', true);
+        await interaction.deferReply();
         const removed = await dictionary.removeServer(id);
         if (!removed) {
-            await replyEphemeral(interaction, `Server \`${id}\` not found.`);
+            await interaction.editReply({
+                content: `Server \`${id}\` not found.`,
+                allowedMentions: { parse: [] },
+            });
             return;
         }
-        await interaction.reply({
+        await interaction.editReply({
             content: `Removed server \`${id}\`.`,
-            flags: [MessageFlags.SuppressNotifications],
             allowedMentions: { parse: [] },
         });
     }

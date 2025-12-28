@@ -7,7 +7,7 @@ import { Snowflake } from "discord.js";
 import { recordsToRawTextNoHeaders, stripHyperlinkNames, SubmissionRecords } from "./MarkdownUtils.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Author } from "../submissions/Author.js";
-import { ArchiveIndex } from "../archive/DictionaryManager.js";
+import { ArchiveIndex, DictionaryEntry, DictionaryEntryStatus } from "../archive/DictionaryManager.js";
 
 // Example post references
 // "ABC123", "DEF456", "GHI789"
@@ -35,9 +35,14 @@ export type DictionaryIndex = {
     caseInsensitive: boolean;
 };
 
+export type DictionaryIndexEntry = {
+    id: Snowflake;
+    url: string;
+    status: DictionaryEntryStatus;
+}
+
 export type DictionaryTermIndex = {
-    termToID: Map<string, Set<Snowflake>>;
-    idToURL: Map<Snowflake, string>;
+    termToData: Map<string, Set<DictionaryIndexEntry>>;
     aho: DictionaryIndex;
 };
 
@@ -271,20 +276,22 @@ export function tagReferencesInText(text: string, dictionaryIndex?: DictionaryTe
 
         const dictMatches = findDictionaryMatches(text, dictionaryIndex.aho, { wholeWords: true });
         for (const match of dictMatches) {
-            const ids = dictionaryIndex.termToID.get(normalizeTerm(match.term));
-            if (!ids) continue;
+            const entries = dictionaryIndex.termToData.get(normalizeTerm(match.term));
+            if (!entries) continue;
             const matchedText = text.slice(match.start, match.end);
-            for (const id of ids) {
-                const url = dictionaryIndex.idToURL.get(id);
-                if (!url) continue;
+            for (const entry of entries) {
+                if (entry.status !== DictionaryEntryStatus.APPROVED) {
+                    continue;
+                }
+               
                 references.push({
                     start: match.start,
                     end: match.end,
                     ref: {
                         type: ReferenceType.DICTIONARY_TERM,
                         term: match.term,
-                        id,
-                        url,
+                        id: entry.id,
+                        url: entry.url,
                         matches: [matchedText],
                     }
                 });

@@ -75,7 +75,7 @@ export class DictionaryEditCommand implements Command {
         const newStatus = subcommand === 'approve' ? DictionaryEntryStatus.APPROVED : DictionaryEntryStatus.REJECTED;
         entry.status = newStatus;
         entry.updatedAt = Date.now();
-        await dictionaryManager.saveEntry(entry);
+        await dictionaryManager.saveEntry(entry, true);
         await dictionaryManager.updateStatusMessage(entry, thread);
         await interaction.reply({ content: `Dictionary entry ${newStatus.toLowerCase()}ed.`, ephemeral: true });
     }

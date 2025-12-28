@@ -22,7 +22,7 @@ import { AntiNukeManager } from "./support/AntiNukeManager.js";
 import { DictionaryManager } from "./archive/DictionaryManager.js";
 import { DiscordServersDictionary } from "./archive/DiscordServersDictionary.js";
 import { ReferenceType } from "./utils/ReferenceUtils.js";
-import { updateEntryAuthorsTask } from "./archive/Tasks.js";
+import { retagEverythingTask, updateEntryAuthorsTask } from "./archive/Tasks.js";
 /**
  * GuildHolder is a class that manages guild-related data.
  */
@@ -69,6 +69,8 @@ export class GuildHolder {
     private ready: boolean = false;
 
     private antiNukeManager: AntiNukeManager;
+
+    private retaggingRequested: boolean = false;
 
     /**
      * Creates a new GuildHolder instance.
@@ -641,9 +643,12 @@ export class GuildHolder {
 
         const dictionaryChannelId = this.getConfigManager().getConfig(GuildConfigs.DICTIONARY_CHANNEL_ID);
         if (dictionaryChannelId && thread.parentId === dictionaryChannelId) {
-            await this.dictionaryManager.deleteEntry(thread.id).catch(e => {
-                console.error('Error handling dictionary thread deletion:', e);
-            });
+            const entry = await this.dictionaryManager.getEntry(thread.id);
+            if (entry) {
+                await this.dictionaryManager.deleteEntry(entry).catch(e => {
+                    console.error('Error handling dictionary thread deletion:', e);
+                });
+            }
         }
     }
 
@@ -936,6 +941,12 @@ export class GuildHolder {
         if (now - this.lastDayLoop >= 24 * 60 * 60 * 1000) { // Every 24 hours
             this.lastDayLoop = now;
             await this.purgeThanksBuffer();
+            if (this.retaggingRequested) {
+                await retagEverythingTask(this).catch(e => {
+                    console.error('Error retagging everything:', e);
+                });
+                this.retaggingRequested = false;
+            }
             await updateEntryAuthorsTask(this).catch(e => {
                 console.error('Error updating entry authors:', e);
             });
@@ -1150,8 +1161,13 @@ export class GuildHolder {
     }
 
 
+    public requestRetagging() {
+        this.retaggingRequested = true;
+    }
+
     public async onPostAdd(entryData: ArchiveEntryData) {
         this.dictionaryManager.invalidateArchiveIndex();
+        this.requestRetagging();
         await this.updateDesignerRoles(entryData.id, [], entryData.authors).catch(e => {
             console.error(`Error adding designers for entry ${entryData.id}:`, e);
         });
@@ -1168,7 +1184,7 @@ export class GuildHolder {
 
             const newURL = newEntryData.post?.threadURL || '';
             // just swap urls, no need to reanalyze
-            const p1 = this.repositoryManager.iterateAllEntries(async (entry) => {
+            await this.repositoryManager.iterateAllEntries(async (entry) => {
                 if (entry.getData().id === newEntryData.id) {
                     return;
                 }
@@ -1195,7 +1211,7 @@ export class GuildHolder {
                 }
 
                 if (updated && otherData.post) {
-                    await this.repositoryManager.addOrUpdateEntryFromData(this, otherData, otherData.post.forumId, false, false, async () => {
+                    await this.repositoryManager.addOrUpdateEntryFromData(otherData, otherData.post.forumId, false, false, async () => {
                         // do nothing
                     }).catch(e => {
                         console.error("Error updating entry for URL update:", e);
@@ -1206,7 +1222,7 @@ export class GuildHolder {
             });
 
             // update definitions
-            const p2 = this.getDictionaryManager().iterateEntries(async (definition) => {
+            await this.getDictionaryManager().iterateEntries(async (definition) => {
                 let updated = false;
                 for (const reference of definition.references) {
                     if (reference.type === ReferenceType.ARCHIVED_POST && reference.id === newEntryData.id) {
@@ -1221,9 +1237,7 @@ export class GuildHolder {
                     });
                 }
             });
-            await Promise.all([p1, p2]).catch(e => {
-                console.error("Error updating references for thread URL change:", e);
-            });
+
 
         }
     }
@@ -1236,7 +1250,7 @@ export class GuildHolder {
 
 
         // just swap urls, no need to reanalyze
-        const p1 = this.repositoryManager.iterateAllEntries(async (entry) => {
+        await this.repositoryManager.iterateAllEntries(async (entry) => {
             if (entry.getData().id === entryData.id) {
                 return;
             }
@@ -1253,7 +1267,7 @@ export class GuildHolder {
             otherData.author_references = newAuthorReferences;
 
             if (updated && otherData.post) {
-                await this.repositoryManager.addOrUpdateEntryFromData(this, otherData, otherData.post.forumId, false, false, async () => {
+                await this.repositoryManager.addOrUpdateEntryFromData(otherData, otherData.post.forumId, false, false, async () => {
                     // do nothing
                 }).catch(e => {
                     console.error("Error updating entry for URL update:", e);
@@ -1264,21 +1278,18 @@ export class GuildHolder {
         });
 
         // update definitions
-        const p2 = this.getDictionaryManager().iterateEntries(async (definition) => {
-           
+        await this.getDictionaryManager().iterateEntries(async (definition) => {
+
             const newReferences = definition.references.filter(r => !(r.type === ReferenceType.ARCHIVED_POST && r.id === entryData.id));
             let updated = newReferences.length !== definition.references.length;
             definition.references = newReferences;
-            
+
             if (updated) {
                 await this.getDictionaryManager().saveEntry(definition);
                 await this.getDictionaryManager().updateStatusMessage(definition).catch(e => {
                     console.error("Error updating definition status message:", e);
                 });
             }
-        });
-        await Promise.all([p1, p2]).catch(e => {
-            console.error("Error updating references for thread URL change:", e);
         });
     }
 

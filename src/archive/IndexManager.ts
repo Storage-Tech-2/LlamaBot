@@ -1,12 +1,13 @@
 import fs from "fs/promises";
 import Path from "path";
 import { Snowflake } from "discord.js";
-import { buildDictionaryIndex, DictionaryTermIndex } from "../utils/ReferenceUtils.js";
+import { buildDictionaryIndex, DictionaryIndexEntry, DictionaryTermIndex } from "../utils/ReferenceUtils.js";
 import { ArchiveChannel } from "./ArchiveChannel.js";
 import { ArchiveEntry } from "./ArchiveEntry.js";
 import { DictionaryManager, ArchiveIndex } from "./DictionaryManager.js";
 import type { RepositoryManager } from "./RepositoryManager.js";
 
+const INDEX_TIMEOUT_MS = 5 * 60 * 1000;
 export class IndexManager {
     private cachedDictionaryIndex?: Promise<DictionaryTermIndex>;
     private dictionaryCacheInvalidateTimeout?: NodeJS.Timeout;
@@ -90,22 +91,24 @@ export class IndexManager {
 
     public async buildDictionaryTermIndex(): Promise<DictionaryTermIndex> {
         const dictionaryEntries = await this.dictionaryManager.listEntries();
-        const termToID: Map<string, Set<Snowflake>> = new Map();
-        const idToURL: Map<Snowflake, string> = new Map();
+        const termToData: Map<string, Set<DictionaryIndexEntry>> = new Map();
         for (const entry of dictionaryEntries) {
             const normalizedTerms = (entry.terms || []).map(t => this.dictionaryManager.normalizeTerm(t)).filter(Boolean);
             for (const term of normalizedTerms) {
-                if (!termToID.has(term)) {
-                    termToID.set(term, new Set());
+                if (!termToData.has(term)) {
+                    termToData.set(term, new Set());
                 }
-                termToID.get(term)!.add(entry.id);
+                termToData.get(term)!.add({
+                    id: entry.id,
+                    url: entry.threadURL,
+                    status: entry.status,
+                });
             }
-            idToURL.set(entry.id, entry.threadURL);
         }
+        
         const termIndex: DictionaryTermIndex = {
-            termToID: termToID,
-            idToURL: idToURL,
-            aho: buildDictionaryIndex(Array.from(termToID.keys()), true)
+            termToData: termToData,
+            aho: buildDictionaryIndex(Array.from(termToData.keys()), true)
         };
         return termIndex;
     }
@@ -133,7 +136,7 @@ export class IndexManager {
         clearTimeout(this.dictionaryCacheInvalidateTimeout);
         this.dictionaryCacheInvalidateTimeout = setTimeout(() => {
             this.invalidateDictionaryTermIndex();
-        }, 60 * 1000);
+        }, INDEX_TIMEOUT_MS);
 
         if (this.cachedDictionaryIndex) return this.cachedDictionaryIndex;
         this.cachedDictionaryIndex = this.buildDictionaryTermIndex();
@@ -144,7 +147,7 @@ export class IndexManager {
         clearTimeout(this.archiveCacheInvalidateTimeout);
         this.archiveCacheInvalidateTimeout = setTimeout(() => {
             this.invalidateArchiveIndex();
-        }, 60 * 1000);
+        }, INDEX_TIMEOUT_MS);
 
         if (this.cachedArchiveIndex) return this.cachedArchiveIndex;
         this.cachedArchiveIndex = this.buildArchiveIndex();

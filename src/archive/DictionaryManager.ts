@@ -3,8 +3,10 @@ import fs from "fs/promises";
 import Path from "path";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { GuildHolder } from "../GuildHolder.js";
-import { findDictionaryMatches, DictionaryTermIndex, Reference, tagReferences, transformOutputWithReferences } from "../utils/ReferenceUtils.js";
+import { findDictionaryMatches, DictionaryTermIndex, Reference, tagReferences, transformOutputWithReferences, DictionaryIndexEntry } from "../utils/ReferenceUtils.js";
 import { IndexManager } from "./IndexManager.js";
+import { RepositoryManager } from "./RepositoryManager.js";
+import { Lock } from "../utils/Lock.js";
 
 export enum DictionaryEntryStatus {
     PENDING = "PENDING",
@@ -37,7 +39,13 @@ export type Indexes = {
 export class DictionaryManager {
     private indexManager?: IndexManager;
 
-    constructor(private guildHolder: GuildHolder, private folderPath: string, private stageAndCommit?: (paths: string[], message: string) => Promise<void>) {
+    private entryLock: Lock = new Lock();
+
+    constructor(
+        private guildHolder: GuildHolder,
+        private folderPath: string,
+        private repositoryManager: RepositoryManager,
+    ) {
 
     }
 
@@ -56,23 +64,57 @@ export class DictionaryManager {
             .catch(() => null);
     }
 
-    async saveEntry(entry: DictionaryEntry): Promise<void> {
+    public haveTermsChanged(oldTerms: string[], newTerms: string[]): boolean {
+        if (oldTerms.length !== newTerms.length) {
+            return true;
+        }
+        const oldSet = new Set(oldTerms.map(t => this.normalizeTerm(t)));
+        const newSet = new Set(newTerms.map(t => this.normalizeTerm(t)));
+        if (oldSet.size !== newSet.size) {
+            return true;
+        }
+        for (const term of oldSet) {
+            if (!newSet.has(term)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    async saveEntry(entry: DictionaryEntry, push: boolean = false): Promise<void> {
+        const oldEntry = await this.getEntry(entry.id);
         const entryPath = Path.join(this.getEntriesPath(), `${entry.id}.json`);
         await fs.mkdir(this.getEntriesPath(), { recursive: true });
         await fs.writeFile(entryPath, JSON.stringify(entry, null, 2), 'utf-8');
-        if (this.stageAndCommit) {
-            await this.stageAndCommit([entryPath], `Update dictionary entry ${entry.id}`);
+        if (push) {
+            await this.repositoryManager.getLock().acquire();
+            await this.repositoryManager.add(entryPath).catch(() => { });
+            await this.repositoryManager.commit(oldEntry ? `Updated dictionary entry ${entry.terms[0]}` : `Added dictionary entry ${entry.terms[0]}`).catch(() => { });
+            await this.repositoryManager.push().catch(() => { });
+            this.repositoryManager.getLock().release();
+        } else {
+            await this.repositoryManager.add(entryPath).catch(() => { });
         }
+        
         this.invalidateDictionaryTermIndex();
+        if (!oldEntry || this.haveTermsChanged(oldEntry.terms, entry.terms) || oldEntry.status !== entry.status) {
+            this.repositoryManager.getGuildHolder().requestRetagging();
+        }
     }
 
-    async deleteEntry(id: Snowflake): Promise<void> {
-        const entryPath = Path.join(this.getEntriesPath(), `${id}.json`);
+    async deleteEntry(entry: DictionaryEntry): Promise<void> {
+        await this.repositoryManager.getLock().acquire();
+        const entryPath = Path.join(this.getEntriesPath(), `${entry.id}.json`);
+        await this.repositoryManager.rm(entryPath).catch(() => { });
         await fs.unlink(entryPath).catch(() => { });
-        if (this.stageAndCommit) {
-            await this.stageAndCommit([entryPath], `Remove dictionary entry ${id}`);
-        }
         this.invalidateDictionaryTermIndex();
+
+        await this.repositoryManager.commit(`Deleted dictionary entry ${entry.terms[0]}`).catch(() => { });
+        await this.repositoryManager.push().catch(() => { });
+
+        this.repositoryManager.getLock().release();
+
+        this.repositoryManager.getGuildHolder().requestRetagging();
     }
 
     async listEntries(): Promise<DictionaryEntry[]> {
@@ -113,30 +155,23 @@ export class DictionaryManager {
         }
 
         const thread = message.channel as AnyThreadChannel;
-        const entry = await this.ensureEntryForThread(thread);
-        if (!entry) {
-            return;
-        }
-
-        if (!entry.definition && message.content) {
-            entry.definition = message.content;
-            entry.updatedAt = Date.now();
-            await this.saveEntry(entry);
-            await this.updateStatusMessage(entry, thread);
-        }
+        await this.ensureEntryForThread(thread);
     }
 
     async ensureEntryForThread(thread: AnyThreadChannel): Promise<DictionaryEntry | null> {
-        let entry = await this.getEntry(thread.id);
-        if (entry) {
-            await this.ensureStatusMessage(entry, thread);
-            await this.applyStatusTag(entry, thread);
-            return entry;
-        }
-
         if (thread.parent?.type !== ChannelType.GuildForum) {
             return null;
         }
+
+        await this.entryLock.acquire();
+
+        let entry = await this.getEntry(thread.id);
+        if (entry) {
+            await this.ensureStatusMessage(entry, thread);
+            this.entryLock.release();
+            return entry;
+        }
+
 
         const starterMessage = await thread.fetchStarterMessage().catch(() => null);
         const definition = starterMessage?.content.trim() ?? '';
@@ -151,11 +186,21 @@ export class DictionaryManager {
             references: await tagReferences(definition, [], this.guildHolder).catch(() => []),
         };
 
-        const statusMessage = await this.sendStatusMessage(thread, entry);
+        const statusMessage = await this.sendStatusMessage(thread, entry).catch((e) => {
+            console.error("Error sending status message for new dictionary entry:", e);
+            return null;
+        });
+        
         if (statusMessage) {
             entry.statusMessageID = statusMessage.id;
         }
-        await this.saveEntry(entry);
+
+        await this.saveEntry(entry).catch((e) => {
+            console.error("Error saving new dictionary entry:", e);
+        });
+
+        this.entryLock.release();
+
         await this.warnIfDuplicate(entry, thread);
         await this.applyStatusTag(entry, thread);
 
@@ -342,9 +387,9 @@ export class DictionaryManager {
         this.getIndexManager().invalidateArchiveIndex();
     }
 
-    private async findDuplicateEntries(entry: DictionaryEntry): Promise<{ term: string, ids: Snowflake[] }[]> {
+    private async findDuplicateEntries(entry: DictionaryEntry): Promise<{ term: string, entries: DictionaryIndexEntry[] }[]> {
         const termIndex = await this.getDictionaryTermIndex();
-        const duplicates: { term: string, ids: Snowflake[] }[] = [];
+        const duplicates: { term: string, entries: DictionaryIndexEntry[] }[] = [];
         const seenTerms = new Set<string>();
         for (const term of entry.terms || []) {
             const normalized = this.normalizeTerm(term);
@@ -352,15 +397,15 @@ export class DictionaryManager {
 
             const matches = findDictionaryMatches(normalized, termIndex.aho, { wholeWords: true });
             for (const match of matches) {
-                const lookup = termIndex.termToID.get(this.normalizeTerm(match.term));
+                const lookup = termIndex.termToData.get(this.normalizeTerm(match.term));
                 if (!lookup) continue;
-                const others = Array.from(lookup).filter(id => id !== entry.id);
+                const others = Array.from(lookup).filter(o => o.id !== entry.id);
                 if (others.length === 0) continue;
                 if (seenTerms.has(match.term)) {
                     continue;
                 }
                 seenTerms.add(match.term);
-                duplicates.push({ term: match.term, ids: others });
+                duplicates.push({ term: match.term, entries: others });
             }
         }
         return duplicates;
@@ -380,13 +425,8 @@ export class DictionaryManager {
         const lines: string[] = [];
         for (const dup of duplicates) {
             const references: string[] = [];
-            for (const id of dup.ids) {
-                const other = await this.getEntry(id);
-                if (other?.threadURL) {
-                    references.push(`[${id}](${other.threadURL})`);
-                } else {
-                    references.push(id);
-                }
+            for (const entry of dup.entries) {
+                references.push(entry.url);
             }
             lines.push(`**${dup.term}** duplicates ${references.join(', ')}`);
         }

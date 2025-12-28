@@ -7,6 +7,7 @@ import { ChannelType, ChatInputCommandInteraction, ForumChannel } from "discord.
 import { ArchiveChannel } from "./ArchiveChannel.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import Path from "path";
+import { hasReferencesChanged, tagReferences, tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
 
 export async function updateEntryAuthorsTask(guildHolder: GuildHolder): Promise<void> {
     const repositoryManager = guildHolder.getRepositoryManager();
@@ -19,7 +20,7 @@ export async function updateEntryAuthorsTask(guildHolder: GuildHolder): Promise<
     // First, collect authors
     const authors: Author[] = [];
 
-    repositoryManager.iterateAllEntries(async (entry: ArchiveEntry) => {
+    await repositoryManager.iterateAllEntries(async (entry: ArchiveEntry) => {
         const entryData = entry.getData();
         for (const author of entryData.authors) {
             if (!authors.some(a => areAuthorsSame(a, author))) {
@@ -43,7 +44,7 @@ export async function updateEntryAuthorsTask(guildHolder: GuildHolder): Promise<
     }
 
     let modifiedCount = 0;
-    repositoryManager.iterateAllEntries(async (entry: ArchiveEntry, channelRef: ArchiveChannelReference) => {
+    await repositoryManager.iterateAllEntries(async (entry: ArchiveEntry, channelRef: ArchiveChannelReference) => {
         try {
             if (await repositoryManager.updateEntryAuthors(entry, reclassified)) {
                 modifiedCount++;
@@ -119,7 +120,7 @@ export async function republishAllEntries(
                     await channel.send({ content: `Entry ${entryData.code} does not have a post, skipping.` });
                 } else {
                     try {
-                        result = await repositoryManager.addOrUpdateEntryFromData(guildHolder, entryData, entryData.post.forumId, replace, true, async () => { });
+                        result = await repositoryManager.addOrUpdateEntryFromData(entryData, entryData.post.forumId, replace, true, async () => { });
                         await channel.send({ content: `Entry ${entryData.code} republished: ${result.newEntryData.post?.threadURL}` });
                     } catch (e: any) {
                         console.error(e);
@@ -165,4 +166,71 @@ export async function republishAllEntries(
         throw e;
     }
 
+}
+
+export async function retagEverythingTask(guildHolder: GuildHolder): Promise<void> {
+    const repositoryManager = guildHolder.getRepositoryManager();
+    if (!repositoryManager.isReady()) {
+        return;
+    }
+
+    await repositoryManager.getLock().acquire();
+
+    let modifiedCount = 0;
+    await repositoryManager.iterateAllEntries(async (entry: ArchiveEntry, channelRef: ArchiveChannelReference) => {
+        const data = entry.getData();
+        const newReferences = await tagReferencesInSubmissionRecords(data.records, data.references, guildHolder);
+        const newAuthorReferences = await tagReferencesInAcknowledgements(data.authors, data.author_references, guildHolder);
+
+        const changed = hasReferencesChanged(data.references, newReferences).changed ||
+            hasReferencesChanged(data.author_references, newAuthorReferences).changed;
+        if (!changed) {
+            return;
+        }
+
+        data.references = newReferences;
+        data.author_references = newAuthorReferences;
+
+        await repositoryManager.addOrUpdateEntryFromData(data, channelRef.id, false, false, async () => { }).catch((e) => {
+            console.error(`Error updating references for entry ${data.name} in channel ${channelRef.name}:`, e.message);
+        });
+        modifiedCount++;
+    }).catch((e) => {
+        console.error("Error during retagging:", e);
+    });
+
+    // update definitions
+    const dictionaryManager = guildHolder.getDictionaryManager();
+    await dictionaryManager.iterateEntries(async (definition) => {
+        const newReferences = await tagReferences(definition.definition, definition.references, guildHolder);
+        const changed = hasReferencesChanged(definition.references, newReferences).changed;
+        if (!changed) {
+            return;
+        }
+        definition.references = newReferences;
+        await dictionaryManager.saveEntry(definition).catch((e) => {
+            console.error(`Error updating references for definition ${definition.terms[0]}:`, e.message);
+        });
+        await dictionaryManager.updateStatusMessage(definition).catch((e) => {
+            console.error(`Error updating status message for definition ${definition.terms[0]}:`, e.message);
+        });
+        modifiedCount++;
+    }).catch((e) => {
+        console.error("Error during retagging definitions:", e);
+    });
+
+    if (modifiedCount > 0) {
+        try {
+            await repositoryManager.commit(`Retagged references for ${modifiedCount} items`);
+            try {
+                await repositoryManager.push();
+            } catch (e: any) {
+                console.error("Error pushing to remote:", e.message);
+            }
+        }
+        catch (e: any) {
+            console.error("Error committing retagged references:", e.message);
+        }
+    }
+    repositoryManager.getLock().release();
 }
