@@ -15,7 +15,6 @@ import { SetScriptModal } from "../components/modals/SetScriptModal.js";
 import { republishAllEntries, retagEverythingTask } from "../archive/Tasks.js";
 import got from "got";
 import { DictionaryEntryStatus } from "../archive/DictionaryManager.js";
-import { tagReferences } from "../utils/ReferenceUtils.js";
 
 export class Mwa implements Command {
     getID(): string {
