@@ -76,8 +76,8 @@ export class DictionaryManager {
         if (oldTerms.length !== newTerms.length) {
             return true;
         }
-        const oldSet = new Set(oldTerms.map(t => this.normalizeTerm(t)));
-        const newSet = new Set(newTerms.map(t => this.normalizeTerm(t)));
+        const oldSet = new Set(oldTerms);
+        const newSet = new Set(newTerms);
         if (oldSet.size !== newSet.size) {
             return true;
         }
@@ -417,9 +417,6 @@ export class DictionaryManager {
         };
     }
 
-    public normalizeTerm(term: string): string {
-        return term.trim().toLowerCase();
-    }
     public setIndexManager(indexManager: IndexManager) {
         this.indexManager = indexManager;
     }
@@ -447,25 +444,20 @@ export class DictionaryManager {
         this.getIndexManager().invalidateArchiveIndex();
     }
 
-    private async findDuplicateEntries(entry: DictionaryEntry): Promise<{ term: string, entries: DictionaryIndexEntry[] }[]> {
+    private async findDuplicateEntries(entry: DictionaryEntry): Promise<{ term: string, entry: DictionaryIndexEntry }[]> {
         const termIndex = await this.getDictionaryTermIndex();
-        const duplicates: { term: string, entries: DictionaryIndexEntry[] }[] = [];
+        const duplicates: { term: string, entry: DictionaryIndexEntry }[] = [];
         const seenTerms = new Set<string>();
         for (const term of entry.terms || []) {
-            const normalized = this.normalizeTerm(term);
-            if (!normalized) continue;
 
-            const matches = findDictionaryMatches(normalized, termIndex.aho, { wholeWords: true });
+            const matches = findDictionaryMatches(term, termIndex.aho);
             for (const match of matches) {
-                const lookup = termIndex.termToData.get(this.normalizeTerm(match.term));
-                if (!lookup) continue;
-                const others = Array.from(lookup).filter(o => o.id !== entry.id);
-                if (others.length === 0) continue;
-                if (seenTerms.has(match.term)) {
+               
+                if (seenTerms.has(match.output.term)) {
                     continue;
                 }
-                seenTerms.add(match.term);
-                duplicates.push({ term: match.term, entries: others });
+                seenTerms.add(match.output.term);
+                duplicates.push({ term: match.output.term, entry: match.output });
             }
         }
         return duplicates;
@@ -484,11 +476,7 @@ export class DictionaryManager {
 
         const lines: string[] = [];
         for (const dup of duplicates) {
-            const references: string[] = [];
-            for (const entry of dup.entries) {
-                references.push(entry.url);
-            }
-            lines.push(`**${dup.term}** duplicates ${references.join(', ')}`);
+            lines.push(`**${dup.term}** duplicates ${dup.entry.url}`);
         }
 
         await targetThread.send({

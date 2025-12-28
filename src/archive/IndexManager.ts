@@ -91,38 +91,32 @@ export class IndexManager {
 
     public async buildDictionaryTermIndex(): Promise<DictionaryTermIndex> {
         const dictionaryEntries = await this.dictionaryManager.listEntries();
-        const termToData: Map<string, Set<DictionaryIndexEntry>> = new Map();
-        const caseSensitiveTerms = new Set<string>();
-        const isAllCapsTerm = (term: string): boolean => {
-            const trimmed = term.trim();
-            return /[A-Z]/.test(trimmed) && !/[a-z]/.test(trimmed);
-        };
+        const termToData: Map<string, DictionaryIndexEntry[]> = new Map();
+
         for (const entry of dictionaryEntries) {
             for (const rawTerm of entry.terms || []) {
-                const normalized = this.dictionaryManager.normalizeTerm(rawTerm);
+                const normalized = rawTerm.toLowerCase();
                 if (!normalized) {
                     continue;
                 }
 
-                if (isAllCapsTerm(rawTerm)) {
-                    caseSensitiveTerms.add(normalized);
-                }
-
                 if (!termToData.has(normalized)) {
-                    termToData.set(normalized, new Set());
+                    termToData.set(normalized, []);
                 }
-                termToData.get(normalized)!.add({
-                    id: entry.id,
-                    url: entry.statusURL || entry.threadURL,
-                    status: entry.status,
-                });
+                const arr = termToData.get(normalized)!;
+                if (!arr.find(e => e.id === entry.id)) {
+                    arr.push({
+                        term: rawTerm,
+                        id: entry.id,
+                        url: entry.statusURL || entry.threadURL,
+                        status: entry.status,
+                    });
+                }
             }
         }
-        
+
         const termIndex: DictionaryTermIndex = {
-            termToData: termToData,
-            aho: buildDictionaryIndex(Array.from(termToData.keys()), true),
-            caseSensitiveTerms
+            aho: buildDictionaryIndex(termToData),
         };
         return termIndex;
     }

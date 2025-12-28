@@ -539,7 +539,7 @@ export class Mwa implements Command {
         }
 
         const dictionaryManager = guildHolder.getDictionaryManager();
-        const normalizeTerm = (term: string) => dictionaryManager.normalizeTerm(term);
+        const normalizeTerm = (term: string) => term.trim().toLowerCase();
 
         const existingEntries = await dictionaryManager.listEntries();
         const existingTerms = new Map<string, Snowflake>();

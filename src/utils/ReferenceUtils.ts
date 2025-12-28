@@ -16,33 +16,35 @@ export const DiscordForumLinkPattern = /https?:\/\/(?:canary\.|ptb\.)?discord(?:
 export const UserMentionPattern = /<@!?(\d+)>/g;
 export const ChannelMentionPattern = /<#(\d+)>/g;
 
-type AhoNode = {
-    children: Map<string, number>;
-    fail: number;
-    outputs: string[];
+export type AhoNodeOutput = {
+    term: string;
 };
 
-export type DictionaryMatch = {
-    term: string;
+type AhoNode<T extends AhoNodeOutput> = {
+    children: Map<string, number>;
+    fail: number;
+    outputs: T[];
+};
+
+export type DictionaryMatch<T extends AhoNodeOutput> = {
+    output: T;
     start: number;
     end: number;
 };
 
-export type DictionaryIndex = {
-    nodes: AhoNode[];
-    caseInsensitive: boolean;
+export type DictionaryIndex<T extends AhoNodeOutput> = {
+    nodes: AhoNode<T>[];
 };
 
 export type DictionaryIndexEntry = {
+    term: string;
     id: Snowflake;
     url: string;
     status: DictionaryEntryStatus;
 }
 
 export type DictionaryTermIndex = {
-    termToData: Map<string, Set<DictionaryIndexEntry>>;
-    aho: DictionaryIndex;
-    caseSensitiveTerms: Set<string>;
+    aho: DictionaryIndex<DictionaryIndexEntry>;
 };
 
 export enum ReferenceType {
@@ -102,7 +104,7 @@ type ReferenceWithIndex = {
     ref: Reference
 }
 
-function createNode(): AhoNode {
+function createNode<T extends AhoNodeOutput>(): AhoNode<T> {
     return {
         children: new Map(),
         fail: 0,
@@ -113,13 +115,12 @@ function createNode(): AhoNode {
 /**
  * Build an Aho–Corasick index for a list of dictionary terms.
  */
-export function buildDictionaryIndex(terms: string[], caseInsensitive: boolean = true): DictionaryIndex {
-    const nodes: AhoNode[] = [createNode()];
-    const normalize = (s: string) => (caseInsensitive ? s.toLowerCase() : s);
+export function buildDictionaryIndex<T extends AhoNodeOutput>(terms: Map<string, T[]>): DictionaryIndex<T> {
+    const nodes: AhoNode<T>[] = [createNode()];
 
-    for (const term of terms) {
-        if (!term) continue;
-        const normalized = normalize(term);
+    terms.forEach((value, term) => {
+        if (!term) return;
+        const normalized = term.toLowerCase();
         let current = 0;
         for (const ch of normalized) {
             if (!nodes[current].children.has(ch)) {
@@ -128,8 +129,8 @@ export function buildDictionaryIndex(terms: string[], caseInsensitive: boolean =
             }
             current = nodes[current].children.get(ch)!;
         }
-        nodes[current].outputs.push(term);
-    }
+        nodes[current].outputs.push(...value);
+    });
 
     // Build failure links with BFS
     const queue: number[] = [];
@@ -152,19 +153,15 @@ export function buildDictionaryIndex(terms: string[], caseInsensitive: boolean =
         }
     }
 
-    return { nodes, caseInsensitive };
+    return { nodes };
 }
 
 /**
  * Find all dictionary term matches in the given text using a prebuilt index.
  */
-export function findDictionaryMatches(text: string, index: DictionaryIndex, opts?: { wholeWords?: boolean, caseSensitiveTerms?: Set<string> }): DictionaryMatch[] {
-    const wholeWords = opts?.wholeWords ?? false;
-    const caseSensitiveTerms = opts?.caseSensitiveTerms;
-    const normalizeText = (s: string) => (index.caseInsensitive ? s.toLowerCase() : s);
-    const normalizeTerm = (s: string) => (index.caseInsensitive ? s.toLowerCase() : s);
-    const normalizedText = normalizeText(text);
-    const matches: DictionaryMatch[] = [];
+export function findDictionaryMatches<T extends AhoNodeOutput>(text: string, index: DictionaryIndex<T>): DictionaryMatch<T>[] {
+    const normalizedText = text.toLowerCase();
+    const matches: DictionaryMatch<T>[] = [];
     let state = 0;
 
     for (let i = 0; i < normalizedText.length; i++) {
@@ -181,23 +178,17 @@ export function findDictionaryMatches(text: string, index: DictionaryIndex, opts
             continue;
         }
 
-        for (const term of index.nodes[state].outputs) {
-            const start = i - term.length + 1;
+        for (const output of index.nodes[state].outputs) {
+            const start = i - output.term.length + 1;
             const end = i + 1;
             if (start < 0) continue;
-            const normalizedTerm = normalizeTerm(term);
 
-            if (caseSensitiveTerms && caseSensitiveTerms.has(normalizedTerm)) {
-                const originalSlice = text.slice(start, end);
-                if (originalSlice !== term.toUpperCase()) {
-                    continue;
-                }
-            }
-            if (wholeWords && !isWholeWord(normalizedText, start, end)) {
+            if (!shouldIncludeMatch(text, output.term, start, end)) {
                 continue;
             }
+
             matches.push({
-                term,
+                output,
                 start,
                 end,
             });
@@ -207,15 +198,75 @@ export function findDictionaryMatches(text: string, index: DictionaryIndex, opts
     return matches;
 }
 
-function isWordChar(ch: string | undefined): boolean {
-    if (!ch) return false;
-    return /[A-Za-z]/.test(ch);
-}
+function shouldIncludeMatch(text: string, term: string, start: number, end: number): boolean {
+   
 
-function isWholeWord(text: string, start: number, end: number): boolean {
+    const isTermAllCaps = term.toUpperCase() === term;
+    const matchedText = text.slice(start, end);
+
+    if (isTermAllCaps && matchedText !== term) { // case-sensitive match required
+        return false;
+    }
+
+
     const before = start > 0 ? text[start - 1] : undefined;
     const after = end < text.length ? text[end] : undefined;
-    return !isWordChar(before) && !isWordChar(after);
+
+    // check if term starts with leading number
+    if (/^[0-9]/.test(term)) {
+
+        // prev char must not be a number or decimal point
+        if (before && (/[0-9.]/.test(before))) {
+            return false;
+        }
+    }
+
+    // check if term ends with trailing number
+    if (/[0-9]$/.test(term)) {
+        // next char must not be a number
+        if (after && /[0-9]/.test(after)) {
+            return false;
+        }
+    }
+    
+   
+    const isWordChar = (ch: string | undefined): boolean => {
+        return ch !== undefined && /[A-Za-z]/.test(ch);
+    }
+
+    let startSatisfied = isWordChar(before) === false;
+    let endingSatisfied = isWordChar(after) === false;
+
+    if (startSatisfied && endingSatisfied) {
+        return true;
+    }
+
+     const hasNoNumbers = !/[0-9]/.test(term);
+
+    if (hasNoNumbers && startSatisfied && !endingSatisfied) { // just some words
+        // check if next character is possessive
+        const getSliceAtEnd = (len: number): string => {
+            return text.slice(end, Math.min(end + len, text.length));
+        }
+        const getCharAt = (pos: number): string | undefined => {
+            pos += end;
+            return pos < text.length ? text[pos] : undefined;
+        }
+
+        if (getCharAt(0) === "s" && !isWordChar(getCharAt(1))) {
+            endingSatisfied = true;
+        } else if (getSliceAtEnd(2) === "ed" && !isWordChar(getCharAt(2))) {
+            endingSatisfied = true;
+        } else if (getSliceAtEnd(3) === "ing" && !isWordChar(getCharAt(3))) {
+            endingSatisfied = true;
+        }
+
+        if (endingSatisfied) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 export type RegexMatch = {
@@ -302,7 +353,7 @@ export function tagReferencesInText(text: string, dictionaryIndex?: DictionaryTe
             end: match.end,
             ref: {
                 type: ReferenceType.USER_MENTION,
-                user: { 
+                user: {
                     type: AuthorType.DiscordExternal,
                     id: userID as Snowflake
                 },
@@ -330,32 +381,23 @@ export function tagReferencesInText(text: string, dictionaryIndex?: DictionaryTe
     }
 
     if (dictionaryIndex) {
-        const normalizeTerm = (term: string) => (dictionaryIndex.aho.caseInsensitive ? term.toLowerCase() : term);
-
-        const dictMatches = findDictionaryMatches(text, dictionaryIndex.aho, { wholeWords: true, caseSensitiveTerms: dictionaryIndex.caseSensitiveTerms });
+        const dictMatches = findDictionaryMatches(text, dictionaryIndex.aho);
         for (const match of dictMatches) {
-            const entries = dictionaryIndex.termToData.get(normalizeTerm(match.term));
-            if (!entries) continue;
             const matchedText = text.slice(match.start, match.end);
-            for (const entry of entries) {
-                if (entry.status !== DictionaryEntryStatus.APPROVED) {
-                    continue;
-                }
-
-                references.push({
-                    start: match.start,
-                    end: match.end,
-                    ref: {
-                        type: ReferenceType.DICTIONARY_TERM,
-                        term: match.term,
-                        id: entry.id,
-                        url: entry.url,
-                        matches: [matchedText],
-                    }
-                });
-
-                break; // only need one reference per term match
+            if (match.output.status !== DictionaryEntryStatus.APPROVED) {
+                continue;
             }
+            references.push({
+                start: match.start,
+                end: match.end,
+                ref: {
+                    type: ReferenceType.DICTIONARY_TERM,
+                    term: match.output.term,
+                    id: match.output.id,
+                    url: match.output.url,
+                    matches: [matchedText],
+                }
+            });
         }
     }
 
@@ -603,9 +645,7 @@ export function transformOutputWithReferences(
     }
 
     const filteredMatches = matches.filter(({ start, end }) => {
-        const before = start > 0 ? text[start - 1] : undefined;
-        const after = end < text.length ? text[end] : undefined;
-        return !isWordChar(before) && !isWordChar(after);
+        return shouldIncludeMatch(text, text.slice(start, end), start, end);
     });
 
     filteredMatches.sort((a, b) => a.start - b.start);
