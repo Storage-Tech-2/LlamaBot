@@ -1,7 +1,7 @@
 import { ActionRowBuilder, ChatInputCommandInteraction, EmbedBuilder, InteractionContextType, MessageFlags, SlashCommandBuilder, StringSelectMenuBuilder } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
-import { isAdmin, replyEphemeral } from "../utils/Util.js";
+import { isAdmin, replyEphemeral, splitIntoChunks } from "../utils/Util.js";
 import { DiscordJoinMenu } from "../components/menus/DiscordJoinMenu.js";
 import { DiscordServersDictionary } from "../archive/DiscordServersDictionary.js";
 import { SysAdmin } from "../Bot.js";
@@ -205,28 +205,48 @@ export class DiscordsCommand implements Command {
         const localServers = await dictionary.getServers();
         const globalServers = await guildHolder.getBot().getGlobalDiscordServersDictionary().getServers();
         const localIds = new Set(localServers.map(s => s.id));
-        const globalOnly = globalServers.filter(s => !localIds.has(s.id));
+        const combined = [
+            ...localServers.map(s => ({ ...s, isGlobal: false })),
+            ...globalServers
+                .filter(s => !localIds.has(s.id))
+                .map(s => ({ ...s, isGlobal: true })),
+        ];
 
-        if (localServers.length === 0 && globalOnly.length === 0) {
+        if (combined.length === 0) {
             await replyEphemeral(interaction, 'No servers registered yet.');
             return;
         }
 
-        const format = (servers: typeof localServers) => servers.map(s => `• **${s.name}** (${s.id}) — ${s.joinURL}`).join('\n') || 'None';
+        combined.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 
-        const embed = new EmbedBuilder()
-            .setTitle('Registered Discord servers')
-            .addFields(
-                { name: 'Local', value: format(localServers), inline: false },
-                { name: 'Global', value: format(globalOnly), inline: false },
-            )
-            .setColor(0x5865F2);
+        const lines = combined.map(s => `• **${s.name}**${s.isGlobal ? ' (global)' : ''} (${s.id}) — ${s.joinURL}`);
 
-        await interaction.reply({
-            embeds: [embed],
-            flags: [MessageFlags.SuppressNotifications],
-            allowedMentions: { parse: [] },
-        });
+        const textSplit = splitIntoChunks(lines.join('\n'), 4000);
+
+
+        for (let i = 0; i < textSplit.length; i++) {
+            const isFirst = i === 0;
+            
+            const embed = new EmbedBuilder()
+                .setTitle('Registered Discord servers')
+                .setDescription(textSplit[i])
+                .setColor(0x5865F2)
+                .setFooter({ text: `Page ${i + 1} of ${textSplit.length}` });
+
+            if (isFirst) {
+                await interaction.reply({
+                    embeds: [embed],
+                    flags: [MessageFlags.SuppressNotifications],
+                    allowedMentions: { parse: [] },
+                });
+            } else {
+                await interaction.followUp({
+                    embeds: [embed],
+                    flags: [MessageFlags.SuppressNotifications],
+                    allowedMentions: { parse: [] },
+                });
+            }
+        }
     }
 
     private async handleJoin(dictionary: DiscordServersDictionary, guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
