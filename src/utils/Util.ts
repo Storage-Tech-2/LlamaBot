@@ -2,7 +2,7 @@ import { Command } from '../interface/Command.js'
 import { Button } from '../interface/Button.js'
 import { Menu } from '../interface/Menu.js'
 import { Modal } from '../interface/Modal.js'
-import { Secrets } from '../Bot.js'
+import { Secrets, SysAdmin } from '../Bot.js'
 import { Interaction, MessageFlags, PermissionFlagsBits, REST, Routes, Snowflake } from 'discord.js'
 import { GuildHolder } from '../GuildHolder.js'
 import { Attachment } from '../submissions/Attachment.js'
@@ -320,6 +320,9 @@ export function getGithubOwnerAndProject(url: string): { owner: string, project:
  * Checks if the interaction has admin permissions.
  */
 export function isAdmin(interaction: Interaction): boolean {
+    if (interaction.user.id === SysAdmin) {
+        return true
+    }
     if (!interaction.member || !interaction.inGuild()) {
         return false
     }
@@ -333,6 +336,9 @@ export function isAdmin(interaction: Interaction): boolean {
  * Checks if the interaction has moderator permissions.
  */
 export function isModerator(interaction: Interaction): boolean {
+    if (interaction.user.id === SysAdmin) {
+        return true
+    }
     if (!interaction.member || !interaction.inGuild()) {
         return false
     }
@@ -377,6 +383,9 @@ export function isAuthor(interaction: Interaction, submission: Submission): bool
  * Check if the interaction has an endorser role.
  */
 export function isEndorser(interaction: Interaction, guildHolder: GuildHolder): boolean {
+    if (interaction.user.id === SysAdmin) {
+        return true
+    }
     if (!interaction.member || !interaction.inCachedGuild()) {
         return false
     }
@@ -397,6 +406,9 @@ export function isEndorser(interaction: Interaction, guildHolder: GuildHolder): 
  * Check if the interaction has an editor role.
  */
 export function isEditor(interaction: Interaction, guildHolder: GuildHolder): boolean {
+    if (interaction.user.id === SysAdmin) {
+        return true
+    }
     if (!interaction.member || !interaction.inCachedGuild()) {
         return false
     }
