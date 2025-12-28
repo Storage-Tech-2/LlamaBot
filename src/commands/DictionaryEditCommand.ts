@@ -39,7 +39,7 @@ export class DictionaryEditCommand implements Command {
             )
             .addSubcommand(sub =>
                 sub
-                    .setName('bulkrename')
+                    .setName('forceresync')
                     .setDescription('Rename dictionary threads to match their terms')
             )
             .addSubcommand(sub =>
@@ -64,7 +64,7 @@ export class DictionaryEditCommand implements Command {
             return;
         }
 
-        if (subcommand === 'bulkrename') {
+        if (subcommand === 'forceresync') {
             if (!isEditor(interaction, guildHolder) && !isModerator(interaction)) {
                 await replyEphemeral(interaction, 'You do not have permission to use this command.');
                 return;
@@ -132,13 +132,13 @@ export class DictionaryEditCommand implements Command {
             }
 
             if (results.length === 0) {
-                results.push('No dictionary entries found to rename.');
+                results.push('No dictionary entries found to resync.');
             }
-            results.unshift(`Bulk rename complete: renamed ${renamed}, skipped ${skipped}, missing ${missing}.`);
+            results.unshift(`Force resync complete: renamed ${renamed}, skipped ${skipped}, missing ${missing}.`);
 
             const chunks = splitIntoChunks(results.join('\n'), 2000);
             if (chunks.length === 0) {
-                await interaction.editReply('Bulk rename complete.');
+                await interaction.editReply('Force resync complete.');
                 return;
             }
 
