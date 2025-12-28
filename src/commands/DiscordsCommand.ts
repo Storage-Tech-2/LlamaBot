@@ -219,7 +219,7 @@ export class DiscordsCommand implements Command {
 
         combined.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 
-        const lines = combined.map(s => `- **${s.name}**${s.isGlobal ? ' [global]' : ''} (${s.id})\n  -${s.joinURL}`);
+        const lines = combined.map(s => `- **${s.name}**${s.isGlobal ? ' [global]' : ''} (${s.id})\n    - ${s.joinURL}`);
 
         const textSplit = splitIntoChunks(lines.join('\n'), 4000);
 
