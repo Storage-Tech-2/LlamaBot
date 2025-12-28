@@ -58,6 +58,10 @@ export class DictionaryManager {
         return Path.join(this.folderPath, 'entries');
     }
 
+    getConfigPath(): string {
+        return Path.join(this.folderPath, 'config.json');
+    }
+
     async getEntry(id: Snowflake): Promise<DictionaryEntry | null> {
         const entryPath = Path.join(this.getEntriesPath(), `${id}.json`);
         return fs.readFile(entryPath, 'utf-8')
@@ -82,19 +86,44 @@ export class DictionaryManager {
         return false;
     }
 
+    async rebuildConfigIndex(): Promise<void> {
+        const configPath = this.getConfigPath();
+        const ids = [];
+        const files = await fs.readdir(this.getEntriesPath());
+        for (const file of files) {
+            if (file.endsWith('.json')) {
+                const id = file.slice(0, -5);
+                ids.push(id);
+            }
+        }
+        const configData = {
+            entryIDs: ids,
+        };
+        await fs.writeFile(configPath, JSON.stringify(configData, null, 2), 'utf-8');
+    }
+
     async saveEntry(entry: DictionaryEntry, push: boolean = false): Promise<void> {
         const oldEntry = await this.getEntry(entry.id);
         const entryPath = Path.join(this.getEntriesPath(), `${entry.id}.json`);
         await fs.mkdir(this.getEntriesPath(), { recursive: true });
         await fs.writeFile(entryPath, JSON.stringify(entry, null, 2), 'utf-8');
+        if (!oldEntry) {
+            await this.rebuildConfigIndex();
+        }
         if (push) {
             await this.repositoryManager.getLock().acquire();
-            await this.repositoryManager.add(entryPath).catch(() => { });
-            await this.repositoryManager.commit(oldEntry ? `Updated dictionary entry ${entry.terms[0]}` : `Added dictionary entry ${entry.terms[0]}`).catch(() => { });
+            const files: string[] = [ entryPath ];
+            if (!oldEntry) {
+                files.push(this.getConfigPath());
+            }
+            await this.repositoryManager.commit(oldEntry ? `Updated dictionary entry ${entry.terms[0]}` : `Added dictionary entry ${entry.terms[0]}`, files).catch(() => { });
             await this.repositoryManager.push().catch(() => { });
             this.repositoryManager.getLock().release();
         } else {
             await this.repositoryManager.add(entryPath).catch(() => { });
+            if (!oldEntry) {
+                await this.repositoryManager.add(this.getConfigPath()).catch(() => { });
+            }
         }
         
         this.invalidateDictionaryTermIndex();
@@ -108,7 +137,11 @@ export class DictionaryManager {
         const entryPath = Path.join(this.getEntriesPath(), `${entry.id}.json`);
         await this.repositoryManager.rm(entryPath).catch(() => { });
         await fs.unlink(entryPath).catch(() => { });
+        await fs.mkdir(this.getEntriesPath(), { recursive: true });
+        await this.rebuildConfigIndex();
         this.invalidateDictionaryTermIndex();
+
+        await this.repositoryManager.add(this.getConfigPath()).catch(() => { });
 
         await this.repositoryManager.commit(`Deleted dictionary entry ${entry.terms[0]}`).catch(() => { });
         await this.repositoryManager.push().catch(() => { });

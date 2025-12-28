@@ -1286,11 +1286,11 @@ export class RepositoryManager {
     }
 
 
-    public async commit(message: string) {
+    public async commit(message: string, files?: string | string[]) {
         if (!this.git) {
             return;
         }
-        await this.git.commit(message);
+        await this.git.commit(message, files);
     }
 
     public getLock(): Lock {
