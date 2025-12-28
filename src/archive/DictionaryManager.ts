@@ -91,15 +91,14 @@ export class DictionaryManager {
         const configPath = this.getConfigPath();
         const entries = await this.listEntries();
         const configData = {
-            entries: entries.map(entry => {
+            entries: entries.filter(entry => entry.status === DictionaryEntryStatus.APPROVED).map(entry => {
                 return {
                     id: entry.id,
                     terms: entry.terms,
                     summary: truncateStringWithEllipsis(entry.definition, 200),
-                    status: entry.status,
                     updatedAt: entry.updatedAt,
                 };
-            }),
+            })
         };
         await fs.writeFile(configPath, JSON.stringify(configData, null, 2), 'utf-8');
     }
