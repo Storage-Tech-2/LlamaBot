@@ -118,24 +118,21 @@ export class DictionaryEditModal implements Modal {
             });
         }
 
-        if (fields.length > 0 && thread.isTextBased()) {
-            const embed = new EmbedBuilder()
-                .setTitle('Dictionary Entry Updated')
-                .setColor(0x0099ff)
-                .addFields(fields)
-                .setFooter({ text: `Updated by ${interaction.user.tag}` })
-                .setTimestamp(new Date(entry.updatedAt));
-            if (entry.definition !== oldDefinition) {
-                embed.setDescription(truncateStringWithEllipsis(entry.definition || 'No definition', 3500));
-            }
-            
-            await thread.send({
-                content: `<@${interaction.user.id}> updated this dictionary entry.`,
-                embeds: [embed],
-                allowedMentions: { parse: [] },
-            }).catch(() => { /* ignore send errors */ });
+        const embed = new EmbedBuilder()
+            .setTitle('Dictionary Entry Updated')
+            .setColor(0x0099ff)
+            .addFields(fields)
+            .setFooter({ text: `Updated by ${interaction.user.tag}` })
+            .setTimestamp(new Date(entry.updatedAt));
+        if (entry.definition !== oldDefinition) {
+            embed.setDescription(truncateStringWithEllipsis(entry.definition || 'No definition', 3500));
         }
 
-        await interaction.editReply({ content: `<@${interaction.user.id}> updated the dictionary entry.` });
+        await interaction.editReply({
+            content: `<@${interaction.user.id}> updated this dictionary entry.`,
+            embeds: [embed],
+            allowedMentions: { parse: [] },
+        }).catch(() => { /* ignore send errors */ });
+
     }
 }
