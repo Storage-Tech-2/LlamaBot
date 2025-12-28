@@ -92,13 +92,26 @@ export class IndexManager {
     public async buildDictionaryTermIndex(): Promise<DictionaryTermIndex> {
         const dictionaryEntries = await this.dictionaryManager.listEntries();
         const termToData: Map<string, Set<DictionaryIndexEntry>> = new Map();
+        const caseSensitiveTerms = new Set<string>();
+        const isAllCapsTerm = (term: string): boolean => {
+            const trimmed = term.trim();
+            return /[A-Z]/.test(trimmed) && !/[a-z]/.test(trimmed);
+        };
         for (const entry of dictionaryEntries) {
-            const normalizedTerms = (entry.terms || []).map(t => this.dictionaryManager.normalizeTerm(t)).filter(Boolean);
-            for (const term of normalizedTerms) {
-                if (!termToData.has(term)) {
-                    termToData.set(term, new Set());
+            for (const rawTerm of entry.terms || []) {
+                const normalized = this.dictionaryManager.normalizeTerm(rawTerm);
+                if (!normalized) {
+                    continue;
                 }
-                termToData.get(term)!.add({
+
+                if (isAllCapsTerm(rawTerm)) {
+                    caseSensitiveTerms.add(normalized);
+                }
+
+                if (!termToData.has(normalized)) {
+                    termToData.set(normalized, new Set());
+                }
+                termToData.get(normalized)!.add({
                     id: entry.id,
                     url: entry.statusURL || entry.threadURL,
                     status: entry.status,
@@ -108,7 +121,8 @@ export class IndexManager {
         
         const termIndex: DictionaryTermIndex = {
             termToData: termToData,
-            aho: buildDictionaryIndex(Array.from(termToData.keys()), true)
+            aho: buildDictionaryIndex(Array.from(termToData.keys()), true),
+            caseSensitiveTerms
         };
         return termIndex;
     }

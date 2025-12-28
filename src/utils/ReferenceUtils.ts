@@ -44,6 +44,7 @@ export type DictionaryIndexEntry = {
 export type DictionaryTermIndex = {
     termToData: Map<string, Set<DictionaryIndexEntry>>;
     aho: DictionaryIndex;
+    caseSensitiveTerms: Set<string>;
 };
 
 export enum ReferenceType {
@@ -145,10 +146,12 @@ export function buildDictionaryIndex(terms: string[], caseInsensitive: boolean =
 /**
  * Find all dictionary term matches in the given text using a prebuilt index.
  */
-export function findDictionaryMatches(text: string, index: DictionaryIndex, opts?: { wholeWords?: boolean }): DictionaryMatch[] {
+export function findDictionaryMatches(text: string, index: DictionaryIndex, opts?: { wholeWords?: boolean, caseSensitiveTerms?: Set<string> }): DictionaryMatch[] {
     const wholeWords = opts?.wholeWords ?? false;
-    const normalize = (s: string) => (index.caseInsensitive ? s.toLowerCase() : s);
-    const normalizedText = normalize(text);
+    const caseSensitiveTerms = opts?.caseSensitiveTerms;
+    const normalizeText = (s: string) => (index.caseInsensitive ? s.toLowerCase() : s);
+    const normalizeTerm = (s: string) => (index.caseInsensitive ? s.toLowerCase() : s);
+    const normalizedText = normalizeText(text);
     const matches: DictionaryMatch[] = [];
     let state = 0;
 
@@ -170,6 +173,14 @@ export function findDictionaryMatches(text: string, index: DictionaryIndex, opts
             const start = i - term.length + 1;
             const end = i + 1;
             if (start < 0) continue;
+            const normalizedTerm = normalizeTerm(term);
+
+            if (caseSensitiveTerms && caseSensitiveTerms.has(normalizedTerm)) {
+                const originalSlice = text.slice(start, end);
+                if (originalSlice !== term.toUpperCase()) {
+                    continue;
+                }
+            }
             if (wholeWords && !isWholeWord(normalizedText, start, end)) {
                 continue;
             }
@@ -274,7 +285,7 @@ export function tagReferencesInText(text: string, dictionaryIndex?: DictionaryTe
     if (dictionaryIndex) {
         const normalizeTerm = (term: string) => (dictionaryIndex.aho.caseInsensitive ? term.toLowerCase() : term);
 
-        const dictMatches = findDictionaryMatches(text, dictionaryIndex.aho, { wholeWords: true });
+        const dictMatches = findDictionaryMatches(text, dictionaryIndex.aho, { wholeWords: true, caseSensitiveTerms: dictionaryIndex.caseSensitiveTerms });
         for (const match of dictMatches) {
             const entries = dictionaryIndex.termToData.get(normalizeTerm(match.term));
             if (!entries) continue;
