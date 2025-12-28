@@ -1256,7 +1256,6 @@ export class GuildHolder {
         });
 
 
-        // just swap urls, no need to reanalyze
         await this.repositoryManager.iterateAllEntries(async (entry) => {
             if (entry.getData().id === entryData.id) {
                 return;
@@ -1290,6 +1289,7 @@ export class GuildHolder {
             const newReferences = definition.references.filter(r => !(r.type === ReferenceType.ARCHIVED_POST && r.id === entryData.id));
             let updated = newReferences.length !== definition.references.length;
             definition.references = newReferences;
+            definition.referencedBy = definition.referencedBy.filter(r => r !== entryData.code );
 
             if (updated) {
                 await this.getDictionaryManager().saveEntry(definition);
