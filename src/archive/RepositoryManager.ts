@@ -19,6 +19,7 @@ import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
 import { makeEntryReadMe } from "./ReadMeMaker.js";
 import { analyzeAttachments, filterAttachmentsForViewer, getAttachmentsFromMessage, getAttachmentsFromText, getFileKey, processAttachments } from "../utils/AttachmentUtils.js";
 import { DictionaryManager } from "./DictionaryManager.js";
+import { IndexManager } from "./IndexManager.js";
 import { DiscordServersDictionary } from "./DiscordServersDictionary.js";
 export class RepositoryManager {
     private folderPath: string;
@@ -28,12 +29,15 @@ export class RepositoryManager {
     private ignoreUpdatesFrom: Snowflake[] = [];
     private guildHolder: GuildHolder;
     private dictionaryManager: DictionaryManager;
+    private indexManager: IndexManager;
     private discordServersDictionary: DiscordServersDictionary;
     constructor(guildHolder: GuildHolder, folderPath: string) {
         this.guildHolder = guildHolder;
         this.folderPath = folderPath;
         this.configManager = new ConfigManager(Path.join(folderPath, 'config.json'));
         this.dictionaryManager = new DictionaryManager(this.guildHolder, Path.join(this.folderPath, 'dictionary'), this.stageAndCommit.bind(this));
+        this.indexManager = new IndexManager(this.dictionaryManager, this, this.folderPath);
+        this.dictionaryManager.setIndexManager(this.indexManager);
         this.discordServersDictionary = new DiscordServersDictionary(this.folderPath, this.stageAndCommit.bind(this));
     }
 
@@ -79,7 +83,7 @@ export class RepositoryManager {
 
         await this.lock.release();
 
-        await this.getPostToSubmissionIndex();
+        await this.indexManager.getPostToSubmissionIndex();
         await this.dictionaryManager.init();
     }
 
@@ -103,10 +107,6 @@ export class RepositoryManager {
         });
 
         await this.lock.release();
-    }
-
-    getIndexPath() {
-        return Path.join(this.folderPath, 'post_to_submission_index.json');
     }
 
     addToIgnoreUpdatesFrom(id: Snowflake) {
@@ -146,78 +146,6 @@ export class RepositoryManager {
 
     shouldIgnoreUpdates(id: Snowflake): boolean {
         return this.ignoreUpdatesFrom.includes(id);
-    }
-
-
-    async getPostToSubmissionIndex() {
-        const filePath = this.getIndexPath();
-        if (!await fs.access(filePath).then(() => true).catch(() => false)) {
-            // If the file does not exist, create it
-            await fs.writeFile(filePath, JSON.stringify({}, null, 2), 'utf-8');
-            return {};
-        } else {
-            // If the file exists, read it
-            const content = await fs.readFile(filePath, 'utf-8');
-            try {
-                return JSON.parse(content);
-            } catch (e) {
-                console.error("Error parsing post_to_submission_index.json:", e);
-                return {};
-            }
-        }
-    }
-
-    async savePostToSubmissionIndex(index: any) {
-        if (!this.git) {
-            throw new Error("Git not initialized");
-        }
-        const filePath = this.getIndexPath();
-        await fs.writeFile(filePath, JSON.stringify(index, null, 2), 'utf-8');
-    }
-
-    async getSubmissionIDByPostID(postID: Snowflake): Promise<Snowflake | null> {
-        const index = await this.getPostToSubmissionIndex();
-        if (index.hasOwnProperty(postID)) {
-            return index[postID] as Snowflake;
-        } else {
-            // check all entries
-            const channelReferences = this.getChannelReferences();
-            for (const channelRef of channelReferences) {
-                const channelPath = Path.join(this.folderPath, channelRef.path);
-                const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
-                const entries = archiveChannel.getData().entries;
-                for (const entryRef of entries) {
-                    const entryPath = Path.join(channelPath, entryRef.path);
-                    const entry = await ArchiveEntry.fromFolder(entryPath);
-                    if (entry) {
-                        const post = entry.getData().post;
-                        if (post && post.threadId === postID) {
-                            await this.setSubmissionIDForPostID(postID, entry.getData().id); // Ensure the index is updated
-                            return entry.getData().id; // Return the submission ID
-                        }
-                    }
-                }
-            }
-            return null;
-        }
-    }
-
-    async setSubmissionIDForPostID(postID: Snowflake, submissionID: Snowflake) {
-        const index = await this.getPostToSubmissionIndex();
-        const prevValue = index.hasOwnProperty(postID) ? index[postID] : null;
-        if (prevValue === submissionID) {
-            return; // No change needed
-        }
-        index[postID] = submissionID;
-        await this.savePostToSubmissionIndex(index);
-    }
-
-    async deleteSubmissionIDForPostID(postID: Snowflake) {
-        const index = await this.getPostToSubmissionIndex();
-        if (index.hasOwnProperty(postID)) {
-            delete index[postID];
-            await this.savePostToSubmissionIndex(index);
-        }
     }
 
     async pull() {
@@ -1168,7 +1096,7 @@ export class RepositoryManager {
         await this.git.add(entryFolderPath);
         await this.git.add(channelPath); // to update currentCodeId and entries
 
-        await this.setSubmissionIDForPostID(thread.id, newEntryData.id);
+        await this.indexManager.setSubmissionIDForPostID(thread.id, newEntryData.id);
         this.removeFromIgnoreUpdatesFrom(newEntryData.id);
 
 
@@ -1250,7 +1178,7 @@ export class RepositoryManager {
                 console.error("Error pushing to remote:", e.message);
             }
 
-            await this.deleteSubmissionIDForPostID(entryData.post?.threadId || '');
+            await this.indexManager.deleteSubmissionIDForPostID(entryData.post?.threadId || '');
             this.removeFromIgnoreUpdatesFrom(submission.getId());
 
             this.guildHolder.onPostDelete(found.entry.getData()).catch(e => {
@@ -1316,7 +1244,7 @@ export class RepositoryManager {
         }
 
 
-        const submissionId = await this.getSubmissionIDByPostID(postId);
+        const submissionId = await this.indexManager.getSubmissionIDByPostID(postId);
         if (!submissionId || this.shouldIgnoreUpdates(submissionId)) {
             return;
         }
@@ -1472,7 +1400,7 @@ export class RepositoryManager {
         }
 
         const postId = message.channelId;
-        const submissionId = await this.getSubmissionIDByPostID(postId);
+        const submissionId = await this.indexManager.getSubmissionIDByPostID(postId);
         if (!submissionId || this.shouldIgnoreUpdates(submissionId)) {
             return;
         }
@@ -1601,7 +1529,7 @@ export class RepositoryManager {
         }
 
 
-        const submissionId = await this.getSubmissionIDByPostID(postId);
+        const submissionId = await this.indexManager.getSubmissionIDByPostID(postId);
         if (!submissionId || this.shouldIgnoreUpdates(submissionId)) {
             return;
         }
@@ -1645,7 +1573,7 @@ export class RepositoryManager {
             found.channel.getData().entries.splice(found.entryIndex, 1);
             await found.channel.save();
             await this.git.add(found.channel.getDataPath());
-            await this.deleteSubmissionIDForPostID(postId);
+            await this.indexManager.deleteSubmissionIDForPostID(postId);
             // Commit the removal
             await this.git.commit(`Force deleted ${found.entry.getData().code} ${found.entry.getData().name} from channel ${found.channel.getData().name} (${found.channel.getData().code})`);
 
@@ -1698,7 +1626,7 @@ export class RepositoryManager {
         }
 
         const postId = thread.id;
-        const submissionId = await this.getSubmissionIDByPostID(postId);
+        const submissionId = await this.indexManager.getSubmissionIDByPostID(postId);
         if (!submissionId || this.shouldIgnoreUpdates(submissionId)) {
             return;
         }
@@ -2261,6 +2189,10 @@ export class RepositoryManager {
 
     public getDictionaryManager(): DictionaryManager {
         return this.dictionaryManager;
+    }
+
+    public getIndexManager(): IndexManager {
+        return this.indexManager;
     }
 
     public getDiscordServersDictionary(): DiscordServersDictionary {

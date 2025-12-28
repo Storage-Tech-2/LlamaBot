@@ -3,7 +3,8 @@ import fs from "fs/promises";
 import Path from "path";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { GuildHolder } from "../GuildHolder.js";
-import { buildDictionaryIndex, findDictionaryMatches, DictionaryTermIndex, Reference, tagReferences, transformOutputWithReferences } from "../utils/ReferenceUtils.js";
+import { findDictionaryMatches, DictionaryTermIndex, Reference, tagReferences, transformOutputWithReferences } from "../utils/ReferenceUtils.js";
+import { IndexManager } from "./IndexManager.js";
 
 export enum DictionaryEntryStatus {
     PENDING = "PENDING",
@@ -34,11 +35,7 @@ export type Indexes = {
 }
 
 export class DictionaryManager {
-
-    private cachedDictionaryIndex?: Promise<DictionaryTermIndex>;
-    private dictionaryCacheInvalidateTimeout?: NodeJS.Timeout;
-    private cachedArchiveIndex?: Promise<ArchiveIndex>;
-    private archiveCacheInvalidateTimeout?: NodeJS.Timeout;
+    private indexManager?: IndexManager;
 
     constructor(private guildHolder: GuildHolder, private folderPath: string, private stageAndCommit?: (paths: string[], message: string) => Promise<void>) {
 
@@ -315,80 +312,34 @@ export class DictionaryManager {
         };
     }
 
-    private normalizeTerm(term: string): string {
+    public normalizeTerm(term: string): string {
         return term.trim().toLowerCase();
     }
-
-    public async buildDictionaryTermIndex(): Promise<DictionaryTermIndex> {
-        const dictionaryEntries = await this.listEntries();
-        const termToID: Map<string, Set<Snowflake>> = new Map();
-        const idToURL: Map<Snowflake, string> = new Map();
-        for (const entry of dictionaryEntries) {
-            const normalizedTerms = (entry.terms || []).map(t => this.normalizeTerm(t)).filter(Boolean);
-            for (const term of normalizedTerms) {
-                if (!termToID.has(term)) {
-                    termToID.set(term, new Set());
-                }
-                termToID.get(term)!.add(entry.id);
-            }
-            idToURL.set(entry.id, entry.threadURL);
-        }
-        const termIndex: DictionaryTermIndex = {
-            termToID: termToID,
-            idToURL: idToURL,
-            aho: buildDictionaryIndex(Array.from(termToID.keys()), true)
-        };
-        return termIndex;
+    public setIndexManager(indexManager: IndexManager) {
+        this.indexManager = indexManager;
     }
 
-    public async buildArchiveIndex(): Promise<ArchiveIndex> {
-        const repositoryManager = this.guildHolder.getRepositoryManager();
-        const codeToID = new Map();
-        const threadToCode = new Map();
-        const idToURL = new Map();
-        await repositoryManager.iterateAllEntries(async (entry) => {
-            const data = entry.getData();
-            if (!data.post) return;
-            codeToID.set(data.code, data.id);
-            threadToCode.set(data.post.threadId, data.code)
-            idToURL.set(data.id, data.post.threadURL);
-        });
-
-        return {
-            threadToCode: threadToCode,
-            codeToID: codeToID,
-            idToURL: idToURL
+    public getIndexManager(): IndexManager {
+        if (!this.indexManager) {
+            throw new Error('IndexManager not initialized');
         }
+        return this.indexManager;
     }
 
     public async getDictionaryTermIndex(): Promise<DictionaryTermIndex> {
-        clearTimeout(this.dictionaryCacheInvalidateTimeout);
-        this.dictionaryCacheInvalidateTimeout = setTimeout(() => {
-            this.invalidateDictionaryTermIndex();
-        }, 60 * 1000)
-
-        if (this.cachedDictionaryIndex) return this.cachedDictionaryIndex;
-        this.cachedDictionaryIndex = this.buildDictionaryTermIndex();
-        return this.cachedDictionaryIndex;
+        return this.getIndexManager().getDictionaryTermIndex();
     }
 
     public async getArchiveIndex(): Promise<ArchiveIndex> {
-        clearTimeout(this.archiveCacheInvalidateTimeout);
-        this.archiveCacheInvalidateTimeout = setTimeout(() => {
-            this.invalidateArchiveIndex();
-        }, 60 * 1000)
-
-        if (this.cachedArchiveIndex) return this.cachedArchiveIndex;
-        this.cachedArchiveIndex = this.buildArchiveIndex();
-        return this.cachedArchiveIndex;
+        return this.getIndexManager().getArchiveIndex();
     }
 
     public invalidateDictionaryTermIndex() {
-        this.cachedDictionaryIndex = undefined;
+        this.getIndexManager().invalidateDictionaryTermIndex();
     }
 
     public invalidateArchiveIndex() {
-        this.cachedArchiveIndex = undefined;
+        this.getIndexManager().invalidateArchiveIndex();
     }
 
     private async findDuplicateEntries(entry: DictionaryEntry): Promise<{ term: string, ids: Snowflake[] }[]> {

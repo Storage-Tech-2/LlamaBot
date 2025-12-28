@@ -7,7 +7,7 @@ import { GuildConfigs } from "../config/GuildConfigs.js";
 export class AntiNukeManager {
 
     private guildHolder: GuildHolder;
-    private restrictedActionLog = [];
+    private restrictedActionLog: number[] = [];
     private actionLimit = 15; // max actions every minute
 
     constructor(guildHolder: GuildHolder) {
@@ -59,7 +59,7 @@ export class AntiNukeManager {
         if (!executorMember) {
             return false;
         }
-        
+
         if (executorMember.roles.highest.position <= selfMember.roles.highest.position) {
             return false;
         }
@@ -68,67 +68,103 @@ export class AntiNukeManager {
     }
 
     async handleAuditLogEntry(entry: GuildAuditLogsEntry) {
-        if (entry.action !== AuditLogEvent.IntegrationCreate) {
+        const actionsList = [
+            AuditLogEvent.IntegrationCreate,
+            AuditLogEvent.MemberBanAdd,
+            AuditLogEvent.MemberKick,
+        ]
+
+        if (!actionsList.includes(entry.action)) {
             return;
         }
 
-        if (!entry.executor || await this.isPermittedExecutor(entry.executor)) {
+        if (!entry ||!entry.executor || await this.isPermittedExecutor(entry.executor)) {
             return;
         }
 
 
-        const botID = (entry as GuildAuditLogsEntry<AuditLogEvent.IntegrationCreate>).target.account.id;
-        const botMember = await this.guildHolder.getGuild().members.fetch(botID).catch(() => null);
-    
-        if (!botMember) {
-            return;
+        if (entry.action === AuditLogEvent.IntegrationCreate) {
+            const botID = (entry as GuildAuditLogsEntry<AuditLogEvent.IntegrationCreate>).target.account.id;
+            const botMember = await this.guildHolder.getGuild().members.fetch(botID).catch(() => null);
+
+            if (!botMember) {
+                return;
+            }
+
+            await botMember.kick('Anti-Nuke: Unauthorized bot integration added').catch(() => null);
+
+            const logChannel = await this.getLogChannel();
+            if (logChannel) {
+                const embed = new EmbedBuilder()
+                    .setTitle('Anti-Nuke: Unauthorized Bot Integration Removed')
+                    .setDescription(`A bot integration was added by an unauthorized user and has been removed.`)
+                    .addFields(
+                        { name: 'Executor', value: `${entry.executor.tag} (${entry.executor.id})`, inline: true },
+                        { name: 'Bot', value: `${botMember.user.tag} (${botMember.user.id})`, inline: true },
+                    )
+                    .setColor('Red')
+                    .setTimestamp();
+                logChannel.send({ embeds: [embed] }).catch(() => null);
+            }
+        } else if (entry.action === AuditLogEvent.MemberBanAdd || entry.action === AuditLogEvent.MemberKick) {
+            this.restrictedActionLog.push(Date.now());
+
+            // Clean up old log entries
+            const oneMinuteAgo = Date.now() - 60 * 1000;
+            this.restrictedActionLog = this.restrictedActionLog.filter(timestamp => timestamp > oneMinuteAgo);
+            
+            if (this.restrictedActionLog.length > this.actionLimit) {
+                // Exceeded action limit, take action against executor
+                const executorMember = await this.guildHolder.getGuild().members.fetch(entry.executor.id).catch(() => null);
+                if (executorMember) {
+                    // remove all roles
+                    await executorMember.roles.set([], 'Anti-Nuke: Exceeded restricted action limit').catch(() => null);
+
+                    // log the action
+                    const logChannel = await this.getLogChannel();
+                    if (logChannel) {
+                        const embed = new EmbedBuilder()
+                            .setTitle('Anti-Nuke: Executor Restricted')
+                            .setDescription(`A user has exceeded the restricted action limit and has been stripped of their roles.`)
+                            .addFields(
+                                { name: 'Executor', value: `${entry.executor.tag} (${entry.executor.id})`, inline: true },
+                                { name: 'Action', value: entry.action === AuditLogEvent.MemberBanAdd ? 'Ban' : 'Kick', inline: true },
+                            )
+                            .setColor('Red')
+                            .setTimestamp();
+                        logChannel.send({ embeds: [embed] }).catch(() => null);
+                    }
+                }
+            }
         }
-
-        await botMember.kick('Anti-Nuke: Unauthorized bot integration added').catch(() => null);
-
-        const logChannel = await this.getLogChannel();
-        if (logChannel) {
-            const embed = new EmbedBuilder()
-                .setTitle('Anti-Nuke: Unauthorized Bot Integration Removed')
-                .setDescription(`A bot integration was added by an unauthorized user and has been removed.`)
-                .addFields(
-                    { name: 'Executor', value: `${entry.executor.tag} (${entry.executor.id})`, inline: true },
-                    { name: 'Bot', value: `${botMember.user.tag} (${botMember.user.id})`, inline: true },
-                )
-                .setColor('Red')
-                .setTimestamp();
-            logChannel.send({ embeds: [embed] }).catch(() => null);
-        }
-    }
-    
-    async handleRoleDelete(role: Role) {
-       
     }
 
-    async handleMemberAdd(member: GuildMember) {
+    async handleRoleDelete(_role: Role) {
 
     }
 
-    async handleMemberUpdate(oldMember: GuildMember | PartialGuildMember, newMember: GuildMember) {
+    async handleMemberAdd(_member: GuildMember) {
 
     }
 
-    async handleMemberRemove(member: GuildMember | PartialGuildMember) {
+    async handleMemberUpdate(_oldMember: GuildMember | PartialGuildMember, _newMember: GuildMember) {
     }
 
-    async handleMessageUpdate(_oldMessage: Message, newMessage: Message) {
-
+    async handleMemberRemove(_member: GuildMember | PartialGuildMember) {
     }
 
-    async handleMessageDelete(message: Message) {
-
-    }
-
-    async handleThreadDelete(thread: AnyThreadChannel) {
+    async handleMessageUpdate(_oldMessage: Message, _newMessage: Message) {
 
     }
 
-    async handleThreadUpdate(oldThread: AnyThreadChannel, newThread: AnyThreadChannel) {
+    async handleMessageDelete(_message: Message) {
+
+    }
+
+    async handleThreadDelete(_thread: AnyThreadChannel) {
+    }
+
+    async handleThreadUpdate(_oldThread: AnyThreadChannel, _newThread: AnyThreadChannel) {
 
     }
 
