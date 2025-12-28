@@ -1,4 +1,4 @@
-import { ActionRowBuilder, AnyThreadChannel, ButtonBuilder, ChannelType, EmbedBuilder, Message, MessageFlags, Snowflake } from "discord.js";
+import { ActionRowBuilder, AnyThreadChannel, ButtonBuilder, ButtonStyle, ChannelType, EmbedBuilder, Message, MessageFlags, Snowflake } from "discord.js";
 import fs from "fs/promises";
 import Path from "path";
 import { GuildConfigs } from "../config/GuildConfigs.js";
@@ -373,10 +373,10 @@ export class DictionaryManager {
 
         // check if website URL is configured
         const websiteURL = this.guildHolder.getConfigManager().getConfig(GuildConfigs.WEBSITE_URL);
-        if (websiteURL) {
+        if (websiteURL && entry.status === DictionaryEntryStatus.APPROVED) {
             const viewButton = new ButtonBuilder()
                 .setLabel('View on Website')
-                .setStyle(5) // Link button
+                .setStyle(ButtonStyle.Link) // Link button
                 .setURL(`${websiteURL}?view=dictionary&did=${entry.id}`);
             row.addComponents(viewButton);
         }
