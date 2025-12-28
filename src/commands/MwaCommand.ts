@@ -630,11 +630,10 @@ export class Mwa implements Command {
                     entry.definition = definition;
                     entry.status = DictionaryEntryStatus.APPROVED;
                     entry.updatedAt = Date.now();
-                    entry.references = await tagReferences(entry.definition, entry.references, guildHolder, entry.id);
+                    entry.references = [];
 
                     await dictionaryManager.saveEntry(entry);
                     await dictionaryManager.updateStatusMessage(entry, thread);
-                    await dictionaryManager.warnIfDuplicate(entry, thread);
 
                     for (const term of normalizedTerms) {
                         existingTerms.set(term, entry.id);
