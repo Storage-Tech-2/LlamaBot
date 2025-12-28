@@ -579,6 +579,7 @@ export class RepositoryManager {
 
             const oldRef = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS_REFERENCES);
             const authors = await reclassifyAuthors(this.guildHolder, config.getConfig(SubmissionConfigs.AUTHORS) || []);
+            const now = Date.now();
             entryData = deepClone({
                 id: submission.getId(),
                 name: config.getConfig(SubmissionConfigs.NAME),
@@ -592,8 +593,8 @@ export class RepositoryManager {
                 styles: revision.styles,
                 references: await tagReferencesInSubmissionRecords(revision.records, revision.references, this.guildHolder, submission.getId()),
                 author_references: await tagReferencesInAcknowledgements(authors, oldRef, this.guildHolder, submission.getId()),
-                updatedAt: Date.now(),
-                archivedAt: Date.now(),
+                updatedAt: now,
+                archivedAt: now,
                 post: undefined
             });
 

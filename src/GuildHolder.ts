@@ -72,7 +72,7 @@ export class GuildHolder {
 
     private antiNukeManager: AntiNukeManager;
 
-    private retaggingRequested: boolean = false;
+    private retaggingRequested: boolean = true;
 
     /**
      * Creates a new GuildHolder instance.

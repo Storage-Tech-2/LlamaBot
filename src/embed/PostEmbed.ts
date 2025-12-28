@@ -214,7 +214,9 @@ export class PostEmbed {
             content.push(` | [Website](${postURLObj.href})`);
         }
         content.push(`\nArchived on <t:${Math.floor(entryData.archivedAt / 1000)}:F>`);
-        content.push(`\nLast updated on <t:${Math.floor(entryData.updatedAt / 1000)}:F>`);
+        if (entryData.updatedAt !== entryData.archivedAt) {
+            content.push(`\nLast updated on <t:${Math.floor(entryData.updatedAt / 1000)}:F>`);
+        }
         return {
             content: content.join(''),
             serverLinks: transformed.serverLinks
