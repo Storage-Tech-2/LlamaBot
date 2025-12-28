@@ -1484,20 +1484,10 @@ export class GuildHolder {
     }
 
     public getSchema(): JSONSchema7 {
-        if (this.getConfigManager().isConfigSet(RepositoryConfigs.POST_SCHEMA) && !this.repositoryManager.getConfigManager().isConfigSet(RepositoryConfigs.POST_SCHEMA)) {
-            const schema = this.getConfigManager().getConfig(RepositoryConfigs.POST_SCHEMA);
-            this.repositoryManager.getConfigManager().setConfig(RepositoryConfigs.POST_SCHEMA, schema);
-            this.getConfigManager().deleteConfig(RepositoryConfigs.POST_SCHEMA);
-        }
         return this.repositoryManager.getConfigManager().getConfig(RepositoryConfigs.POST_SCHEMA);
     }
 
     public getSchemaStyles(): Record<string, StyleInfo> {
-        if (this.getConfigManager().isConfigSet(RepositoryConfigs.POST_STYLE) && !this.repositoryManager.getConfigManager().isConfigSet(RepositoryConfigs.POST_STYLE)) {
-            const styles = this.getConfigManager().getConfig(RepositoryConfigs.POST_STYLE);
-            this.repositoryManager.getConfigManager().setConfig(RepositoryConfigs.POST_STYLE, styles);
-            this.getConfigManager().deleteConfig(RepositoryConfigs.POST_STYLE);
-        }
         return this.repositoryManager.getConfigManager().getConfig(RepositoryConfigs.POST_STYLE);
     }
 
