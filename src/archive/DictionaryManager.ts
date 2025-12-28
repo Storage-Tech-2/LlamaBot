@@ -113,11 +113,11 @@ export class DictionaryManager {
         }
         if (push) {
             await this.repositoryManager.getLock().acquire();
-            const files: string[] = [ entryPath ];
+            await this.repositoryManager.add(entryPath).catch(() => { });
             if (!oldEntry) {
-                files.push(this.getConfigPath());
+                await this.repositoryManager.add(this.getConfigPath()).catch(() => { });
             }
-            await this.repositoryManager.commit(oldEntry ? `Updated dictionary entry ${entry.terms[0]}` : `Added dictionary entry ${entry.terms[0]}`, files).catch(() => { });
+            await this.repositoryManager.commit(oldEntry ? `Updated dictionary entry ${entry.terms[0]}` : `Added dictionary entry ${entry.terms[0]}`).catch(() => { });
             await this.repositoryManager.push().catch(() => { });
             this.repositoryManager.getLock().release();
         } else {
