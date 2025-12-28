@@ -117,12 +117,6 @@ export class DictionaryEditModal implements Modal {
                 value: `**Before:** ${truncateStringWithEllipsis(oldTerms.join(', ') || 'None', 1000)}\n**After:** ${truncateStringWithEllipsis(entry.terms.join(', ') || 'None', 1000)}`
             });
         }
-        if (oldDefinition !== entry.definition) {
-            fields.push({
-                name: 'Definition',
-                value: `**Before:** ${truncateStringWithEllipsis(oldDefinition || 'None', 1000)}\n**After:** ${truncateStringWithEllipsis(entry.definition || 'None', 1000)}`
-            });
-        }
 
         if (fields.length > 0 && thread.isTextBased()) {
             const embed = new EmbedBuilder()
@@ -131,6 +125,10 @@ export class DictionaryEditModal implements Modal {
                 .addFields(fields)
                 .setFooter({ text: `Updated by ${interaction.user.tag}` })
                 .setTimestamp(new Date(entry.updatedAt));
+            if (entry.definition !== oldDefinition) {
+                embed.setDescription(truncateStringWithEllipsis(entry.definition || 'No definition', 3500));
+            }
+            
             await thread.send({
                 content: `<@${interaction.user.id}> updated this dictionary entry.`,
                 embeds: [embed],
