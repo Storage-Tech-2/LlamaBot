@@ -14,7 +14,8 @@ export class DebugCommand implements Command {
         const data = new SlashCommandBuilder()
             .setName(this.getID())
             .setDescription('Debug utilities (SysAdmin only)')
-            .setContexts(InteractionContextType.Guild)
+            .setContexts(InteractionContextType.Guild);
+        data
             .addSubcommand(sub =>
                 sub
                     .setName('importaca')
@@ -59,14 +60,22 @@ export class DebugCommand implements Command {
             return;
         }
 
-        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
+        const feedback = interaction.channel;
+        if (!feedback || !feedback.isSendable()) {
+            await replyEphemeral(interaction, 'Cannot send feedback messages in this channel.');
+            return;
+        }
+
+
+        await interaction.reply({ content: `Starting ACA import for <#${channel.id}>...` });
+
 
         const setStatus = async (status: string) => {
-            await interaction.editReply({ content: status });
+            await feedback.send(status);
         };
 
         try {
-            await setStatus('Starting ACA import...');
             await importACAChannelTask(guildHolder, channel as ForumChannel, setStatus);
             await setStatus('ACA import complete.');
         } catch (error: any) {

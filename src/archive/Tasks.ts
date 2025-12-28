@@ -471,7 +471,9 @@ export async function importACAChannelTask(
     }
 
     // get threads
-    const threads = await channel.threads.fetch();
+    const threadsActive = await channel.threads.fetchActive();
+    const threadsArchived = await channel.threads.fetchArchived();
+    const threads = [...threadsActive.threads, ...threadsArchived.threads];
 
     let importedCount = 0;
 
@@ -482,7 +484,7 @@ export async function importACAChannelTask(
 
 
 
-    for (const [, thread] of threads.threads) {
+    for (const [_, thread] of threads) {
         await thread.fetch();
 
         // sure thread isn't authored by the bot
