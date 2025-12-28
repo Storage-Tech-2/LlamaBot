@@ -81,7 +81,7 @@ export class DictionaryEditModal implements Modal {
             if (parsedTerms.length > 0) {
                 entry.terms = parsedTerms;
                 updated = true;
-                const newName = parsedTerms[0];
+                const newName = parsedTerms.join(', ');
                 if (newName && thread.name !== newName) {
                     await thread.setName(newName).catch(() => { /* ignore rename errors */ });
                 }

@@ -8,7 +8,6 @@ import { IndexManager } from "./IndexManager.js";
 import { RepositoryManager } from "./RepositoryManager.js";
 import { Lock } from "../utils/Lock.js";
 import { truncateStringWithEllipsis } from "../utils/Util.js";
-import { retagEverythingTask } from "./Tasks.js";
 
 export enum DictionaryEntryStatus {
     PENDING = "PENDING",
