@@ -6,6 +6,7 @@ import { MakeRevisionCurrentButton } from "../components/buttons/MakeRevisionCur
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import { getAuthorsString, splitIntoChunks } from "../utils/Util.js";
 import { postToMarkdown } from "../utils/MarkdownUtils.js";
+import { transformOutputWithReferences } from "../utils/ReferenceUtils.js";
 
 export class RevisionEmbed {
     private embeds: EmbedBuilder[];
@@ -84,13 +85,16 @@ export class RevisionEmbed {
         const authors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
         description += `**Authors:** ${getAuthorsString(authors.filter(a=>!a.dontDisplay))}\n`
 
-        description += `\n${postToMarkdown(revision.records, revision.styles, submission.getGuildHolder().getSchemaStyles())}\n`;
+        const authorsRefs = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS_REFERENCES);
+        const post = postToMarkdown(revision.records, revision.styles, submission.getGuildHolder().getSchemaStyles());
+        const transformed = transformOutputWithReferences(post, revision.references, true);
+        description += `\n${transformed.result}\n`;
 
         const authorsWithReasons = authors.filter(author => author.reason);
         if (authorsWithReasons.length > 0) {
             description += `\n## Acknowledgements\n`;
             authorsWithReasons.forEach(author => {
-                description += `- ${getAuthorsString([author])}: ${author.reason}\n`;
+                description += `- ${getAuthorsString([author])}: ${transformOutputWithReferences(author.reason || "", authorsRefs, true).result}\n`;
             });
         }
 

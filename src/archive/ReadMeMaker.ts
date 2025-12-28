@@ -1,5 +1,6 @@
 import { Attachment } from "../submissions/Attachment.js";
 import { postToMarkdown, StyleInfo } from "../utils/MarkdownUtils.js";
+import { transformOutputWithReferences } from "../utils/ReferenceUtils.js";
 import { escapeDiscordString, escapeString } from "../utils/Util.js";
 import { ArchiveComment } from "./ArchiveComments.js";
 import { ArchiveEntryData } from "./ArchiveEntry.js";
@@ -49,14 +50,16 @@ export function makeEntryReadMe(
         text.push(`**Original post:** [View on Discord](${entryData.post.threadURL})\n\n`);
     }
 
-    text.push(`${postToMarkdown(entryData.records, entryData.styles || {}, schemaStyles)}\n`);
+    const post = postToMarkdown(entryData.records, entryData.styles || {}, schemaStyles);
+    const transformed = transformOutputWithReferences(post, entryData.references, false);
+    text.push(`${transformed.result}\n`);
 
 
     const authorsWithReasons = entryData.authors.filter(author => author.reason);
     if (authorsWithReasons.length > 0) {
         text.push(`\n## Acknowledgements:\n`);
         authorsWithReasons.forEach(author => {
-            text.push(`- ${author.displayName || author.username}: ${author.reason}\n`);
+            text.push(`- ${author.displayName || author.username}: ${transformOutputWithReferences(author.reason || '', entryData.author_references, false).result}\n`);
         });
     }
 

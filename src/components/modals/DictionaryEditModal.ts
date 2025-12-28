@@ -68,7 +68,6 @@ export class DictionaryEditModal implements Modal {
         const termsInput = interaction.fields.getTextInputValue('terms');
         const definitionInput = interaction.fields.getTextInputValue('definition');
 
-        const previousTerms = [...entry.terms];
         let updated = false;
 
         if (termsInput !== undefined) {
@@ -94,7 +93,7 @@ export class DictionaryEditModal implements Modal {
         }
 
         entry.updatedAt = Date.now();
-        await dictionaryManager.saveEntry(entry, previousTerms);
+        await dictionaryManager.saveEntry(entry);
         await dictionaryManager.updateStatusMessage(entry, thread);
         await dictionaryManager.warnIfDuplicate(entry, thread);
 

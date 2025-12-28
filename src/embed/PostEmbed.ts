@@ -8,6 +8,7 @@ import { GuildHolder } from "../GuildHolder.js";
 import fs from "fs/promises";
 import { processImageForDiscord } from "../utils/AttachmentUtils.js";
 import { postToMarkdown } from "../utils/MarkdownUtils.js";
+import { transformOutputWithReferences } from "../utils/ReferenceUtils.js";
 
 export class PostEmbed {
     private embed: EmbedBuilder;
@@ -177,13 +178,16 @@ export class PostEmbed {
             content.push(`**Endorsed by:** ${getAuthorsString(entryData.endorsers)}\n`);
         }
 
-        content.push('\n' + postToMarkdown(entryData.records, entryData.styles, guildHolder.getSchemaStyles()));
+        const post = postToMarkdown(entryData.records, entryData.styles, guildHolder.getSchemaStyles());
+     
+        const transformed = transformOutputWithReferences(post, entryData.references, true); 
+        content.push('\n' + transformed.result);
 
         const authorsWithReasons = entryData.authors.filter(author => author.reason);
         if (authorsWithReasons.length > 0) {
             content.push(`\n## Acknowledgements`);
             authorsWithReasons.forEach(author => {
-                content.push(`\n- ${getAuthorsString([author])}: ${author.reason}`);
+                content.push(`\n- ${getAuthorsString([author])}: ${transformOutputWithReferences(author.reason || '', entryData.author_references, true, undefined, transformed.serverLinks).result}`);
             });
         }
 

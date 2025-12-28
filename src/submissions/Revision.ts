@@ -1,5 +1,6 @@
 import { Snowflake } from "discord.js"
 import { StyleInfo, SubmissionRecords } from "../utils/MarkdownUtils.js";
+import { Reference } from "../utils/ReferenceUtils.js";
 
 export enum RevisionType {
     /**
@@ -28,6 +29,7 @@ export type Revision = {
 
     records: SubmissionRecords;
     styles: Record<string, StyleInfo>;
+    references: Reference[];
 }
 
 export type TempRevisionData = {

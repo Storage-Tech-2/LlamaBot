@@ -192,6 +192,6 @@ export class AddAuthorModal implements Modal {
             await SetArchiveCategoryMenu.sendArchiveCategorySelector(submission, interaction);
         }
 
-        await submission.updateRevisions();
+        await submission.onAuthorsUpdated();
     }
 }

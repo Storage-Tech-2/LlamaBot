@@ -7,6 +7,7 @@ import { RevisionReference } from "./Revision.js";
 import { Attachment } from "./Attachment.js";
 import { Author } from "./Author.js";
 import { DiscordPostReference } from "../archive/ArchiveEntry.js";
+import { Reference } from "../utils/ReferenceUtils.js";
 
 export const SubmissionConfigs = {
     /**
@@ -18,6 +19,9 @@ export const SubmissionConfigs = {
      * Authors of the submission
      */
     AUTHORS: new Config<Author[] | null>("authors", null),
+
+  
+    AUTHORS_REFERENCES: new Config<Reference[]>("authors_references", []),
 
     /**
      * Submission status

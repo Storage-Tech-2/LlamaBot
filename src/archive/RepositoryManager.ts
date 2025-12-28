@@ -237,6 +237,8 @@ export class RepositoryManager {
         }
         await this.lock.acquire();
 
+        this.guildHolder.getDictionaryManager().invalidateArchiveIndex();
+
         const reMapped: ArchiveChannelReference[] = [];
         for (const channel of channels.values()) {
             await channel.fetch();
@@ -495,12 +497,14 @@ export class RepositoryManager {
         entryRef: ArchiveEntryReference,
         entryIndex: number
     }> {
+        submissionCode = submissionCode.toUpperCase();
+
         const {
             channelCode,
         } = splitCode(submissionCode);
 
         const channelReferences = this.getChannelReferences();
-        const channelRef = channelReferences.find(c => c.code.toLowerCase() === channelCode.toLowerCase());
+        const channelRef = channelReferences.find(c => c.code === channelCode);
         if (!channelRef) {
             return null;
         }
@@ -508,7 +512,7 @@ export class RepositoryManager {
         const channelPath = Path.join(this.folderPath, channelRef.path);
         const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
         const entries = archiveChannel.getData().entries;
-        const entryIndex = entries.findIndex(e => e.code.toLowerCase() === submissionCode.toLowerCase());
+        const entryIndex = entries.findIndex(e => e.code === submissionCode);
         if (entryIndex !== -1) {
             const entryRef = entries[entryIndex];
             const entryPath = Path.join(channelPath, entryRef.path);
@@ -623,6 +627,8 @@ export class RepositoryManager {
                 attachments: submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) || [],
                 records: revision.records,
                 styles: revision.styles,
+                references: revision.references,
+                author_references: submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS_REFERENCES),
                 timestamp: Date.now(),
                 post: undefined
             });
@@ -973,7 +979,6 @@ export class RepositoryManager {
             for (const file of files.paths) {
                 await fs.unlink(file).catch(() => { });
             }
-
             wasThreadCreated = true;
         } else {
             await thread.setAppliedTags(newEntryData.tags.map(tag => tag.id).filter(tagId => archiveChannelDiscord.availableTags.some(t => t.id === tagId)).slice(0, 5));
@@ -1152,8 +1157,8 @@ export class RepositoryManager {
             oldEntryData: existing ? existing.entry.getData() : undefined,
             newEntryData: entry.getData()
         }
-
     }
+
     async retractSubmission(submission: Submission, reason: string): Promise<ArchiveEntryData> {
         if (!this.git) {
             throw new Error("Git not initialized");
@@ -1218,11 +1223,12 @@ export class RepositoryManager {
 
             await this.deleteSubmissionIDForPostID(entryData.post?.threadId || '');
             this.removeFromIgnoreUpdatesFrom(submission.getId());
-            this.lock.release();
 
             this.guildHolder.onPostDelete(found.entry.getData()).catch(e => {
                 console.error("Error handling post delete:", e);
             });
+
+            this.lock.release();
 
             return entryData;
         } catch (e) {
@@ -1610,7 +1616,6 @@ export class RepositoryManager {
             found.channel.getData().entries.splice(found.entryIndex, 1);
             await found.channel.save();
             await this.git.add(found.channel.getDataPath());
-
             await this.deleteSubmissionIDForPostID(postId);
             // Commit the removal
             await this.git.commit(`Force deleted ${found.entry.getData().code} ${found.entry.getData().name} from channel ${found.channel.getData().name} (${found.channel.getData().code})`);

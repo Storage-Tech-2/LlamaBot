@@ -99,7 +99,7 @@ export function getCodeAndDescriptionFromTopic(topic: string): { code: string | 
     let code = null;
     let description = topic;
     if (codeMatch) {
-        code = codeMatch[2];
+        code = codeMatch[2].toUpperCase();
         description = topic.replace(codeMatch[1], '').trim();
     }
     return { code, description };

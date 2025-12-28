@@ -271,7 +271,7 @@ export class SetAuthorsMenu implements Menu {
         }
 
         submission.checkReview();
-        await submission.updateRevisions();
+        await submission.onAuthorsUpdated();
     }
 
     public static async sendAuthorsMenuAndButton(submission: Submission, interaction: Interaction): Promise<Message> {

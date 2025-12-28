@@ -4,7 +4,6 @@ import { Button } from "../../interface/Button.js";
 import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
 import { SetAttachmentsMenu } from "../menus/SetAttachmentsMenu.js";
 import { SetImagesMenu } from "../menus/SetImagesMenu.js";
-import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 
 export class RefreshListButton implements Button {
     getID(): string {

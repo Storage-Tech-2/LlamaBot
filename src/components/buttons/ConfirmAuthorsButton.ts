@@ -87,7 +87,7 @@ export class ConfirmAuthorsButton implements Button {
 
         await SetArchiveCategoryMenu.sendArchiveCategorySelector(submission, interaction);
         submission.checkReview();
-        await submission.updateRevisions();
+        await submission.onAuthorsUpdated();
     }
 
 }

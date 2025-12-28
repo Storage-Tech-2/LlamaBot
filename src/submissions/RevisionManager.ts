@@ -24,6 +24,7 @@ export class RevisionManager {
             const filePath = path.join(this.revisionsFolder, `${id}.json`);
             const data = await fs.readFile(filePath, 'utf-8');
             const revision: Revision = JSON.parse(data);
+            if (!revision.references) revision.references = []; // legacy
             return revision;
         } catch (error) {
             console.error(`Failed to read revision ${id}:`, error);

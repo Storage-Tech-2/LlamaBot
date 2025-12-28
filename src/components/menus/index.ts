@@ -9,6 +9,7 @@ import { SetEndorseRolesMenu } from "./SetEndorseRolesMenu.js";
 import { SetHelperRoleMenu } from "./SetHelperRoleMenu.js";
 import { SetImagesMenu } from "./SetImagesMenu.js";
 import { SetTagsMenu } from "./SetTagsMenu.js";
+import { DiscordJoinMenu } from "./DiscordJoinMenu.js";
 
 export function getMenus() {
     const Menus = [
@@ -24,6 +25,7 @@ export function getMenus() {
         new SetTagsMenu(),
         new SetImagesMenu(),
         new SetAttachmentsMenu(),
+        new DiscordJoinMenu(),
     ];
     return Menus;
 }

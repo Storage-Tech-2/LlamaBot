@@ -1,4 +1,4 @@
-import { AttachmentBuilder, EmbedBuilder, FileBuilder, FileUploadBuilder, LabelBuilder, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
+import { AttachmentBuilder, EmbedBuilder, FileUploadBuilder, LabelBuilder, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
 import { canEditSubmission, escapeDiscordString, replyEphemeral } from "../../utils/Util.js";

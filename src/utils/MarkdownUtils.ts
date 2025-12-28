@@ -406,7 +406,17 @@ export function postToMarkdown(record: SubmissionRecords, recordStyles?: Record<
     return markdown.trim();
 }
 
+export function recordsToRawTextNoHeaders(record: SubmissionRecords): string {
+    let result = [];
+    for (const key in record) {
+        result.push(submissionRecordToMarkdown(record[key], {}));
+    }
+    return result.join("\n");
+}
 
+export function stripHyperlinkNames(markdownString: string): string {
+    return markdownString.replace(/\[[^\[\]]*\]\((.*?)\)/g, "$1");
+}
 
 export function schemaToMarkdownTemplate(schema: JSONSchema7, schemaStyles: Record<string, StyleInfo>, record?: SubmissionRecords, recordStyles?: Record<string, StyleInfo>, addExtraNewline: boolean = false): string {
     let markdown = "";

@@ -6,6 +6,7 @@ import { Tag } from "../submissions/Tag.js";
 import fs from "fs/promises";
 import Path from "path";
 import { StyleInfo, SubmissionRecords } from "../utils/MarkdownUtils.js";
+import { Reference } from "../utils/ReferenceUtils.js";
 
 export type DiscordPostReference = {
     forumId: Snowflake;
@@ -28,6 +29,8 @@ export type ArchiveEntryData = {
 
     records: SubmissionRecords;
     styles: Record<string, StyleInfo>;
+    references: Reference[];
+    author_references: Reference[];
 
     /// For routing
     post?: DiscordPostReference;
@@ -74,6 +77,8 @@ export class ArchiveEntry {
         const dataPath = Path.join(folder, 'data.json');
         try {
             const data: ArchiveEntryData = JSON.parse(await fs.readFile(dataPath, 'utf-8'));
+            if (!data.references) data.references = [];
+            if (!data.author_references) data.author_references = [];
             const entry = new ArchiveEntry(data, folder);
             return entry;
         } catch (error) {

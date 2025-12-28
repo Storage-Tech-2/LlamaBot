@@ -21,6 +21,7 @@ import { Author, AuthorType } from "./Author.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { processImages, processAttachments, getAllAttachments } from "../utils/AttachmentUtils.js";
 import { RuleMatcher } from "../utils/RuleMatcher.js";
+import { tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
 
 export class Submission {
     private guildHolder: GuildHolder;
@@ -34,6 +35,7 @@ export class Submission {
     private cachedAttachments?: Attachment[];
     public imagesProcessing: boolean = false;
     public attachmentsProcessing: boolean = false;
+    public tagging: boolean = false;
     private reviewLocked: boolean = false;
 
     private publishLock: boolean = false;
@@ -259,8 +261,15 @@ export class Submission {
                 parentRevision: null,
                 timestamp: Date.now(),
                 records: response.result,
-                styles: {}
+                styles: {},
+                references: []
             }
+
+            revision.references = await tagReferencesInSubmissionRecords(revision.records, revision.references, this.guildHolder).catch(e => {
+                console.error("Failed to tag references:", e)
+                return [];
+            });
+
             return revision;
         } else {
             // If extraction results are not available, we create a default revision
@@ -282,7 +291,8 @@ export class Submission {
                 parentRevision: null,
                 timestamp: Date.now(),
                 records: {},
-                styles: {}
+                styles: {},
+                references: []
             }
             return revision;
         }
@@ -306,6 +316,7 @@ export class Submission {
             throw error;
         }
     }
+
 
     public async processAttachments() {
         if (this.attachmentsProcessing) {
@@ -368,7 +379,7 @@ export class Submission {
             `**Tags:** ${tagString || 'None'}`,
             `**Channel:** <#${archiveChannelId}>`,
         ];
-        
+
         // if (record && record.records.description) {
         //     textArr.push(`\n${record.records.description}`);
         // }
@@ -389,7 +400,7 @@ export class Submission {
             }
 
             if (logChannel && logChannel.isSendable()) {
-                await logChannel.send({ 
+                await logChannel.send({
                     embeds: [embed],
                     allowedMentions: { parse: [] }
                 });
@@ -618,7 +629,8 @@ export class Submission {
             parentRevision: revision.id,
             timestamp: Date.now(),
             records: response.result,
-            styles: {}
+            styles: {},
+            references: []
         }
 
         await message.reply({
@@ -628,6 +640,11 @@ export class Submission {
         if (!message.channel.isSendable()) {
             throw new Error('Cannot send messages in this channel');
         }
+
+        newRevisionData.references = await tagReferencesInSubmissionRecords(newRevisionData.records, revision.references, this.guildHolder).catch(e => {
+            console.error("Failed to tag references:", e)
+            return [];
+        });
 
         const messages = await RevisionEmbed.sendRevisionMessages(message.channel, this, newRevisionData, isCurrent);
         newRevisionData.id = messages[messages.length - 1].id; // Set the last message ID as the revision ID
@@ -687,6 +704,10 @@ export class Submission {
 
         if (this.attachmentsProcessing) {
             return false; // Cannot junk while attachments are being processed
+        }
+
+        if (this.tagging) {
+            return false;
         }
 
         return true;
@@ -845,6 +866,24 @@ export class Submission {
             await this.updateRevisions();
         }
 
+    }
+
+
+    public async onAuthorsUpdated() {
+        this.tagging = true;
+        const authors = this.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
+        const old = this.getConfigManager().getConfig(SubmissionConfigs.AUTHORS_REFERENCES);
+
+        const newRefs = await tagReferencesInAcknowledgements(authors, old, this.guildHolder).catch(e => {
+            console.error("Failed to tag references in acknowledgements:", e)
+            return [];
+        });
+
+        this.getConfigManager().setConfig(SubmissionConfigs.AUTHORS_REFERENCES, newRefs);
+
+        this.tagging = false;
+
+        await this.updateRevisions();
     }
 
     public async updateRevisions() {

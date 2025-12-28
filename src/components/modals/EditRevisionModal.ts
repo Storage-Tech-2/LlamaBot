@@ -6,6 +6,7 @@ import { canEditSubmission, replyEphemeral, splitIntoChunks } from "../../utils/
 import { RevisionEmbed } from "../../embed/RevisionEmbed.js";
 import { markdownMatchSchema, schemaToMarkdownTemplate } from "../../utils/MarkdownUtils.js";
 import { FixErrorsButton } from "../buttons/FixErrorsButton.js";
+import { tagReferencesInSubmissionRecords } from "../../utils/ReferenceUtils.js";
 
 export class EditRevisionModal implements Modal {
     getID(): string {
@@ -117,6 +118,7 @@ export class EditRevisionModal implements Modal {
             timestamp: Date.now(),
             records: result.records,
             styles: result.styles,
+            references: []
         }
 
         const isCurrent = submission.getRevisionsManager().isRevisionCurrent(revision.id);
@@ -129,6 +131,11 @@ export class EditRevisionModal implements Modal {
             replyEphemeral(interaction, 'Cannot send messages in this channel');
             return;
         }
+
+        newRevisionData.references = await tagReferencesInSubmissionRecords(newRevisionData.records, revision.references, guildHolder).catch(e =>{
+            console.error("Failed to tag references:", e)
+            return [];
+        })
 
         const messages = await RevisionEmbed.sendRevisionMessages(interaction.channel, submission, newRevisionData, isCurrent);
       
