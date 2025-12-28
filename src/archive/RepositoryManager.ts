@@ -927,7 +927,7 @@ export class RepositoryManager {
                 content: '',
                 showEmbed: true,
                 embeds: [
-                    new EmbedBuilder().setTitle('Server Links').setDescription(serverLinkMsg).setColor(0x00AE86)
+                    new EmbedBuilder().setTitle('Server Invite Links').setDescription(serverLinkMsg).setColor(0x00AE86)
                 ]
             });
 
