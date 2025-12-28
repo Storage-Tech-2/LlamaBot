@@ -12,6 +12,7 @@ import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import { SetTemplateModal } from "../components/modals/SetTemplateModal.js";
 import { SetDesignerRoleMenu } from "../components/menus/SetDesignerRoleMenu.js";
 import { SetScriptModal } from "../components/modals/SetScriptModal.js";
+import { republishAllEntries } from "../archive/Tasks.js";
 
 export class Mwa implements Command {
     getID(): string {
@@ -193,11 +194,6 @@ export class Mwa implements Command {
             )
             .addSubcommand(subcommand =>
                 subcommand
-                    .setName('checkposts')
-                    .setDescription('Update the status of all submissions based on their archive status')
-            )
-            .addSubcommand(subcommand =>
-                subcommand
                     .setName('setdesignerrole')
                     .setDescription('Set the designer role for the archive')
             )
@@ -245,8 +241,6 @@ export class Mwa implements Command {
             this.republishEverything(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'updatesubmissionsstatus') {
             this.updateAllSubmissionsStatus(guildHolder, interaction);
-        } else if (interaction.options.getSubcommand() === 'checkposts') {
-            this.checkEveryPost(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'settemplate') {
             this.setTemplate(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'setdesignerrole') {
@@ -834,7 +828,7 @@ export class Mwa implements Command {
         const silent = interaction.options.getBoolean('silent') || false;
         await interaction.reply('Starting to republish all entries. This may take a while depending on the size of the archive. You will be notified when it is complete.');
         try {
-            await guildHolder.getRepositoryManager().republishAllEntries(channel, replace, silent, interaction);
+            await republishAllEntries(guildHolder, channel, replace, silent, interaction);
         } catch (error) {
             console.error('Error republishing all entries:', error);
             await interaction.followUp('An error occurred while republishing all entries. Please check the console for details.');
@@ -883,20 +877,6 @@ export class Mwa implements Command {
         }
 
         await interaction.followUp(`<@${interaction.user.id}> Updating status of all submissions complete!`);
-
-    }
-
-    async checkEveryPost(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
-        await interaction.reply('Starting to check every post. This may take a while depending on the number of posts. You will be notified when it is complete.');
-
-        try {
-            await guildHolder.getRepositoryManager().checkEveryPost(interaction);
-        } catch (error) {
-            console.error('Error checking every post:', error);
-            await interaction.followUp('An error occurred while checking every post. Please check the console for details.');
-            return;
-        }
-        await interaction.followUp(`<@${interaction.user.id}> Checking every post complete!`);
 
     }
 }

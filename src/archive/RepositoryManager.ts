@@ -22,7 +22,7 @@ import { DictionaryManager } from "./DictionaryManager.js";
 import { IndexManager } from "./IndexManager.js";
 import { DiscordServersDictionary } from "./DiscordServersDictionary.js";
 export class RepositoryManager {
-    private folderPath: string;
+    public folderPath: string;
     private git?: SimpleGit;
     private configManager: ConfigManager;
     private lock: Lock = new Lock();
@@ -1250,7 +1250,18 @@ export class RepositoryManager {
     }
 
 
-    async push() {
+    public async commit(message: string) {
+        if (!this.git) {
+            return;
+        }
+        await this.git.commit(message);
+    }
+
+    public getLock(): Lock {
+        return this.lock;
+    }
+
+    public async push() {
         if (!this.git) {
             return;
         }
@@ -1818,89 +1829,6 @@ export class RepositoryManager {
         return entries;
     }
 
-    public async updateEntryAuthorsTask() {
-        if (!this.git) {
-            return;
-        }
-
-
-        await this.lock.acquire();
-
-        // First, collect authors
-        const authors: Author[] = [];
-
-        const channelRefs = this.getChannelReferences().slice(); // Copy to avoid mutation during iteration
-        for (const channelRef of channelRefs) {
-            const channelPath = Path.join(this.folderPath, channelRef.path);
-            const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
-            const entries = archiveChannel.getData().entries.slice(); // Copy to avoid mutation during iteration
-            for (const entryRef of entries) {
-                const entryPath = Path.join(channelPath, entryRef.path);
-                const entry = await ArchiveEntry.fromFolder(entryPath);
-                if (!entry) {
-                    console.warn(`Entry ${entryRef.name} in channel ${archiveChannel.getData().name} could not be loaded, skipping.`);
-                    continue; // Skip if entry cannot be loaded
-                }
-                const entryData = entry.getData();
-                for (const author of entryData.authors) {
-                    if (!authors.some(a => areAuthorsSame(a, author))) {
-                        authors.push(author);
-                    }
-                }
-                for (const endorser of entryData.endorsers) {
-                    if (!authors.some(a => areAuthorsSame(a, endorser))) {
-                        authors.push(endorser);
-                    }
-                }
-            }
-        }
-
-        const reclassified = [];
-        const chunkSize = 10;
-        for (let i = 0; i < authors.length; i += chunkSize) {
-            const chunk = authors.slice(i, i + chunkSize);
-            const reclassifiedChunk = await reclassifyAuthors(this.guildHolder, chunk);
-            reclassified.push(...reclassifiedChunk);
-        }
-
-        let modifiedCount = 0;
-        for (const channelRef of channelRefs) {
-            const channelPath = Path.join(this.folderPath, channelRef.path);
-            const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
-            const entries = archiveChannel.getData().entries.slice(); // Copy to avoid mutation during iteration
-            for (const entryRef of entries) {
-                const entryPath = Path.join(channelPath, entryRef.path);
-                const entry = await ArchiveEntry.fromFolder(entryPath);
-                if (!entry) {
-                    console.warn(`Entry ${entryRef.name} in channel ${archiveChannel.getData().name} could not be loaded, skipping.`);
-                    continue; // Skip if entry cannot be loaded
-                }
-                try {
-                    if (await this.updateEntryAuthors(entry, reclassified)) {
-                        modifiedCount++;
-                    }
-                } catch (e: any) {
-                    console.error(`Error updating authors for entry ${entryRef.name} in channel ${archiveChannel.getData().name}:`, e.message);
-                }
-
-            }
-        }
-        if (modifiedCount > 0) {
-            try {
-                await this.git.commit(`Updated authors for ${modifiedCount} entries`);
-                try {
-                    await this.push();
-                } catch (e: any) {
-                    console.error("Error pushing to remote:", e.message);
-                }
-            }
-            catch (e: any) {
-                console.error("Error committing updated authors:", e.message);
-            }
-        }
-        this.lock.release();
-    }
-
     async updateEntryAuthors(entry: ArchiveEntry, updatedAuthors: Author[]) {
         if (!this.git) {
             return false;
@@ -2062,165 +1990,6 @@ export class RepositoryManager {
         };
     }
 
-    public async republishAllEntries(doChannel: ForumChannel | null, replace: boolean, silent: boolean, interaction: ChatInputCommandInteraction): Promise<void> {
-
-        if (!this.git) {
-            throw new Error("Git not initialized");
-        }
-
-        const channel = interaction.channel;
-        if (!channel || channel.type !== ChannelType.GuildText) {
-            throw new Error("Interaction channel is not a text channel");
-        }
-
-        await this.lock.acquire();
-        try {
-            const channelRefs = this.getChannelReferences();
-            for (const channelRef of channelRefs) {
-                const channelPath = Path.join(this.folderPath, channelRef.path);
-                const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
-                if (doChannel && archiveChannel.getData().id !== doChannel.id) {
-                    continue;
-                }
-                for (const entryRef of archiveChannel.getData().entries) {
-                    const entryPath = Path.join(channelPath, entryRef.path);
-                    const entry = await ArchiveEntry.fromFolder(entryPath);
-
-                    if (!entry) {
-                        await channel.send({ content: `Entry ${entryRef.name} (${entryRef.code}) could not be loaded, skipping.` });
-                        continue; // Skip if entry cannot be loaded
-                    }
-                    const entryData = entry.getData();
-
-                    const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entryData.id);
-                    // Get channel
-                    const submissionChannel = submission ? await submission.getSubmissionChannel(true) : null;
-                    const wasArchived = submissionChannel && submissionChannel.archived;
-                    if (wasArchived) {
-                        await submissionChannel.setArchived(false);
-                    }
-
-
-                    let result;
-                    if (!entryData.post) {
-                        await channel.send({ content: `Entry ${entryData.code} does not have a post, skipping.` });
-                    } else {
-                        try {
-                            result = await this.addOrUpdateEntryFromData(this.guildHolder, entryData, entryData.post.forumId, replace, true, async () => { });
-                            await channel.send({ content: `Entry ${entryData.code} republished: ${result.newEntryData.post?.threadURL}` });
-                        } catch (e: any) {
-                            console.error(e);
-                            await channel.send({ content: `Error republishing entry ${entryData.code}: ${e.message}` });
-                        }
-                    }
-
-                    // Get submission
-                    if (!submission || !submissionChannel) {
-                        await channel.send({ content: `Submission for entry ${entryData.code} not found, skipping.` });
-                        continue;
-                    }
-
-                    submission.getConfigManager().setConfig(SubmissionConfigs.POST, result?.newEntryData.post || null);
-
-                    try {
-                        await submission.statusUpdated();
-                        if (!silent) {
-                            await submissionChannel.send(`Republished by bulk republish command, the post is now at ${result?.newEntryData?.post?.threadURL}`);
-                        }
-                    } catch (e: any) {
-                        await channel.send({ content: `Error updating submission ${entryData.code} status: ${e.message}` });
-                    }
-
-                    if (wasArchived) {
-                        await submissionChannel.setArchived(true);
-                    }
-                }
-            }
-
-            // Commit changes
-            await this.git.commit(`Republished all entries${doChannel ? ` in channel ${doChannel.name}` : ''}`);
-
-            try {
-                await this.push();
-            } catch (e: any) {
-                console.error("Error pushing to remote:", e.message);
-            }
-
-            this.lock.release();
-        } catch (e) {
-            this.lock.release();
-            throw e;
-        }
-
-    }
-
-    public async checkEveryPost(interaction: ChatInputCommandInteraction): Promise<void> {
-        if (!this.git) {
-            throw new Error("Git not initialized");
-        }
-
-        const channel = interaction.channel;
-        if (!channel || channel.type !== ChannelType.GuildText) {
-            throw new Error("Interaction channel is not a text channel");
-        }
-
-        await this.lock.acquire();
-        try {
-            const channelRefs = this.getChannelReferences();
-            for (const channelRef of channelRefs) {
-                const channelPath = Path.join(this.folderPath, channelRef.path);
-                const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
-                for (const entryRef of archiveChannel.getData().entries) {
-                    const entryPath = Path.join(channelPath, entryRef.path);
-                    const entry = await ArchiveEntry.fromFolder(entryPath);
-
-                    if (!entry) {
-                        await channel.send({ content: `Entry ${entryRef.name} (${entryRef.code}) could not be loaded, skipping.` });
-                        continue; // Skip if entry cannot be loaded
-                    }
-
-                    const entryData = entry.getData();
-
-                    if (!entryData.post) {
-                        await channel.send({ content: `Entry ${entryData.code} does not have a post, skipping.` });
-                        continue;
-                    }
-
-                    try {
-                        const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entryData.id);
-                        if (!submission) {
-                            await channel.send({ content: `Submission for entry ${entryData.code} not found, skipping.` });
-                            continue;
-                        }
-
-                        // Check if authors are the same
-                        const submissionAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
-                        const entryAuthors = entryData.authors;
-                        const equal = areAuthorsListEqual(submissionAuthors, entryAuthors, false, true);
-                        if (!equal) {
-                            await channel.send({ content: `Authors for entry ${entryData.post.threadURL} does not match submission!` });
-                        }
-                    } catch (e: any) {
-                        console.error(e);
-                        await channel.send({ content: `Error checking post for entry ${entryData.code}: ${e.message}` });
-                    }
-                }
-            }
-
-            try {
-                await this.push();
-            } catch (e: any) {
-                console.error("Error pushing to remote:", e.message);
-            }
-
-            this.lock.release();
-        } catch (e) {
-            this.lock.release();
-            throw e;
-        }
-
-    }
-
     public getDictionaryManager(): DictionaryManager {
         return this.dictionaryManager;
     }
@@ -2231,5 +2000,9 @@ export class RepositoryManager {
 
     public getDiscordServersDictionary(): DiscordServersDictionary {
         return this.discordServersDictionary;
+    }
+
+    public isReady(): boolean {
+        return this.git !== null;
     }
 }
