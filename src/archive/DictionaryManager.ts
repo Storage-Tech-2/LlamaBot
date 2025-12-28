@@ -432,7 +432,7 @@ export class DictionaryManager {
         }
 
         await targetThread.send({
-            content: `Duplicate dictionary terms detected:\n${lines.join('\n')}`,
+            content: `Potentially duplicate dictionary terms detected:\n${lines.join('\n')}`,
             flags: [MessageFlags.SuppressNotifications],
         }).catch(() => { });
     }
