@@ -577,7 +577,7 @@ export async function importACAChannelTask(
                 // send first part with attachments
                 await webhook.send({
                     threadId: newThread.id,
-                    content: messageContentSplit[0],
+                    content: messageContentSplit[0] || "(no content)",
                     files: Array.from(messageAttachments.values()),
                     flags: [MessageFlags.SuppressNotifications],
                     allowedMentions: { parse: [] },
