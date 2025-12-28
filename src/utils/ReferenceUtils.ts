@@ -242,7 +242,7 @@ export function findRegexMatches(text: string, patterns: RegExp[]): RegexMatch[]
 
 // Convenience patterns for dynamic reference extraction
 export const PostCodePattern = /\b([A-Za-z]+[0-9]{3})\b/g;
-export const DiscordForumLinkPattern = /https?:\/\/(?:canary\.|ptb\.)?discord\.com\/channels\/(\d+)\/(\d+)(?:\/(\d+))?/g;
+export const DiscordForumLinkPattern = /https?:\/\/(?:canary\.|ptb\.)?discord(?:app)?\.com\/channels\/(\d+)\/(\d+)(?:\/(\d+))?/g
 
 /**
  * Tag references in arbitrary text.
