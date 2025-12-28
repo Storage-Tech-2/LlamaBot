@@ -21,7 +21,7 @@ import { ChannelSubscriptionManager } from "./config/ChannelSubscriptionManager.
 import { AntiNukeManager } from "./support/AntiNukeManager.js";
 import { DictionaryManager } from "./archive/DictionaryManager.js";
 import { DiscordServersDictionary } from "./archive/DiscordServersDictionary.js";
-import { ReferenceType } from "./utils/ReferenceUtils.js";
+import { ReferenceType, transformOutputWithReferences } from "./utils/ReferenceUtils.js";
 import { retagEverythingTask, updateAuthorAndChannelTagsTask, updateEntryAuthorsTask } from "./archive/Tasks.js";
 import { RepositoryConfigs } from "./archive/RepositoryConfigs.js";
 /**
@@ -428,7 +428,7 @@ export class GuildHolder {
                 `**Tags:** ${tags || 'None'}`,
             ];
             if (description) {
-                textArr.push('\n' + description);
+                textArr.push('\n' + transformOutputWithReferences(description, entryData.references, true).result);
             }
             const embed = new EmbedBuilder()
                 .setTitle(name)
