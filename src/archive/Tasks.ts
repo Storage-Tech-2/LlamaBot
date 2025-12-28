@@ -520,6 +520,7 @@ export async function importACAChannelTask(
                 avatarURL: starterMessage.author.displayAvatarURL(),
             });
 
+            console.log(newThreadMessage);
             await newThreadMessage.fetch();
 
             const newThread = newThreadMessage.thread;
