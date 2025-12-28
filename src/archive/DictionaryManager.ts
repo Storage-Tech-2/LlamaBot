@@ -1,4 +1,4 @@
-import { AnyThreadChannel, ChannelType, EmbedBuilder, Message, MessageFlags, Snowflake } from "discord.js";
+import { ActionRowBuilder, AnyThreadChannel, ButtonBuilder, ChannelType, EmbedBuilder, Message, MessageFlags, Snowflake } from "discord.js";
 import fs from "fs/promises";
 import Path from "path";
 import { GuildConfigs } from "../config/GuildConfigs.js";
@@ -8,6 +8,7 @@ import { IndexManager } from "./IndexManager.js";
 import { RepositoryManager } from "./RepositoryManager.js";
 import { Lock } from "../utils/Lock.js";
 import { truncateStringWithEllipsis } from "../utils/Util.js";
+import { EditDictionaryEntryButton } from "../components/buttons/EditDictionaryEntryButton.js";
 
 export enum DictionaryEntryStatus {
     PENDING = "PENDING",
@@ -304,7 +305,7 @@ export class DictionaryManager {
             if (entry.statusMessageID) {
                 const statusMessage = await targetThread.messages.fetch(entry.statusMessageID).catch(() => null);
                 if (statusMessage) {
-                    await statusMessage.edit({ embeds: [embed] }).catch(() => { });
+                    await statusMessage.edit({ embeds: [embed], components: this.buildStatusComponents(entry) }).catch(() => { });
                     await this.applyStatusTag(entry, targetThread);
                     return;
                 }
@@ -338,7 +339,7 @@ export class DictionaryManager {
             return null;
         }
         const embed = this.buildStatusEmbed(entry);
-        const message = await thread.send({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] }).catch(() => null);
+        const message = await thread.send({ embeds: [embed], components: this.buildStatusComponents(entry), flags: [MessageFlags.SuppressNotifications] }).catch(() => null);
         if (message) {
             await message.pin().catch(() => { });
         }
@@ -361,6 +362,13 @@ export class DictionaryManager {
         );
 
         return embed;
+    }
+
+    private buildStatusComponents(entry: DictionaryEntry): ActionRowBuilder<ButtonBuilder>[] {
+        const editButton = new EditDictionaryEntryButton().getBuilder(entry.id);
+        const row = new ActionRowBuilder<ButtonBuilder>()
+            .addComponents(editButton);
+        return [row];
     }
 
     private statusToColor(status: DictionaryEntryStatus): number {

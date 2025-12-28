@@ -112,6 +112,8 @@ export class DictionaryEditCommand implements Command {
                     await thread.setArchived(false).catch(() => { /* ignore unarchive errors */ });
                 }
 
+                await dictionaryManager.updateStatusMessage(entry, thread);
+                
                 try {
                     await thread.setName(desiredName);
                     renamed++;

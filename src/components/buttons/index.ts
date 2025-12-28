@@ -11,6 +11,7 @@ import { NotABotButton } from "./NotABotButton.js";
 import { PublishButton } from "./PublishButton.js";
 import { RefreshListButton } from "./RefreshListButton.js";
 import { SetArchiveChannelButton } from "./SetArchiveChannelButton.js";
+import { EditDictionaryEntryButton } from "./EditDictionaryEntryButton.js";
 import { SetAttachmentsButton } from "./SetAttachmentsButton.js";
 import { SetAuthorsButton } from "./SetAuthorsButton.js";
 import { SetTagsButton } from "./SetTagsButton.js";
@@ -36,7 +37,8 @@ export function getButtons() {
         new NotABotButton(),
         new AddImageButton(),
         new AddAttachmentButton(),
-        new RefreshListButton()
+        new RefreshListButton(),
+        new EditDictionaryEntryButton()
     ];
     return Buttons;
 }
