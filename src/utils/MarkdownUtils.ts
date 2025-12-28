@@ -365,8 +365,7 @@ export function nestedListToMarkdown(nestedList: NestedListItem, indentLevel: nu
 export function submissionRecordToMarkdown(value: SubmissionRecord, style?: StyleInfo): string {
     let markdown = "";
     if (Array.isArray(value)) {
-        if (value.length === 0) {
-        } else {
+        if (value.length !== 0) {
             markdown += value.map((item, i) => {
                 if (typeof item === "string") {
                     return style?.isOrdered ? `${i + 1}. ${item}` : `- ${item}`;
