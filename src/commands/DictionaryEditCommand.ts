@@ -3,7 +3,7 @@ import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { DictionaryEntryStatus } from "../archive/DictionaryManager.js";
-import { isEditor, isModerator, replyEphemeral, splitIntoChunks } from "../utils/Util.js";
+import { isEditor, isModerator, replyEphemeral, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
 import { DictionaryEditModal } from "../components/modals/DictionaryEditModal.js";
 
 export class DictionaryEditCommand implements Command {
@@ -39,6 +39,11 @@ export class DictionaryEditCommand implements Command {
             )
             .addSubcommand(sub =>
                 sub
+                    .setName('bulkrename')
+                    .setDescription('Rename dictionary threads to match their terms')
+            )
+            .addSubcommand(sub =>
+                sub
                     .setName('closeposts')
                     .setDescription('Close all open dictionary threads')
             );
@@ -56,6 +61,86 @@ export class DictionaryEditCommand implements Command {
         const dictionaryChannelId = guildHolder.getConfigManager().getConfig(GuildConfigs.DICTIONARY_CHANNEL_ID);
         if (!dictionaryChannelId) {
             await replyEphemeral(interaction, 'Dictionary channel is not configured.');
+            return;
+        }
+
+        if (subcommand === 'bulkrename') {
+            if (!isEditor(interaction, guildHolder) && !isModerator(interaction)) {
+                await replyEphemeral(interaction, 'You do not have permission to use this command.');
+                return;
+            }
+
+            const dictionaryChannel = await guildHolder.getGuild().channels.fetch(dictionaryChannelId).catch(() => null) as ForumChannel | null;
+            if (!dictionaryChannel || dictionaryChannel.type !== ChannelType.GuildForum) {
+                await replyEphemeral(interaction, 'Dictionary channel is not configured as a forum.');
+                return;
+            }
+
+            await interaction.deferReply();
+
+            const dictionaryManager = guildHolder.getDictionaryManager();
+            const entries = await dictionaryManager.listEntries();
+
+            const results: string[] = [];
+            let renamed = 0;
+            let skipped = 0;
+            let missing = 0;
+
+            for (const entry of entries) {
+                const thread = await dictionaryManager.fetchThread(entry.id);
+                if (!thread || thread.parentId !== dictionaryChannelId) {
+                    missing++;
+                    results.push(`Entry ${entry.terms[0] || entry.id}: thread not found or not in dictionary forum.`);
+                    continue;
+                }
+
+                const desiredName = truncateStringWithEllipsis(entry.terms.join(', '), 100);
+                if (!desiredName) {
+                    skipped++;
+                    results.push(`Entry ${entry.terms[0] || entry.id}: skipped (no terms).`);
+                    continue;
+                }
+
+                if (thread.name === desiredName) {
+                    skipped++;
+                    continue;
+                }
+
+                const previousName = thread.name;
+                const wasArchived = thread.archived;
+                if (wasArchived) {
+                    await thread.setArchived(false).catch(() => { /* ignore unarchive errors */ });
+                }
+
+                try {
+                    await thread.setName(desiredName);
+                    renamed++;
+                    results.push(`Renamed "${previousName}" -> "${desiredName}".`);
+                } catch (error: any) {
+                    skipped++;
+                    results.push(`Entry ${entry.terms[0] || entry.id}: failed to rename (${error?.message || error}).`);
+                } finally {
+                    if (wasArchived) {
+                        await thread.setArchived(true).catch(() => { /* ignore re-archive errors */ });
+                    }
+                }
+            }
+
+            if (results.length === 0) {
+                results.push('No dictionary entries found to rename.');
+            }
+            results.unshift(`Bulk rename complete: renamed ${renamed}, skipped ${skipped}, missing ${missing}.`);
+
+            const chunks = splitIntoChunks(results.join('\n'), 2000);
+            if (chunks.length === 0) {
+                await interaction.editReply('Bulk rename complete.');
+                return;
+            }
+
+            await interaction.editReply({ content: chunks[0], allowedMentions: { parse: [] } });
+            for (let i = 1; i < chunks.length; i++) {
+                await interaction.followUp({ content: chunks[i], allowedMentions: { parse: [] } });
+            }
             return;
         }
 
