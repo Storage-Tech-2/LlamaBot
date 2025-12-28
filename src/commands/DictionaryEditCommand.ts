@@ -90,7 +90,8 @@ export class DictionaryEditCommand implements Command {
                 const thread = await dictionaryManager.fetchThread(entry.id);
                 if (!thread || thread.parentId !== dictionaryChannelId) {
                     missing++;
-                    results.push(`Entry ${entry.terms[0] || entry.id}: thread not found or not in dictionary forum.`);
+                    results.push(`Entry ${entry.terms[0] || entry.id}: thread not found or not in dictionary forum. Removing entry.`);
+                    await dictionaryManager.deleteEntry(entry).catch(() => { /* ignore delete errors */ });
                     continue;
                 }
 
