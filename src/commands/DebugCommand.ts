@@ -3,7 +3,7 @@ import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { SysAdmin } from "../Bot.js";
 import { replyEphemeral } from "../utils/Util.js";
-import { importACAChannelTask } from "../archive/Tasks.js";
+import { deleteACAImportThreadsTask, importACAChannelTask } from "../archive/Tasks.js";
 
 export class DebugCommand implements Command {
     getID(): string {
@@ -27,6 +27,11 @@ export class DebugCommand implements Command {
                             .setRequired(true)
                             .addChannelTypes(ChannelType.GuildForum)
                     )
+            )
+            .addSubcommand(sub =>
+                sub
+                    .setName('deleteaca')
+                    .setDescription('Delete all ACA import threads from the submissions forum')
             );
 
         return data;
@@ -47,6 +52,9 @@ export class DebugCommand implements Command {
         switch (sub) {
             case 'importaca':
                 await this.handleImportACA(guildHolder, interaction);
+                break;
+            case 'deleteaca':
+                await this.handleDeleteACA(guildHolder, interaction);
                 break;
             default:
                 await replyEphemeral(interaction, 'Unknown subcommand.');
@@ -80,6 +88,16 @@ export class DebugCommand implements Command {
             await setStatus('ACA import complete.');
         } catch (error: any) {
             await interaction.editReply({ content: `Import failed: ${error?.message || 'Unknown error'}` });
+        }
+    }
+
+    private async handleDeleteACA(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+        try {
+            const deleted = await deleteACAImportThreadsTask(guildHolder, interaction);
+            await interaction.editReply({ content: `Deleted ${deleted} ACA import thread${deleted === 1 ? '' : 's'}.` });
+        } catch (error: any) {
+            await interaction.editReply({ content: `Delete failed: ${error?.message || 'Unknown error'}` });
         }
     }
 }

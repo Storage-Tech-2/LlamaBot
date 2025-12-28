@@ -520,6 +520,8 @@ export async function importACAChannelTask(
                 avatarURL: starterMessage.author.displayAvatarURL(),
             });
 
+            await newThreadMessage.fetch();
+
             const newThread = newThreadMessage.thread;
 
             if (!newThreadMessage || !newThread) {
@@ -590,4 +592,41 @@ export async function importACAChannelTask(
     }
 
     await webhook.delete('Import complete');
+}
+
+export async function deleteACAImportThreadsTask(
+    guildHolder: GuildHolder,
+    interaction: ChatInputCommandInteraction
+): Promise<number> {
+    const submissionsChannelId = guildHolder.getSubmissionsChannelId();
+    if (!submissionsChannelId) {
+        throw new Error("Submissions channel not configured.");
+    }
+
+    const submissionsChannel = await guildHolder.getGuild().channels.fetch(submissionsChannelId).catch(() => null);
+    if (!submissionsChannel || submissionsChannel.type !== ChannelType.GuildForum) {
+        throw new Error("Submissions channel is not a forum channel.");
+    }
+
+    const importTag = submissionsChannel.availableTags.find(tag => tag.name === 'ACA Import');
+    if (!importTag) {
+        throw new Error("Import tag not found in submissions channel.");
+    }
+
+    let deletedCount = 0;
+
+    const threadsActive = await submissionsChannel.threads.fetchActive();
+    const threadsArchived = await submissionsChannel.threads.fetchArchived();
+    const threads = [...threadsActive.threads, ...threadsArchived.threads];
+
+    for (const [_, thread] of threads) {
+        await thread.fetch();
+
+        if (thread.appliedTags.includes(importTag.id)) {
+            await thread.delete('Deleting ACA import thread');
+            deletedCount++;
+        }
+    }
+
+    return deletedCount;
 }
