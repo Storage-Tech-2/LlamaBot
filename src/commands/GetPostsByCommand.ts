@@ -64,10 +64,10 @@ export class GetPostsByCommand implements Command {
             }
 
             // Sort by timestamp descending
-            entries.sort((a, b) => b.timestamp - a.timestamp);
+            entries.sort((a, b) => b.updatedAt - a.updatedAt);
 
             const postList = entries.map(entry => {
-                return `\n- <t:${Math.floor(entry.timestamp/1000)}:D> ${entry.post?.threadURL}`;
+                return `\n- <t:${Math.floor(entry.updatedAt/1000)}:D> ${entry.post?.threadURL}`;
             });
 
             // split into chunks of 2000 characters

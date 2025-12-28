@@ -210,8 +210,7 @@ export class PostEmbed {
             postURLObj.searchParams.append('id', entryData.id);
             content.push(` | [Website](${postURLObj.href})`);
         }
-        content.push(`\nEdited on <t:${Math.floor(entryData.timestamp / 1000)}:F>`);
-
+        content.push(`\nArchived on <t:${Math.floor(entryData.archivedAt / 1000)}:F>`);
         return content.join('');
     }
 

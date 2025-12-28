@@ -35,7 +35,9 @@ export type ArchiveEntryData = {
     /// For routing
     post?: DiscordPostReference;
 
-    timestamp: number;
+    timestamp?: number; // legacy
+    archivedAt: number;
+    updatedAt: number;
 }
 
 export class ArchiveEntry {
@@ -71,6 +73,10 @@ export class ArchiveEntry {
     public async load(): Promise<void> {
         const dataPath = this.getDataPath();
         this.data = JSON.parse(await fs.readFile(dataPath, 'utf-8')) as ArchiveEntryData;
+        if (!this.data.references) this.data.references = [];
+        if (!this.data.author_references) this.data.author_references = [];
+        if (!this.data.archivedAt) this.data.archivedAt = this.data.timestamp || Date.now();
+        if (!this.data.updatedAt) this.data.updatedAt = this.data.archivedAt;
     }
 
     public static async fromFolder(folder: string): Promise<ArchiveEntry | null> {

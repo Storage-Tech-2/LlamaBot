@@ -582,7 +582,8 @@ export class RepositoryManager {
                 styles: revision.styles,
                 references: revision.references,
                 author_references: submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS_REFERENCES),
-                timestamp: Date.now(),
+                updatedAt: Date.now(),
+                archivedAt: Date.now(),
                 post: undefined
             });
 
@@ -740,7 +741,8 @@ export class RepositoryManager {
             id: newEntryData.id,
             name: newEntryData.name,
             code: newEntryData.code,
-            timestamp: newEntryData.timestamp,
+            archivedAt: existing ? existing.entryRef.archivedAt : newEntryData.archivedAt,
+            updatedAt: newEntryData.updatedAt,
             path: `${newEntryData.code}_${escapeString(newEntryData.name) || ''}`,
             tags: newEntryData.tags.map(tag => tag.name),
         }

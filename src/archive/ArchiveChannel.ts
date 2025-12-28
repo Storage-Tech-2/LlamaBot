@@ -7,7 +7,9 @@ export type ArchiveEntryReference = {
     id: Snowflake;
     name: string;
     code: string;
-    timestamp: number;
+    timestamp?: number; // legacy
+    archivedAt: number;
+    updatedAt: number;
     path: string;
     tags: string[];
 }
@@ -51,6 +53,10 @@ export class ArchiveChannel {
     public async load(): Promise<void> {
         const dataPath = this.getDataPath();
         this.data = JSON.parse(await fs.readFile(dataPath, 'utf-8')) as ArchiveChannelData;
+        this.data.entries.forEach(entry => {
+            if (!entry.archivedAt) entry.archivedAt = entry.timestamp || Date.now();
+            if (!entry.updatedAt) entry.updatedAt = entry.archivedAt;
+        });
     }
 
     public static newFromReference(reference: ArchiveChannelReference, channelPath: string): ArchiveChannel {
