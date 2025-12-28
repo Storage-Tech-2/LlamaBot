@@ -209,7 +209,7 @@ export function findDictionaryMatches(text: string, index: DictionaryIndex, opts
 
 function isWordChar(ch: string | undefined): boolean {
     if (!ch) return false;
-    return /[A-Za-z0-9_]/.test(ch);
+    return /[A-Za-z]/.test(ch);
 }
 
 function isWholeWord(text: string, start: number, end: number): boolean {
@@ -601,12 +601,6 @@ export function transformOutputWithReferences(
             serverLinks
         }
     }
-
-    // first, filter out matches that are not at word boundaries
-    const isWordChar = (ch: string | undefined): boolean => {
-        if (!ch) return false;
-        return /[A-Za-z0-9_]/.test(ch);
-    };
 
     const filteredMatches = matches.filter(({ start, end }) => {
         const before = start > 0 ? text[start - 1] : undefined;
