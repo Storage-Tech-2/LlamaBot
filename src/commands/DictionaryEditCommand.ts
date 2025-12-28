@@ -99,14 +99,17 @@ export class DictionaryEditCommand implements Command {
             }
 
             const split = splitIntoChunks(response, 2000);
+            let first = true;
             for (const chunk of split) {
-                if (!interaction.replied) {
+                if (first) {
                     await interaction.reply({ 
                         content: chunk,
                         allowedMentions: { parse: [] }
                     });
+                    first = false;
                     continue;
                 }
+                
                 await interaction.channel.send({ 
                     content: chunk,
                     allowedMentions: { parse: [] }
