@@ -12,8 +12,12 @@ export class DiscordServersDictionary {
     private cache: Promise<DiscordServerEntry[]> | null = null;
     private cacheTimeout?: NodeJS.Timeout;
 
-    constructor(private folderPath: string) {
+    constructor(private folderPath: string, private stageAndCommit?: (paths: string[], message: string) => Promise<void>) {
 
+    }
+
+    getConfigPath(): string {
+        return Path.join(this.folderPath, `discords.json`);
     }
 
     async getCachedServers(): Promise<DiscordServerEntry[]> {
@@ -31,7 +35,8 @@ export class DiscordServersDictionary {
     }
 
     async getServers(): Promise<DiscordServerEntry[]> {
-        const entryPath = Path.join(this.folderPath, `servers.json`);
+        await fs.mkdir(this.folderPath, { recursive: true });
+        const entryPath = this.getConfigPath();
         return JSON.parse(await fs.readFile(entryPath, 'utf-8').catch(() => '[]')) as DiscordServerEntry[];
     }
 
@@ -53,8 +58,11 @@ export class DiscordServersDictionary {
                 joinURL
             });
         }
-        const entryPath = Path.join(this.folderPath, `servers.json`);
+        const entryPath = this.getConfigPath();
         await fs.writeFile(entryPath, JSON.stringify(servers, null, 2), 'utf-8');
+        if (this.stageAndCommit) {
+            await this.stageAndCommit([entryPath], `Update discord server ${id}`);
+        }
         this.cache = null;
     }
 
@@ -65,8 +73,11 @@ export class DiscordServersDictionary {
             return false;
         }
         servers.splice(index, 1);
-        const entryPath = Path.join(this.folderPath, `servers.json`);
+        const entryPath = this.getConfigPath();
         await fs.writeFile(entryPath, JSON.stringify(servers, null, 2), 'utf-8');
+        if (this.stageAndCommit) {
+            await this.stageAndCommit([entryPath], `Remove discord server ${id}`);
+        }
         this.cache = null;
         return true;
     }

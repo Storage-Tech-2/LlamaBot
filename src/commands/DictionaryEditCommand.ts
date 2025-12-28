@@ -2,7 +2,7 @@ import { AnyThreadChannel, ChatInputCommandInteraction, InteractionContextType, 
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
-import { DictionaryEntryStatus } from "../dictionary/DictionaryManager.js";
+import { DictionaryEntryStatus } from "../archive/DictionaryManager.js";
 import { isEditor, isModerator, replyEphemeral } from "../utils/Util.js";
 import { DictionaryEditModal } from "../components/modals/DictionaryEditModal.js";
 

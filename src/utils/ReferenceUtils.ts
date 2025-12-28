@@ -7,7 +7,7 @@ import { Snowflake } from "discord.js";
 import { recordsToRawTextNoHeaders, stripHyperlinkNames, SubmissionRecords } from "./MarkdownUtils.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Author } from "../submissions/Author.js";
-import { ArchiveIndex } from "../dictionary/DictionaryManager.js";
+import { ArchiveIndex } from "../archive/DictionaryManager.js";
 
 // Example post references
 // "ABC123", "DEF456", "GHI789"

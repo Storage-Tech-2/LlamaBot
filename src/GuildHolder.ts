@@ -19,8 +19,8 @@ import { generateText, JSONSchema7, ModelMessage } from "ai";
 import { UserSubscriptionManager } from "./config/UserSubscriptionManager.js";
 import { ChannelSubscriptionManager } from "./config/ChannelSubscriptionManager.js";
 import { AntiNukeManager } from "./support/AntiNukeManager.js";
-import { DictionaryManager } from "./dictionary/DictionaryManager.js";
-import { DiscordServersDictionary } from "./dictionary/DiscordServerDictionary.js";
+import { DictionaryManager } from "./archive/DictionaryManager.js";
+import { DiscordServersDictionary } from "./archive/DiscordServersDictionary.js";
 import { ReferenceType } from "./utils/ReferenceUtils.js";
 /**
  * GuildHolder is a class that manages guild-related data.
@@ -80,15 +80,12 @@ export class GuildHolder {
         this.antiNukeManager = new AntiNukeManager(this);
         this.config = new ConfigManager(Path.join(this.getGuildFolder(), 'config.json'));
         this.submissions = new SubmissionsManager(this, Path.join(this.getGuildFolder(), 'submissions'));
-        this.dictionaryManager = new DictionaryManager(this, Path.join(this.getGuildFolder(), 'dictionary'));
-        this.discordServersDictionary = new DiscordServersDictionary(this.getGuildFolder());
         this.repositoryManager = new RepositoryManager(this, Path.join(this.getGuildFolder(), 'archive'));
+        this.dictionaryManager = this.repositoryManager.getDictionaryManager();
+        this.discordServersDictionary = this.repositoryManager.getDiscordServersDictionary();
         this.userManager = new UserManager(Path.join(this.getGuildFolder(), 'users'));
         this.userSubscriptionManager = new UserSubscriptionManager(Path.join(this.getGuildFolder(), 'subscriptions.json'));
         this.channelSubscriptionManager = new ChannelSubscriptionManager(Path.join(this.getGuildFolder(), 'channel_subscriptions.json'));
-        this.dictionaryManager.init().catch(e => {
-            console.error('Error initializing dictionary manager:', e);
-        });
         this.config.loadConfig().then(async () => {
             // Set guild name and ID in the config
             this.config.setConfig(GuildConfigs.GUILD_NAME, guild.name);

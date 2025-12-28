@@ -1,7 +1,7 @@
 import { LabelBuilder, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
 import { Modal } from "../../interface/Modal.js";
 import { GuildHolder } from "../../GuildHolder.js";
-import { DictionaryEntry } from "../../dictionary/DictionaryManager.js";
+import { DictionaryEntry } from "../../archive/DictionaryManager.js";
 import { isEditor, isModerator, replyEphemeral } from "../../utils/Util.js";
 import { GuildConfigs } from "../../config/GuildConfigs.js";
 

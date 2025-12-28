@@ -1,6 +1,6 @@
 import { EmbedBuilder, StringSelectMenuBuilder, StringSelectMenuInteraction } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
-import { DiscordServerEntry } from "../../dictionary/DiscordServerDictionary.js";
+import { DiscordServerEntry } from "../../archive/DiscordServersDictionary.js";
 import { Menu } from "../../interface/Menu.js";
 import { replyEphemeral } from "../../utils/Util.js";
 

@@ -40,7 +40,7 @@ export class DictionaryManager {
     private cachedArchiveIndex?: Promise<ArchiveIndex>;
     private archiveCacheInvalidateTimeout?: NodeJS.Timeout;
 
-    constructor(private guildHolder: GuildHolder, private folderPath: string) {
+    constructor(private guildHolder: GuildHolder, private folderPath: string, private stageAndCommit?: (paths: string[], message: string) => Promise<void>) {
 
     }
 
@@ -63,12 +63,18 @@ export class DictionaryManager {
         const entryPath = Path.join(this.getEntriesPath(), `${entry.id}.json`);
         await fs.mkdir(this.getEntriesPath(), { recursive: true });
         await fs.writeFile(entryPath, JSON.stringify(entry, null, 2), 'utf-8');
+        if (this.stageAndCommit) {
+            await this.stageAndCommit([entryPath], `Update dictionary entry ${entry.id}`);
+        }
         this.invalidateDictionaryTermIndex();
     }
 
     async deleteEntry(id: Snowflake): Promise<void> {
         const entryPath = Path.join(this.getEntriesPath(), `${id}.json`);
         await fs.unlink(entryPath).catch(() => { });
+        if (this.stageAndCommit) {
+            await this.stageAndCommit([entryPath], `Remove dictionary entry ${id}`);
+        }
         this.invalidateDictionaryTermIndex();
     }
 

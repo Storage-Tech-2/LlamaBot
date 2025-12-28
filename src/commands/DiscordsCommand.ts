@@ -3,7 +3,7 @@ import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { isAdmin, replyEphemeral } from "../utils/Util.js";
 import { DiscordJoinMenu } from "../components/menus/DiscordJoinMenu.js";
-import { DiscordServersDictionary } from "../dictionary/DiscordServerDictionary.js";
+import { DiscordServersDictionary } from "../archive/DiscordServersDictionary.js";
 
 export class DiscordsCommand implements Command {
     getID(): string {

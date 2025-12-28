@@ -18,6 +18,8 @@ import { Author, AuthorType } from "../submissions/Author.js";
 import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
 import { makeEntryReadMe } from "./ReadMeMaker.js";
 import { analyzeAttachments, filterAttachmentsForViewer, getAttachmentsFromMessage, getAttachmentsFromText, getFileKey, processAttachments } from "../utils/AttachmentUtils.js";
+import { DictionaryManager } from "./DictionaryManager.js";
+import { DiscordServersDictionary } from "./DiscordServersDictionary.js";
 export class RepositoryManager {
     private folderPath: string;
     private git?: SimpleGit;
@@ -25,10 +27,14 @@ export class RepositoryManager {
     private lock: Lock = new Lock();
     private ignoreUpdatesFrom: Snowflake[] = [];
     private guildHolder: GuildHolder;
+    private dictionaryManager: DictionaryManager;
+    private discordServersDictionary: DiscordServersDictionary;
     constructor(guildHolder: GuildHolder, folderPath: string) {
         this.guildHolder = guildHolder;
         this.folderPath = folderPath;
         this.configManager = new ConfigManager(Path.join(folderPath, 'config.json'));
+        this.dictionaryManager = new DictionaryManager(this.guildHolder, Path.join(this.folderPath, 'dictionary'), this.stageAndCommit.bind(this));
+        this.discordServersDictionary = new DiscordServersDictionary(this.folderPath, this.stageAndCommit.bind(this));
     }
 
     async init() {
@@ -74,6 +80,29 @@ export class RepositoryManager {
         await this.lock.release();
 
         await this.getPostToSubmissionIndex();
+        await this.dictionaryManager.init();
+    }
+
+    private async stageAndCommit(paths: string[], message: string) {
+        if (!this.git) {
+            return;
+        }
+
+        await this.lock.acquire();
+
+        try {
+            const relPaths = paths.map(p => Path.relative(this.folderPath, p));
+            await this.git.add(relPaths)
+            await this.git.commit(message);
+        } catch {
+            // ignore if nothing to commit
+        }
+
+        await this.push().catch((e) => {
+            console.error("Error pushing to remote:", e.message);
+        });
+
+        await this.lock.release();
     }
 
     getIndexPath() {
@@ -237,7 +266,7 @@ export class RepositoryManager {
         }
         await this.lock.acquire();
 
-        this.guildHolder.getDictionaryManager().invalidateArchiveIndex();
+        this.dictionaryManager.invalidateArchiveIndex();
 
         const reMapped: ArchiveChannelReference[] = [];
         for (const channel of channels.values()) {
@@ -2228,5 +2257,13 @@ export class RepositoryManager {
             throw e;
         }
 
+    }
+
+    public getDictionaryManager(): DictionaryManager {
+        return this.dictionaryManager;
+    }
+
+    public getDiscordServersDictionary(): DiscordServersDictionary {
+        return this.discordServersDictionary;
     }
 }
