@@ -351,6 +351,8 @@ export async function retagEverythingTask(guildHolder: GuildHolder): Promise<voi
         return;
     }
 
+    guildHolder.requestRetagging(false);
+
     await repositoryManager.getLock().acquire();
 
     const definitionToEntryCodes: Map<string, Set<string>> = new Map();

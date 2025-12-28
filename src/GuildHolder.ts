@@ -957,7 +957,6 @@ export class GuildHolder {
                 await retagEverythingTask(this).catch(e => {
                     console.error('Error retagging everything:', e);
                 });
-                this.retaggingRequested = false;
             } else {
                 await updateAuthorAndChannelTagsTask(this).catch(e => {
                     console.error('Error updating author and channel tags:', e);
@@ -1174,8 +1173,8 @@ export class GuildHolder {
     }
 
 
-    public requestRetagging() {
-        this.retaggingRequested = true;
+    public requestRetagging(value: boolean = true) {
+        this.retaggingRequested = value;
     }
 
     public async onPostAdd(entryData: ArchiveEntryData) {

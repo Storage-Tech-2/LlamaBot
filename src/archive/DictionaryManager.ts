@@ -8,6 +8,7 @@ import { IndexManager } from "./IndexManager.js";
 import { RepositoryManager } from "./RepositoryManager.js";
 import { Lock } from "../utils/Lock.js";
 import { truncateStringWithEllipsis } from "../utils/Util.js";
+import { retagEverythingTask } from "./Tasks.js";
 
 export enum DictionaryEntryStatus {
     PENDING = "PENDING",
@@ -131,7 +132,11 @@ export class DictionaryManager {
         
         this.invalidateDictionaryTermIndex();
         if (rebuildNeeded) {
-            this.repositoryManager.getGuildHolder().requestRetagging();
+            if (push) {
+                await retagEverythingTask(this.guildHolder);
+            } else {
+                this.repositoryManager.getGuildHolder().requestRetagging();
+            }
         }
     }
 
