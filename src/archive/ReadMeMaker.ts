@@ -1,6 +1,6 @@
 import { Attachment } from "../submissions/Attachment.js";
 import { postToMarkdown, StyleInfo } from "../utils/MarkdownUtils.js";
-import { transformOutputWithReferences } from "../utils/ReferenceUtils.js";
+import { transformOutputWithReferencesForGithub } from "../utils/ReferenceUtils.js";
 import { escapeDiscordString, escapeString } from "../utils/Util.js";
 import { ArchiveComment } from "./ArchiveComments.js";
 import { ArchiveEntryData } from "./ArchiveEntry.js";
@@ -51,16 +51,16 @@ export function makeEntryReadMe(
     }
 
     const post = postToMarkdown(entryData.records, entryData.styles || {}, schemaStyles);
-    const transformed = transformOutputWithReferences(post, entryData.references, false);
-    text.push(`${transformed.result}\n`);
+    const transformed = transformOutputWithReferencesForGithub(post, entryData.references);
+    text.push(`${transformed}\n`);
 
 
     const authorsWithReasons = entryData.authors.filter(author => author.reason);
     if (authorsWithReasons.length > 0) {
         text.push(`\n## Acknowledgements:\n`);
-        authorsWithReasons.forEach(author => {
-            text.push(`- ${author.displayName || author.username}: ${transformOutputWithReferences(author.reason || '', entryData.author_references, false).result}\n`);
-        });
+        for (const author of authorsWithReasons) {
+            text.push(`- ${author.displayName || author.username}: ${transformOutputWithReferencesForGithub(author.reason || '', entryData.author_references)}\n`);
+        }
     }
 
     if (entryData.images.length > 1) {

@@ -82,6 +82,7 @@ export type ArchivedPostReference = ReferenceBase & {
     id: Snowflake,
     code: string,
     url: string,
+    path: string,
 }
 
 export type UserMentionReference = ReferenceBase & {
@@ -406,13 +407,13 @@ export function tagReferencesInText(text: string, dictionaryIndex?: DictionaryTe
         const postMatches = findRegexMatches(text, [PostCodePattern]);
         for (const match of postMatches) {
             const code = match.match.toUpperCase();
-            const id = archiveIndex.codeToID.get(code);
+            const id = archiveIndex.codeToId.get(code);
             if (!id) {
                 continue;
             }
 
-            const url = archiveIndex.idToURL.get(id);
-            if (!url) {
+            const indexEntry = archiveIndex.idToData.get(id);
+            if (!indexEntry) {
                 continue;
             }
 
@@ -423,7 +424,8 @@ export function tagReferencesInText(text: string, dictionaryIndex?: DictionaryTe
                     type: ReferenceType.ARCHIVED_POST,
                     id,
                     code,
-                    url,
+                    url: indexEntry.url,
+                    path: indexEntry.path,
                     matches: [match.match]
                 }
             });
@@ -500,42 +502,41 @@ export async function tagReferences(string: string, prevReferences: Reference[],
         })
 
         if (match && match.type === ReferenceType.ARCHIVED_POST) {
-            const id = match.id;
 
-            const url = archiveIndex.idToURL.get(id);
-            if (!url) {
+            const indexEntry = archiveIndex.idToData.get(match.id);
+            if (!indexEntry) {
                 return ref;
             }
 
             const newRef: ArchivedPostReference = {
                 type: ReferenceType.ARCHIVED_POST,
-                id: id,
-                code: match.code,
-                url: url,
+                id: match.id,
+                code: indexEntry.code,
+                url: indexEntry.url,
+                path: indexEntry.path,
                 matches: ref.matches
             };
             return newRef;
         }
 
         if (ref.server === currentServerID) {
-            const code = archiveIndex.threadToCode.get(ref.channel);
-            if (!code) {
-                return ref;
-            }
-            const id = archiveIndex.codeToID.get(code);
+            const id = archiveIndex.threadToId.get(ref.channel);
             if (!id) {
                 return ref;
             }
-            const url = archiveIndex.idToURL.get(id);
-            if (!url) {
+
+            
+            const indexEntry = archiveIndex.idToData.get(id);
+            if (!indexEntry) {
                 return ref;
             }
 
             const newRef: ArchivedPostReference = {
                 type: ReferenceType.ARCHIVED_POST,
                 id,
-                code,
-                url,
+                code: indexEntry.code,
+                url: indexEntry.url,
+                path: indexEntry.path,
                 matches: ref.matches
             };
             return newRef;
@@ -624,24 +625,15 @@ export function findMatchesWithinText(text: string, references: Reference[]): {
 
 export type ServerLinksMap = Map<Snowflake, { id: Snowflake, name: string, joinURL: string }>;
 
-export function transformOutputWithReferences(
+
+export function transformOutputWithReferencesWrapper(
     text: string,
     references: Reference[],
-    isDiscord: boolean = false,
-    excludedIDs: Set<Snowflake> = new Set(),
-    serverLinks: ServerLinksMap = new Map()
-): {
-    result: string,
-    excludedIDs: Set<Snowflake>,
-    serverLinks: ServerLinksMap
-} {
+    replaceFunction: (reference: Reference, matchedText: string, isHeader: boolean, isWithinHyperlink: boolean, hyperlinkText?: string, hyperlinkURL?: string, hyeperlinkTitle?: string) => string | undefined,
+): string {
     const matches = findMatchesWithinText(text, references);
     if (matches.length === 0) {
-        return {
-            result: text,
-            excludedIDs,
-            serverLinks
-        }
+        return text;
     }
 
     const filteredMatches = matches.filter(({ start, end }) => {
@@ -660,20 +652,13 @@ export function transformOutputWithReferences(
         }
     }
 
-    // detect markdown hyperlinks
-    const regex = /\[([^\]]+)\]\(([^)]+)\)/g;
-    const hyperlinks = findRegexMatches(text, [regex]);
+    const hyperlinkRegex = /\[([^\]]+)\]\(([^)\s]+)(?:\s+"([^"]+)")?\)/g;
+    const hyperlinks = findRegexMatches(text, [hyperlinkRegex]);
 
     const resultParts: string[] = [];
     let currentIndex = 0;
 
-    // if a match is within a hyperlink, do custom processing
     for (const match of dedupedMatches) {
-        // check if excluded
-        if (match.reference.type === ReferenceType.DICTIONARY_TERM && excludedIDs.has(match.reference.id)) {
-            continue;
-        }
-
         // check if in header (#'s in front)
         let inHeader = false;
         const lastNewline = text.lastIndexOf('\n', match.start);
@@ -692,132 +677,30 @@ export function transformOutputWithReferences(
                 inHeader = true;
             }
         }
-        if (inHeader) { // skip
-            continue;
-        }
 
         // check if match is within a hyperlink
         const hyperlink = hyperlinks.find(h => match.start >= h.start && match.end <= h.end);
-
-        if (hyperlink) {
-            // add text before hyperlink
-            if (currentIndex < hyperlink.start) {
-                resultParts.push(text.slice(currentIndex, hyperlink.start));
-            }
-        } else {
-            // add text before match
-            if (currentIndex < match.start) {
-                resultParts.push(text.slice(currentIndex, match.start));
-            }
-        }
-
         const ref = match.reference;
+        const fullMatch = hyperlink ? hyperlink : match;
+        const fullMatchedText = text.slice(fullMatch.start, fullMatch.end);
 
+        const replacement = replaceFunction(
+            ref,
+            fullMatchedText,
+            inHeader,
+            !!hyperlink,
+            hyperlink ? hyperlink.groups[0] : undefined,
+            hyperlink ? hyperlink.groups[1] : undefined,
+            hyperlink ? hyperlink.groups[2] : undefined
+        );
 
-        if (ref.type === ReferenceType.DICTIONARY_TERM) {
-            if (hyperlink) { // skip
-                resultParts.push(text.slice(hyperlink.start, hyperlink.end));
-                currentIndex = hyperlink.end;
-            } else {
-                // create markdown link
-                const linkedText = `[${text.slice(match.start, match.end)}](${ref.url})`;
-                resultParts.push(linkedText);
-                currentIndex = match.end;
-
-                excludedIDs.add(ref.id);
+        if (replacement !== undefined) {
+            // add text before match
+            if (currentIndex < fullMatch.start) {
+                resultParts.push(text.slice(currentIndex, fullMatch.start));
             }
-        } else if (ref.type === ReferenceType.ARCHIVED_POST) {
-            if (hyperlink) { // dont skip, replace
-                // get hyperlink text
-                const linkText = hyperlink.groups[0] || "";
-                if (linkText.toUpperCase() === ref.code) {
-                    // same as code, just replace URL
-                    const linkedText = `[${linkText}](${ref.url})`;
-                    resultParts.push(linkedText);
-                } else {
-                    // different, keep text but add suffix
-                    const linkedText = `[${linkText} (${ref.code})](${ref.url})`;
-                    resultParts.push(linkedText);
-                }
-                currentIndex = hyperlink.end;
-            } else {
-                // check if match is discord url
-                const isDiscordLink = DiscordLinkPattern.test(text.slice(match.start, match.end));
-                if (isDiscordLink && isDiscord) {
-                    // keep as is, just replace URL
-                    resultParts.push(ref.url);
-                    currentIndex = match.end;
-                } else {
-                    // create markdown link with code as text
-                    const linkedText = `[${ref.code}](${ref.url})`;
-                    resultParts.push(linkedText);
-                    currentIndex = match.end;
-                }
-            }
-        } else if (ref.type === ReferenceType.DISCORD_LINK) {
-            if (ref.server && ref.serverJoinURL && !serverLinks.has(ref.server)) {
-                serverLinks.set(ref.server, {
-                    id: ref.server,
-                    name: ref.serverName || "Unknown",
-                    joinURL: ref.serverJoinURL
-                });
-            }
-
-            if (hyperlink) {
-                if (isDiscord && ref.serverName) {
-                    // add server name suffix
-                    const linkText = hyperlink.groups[0] || "";
-                    const linkedText = `[${linkText} (in ${ref.serverName})](${ref.url})`;
-                    resultParts.push(linkedText);
-                    currentIndex = hyperlink.end;
-                } else {
-                    resultParts.push(text.slice(hyperlink.start, hyperlink.end));
-                    currentIndex = hyperlink.end;
-                }
-            } else {
-                resultParts.push(text.slice(match.start, match.end));
-                currentIndex = match.end;
-
-                if (isDiscord && ref.serverName) {
-                    // add server name suffix
-                    resultParts.push(` (in ${ref.serverName})`);
-                }
-            }
-
-            if (!isDiscord && ref.serverName && ref.serverJoinURL) {
-                // add server
-                resultParts.push(` ([Join ${ref.serverName}](${ref.serverJoinURL}))`);
-            }
-        } else if (ref.type === ReferenceType.USER_MENTION) {
-            if (hyperlink) { // skip
-                resultParts.push(text.slice(hyperlink.start, hyperlink.end));
-                currentIndex = hyperlink.end;
-            } else if (isDiscord) {
-                const text = getAuthorsString([ref.user]);
-                resultParts.push(text);
-                currentIndex = match.end;
-            } else {
-                const text = ref.user.displayName || ref.user.username || "Unknown User";
-                resultParts.push(`[@${text}](# "ID: ${ref.user.id}")`);
-                currentIndex = match.end;
-            }
-        } else if (ref.type === ReferenceType.CHANNEL_MENTION) {
-            if (hyperlink) { // skip
-                resultParts.push(text.slice(hyperlink.start, hyperlink.end));
-                currentIndex = hyperlink.end;
-            } else if (isDiscord && ref.channelName) {
-                const linkedText = `<#${ref.channelID}>`;
-                resultParts.push(linkedText);
-                currentIndex = match.end;
-            } else if (ref.channelName && ref.channelURL) {
-                const linkedText = `[#${ref.channelName}](${ref.channelURL})`;
-                resultParts.push(linkedText);
-                currentIndex = match.end;
-            } else {
-                const linkedText = `[Unknown Channel](# "ID: ${ref.channelID}")`;
-                resultParts.push(linkedText);
-                currentIndex = match.end;
-            }
+            resultParts.push(replacement);
+            currentIndex = fullMatch.end;
         }
     }
 
@@ -826,17 +709,147 @@ export function transformOutputWithReferences(
         resultParts.push(text.slice(currentIndex));
     }
 
-    return {
-        result: resultParts.join(''),
-        excludedIDs,
-        serverLinks
-    }
+    return resultParts.join('');
+}
+
+export function transformOutputWithReferencesForDiscord(
+    text: string,
+    references: Reference[]
+): string {
+    const excludeSet = new Set<Snowflake>();
+
+    const result = transformOutputWithReferencesWrapper(
+        text,
+        references,
+        (reference, matchedText, isHeader, isWithinHyperlink, hyperlinkText, _hyperlinkURL, hyperlinkTitle) => {
+            if (isHeader) {
+                return; // skip replacements in headers
+            }
+
+            if (reference.type === ReferenceType.DICTIONARY_TERM) {
+                // check for repeats
+                if (excludeSet.has(reference.id)) {
+                    return;
+                }
+
+                if (isWithinHyperlink) {
+                    return; // skip, already linked
+                } else {
+                    excludeSet.add(reference.id);
+                    return `[${matchedText}](${reference.url})`;
+                }
+            } else if (reference.type === ReferenceType.ARCHIVED_POST) {
+                if (isWithinHyperlink) {
+                    // get hyperlink text
+                    const linkText = hyperlinkText || "";
+                    if (linkText.toUpperCase() === reference.code) {
+                        // same as code, just replace URL
+                        return `[${linkText}](${reference.url}${hyperlinkTitle ? ` "${hyperlinkTitle}"` : ''})`;
+                    } else {
+                        // different, keep text but add suffix
+                        return `[${linkText} (${reference.code})](${reference.url}${hyperlinkTitle ? ` "${hyperlinkTitle}"` : ''})`;
+                    }
+                } else {
+                    // check if match is discord url
+                    const isDiscordLink = DiscordLinkPattern.test(matchedText);
+                    if (isDiscordLink) {
+                        // keep as is, just replace URL
+                        return reference.url;
+                    } else {
+                        // create markdown link with code as text
+                        return `[${reference.code}](${reference.url})`;
+                    }
+                }
+            } else if (reference.type === ReferenceType.DISCORD_LINK) {
+                if (!reference.serverName || !reference.serverJoinURL) {
+                    return; // skip, no server name
+                }
+
+                // add suffix
+                return matchedText + ` (in [${reference.serverName}](${reference.serverJoinURL}))`;
+            } else if (reference.type === ReferenceType.USER_MENTION) {
+                return getAuthorsString([reference.user]);
+            } else if (reference.type === ReferenceType.CHANNEL_MENTION) {
+                if (isWithinHyperlink) {
+                    return; // skip, already linked
+                }
+
+                if (reference.channelName && reference.channelURL) {
+                    return `<#${reference.channelID}>`;
+                } else {
+                    return `[Unknown Channel](# "ID: ${reference.channelID}")`;
+                }
+            }
+            return;
+        }
+    );
+    return result;
+}
+
+
+export function transformOutputWithReferencesForGithub(
+    text: string,
+    references: Reference[]
+): string {
+    return transformOutputWithReferencesWrapper(
+        text,
+        references,
+        (reference, matchedText, isHeader, isWithinHyperlink, hyperlinkText, _hyperlinkURL, hyperlinkTitle) => {
+            if (isHeader) {
+                return; // skip replacements in headers
+            }
+
+            if (reference.type === ReferenceType.DICTIONARY_TERM) {
+                return; // skip, do not link dictionary terms on GitHub
+            }
+
+            if (reference.type === ReferenceType.ARCHIVED_POST) {
+                const githubURL = '../../../' + encodeURI(reference.path)
+                if (githubURL) {
+                    if (isWithinHyperlink) {
+                        // get hyperlink text
+                        const linkText = hyperlinkText || "";
+                        if (linkText.toUpperCase() === reference.code) {
+                            // same as code, just replace URL
+                            return `[${linkText}](${githubURL}${hyperlinkTitle ? ` "${hyperlinkTitle}"` : ''})`;
+                        } else {
+                            // different, keep text but add suffix
+                            return `[${linkText} (${reference.code})](${githubURL}${hyperlinkTitle ? ` "${hyperlinkTitle}"` : ''})`;
+                        }
+                    } else {
+                        // create markdown link with code as text
+                        return `[${reference.code}](${githubURL})`;
+                    }
+                }
+            } else if (reference.type === ReferenceType.DISCORD_LINK) {
+                if (!reference.serverName || !reference.serverJoinURL) {
+                    return; // skip, no server name
+                }
+
+                // add suffix
+                return matchedText + ` (in [${reference.serverName}](${reference.serverJoinURL}))`;
+            } else if (reference.type === ReferenceType.USER_MENTION) {
+                return reference.user.displayName || reference.user.username || "Unknown User";
+            } else if (reference.type === ReferenceType.CHANNEL_MENTION) {
+                if (isWithinHyperlink) {
+                    return; // skip, already linked
+                }
+
+                if (reference.channelName && reference.channelURL) {
+                    return `[#${reference.channelName}](${reference.channelURL})`;
+                } else {
+                    return `[Unknown Channel](# "ID: ${reference.channelID}")`;
+                }
+            }
+            return;
+        }
+    );
 }
 
 
 export function areReferencesIdentical(a: Reference, b: Reference): boolean {
     if (a.type === ReferenceType.ARCHIVED_POST && b.type === ReferenceType.ARCHIVED_POST) {
-        return a.code === b.code && a.id === b.id && a.url === b.url;
+        return a.code === b.code && a.id === b.id && a.url === b.url && a.path === b.path;
     } else if (a.type === ReferenceType.DISCORD_LINK && b.type === ReferenceType.DISCORD_LINK) {
         return a.server === b.server && a.channel === b.channel && a.message === b.message && a.url === b.url && a.serverName === b.serverName && a.serverJoinURL === b.serverJoinURL;
     } else if (a.type === ReferenceType.DICTIONARY_TERM && b.type === ReferenceType.DICTIONARY_TERM) {
@@ -852,9 +865,9 @@ export function areReferencesIdentical(a: Reference, b: Reference): boolean {
 
 export function referenceKey(ref: Reference): string {
     if (ref.type === ReferenceType.ARCHIVED_POST) {
-        return `archivedPost:${ref.code}`;
+        return `archivedPost:${ref.id}`;
     } else if (ref.type === ReferenceType.DISCORD_LINK) {
-        return `discordLink:${ref.server}:${ref.channel}:${ref.message || ''}`;
+        return `discordLink:${ref.url}`;
     } else if (ref.type === ReferenceType.DICTIONARY_TERM) {
         return `dictionaryTerm:${ref.id}`;
     } else if (ref.type === ReferenceType.USER_MENTION) {

@@ -122,7 +122,7 @@ export class RepositoryManager {
         }
     }
 
-    public async iterateAllEntries(callback: (entry: ArchiveEntry, channelRef: ArchiveChannelReference, channel: ArchiveChannel) => Promise<void>) {
+    public async iterateAllEntries(callback: (entry: ArchiveEntry, entryRef: ArchiveEntryReference, channelRef: ArchiveChannelReference, channel: ArchiveChannel) => Promise<void>) {
         const channelReferences = this.getChannelReferences();
         for (const channelRef of channelReferences) {
             const channelPath = Path.join(this.folderPath, channelRef.path);
@@ -139,7 +139,23 @@ export class RepositoryManager {
                     console.warn(`Entry ${entryRef.name} (${entryRef.code}) not found in memory`);
                     continue;
                 }
-                await callback(entry, channelRef, archiveChannel);
+                await callback(entry, entryRef, channelRef, archiveChannel);
+            }
+        }
+    }
+
+    public async iterateAllEntryRefs(callback: (entryRef: ArchiveEntryReference, channelRef: ArchiveChannelReference, channel: ArchiveChannel) => Promise<void>) {
+        const channelReferences = this.getChannelReferences();
+        for (const channelRef of channelReferences) {
+            const channelPath = Path.join(this.folderPath, channelRef.path);
+            const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
+            if (!archiveChannel) {
+                console.warn(`Channel ${channelRef.name} (${channelRef.id}) not found in memory`);
+                continue;
+            }
+            const entries = archiveChannel.getData().entries;
+            for (const entryRef of entries) {
+                await callback(entryRef, channelRef, archiveChannel);
             }
         }
     }
@@ -935,32 +951,13 @@ export class RepositoryManager {
             content: string;
             showEmbed: boolean;
             embeds: EmbedBuilder[];
-        }[] = splitIntoChunks(message.content, 2000).map((m) => {
+        }[] = splitIntoChunks(message, 2000).map((m) => {
             return {
                 content: m,
                 showEmbed: false,
                 embeds: []
             }
         });
-
-        const serverLinks = message.serverLinks;
-        if (serverLinks.size > 0) {
-            const linksSorted = Array.from(serverLinks.values());
-            linksSorted.sort((a, b) => a.name.localeCompare(b.name));
-            const serverLinkMessage: string[] = [];
-            linksSorted.forEach((link) => {
-                serverLinkMessage.push(`**${link.name}**: ${link.joinURL}`);
-            });
-            const serverLinkMsg = truncateStringWithEllipsis(serverLinkMessage.join('\n'), 4000);
-            messageChunks.push({
-                content: '',
-                showEmbed: true,
-                embeds: [
-                    new EmbedBuilder().setTitle('Server Invite Links').setDescription(serverLinkMsg).setColor(0x00AE86)
-                ]
-            });
-
-        }
 
         const hasAttachments = newEntryData.attachments.length > 0;
         if (hasAttachments) {
@@ -1185,7 +1182,9 @@ export class RepositoryManager {
 
         if (existing) {
             await reportStatus('Running post-update tasks...');
-            this.guildHolder.onPostUpdate(existing.entry.getData(), entry.getData()).catch(e => {
+            const oldPath = existing.channelRef.path + '/' + existing.entryRef.path;
+            const newPath = archiveChannelRef.path + '/' + entryRef.path;
+            this.guildHolder.onPostUpdate(existing.entry.getData(), entry.getData(), oldPath, newPath).catch(e => {
                 console.error("Error handling post update:", e);
             });
         } else {
@@ -1842,8 +1841,9 @@ export class RepositoryManager {
                 console.error("Error pushing to remote:", e.message);
             }
 
-
-            this.guildHolder.onPostUpdate(oldData, entryData).catch(e => {
+            const oldPath = found.channelRef.path + '/' + found.entryRef.path;
+            const newPath = oldPath;
+            this.guildHolder.onPostUpdate(oldData, entryData, oldPath, newPath).catch(e => {
                 console.error("Error handling post update:", e);
             });
         } catch (e) {

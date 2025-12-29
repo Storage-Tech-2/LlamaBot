@@ -3,7 +3,7 @@ import fs from "fs/promises";
 import Path from "path";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { GuildHolder } from "../GuildHolder.js";
-import { findDictionaryMatches, DictionaryTermIndex, Reference, tagReferences, transformOutputWithReferences, DictionaryIndexEntry } from "../utils/ReferenceUtils.js";
+import { findDictionaryMatches, DictionaryTermIndex, Reference, tagReferences, transformOutputWithReferencesForDiscord, DictionaryIndexEntry } from "../utils/ReferenceUtils.js";
 import { IndexManager } from "./IndexManager.js";
 import { RepositoryManager } from "./RepositoryManager.js";
 import { Lock } from "../utils/Lock.js";
@@ -29,10 +29,16 @@ export type DictionaryEntry = {
     referencedBy: string[];
 }
 
+export type ArchiveIndexEntry = {
+    code: string;
+    url: string;
+    path: string;
+}
+
 export type ArchiveIndex = {
-    codeToID: Map<string, Snowflake>,
-    threadToCode: Map<Snowflake, string>,
-    idToURL: Map<Snowflake, string>
+    threadToId: Map<Snowflake, Snowflake>,
+    codeToId: Map<string, Snowflake>,
+    idToData: Map<string, ArchiveIndexEntry>,
 }
 
 export type Indexes = {
@@ -353,8 +359,8 @@ export class DictionaryManager {
         embed.setTitle(`Dictionary Entry: ${entry.terms[0] || 'Entry'}`);
         embed.setColor(this.statusToColor(entry.status));
 
-        const def = transformOutputWithReferences(entry.definition, entry.references, true);
-        embed.setDescription(truncateStringWithEllipsis(def.result || 'No definition provided yet.', 3500));
+        const def = transformOutputWithReferencesForDiscord(entry.definition, entry.references);
+        embed.setDescription(truncateStringWithEllipsis(def || 'No definition provided yet.', 3500));
 
         embed.addFields(
             { name: 'Terms', value: truncateStringWithEllipsis(entry.terms.length ? entry.terms.join(', ') : 'None', 150), inline: false },

@@ -4,7 +4,7 @@ import { GuildHolder } from "../../GuildHolder.js";
 import { DictionaryEntry, DictionaryEntryStatus } from "../../archive/DictionaryManager.js";
 import { isEditor, isModerator, replyEphemeral, truncateStringWithEllipsis } from "../../utils/Util.js";
 import { GuildConfigs } from "../../config/GuildConfigs.js";
-import { tagReferences, transformOutputWithReferences } from "../../utils/ReferenceUtils.js";
+import { tagReferences, transformOutputWithReferencesForDiscord } from "../../utils/ReferenceUtils.js";
 
 export class DictionaryEditModal implements Modal {
     getID(): string {
@@ -125,7 +125,7 @@ export class DictionaryEditModal implements Modal {
             .setFooter({ text: `Updated by ${interaction.user.tag}` })
             .setTimestamp(new Date(entry.updatedAt));
         if (entry.definition !== oldDefinition) {
-            embed.setDescription(truncateStringWithEllipsis(transformOutputWithReferences(entry.definition || 'No definition', entry.references, true).result, 3500));
+            embed.setDescription(truncateStringWithEllipsis(transformOutputWithReferencesForDiscord(entry.definition || 'No definition', entry.references), 3500));
         }
 
         await interaction.editReply({

@@ -4,7 +4,7 @@ import { areAuthorsSame, reclassifyAuthors, splitIntoChunks } from "../utils/Uti
 import { GuildHolder } from "../GuildHolder.js";
 import { ArchiveChannelReference } from "./RepositoryConfigs.js";
 import { ChannelType, ChatInputCommandInteraction, ForumChannel, GuildForumTag, Message, MessageFlags } from "discord.js";
-import { ArchiveChannel } from "./ArchiveChannel.js";
+import { ArchiveChannel, ArchiveEntryReference } from "./ArchiveChannel.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import Path from "path";
 import { hasReferencesChanged, ReferenceType, tagReferences, tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
@@ -45,7 +45,7 @@ export async function updateEntryAuthorsTask(guildHolder: GuildHolder): Promise<
     }
 
     let modifiedCount = 0;
-    await repositoryManager.iterateAllEntries(async (entry: ArchiveEntry, channelRef: ArchiveChannelReference) => {
+    await repositoryManager.iterateAllEntries(async (entry: ArchiveEntry, _entryRef: ArchiveEntryReference, channelRef: ArchiveChannelReference) => {
         try {
             if (await repositoryManager.updateEntryAuthors(entry, reclassified)) {
                 modifiedCount++;
@@ -250,7 +250,7 @@ export async function updateAuthorAndChannelTagsTask(guildHolder: GuildHolder): 
         reclassified.push(...reclassifiedChunk);
     }
 
-    await repositoryManager.iterateAllEntries(async (entry: ArchiveEntry, channelRef: ArchiveChannelReference) => {
+    await repositoryManager.iterateAllEntries(async (entry: ArchiveEntry, _entryRef: ArchiveEntryReference, channelRef: ArchiveChannelReference) => {
         const data = entry.getData();
         const newReferences = data.references.map(ref => {
             if (ref.type === ReferenceType.USER_MENTION) {
@@ -359,7 +359,7 @@ export async function retagEverythingTask(guildHolder: GuildHolder): Promise<voi
     const definitionToEntryCodes: Map<string, Set<string>> = new Map();
 
     let modifiedCount = 0;
-    await repositoryManager.iterateAllEntries(async (entry: ArchiveEntry, channelRef: ArchiveChannelReference) => {
+    await repositoryManager.iterateAllEntries(async (entry: ArchiveEntry, _entryRef: ArchiveEntryReference, channelRef: ArchiveChannelReference) => {
         const data = entry.getData();
         const newReferences = await tagReferencesInSubmissionRecords(data.records, data.references, guildHolder, data.id);
         const newAuthorReferences = await tagReferencesInAcknowledgements(data.authors, data.author_references, guildHolder, data.id);

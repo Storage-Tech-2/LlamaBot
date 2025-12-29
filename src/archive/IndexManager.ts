@@ -2,10 +2,11 @@ import fs from "fs/promises";
 import Path from "path";
 import { Snowflake } from "discord.js";
 import { buildDictionaryIndex, DictionaryIndexEntry, DictionaryTermIndex } from "../utils/ReferenceUtils.js";
-import { ArchiveChannel } from "./ArchiveChannel.js";
+import { ArchiveChannel, ArchiveEntryReference } from "./ArchiveChannel.js";
 import { ArchiveEntry } from "./ArchiveEntry.js";
-import { DictionaryManager, ArchiveIndex } from "./DictionaryManager.js";
+import { DictionaryManager, ArchiveIndex, ArchiveIndexEntry } from "./DictionaryManager.js";
 import type { RepositoryManager } from "./RepositoryManager.js";
+import { ArchiveChannelReference } from "./RepositoryConfigs.js";
 
 const INDEX_TIMEOUT_MS = 5 * 60 * 1000;
 export class IndexManager {
@@ -122,21 +123,25 @@ export class IndexManager {
     }
 
     public async buildArchiveIndex(): Promise<ArchiveIndex> {
-        const codeToID = new Map<string, Snowflake>();
-        const threadToCode = new Map<Snowflake, string>();
-        const idToURL = new Map<Snowflake, string>();
-        await this.repositoryManager.iterateAllEntries(async (entry) => {
+        const idToData = new Map<string, ArchiveIndexEntry>();
+        const threadToId = new Map<Snowflake, Snowflake>();
+        const codeToId = new Map<string, Snowflake>();
+        
+        await this.repositoryManager.iterateAllEntries(async (entry: ArchiveEntry, entryRef: ArchiveEntryReference, channelRef: ArchiveChannelReference) => {
             const data = entry.getData();
             if (!data.post) return;
-            codeToID.set(data.code, data.id);
-            threadToCode.set(data.post.threadId, data.code);
-            idToURL.set(data.id, data.post.threadURL);
+           
+            threadToId.set(data.post.threadId, data.id);
+            idToData.set(data.id, {
+                code: data.code,
+                url: data.post.threadURL,
+                path: channelRef.path + '/' + entryRef.path,
+            });
+            codeToId.set(data.code, data.id);
         });
 
         return {
-            threadToCode,
-            codeToID,
-            idToURL
+            idToData, threadToId, codeToId
         }
     }
 

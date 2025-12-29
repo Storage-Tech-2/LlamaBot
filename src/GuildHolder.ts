@@ -5,7 +5,7 @@ import Path from "path";
 import { GuildConfigs } from "./config/GuildConfigs.js";
 import { SubmissionsManager } from "./submissions/SubmissionsManager.js";
 import { RepositoryManager } from "./archive/RepositoryManager.js";
-import { ArchiveEntryData } from "./archive/ArchiveEntry.js";
+import { ArchiveEntry, ArchiveEntryData } from "./archive/ArchiveEntry.js";
 import { escapeDiscordString, getAuthorsString, getChanges, truncateStringWithEllipsis } from "./utils/Util.js";
 import { UserManager } from "./support/UserManager.js";
 import { AttachmentsState, UserData } from "./support/UserData.js";
@@ -21,7 +21,7 @@ import { ChannelSubscriptionManager } from "./config/ChannelSubscriptionManager.
 import { AntiNukeManager } from "./support/AntiNukeManager.js";
 import { DictionaryManager } from "./archive/DictionaryManager.js";
 import { DiscordServersDictionary } from "./archive/DiscordServersDictionary.js";
-import { getDiscordLinksInText, getDiscordServersFromReferences, getPostCodesInText, ReferenceType, transformOutputWithReferences } from "./utils/ReferenceUtils.js";
+import { getDiscordLinksInText, getDiscordServersFromReferences, getPostCodesInText, ReferenceType, transformOutputWithReferencesForDiscord } from "./utils/ReferenceUtils.js";
 import { retagEverythingTask, updateAuthorAndChannelTagsTask, updateEntryAuthorsTask } from "./archive/Tasks.js";
 import { RepositoryConfigs } from "./archive/RepositoryConfigs.js";
 /**
@@ -422,7 +422,7 @@ export class GuildHolder {
                 `**Tags:** ${tags || 'None'}`,
             ];
             if (description) {
-                textArr.push('\n' + transformOutputWithReferences(description, entryData.references, true).result);
+                textArr.push('\n' + transformOutputWithReferencesForDiscord(description, entryData.references));
             }
             const embed = new EmbedBuilder()
                 .setTitle(name)
@@ -1196,18 +1196,18 @@ export class GuildHolder {
         });
     }
 
-    public async onPostUpdate(oldEntryData: ArchiveEntryData, newEntryData: ArchiveEntryData) {
+    public async onPostUpdate(oldEntryData: ArchiveEntryData, newEntryData: ArchiveEntryData, oldPath: string, newPath: string) {
         await this.updateDesignerRoles(newEntryData.id, oldEntryData.authors, newEntryData.authors).catch(e => {
             console.error(`Error updating designers for entry ${newEntryData.id}:`, e);
         });
 
-        const didThreadURLChange = oldEntryData.post?.threadURL !== newEntryData.post?.threadURL;
-        if (didThreadURLChange) {
+        const needsRefreshReferences = oldEntryData.post?.threadURL !== newEntryData.post?.threadURL || oldPath !== newPath;
+        if (needsRefreshReferences) {
             this.getDictionaryManager().invalidateArchiveIndex();
 
             const newURL = newEntryData.post?.threadURL || '';
             // just swap urls, no need to reanalyze
-            await this.repositoryManager.iterateAllEntries(async (entry) => {
+            await this.repositoryManager.iterateAllEntries(async (entry: ArchiveEntry) => {
                 if (entry.getData().id === newEntryData.id) {
                     return;
                 }
@@ -1222,6 +1222,7 @@ export class GuildHolder {
                 for (const reference of references) {
                     if (reference.type === ReferenceType.ARCHIVED_POST && reference.id === newEntryData.id) {
                         reference.url = newURL;
+                        reference.path = newPath;
                         updated = true;
                     }
                 }
@@ -1229,6 +1230,7 @@ export class GuildHolder {
                 for (const authorReference of authorReferences) {
                     if (authorReference.type === ReferenceType.ARCHIVED_POST && authorReference.id === newEntryData.id) {
                         authorReference.url = newURL;
+                        authorReference.path = newPath;
                         updated = true;
                     }
                 }
@@ -1250,6 +1252,7 @@ export class GuildHolder {
                 for (const reference of definition.references) {
                     if (reference.type === ReferenceType.ARCHIVED_POST && reference.id === newEntryData.id) {
                         reference.url = newURL;
+                        reference.path = newPath;
                         updated = true;
                     }
                 }
@@ -1272,7 +1275,7 @@ export class GuildHolder {
         });
 
 
-        await this.repositoryManager.iterateAllEntries(async (entry) => {
+        await this.repositoryManager.iterateAllEntries(async (entry: ArchiveEntry) => {
             if (entry.getData().id === entryData.id) {
                 return;
             }
@@ -1386,7 +1389,7 @@ export class GuildHolder {
 
     public async rebuildDesignerRoles() {
         const allDesignerIdsToPosts = new Map<Snowflake, Snowflake[]>();
-        await this.getRepositoryManager().iterateAllEntries(async (entry) => {
+        await this.getRepositoryManager().iterateAllEntries(async (entry: ArchiveEntry) => {
             entry.getData().authors.filter(a => a.type === AuthorType.DiscordInGuild && !a.dontDisplay).forEach(author => {
                 if (author.id) {
                     if (!allDesignerIdsToPosts.has(author.id)) {

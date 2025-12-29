@@ -8,7 +8,7 @@ import { GuildHolder } from "../GuildHolder.js";
 import fs from "fs/promises";
 import { processImageForDiscord } from "../utils/AttachmentUtils.js";
 import { postToMarkdown } from "../utils/MarkdownUtils.js";
-import { ServerLinksMap, transformOutputWithReferences } from "../utils/ReferenceUtils.js";
+import { transformOutputWithReferencesForDiscord } from "../utils/ReferenceUtils.js";
 
 export class PostEmbed {
     private embed: EmbedBuilder;
@@ -160,10 +160,7 @@ export class PostEmbed {
     }
 
 
-    public static createInitialMessage(guildHolder: GuildHolder, entryData: ArchiveEntryData, entryPathPart: string): {
-        content: string,
-        serverLinks: ServerLinksMap
-    } {
+    public static createInitialMessage(guildHolder: GuildHolder, entryData: ArchiveEntryData, entryPathPart: string): string{
         let content = [];
 
         const authors = entryData.authors;
@@ -183,14 +180,14 @@ export class PostEmbed {
 
         const post = postToMarkdown(entryData.records, entryData.styles, guildHolder.getSchemaStyles());
      
-        const transformed = transformOutputWithReferences(post, entryData.references, true); 
-        content.push('\n' + transformed.result);
+        const transformed = transformOutputWithReferencesForDiscord(post, entryData.references); 
+        content.push('\n' + transformed);
 
         const authorsWithReasons = entryData.authors.filter(author => author.reason);
         if (authorsWithReasons.length > 0) {
             content.push(`\n## Acknowledgements`);
             authorsWithReasons.forEach(author => {
-                content.push(`\n- ${getAuthorsString([author])}: ${transformOutputWithReferences(author.reason || '', entryData.author_references, true, undefined, transformed.serverLinks).result}`);
+                content.push(`\n- ${getAuthorsString([author])}: ${transformOutputWithReferencesForDiscord(author.reason || '', entryData.author_references)}`);
             });
         }
 
@@ -217,10 +214,7 @@ export class PostEmbed {
         if (entryData.updatedAt !== entryData.archivedAt) {
             content.push(`\nLast updated on <t:${Math.floor(entryData.updatedAt / 1000)}:F>`);
         }
-        return {
-            content: content.join(''),
-            serverLinks: transformed.serverLinks
-        };
+        return content.join('');
     }
 
     public static async createImageFiles(entryData: ArchiveEntryData, archivePath: string, entryPathPart: string, isGalleryView: boolean): Promise<{ files: AttachmentBuilder[], paths: string[] }> {

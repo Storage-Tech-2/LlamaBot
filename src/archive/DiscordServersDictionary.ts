@@ -3,6 +3,9 @@ import fs from "fs/promises";
 import Path from "path";
 import { RepositoryManager } from "./RepositoryManager.js";
 import { ReferenceType } from "../utils/ReferenceUtils.js";
+import { ArchiveEntry } from "./ArchiveEntry.js";
+import { ArchiveEntryReference } from "./ArchiveChannel.js";
+import { ArchiveChannelReference } from "./RepositoryConfigs.js";
 
 export type DiscordServerEntry = {
     id: Snowflake,
@@ -90,7 +93,7 @@ export class DiscordServersDictionary {
         let numberOfArchiveUpdates = 0;
         let numberOfDictionaryUpdates = 0;
 
-        await this.repositoryManager.iterateAllEntries(async (entry, channelRef) => {
+        await this.repositoryManager.iterateAllEntries(async (entry: ArchiveEntry, _entryRef: ArchiveEntryReference, channelRef: ArchiveChannelReference) => {
             const data = entry.getData();
             let modified = false;
             for (const reference of data.references) {
