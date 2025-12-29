@@ -219,7 +219,7 @@ export async function handleYoutubeLink(attachment: Attachment) {
         attachment.youtube = {
             title: data.title || 'Unknown Title',
             author_name: data.author_name || 'Unknown Author',
-            author_url: data.author_url || '',
+            author_url: data.author_url || '#',
             thumbnail_url: data.thumbnail_url || '',
             thumbnail_width: data.thumbnail_width || 0,
             thumbnail_height: data.thumbnail_height || 0,
