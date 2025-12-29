@@ -182,11 +182,16 @@ export function tokensToNestedListRecursive(listToken: Token, name: string): Nes
         items: [] as NestedListItem[],
     };
 
-    for (const item of listToken.items) {
+    for (let i = 0; i < listToken.items.length; i++) {
+        const item = listToken.items[i];
         if (item.type === "list_item") {
             // If the item has a nested list, process it recursively
-            if (item.tokens && item.tokens.length > 0 && item.tokens[0].type === "list") {
-                const nestedList = tokensToNestedListRecursive(item.tokens[0], item.text.trim());
+            const listToken2 = i + 1 < listToken.items.length ? listToken.items[i + 1] : null;
+            
+
+            if (listToken2 && listToken2.type === "list") {
+                const nestedList = tokensToNestedListRecursive(listToken2, listToken.items[i].text.trim());
+                i++; // Skip the next token as it's already processed
                 object.items.push(nestedList);
             } else {
                 // Otherwise, just add the text as a string
@@ -353,7 +358,7 @@ export function markdownMatchSchema(markdown: string, schema: JSONSchema7, schem
 
 export function nestedListToMarkdown(nestedList: NestedListItem, indentLevel: number = 0): string {
     let markdown = "";
-    const indent = "    ".repeat(indentLevel);
+    const indent = "  ".repeat(indentLevel);
     if (nestedList.isOrdered) {
         nestedList.items.forEach((item, index) => {
             if (typeof item === "string") {
@@ -389,7 +394,7 @@ export function submissionRecordToMarkdown(value: SubmissionRecord, style?: Styl
                 if (typeof item === "string") {
                     return style?.isOrdered ? `${i + 1}. ${item}` : `- ${item}`;
                 } else if (typeof item === "object") {
-                    return style?.isOrdered ? `${i + 1}. ${item.title}\n${nestedListToMarkdown(item, 1)}` : `- ${item.title}\n${nestedListToMarkdown(item, 1)}`;
+                    return style?.isOrdered ? `${i + 1}. ${item.title}\n${nestedListToMarkdown(item, 2)}` : `- ${item.title}\n${nestedListToMarkdown(item, 1)}`;
                 }
                 return "";
             }).join("\n");
