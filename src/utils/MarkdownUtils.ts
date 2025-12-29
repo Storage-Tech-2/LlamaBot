@@ -363,7 +363,7 @@ export function nestedListToMarkdown(nestedList: NestedListItem, indentLevel: nu
             } else if (typeof item === "object") {
                 markdown.push(`${indent}${index + 1}. ${item.title}`);
                 if (item.items.length > 0) {
-                    markdown.push(nestedListToMarkdown(item, indentLevel + 1));
+                    markdown.push(nestedListToMarkdown(item, indentLevel + 2));
                 }
             }
         })
