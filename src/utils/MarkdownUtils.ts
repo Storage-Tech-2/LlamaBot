@@ -186,12 +186,9 @@ export function tokensToNestedListRecursive(listToken: Token, name: string): Nes
         const item = listToken.items[i];
         if (item.type === "list_item") {
             // If the item has a nested list, process it recursively
-            const listToken2 = i + 1 < listToken.items.length ? listToken.items[i + 1] : null;
-            
-
-            if (listToken2 && listToken2.type === "list") {
-                const nestedList = tokensToNestedListRecursive(listToken2, listToken.items[i].text.trim());
-                i++; // Skip the next token as it's already processed
+            const listToken2 = item.tokens.find((t: Token) => t.type === "list");
+            if (listToken2 && listToken2.type === "list" && item.tokens[0]?.type === "text") {
+                const nestedList = tokensToNestedListRecursive(listToken2, item.tokens[0]?.text.trim());
                 object.items.push(nestedList);
             } else {
                 // Otherwise, just add the text as a string
