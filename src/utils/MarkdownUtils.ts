@@ -292,10 +292,29 @@ export function markdownMatchSchema(markdown: string, schema: JSONSchema7, schem
             if (listTokens.length === 0) {
                 throw new Error(`Section "${propKey}" should contain a list, but found none.`);
             }
-            if (listTokens.length > 1) {
-                throw new Error(`Section "${propKey}" should contain only one list, but found multiple.`);
+
+            // check if there is paragraph
+            const paragraphTokens = section.tokens.filter((t) => t.type === "paragraph");
+            if (paragraphTokens.length > 0) {
+                throw new Error(`Section "${propKey}" should only contain a list, but found a paragraph.`);
             }
+
             const listToken = listTokens[0];
+            if (listToken.type !== "list") {
+                throw new Error(`Section "${propKey}" should be a list, but found ${listToken.type}.`);
+            }
+
+            if (listTokens.length > 1) {
+                // combine items
+                for (let i = 1; i < listTokens.length; i++) {
+                    const other = listTokens[i];
+                    if (other.type !== "list") {
+                        throw new Error(`Section "${propKey}" should be a list, but found ${other.type}.`);
+                    }
+                    listToken.items.push(...other.items);
+                }
+            }
+
             if (listToken.type !== "list") {
                 throw new Error(`Section "${propKey}" should be a list, but found ${listToken.type}.`);
             }
