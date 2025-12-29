@@ -316,50 +316,50 @@ export class GuildHolder {
             return;
         }
 
-        // Finally, check if llm is available;
-        const isAdmin = message.member?.permissions.has('Administrator') || false;
-        if (!this.bot.canConverse() || (!this.getConfigManager().getConfig(GuildConfigs.CONVERSATIONAL_LLM_ENABLED) && !isAdmin)) {
-            return;
-        }
+        // // Finally, check if llm is available;
+        // const isAdmin = message.member?.permissions.has('Administrator') || false;
+        // if (!this.bot.canConverse() || (!this.getConfigManager().getConfig(GuildConfigs.CONVERSATIONAL_LLM_ENABLED) && !isAdmin)) {
+        //     return;
+        // }
 
-        let shouldReply = false;
-        // check if message is a reply to the bot
-        if (message.reference && message.reference.messageId) {
-            const referencedMessage = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
-            if (referencedMessage && referencedMessage.author.id === this.getBot().client.user?.id) {
-                shouldReply = true;
-            }
-        }
+        // let shouldReply = false;
+        // // check if message is a reply to the bot
+        // if (message.reference && message.reference.messageId) {
+        //     const referencedMessage = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
+        //     if (referencedMessage && referencedMessage.author.id === this.getBot().client.user?.id) {
+        //         shouldReply = true;
+        //     }
+        // }
 
-        // check if message mentions the bot
-        if (message.mentions.has(this.getBot().client.user?.id || '')) {
-            shouldReply = true;
-        }
+        // // check if message mentions the bot
+        // if (message.mentions.has(this.getBot().client.user?.id || '')) {
+        //     shouldReply = true;
+        // }
 
-        if (shouldReply && (message.channel.type === ChannelType.GuildText || message.channel.type === ChannelType.PublicThread)) {
-            const channel = message.channel;
-            // send typing
-            await channel.sendTyping().catch(() => null);
-            // typing interval
-            const typingInterval = setInterval(() => {
-                channel.sendTyping().catch(() => null);
-            }, 9000);
-            const reply = await this.bot.respondToConversation(channel, message).catch(e => {
-                console.error('Error responding to conversation:', e);
-                return 'Sorry, I had an error trying to respond to that message.';
-            });
-            clearInterval(typingInterval);
-            if (reply) {
-                const split = splitIntoChunks(reply, 2000);
-                for (let i = 0; i < split.length; i++) {
-                    if (i === 0) {
-                        await message.reply({ content: split[i], flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
-                    } else {
-                        await channel.send({ content: reply, flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
-                    }
-                }
-            }
-        }
+        // if (shouldReply && (message.channel.type === ChannelType.GuildText || message.channel.type === ChannelType.PublicThread)) {
+        //     const channel = message.channel;
+        //     // send typing
+        //     await channel.sendTyping().catch(() => null);
+        //     // typing interval
+        //     const typingInterval = setInterval(() => {
+        //         channel.sendTyping().catch(() => null);
+        //     }, 9000);
+        //     const reply = await this.bot.respondToConversation(channel, message).catch(e => {
+        //         console.error('Error responding to conversation:', e);
+        //         return 'Sorry, I had an error trying to respond to that message.';
+        //     });
+        //     clearInterval(typingInterval);
+        //     if (reply) {
+        //         const split = splitIntoChunks(reply, 2000);
+        //         for (let i = 0; i < split.length; i++) {
+        //             if (i === 0) {
+        //                 await message.reply({ content: split[i], flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
+        //             } else {
+        //                 await channel.send({ content: reply, flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
+        //             }
+        //         }
+        //     }
+        // }
     }
 
     public async handleThanks(message: Message) {
