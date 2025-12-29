@@ -649,7 +649,7 @@ export class GuildHolder {
         }
 
         const dictionaryChannelId = this.getConfigManager().getConfig(GuildConfigs.DICTIONARY_CHANNEL_ID);
-        if (dictionaryChannelId) {
+        if (dictionaryChannelId && thread.parentId === dictionaryChannelId) {
             const entry = await this.dictionaryManager.getEntry(thread.id);
             if (entry) {
                 await this.dictionaryManager.deleteEntry(entry).catch(e => {

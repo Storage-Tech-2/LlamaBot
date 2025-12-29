@@ -19,4 +19,9 @@ export interface Command {
      * Executes the command action.
      */
     execute(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction): Promise<void>;
+
+    /**
+     * Autocomplete handler for the command.
+     */
+    autocomplete?(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction): Promise<void>;
 }
