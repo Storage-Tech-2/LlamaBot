@@ -354,32 +354,32 @@ export function markdownMatchSchema(markdown: string, schema: JSONSchema7, schem
 }
 
 export function nestedListToMarkdown(nestedList: NestedListItem, indentLevel: number = 0): string {
-    let markdown = "";
+    let markdown: string[] = [];
     const indent = "  ".repeat(indentLevel);
     if (nestedList.isOrdered) {
         nestedList.items.forEach((item, index) => {
             if (typeof item === "string") {
-                markdown += `${indent}${index + 1}. ${item}\n`;
+                markdown.push(`${indent}${index + 1}. ${item}`);
             } else if (typeof item === "object") {
-                markdown += `${indent}${index + 1}. ${item.title}\n`;
+                markdown.push(`${indent}${index + 1}. ${item.title}`);
                 if (item.items.length > 0) {
-                    markdown += nestedListToMarkdown(item, indentLevel + 1);
+                    markdown.push(nestedListToMarkdown(item, indentLevel + 1));
                 }
             }
         })
     } else {
         nestedList.items.forEach((item) => {
             if (typeof item === "string") {
-                markdown += `${indent}- ${item}\n`;
+                markdown.push(`${indent}- ${item}`);
             } else if (typeof item === "object") {
-                markdown += `${indent}- ${item.title}\n`;
+                markdown.push(`${indent}- ${item.title}`);
                 if (item.items.length > 0) {
-                    markdown += nestedListToMarkdown(item, indentLevel + 1);
+                    markdown.push(nestedListToMarkdown(item, indentLevel + 1));
                 }
             }
         });
     }
-    return markdown;
+    return markdown.join("\n");
 }
 
 
