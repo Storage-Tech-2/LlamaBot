@@ -609,7 +609,7 @@ export async function importACAChannelTask(
 
 export async function deleteACAImportThreadsTask(
     guildHolder: GuildHolder,
-    interaction: ChatInputCommandInteraction
+    _interaction: ChatInputCommandInteraction
 ): Promise<number> {
     const submissionsChannelId = guildHolder.getSubmissionsChannelId();
     if (!submissionsChannelId) {

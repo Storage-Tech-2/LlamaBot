@@ -6,7 +6,7 @@ import { GuildConfigs } from "./config/GuildConfigs.js";
 import { SubmissionsManager } from "./submissions/SubmissionsManager.js";
 import { RepositoryManager } from "./archive/RepositoryManager.js";
 import { ArchiveEntryData } from "./archive/ArchiveEntry.js";
-import { escapeDiscordString, getAuthorsString, getChanges, splitIntoChunks } from "./utils/Util.js";
+import { escapeDiscordString, getAuthorsString, getChanges, truncateStringWithEllipsis } from "./utils/Util.js";
 import { UserManager } from "./support/UserManager.js";
 import { AttachmentsState, UserData } from "./support/UserData.js";
 import { SubmissionConfigs } from "./submissions/SubmissionConfigs.js";
@@ -446,7 +446,7 @@ export class GuildHolder {
                 newText.push(`**${match.name}**: ${match.joinURL}`);
             }
 
-            const embed = new EmbedBuilder().setTitle('Server Invite Links').setDescription(newText.join('\n')).setColor(0x00AE86)
+            const embed = new EmbedBuilder().setTitle('Server Invite Links').setDescription(truncateStringWithEllipsis(newText.join('\n'), 1000)).setColor(0x00AE86)
             embeds.push(embed);
         }
 
