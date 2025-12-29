@@ -353,7 +353,7 @@ export function markdownMatchSchema(markdown: string, schema: JSONSchema7, schem
 
 export function nestedListToMarkdown(nestedList: NestedListItem, indentLevel: number = 0): string {
     let markdown = "";
-    const indent = "  ".repeat(indentLevel);
+    const indent = "    ".repeat(indentLevel);
     if (nestedList.isOrdered) {
         nestedList.items.forEach((item, index) => {
             if (typeof item === "string") {
@@ -389,7 +389,7 @@ export function submissionRecordToMarkdown(value: SubmissionRecord, style?: Styl
                 if (typeof item === "string") {
                     return style?.isOrdered ? `${i + 1}. ${item}` : `- ${item}`;
                 } else if (typeof item === "object") {
-                    return style?.isOrdered ? `${i + 1}. ${item.title}\n${nestedListToMarkdown(item, 2)}` : `- ${item.title}\n${nestedListToMarkdown(item, 2)}`;
+                    return style?.isOrdered ? `${i + 1}. ${item.title}\n${nestedListToMarkdown(item, 1)}` : `- ${item.title}\n${nestedListToMarkdown(item, 1)}`;
                 }
                 return "";
             }).join("\n");
