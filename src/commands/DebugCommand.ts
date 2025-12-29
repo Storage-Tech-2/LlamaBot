@@ -4,6 +4,7 @@ import { Command } from "../interface/Command.js";
 import { SysAdmin } from "../Bot.js";
 import { replyEphemeral } from "../utils/Util.js";
 import { deleteACAImportThreadsTask, importACAChannelTask } from "../archive/Tasks.js";
+import { SetTemplateModal } from "../components/modals/SetTemplateModal.js";
 
 export class DebugCommand implements Command {
     getID(): string {
@@ -32,6 +33,11 @@ export class DebugCommand implements Command {
                 sub
                     .setName('deleteaca')
                     .setDescription('Delete all ACA import threads from the submissions forum')
+            )
+            .addSubcommand(sub =>
+                sub
+                    .setName('settemplate')
+                    .setDescription('Open the post template modal')
             );
 
         return data;
@@ -55,6 +61,9 @@ export class DebugCommand implements Command {
                 break;
             case 'deleteaca':
                 await this.handleDeleteACA(guildHolder, interaction);
+                break;
+            case 'settemplate':
+                await this.handleSetTemplate(guildHolder, interaction);
                 break;
             default:
                 await replyEphemeral(interaction, 'Unknown subcommand.');
@@ -99,5 +108,10 @@ export class DebugCommand implements Command {
         } catch (error: any) {
             await interaction.editReply({ content: `Delete failed: ${error?.message || 'Unknown error'}` });
         }
+    }
+
+    private async handleSetTemplate(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const modal = new SetTemplateModal().getBuilder(guildHolder);
+        await interaction.showModal(modal);
     }
 }
