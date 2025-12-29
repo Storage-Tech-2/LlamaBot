@@ -21,7 +21,7 @@ import { ChannelSubscriptionManager } from "./config/ChannelSubscriptionManager.
 import { AntiNukeManager } from "./support/AntiNukeManager.js";
 import { DictionaryManager } from "./archive/DictionaryManager.js";
 import { DiscordServersDictionary } from "./archive/DiscordServersDictionary.js";
-import { ReferenceType, transformOutputWithReferences } from "./utils/ReferenceUtils.js";
+import { getDiscordLinksInText, getDiscordServersFromReferences, getPostCodesInText, ReferenceType, transformOutputWithReferences } from "./utils/ReferenceUtils.js";
 import { retagEverythingTask, updateAuthorAndChannelTagsTask, updateEntryAuthorsTask } from "./archive/Tasks.js";
 import { RepositoryConfigs } from "./archive/RepositoryConfigs.js";
 /**
@@ -207,7 +207,7 @@ export class GuildHolder {
                 return true;
             })) {
 
-                await this.handlePostReferences(message).catch(e => {
+                await this.handleMessageReferences(message).catch(e => {
                     console.error('Error handling post references:', e);
                 });
 
@@ -231,7 +231,7 @@ export class GuildHolder {
             return;
         }
 
-        await this.handlePostReferences(message).catch(e => {
+        await this.handleMessageReferences(message).catch(e => {
             console.error('Error handling post references:', e);
         });
 
@@ -390,17 +390,11 @@ export class GuildHolder {
         }
     }
 
-    public async handlePostReferences(message: Message) {
-        // match pattern
-        const postReferenceRegex = /\b([A-Za-z]+[0-9]{3})\b/g;
-        const matches = Array.from(message.content.matchAll(postReferenceRegex)).map(match => match[1]);
-        if (matches.length === 0) {
-            return;
-        }
-
-        // limit to 5 matches per message
-        if (matches.length > 5) {
-            matches.splice(5);
+    public async handleMessageReferences(message: Message) {
+        const matches = getPostCodesInText(message.content);
+        // limit to 3 matches per message
+        if (matches.length > 3) {
+            matches.splice(3);
         }
 
         const repositoryManager = this.getRepositoryManager();
@@ -441,6 +435,21 @@ export class GuildHolder {
 
             embeds.push(embed);
         }
+
+        // check for discord server references
+        const discordServerMatches = getDiscordLinksInText(message.content, this.guild.id);
+        if (discordServerMatches.length > 0) {
+            const matches = await getDiscordServersFromReferences(discordServerMatches, this);
+            
+            const newText = [];
+            for (const match of matches) {
+                newText.push(`**${match.name}**: ${match.joinURL}`);
+            }
+
+            const embed = new EmbedBuilder().setTitle('Server Invite Links').setDescription(newText.join('\n')).setColor(0x00AE86)
+            embeds.push(embed);
+        }
+
 
         if (embeds.length > 0) {
             await message.reply({

@@ -945,8 +945,10 @@ export class RepositoryManager {
 
         const serverLinks = message.serverLinks;
         if (serverLinks.size > 0) {
+            const linksSorted = Array.from(serverLinks.values());
+            linksSorted.sort((a, b) => a.name.localeCompare(b.name));
             const serverLinkMessage: string[] = [];
-            serverLinks.forEach((link) => {
+            linksSorted.forEach((link) => {
                 serverLinkMessage.push(`**${link.name}**: ${link.joinURL}`);
             });
             const serverLinkMsg = truncateStringWithEllipsis(serverLinkMessage.join('\n'), 4000);

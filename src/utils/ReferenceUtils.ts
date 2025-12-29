@@ -12,7 +12,7 @@ import { getAuthorsString, reclassifyAuthors } from "./Util.js";
 
 // Convenience patterns for dynamic reference extraction
 export const PostCodePattern = /\b([A-Za-z]+[0-9]{3})\b/g;
-export const DiscordForumLinkPattern = /https?:\/\/(?:canary\.|ptb\.)?discord(?:app)?\.com\/channels\/(\d+)\/(\d+)(?:\/(\d+))?/g
+export const DiscordLinkPattern = /https?:\/\/(?:canary\.|ptb\.)?discord(?:app)?\.com\/channels\/(\d+)\/(\d+)(?:\/(\d+))?/g
 export const UserMentionPattern = /<@!?(\d+)>/g;
 export const ChannelMentionPattern = /<#(\d+)>/g;
 
@@ -320,7 +320,7 @@ export function findRegexMatches(text: string, patterns: RegExp[]): RegexMatch[]
 export function tagReferencesInText(text: string, dictionaryIndex?: DictionaryTermIndex, archiveIndex?: ArchiveIndex): Reference[] {
     const references: ReferenceWithIndex[] = [];
 
-    const discordMatches = findRegexMatches(text, [DiscordForumLinkPattern]);
+    const discordMatches = findRegexMatches(text, [DiscordLinkPattern]);
     for (const match of discordMatches) {
         const [server, channel, message] = match.groups;
         if (!server || !channel) {
@@ -742,7 +742,7 @@ export function transformOutputWithReferences(
                 currentIndex = hyperlink.end;
             } else {
                 // check if match is discord url
-                const isDiscordLink = DiscordForumLinkPattern.test(text.slice(match.start, match.end));
+                const isDiscordLink = DiscordLinkPattern.test(text.slice(match.start, match.end));
                 if (isDiscordLink && isDiscord) {
                     // keep as is, just replace URL
                     resultParts.push(ref.url);
@@ -915,4 +915,58 @@ export function hasReferencesChanged(oldRefs: Reference[], newRefs: Reference[])
         result,
         changed: added.size > 0 || removed.size > 0 || updated.length > 0
     };
+}
+
+export function getPostCodesInText(text: string): string[] {
+    const matches = findRegexMatches(text, [PostCodePattern]);
+    const codes: Set<string> = new Set();
+    for (const match of matches) {
+        codes.add(match.match.toUpperCase());
+    }
+    return Array.from(codes);
+}
+
+export function getDiscordLinksInText(text: string, currentServerID: Snowflake): DiscordLinkReference[] {
+    const matches = findRegexMatches(text, [DiscordLinkPattern]);
+    const links: DiscordLinkReference[] = [];
+    for (const match of matches) {
+        const [server, channel, message] = match.groups;
+        if (!server || !channel || server === currentServerID) {
+            continue;
+        }
+
+        links.push({
+            type: ReferenceType.DISCORD_LINK,
+            url: match.match,
+            server: server as Snowflake,
+            channel: channel as Snowflake,
+            message: message as Snowflake | undefined,
+            matches: [match.match],
+        });
+    }
+    return links;
+}
+
+export async function getDiscordServersFromReferences(references: Reference[], guildHolder: GuildHolder): Promise<{ id: Snowflake, name: string, joinURL: string }[]> {
+    const serverLinks: ServerLinksMap = new Map();
+    const discords = await guildHolder.getDiscordServersDictionary().getCachedServers();
+
+    for (const ref of references) {
+        if (ref.type === ReferenceType.DISCORD_LINK) {
+            if (!serverLinks.has(ref.server)) {
+                const discordInfo = discords.find(d => d.id === ref.server);
+                if (discordInfo) {
+                    serverLinks.set(ref.server, {
+                        id: discordInfo.id,
+                        name: discordInfo.name,
+                        joinURL: discordInfo.joinURL
+                    });
+                }
+            }
+        }
+    }
+
+    const arr = Array.from(serverLinks.values());
+    arr.sort((a, b) => a.name.localeCompare(b.name));
+    return arr;
 }
