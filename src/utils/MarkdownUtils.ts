@@ -370,7 +370,7 @@ export function submissionRecordToMarkdown(value: SubmissionRecord, style?: Styl
                 if (typeof item === "string") {
                     return style?.isOrdered ? `${i + 1}. ${item}` : `- ${item}`;
                 } else if (typeof item === "object") {
-                    return style?.isOrdered ? `${i + 1}. ${item.title}\n${nestedListToMarkdown(item, 1)}` : `- ${item.title}\n${nestedListToMarkdown(item, 1)}`;
+                    return style?.isOrdered ? `${i + 1}. ${item.title}\n${nestedListToMarkdown(item, 2)}` : `- ${item.title}\n${nestedListToMarkdown(item, 2)}`;
                 }
                 return "";
             }).join("\n");
