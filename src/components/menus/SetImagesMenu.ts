@@ -186,7 +186,7 @@ export class SetImagesMenu implements Menu {
         const menu = await new SetImagesMenu().getBuilderOrNull(submission);
         if (menu) {
             const rows = [new ActionRowBuilder().addComponents(menu)];
-            const secondRow = new ActionRowBuilder().addComponents(new AddImageButton().getBuilder());
+            const secondRow = new ActionRowBuilder().addComponents(new RefreshListButton().getBuilder(true),new AddImageButton().getBuilder());
             if (submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null) {
                 secondRow.addComponents(new SkipImagesButton().getBuilder());
             }

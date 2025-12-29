@@ -187,7 +187,7 @@ export class SetAttachmentsMenu implements Menu {
         const menu = await new SetAttachmentsMenu().getBuilderOrNull(submission);
         if (menu) {
             const rows = [new ActionRowBuilder().addComponents(menu)];
-            const secondRow = new ActionRowBuilder().addComponents(new AddAttachmentButton().getBuilder());
+            const secondRow = new ActionRowBuilder().addComponents(new RefreshListButton().getBuilder(false), new AddAttachmentButton().getBuilder());
             if (submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) === null) {
                 secondRow.addComponents(new SkipAttachmentsButton().getBuilder())
             }
