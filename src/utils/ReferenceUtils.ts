@@ -949,7 +949,7 @@ export function getDiscordLinksInText(text: string, currentServerID: Snowflake):
 
 export async function getDiscordServersFromReferences(references: Reference[], guildHolder: GuildHolder): Promise<{ id: Snowflake, name: string, joinURL: string }[]> {
     const serverLinks: ServerLinksMap = new Map();
-    const discords = await guildHolder.getDiscordServersDictionary().getCachedServers();
+    const discords = await guildHolder.getDiscordServersDictionary().getCachedServersWithFallback();
 
     for (const ref of references) {
         if (ref.type === ReferenceType.DISCORD_LINK) {

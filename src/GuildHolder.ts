@@ -440,14 +440,16 @@ export class GuildHolder {
         const discordServerMatches = getDiscordLinksInText(message.content, this.guild.id);
         if (discordServerMatches.length > 0) {
             const matches = await getDiscordServersFromReferences(discordServerMatches, this);
-            
-            const newText = [];
-            for (const match of matches) {
-                newText.push(`**${match.name}**: ${match.joinURL}`);
-            }
+            if (matches.length > 0) {
 
-            const embed = new EmbedBuilder().setTitle('Server Invite Links').setDescription(truncateStringWithEllipsis(newText.join('\n'), 1000)).setColor(0x00AE86)
-            embeds.push(embed);
+                const newText = [];
+                for (const match of matches) {
+                    newText.push(`**${match.name}**: ${match.joinURL}`);
+                }
+
+                const embed = new EmbedBuilder().setTitle('Server Invite Links').setDescription(truncateStringWithEllipsis(newText.join('\n'), 1000)).setColor(0x00AE86)
+                embeds.push(embed);
+            }
         }
 
 
