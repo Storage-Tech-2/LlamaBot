@@ -365,7 +365,9 @@ export class Submission {
                 type: RevisionType.Initial,
                 parentRevision: null,
                 timestamp: Date.now(),
-                records: {},
+                records: {
+                    error: 'LLM extraction failed! Please revise the submission manually.\n\n' + message.content
+                },
                 styles: {},
                 references: []
             }

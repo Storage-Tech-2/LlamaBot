@@ -11,17 +11,21 @@ export class SetAuthorsButton implements Button {
 
     getBuilder(isSet: boolean): ButtonBuilder {
         return new ButtonBuilder()
-            .setCustomId(this.getID())
+            .setCustomId(this.getID() + "|" + (isSet ? "set" : "unset"))
             .setLabel(isSet ? 'Change Authors' : 'Let\'s Start!')
             .setStyle(isSet ? ButtonStyle.Secondary : ButtonStyle.Primary)
     }
 
 
-    async execute(guildHolder: GuildHolder, interaction: ButtonInteraction): Promise<void> {
+    async execute(guildHolder: GuildHolder, interaction: ButtonInteraction, isSet: string): Promise<void> {
         const submission = await guildHolder.getSubmissionsManager().getSubmission(interaction.channelId);
         if (!submission) {
             replyEphemeral(interaction, 'Submission not found');
             return;
+        }
+
+        if (isSet !== 'set') {
+            submission.checkLLMExtraction();
         }
 
         if (
