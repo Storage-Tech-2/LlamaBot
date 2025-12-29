@@ -38,6 +38,11 @@ export class DebugCommand implements Command {
                 sub
                     .setName('settemplate')
                     .setDescription('Open the post template modal')
+            )
+            .addSubcommand(sub =>
+                sub
+                    .setName('reextract')
+                    .setDescription('Force re-run LLM extraction for this submission thread')
             );
 
         return data;
@@ -64,6 +69,9 @@ export class DebugCommand implements Command {
                 break;
             case 'settemplate':
                 await this.handleSetTemplate(guildHolder, interaction);
+                break;
+            case 'reextract':
+                await this.handleReextract(guildHolder, interaction);
                 break;
             default:
                 await replyEphemeral(interaction, 'Unknown subcommand.');
@@ -113,5 +121,29 @@ export class DebugCommand implements Command {
     private async handleSetTemplate(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         const modal = new SetTemplateModal().getBuilder(guildHolder);
         await interaction.showModal(modal);
+    }
+
+    private async handleReextract(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const channel = interaction.channel;
+        if (!channel || !channel.isThread()) {
+            await replyEphemeral(interaction, 'Run this inside a submission thread.');
+            return;
+        }
+
+        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
+        const submission = await guildHolder.getSubmissionsManager().getSubmission(channel.id);
+        if (!submission) {
+            await interaction.editReply({ content: 'Submission not found for that thread.' });
+            return;
+        }
+
+        try {
+            const response = await submission.forceLLMExtraction();
+            await submission.createRevisionFromExtraction(response, true);
+          await interaction.editReply({ content: `Re-extraction complete. New revision created.` });
+        } catch (error: any) {
+            await interaction.editReply({ content: `Re-extraction failed: ${error?.message || 'Unknown error'}` });
+        }
     }
 }

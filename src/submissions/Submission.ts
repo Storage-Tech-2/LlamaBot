@@ -8,6 +8,7 @@ import { LLMResponseFuture } from "../llm/LLMResponseFuture.js";
 import { LLMResponseStatus } from "../llm/LLMResponseStatus.js";
 import { LLMRequest } from "../llm/LLMRequest.js";
 import { ExtractionPrompt } from "../llm/prompts/ExtractionPrompt.js";
+import { LLMResponse } from "../llm/LLMResponse.js";
 import { extractUserIdsFromText, getAuthorsString, reclassifyAuthors, splitIntoChunks } from "../utils/Util.js";
 import { Attachment } from "./Attachment.js";
 import { RevisionManager } from "./RevisionManager.js";
@@ -154,6 +155,80 @@ export class Submission {
         }
 
         this.checkReview();
+    }
+
+    /**
+     * Forces a fresh LLM extraction of the starter message, regardless of existing results or revisions.
+     */
+    public async forceLLMExtraction(): Promise<LLMResponse> {
+        if (this.extractionResults && this.extractionResults.getStatus() === LLMResponseStatus.InProgress) {
+            throw new Error('An extraction is already in progress.');
+        }
+
+        const channel = await this.getSubmissionChannel();
+        if (!channel) {
+            throw new Error('Submission channel not found');
+        }
+
+        const message = await channel.fetchStarterMessage().catch(() => null);
+        if (!message) {
+            throw new Error('Starter message not found');
+        }
+
+        const prompt = new ExtractionPrompt(message.content);
+        const request = new LLMRequest(1, prompt, this.guildHolder.getSchema());
+        this.extractionResults = this.guildHolder.getBot().llmQueue.addRequest(request);
+        return this.extractionResults.getResponse();
+    }
+
+    /**
+     * Creates a new revision from a provided LLM extraction response.
+     * @param response LLM extraction response to use as the revision content.
+     * @param setCurrent Whether to mark the new revision as current.
+     */
+    public async createRevisionFromExtraction(response: LLMResponse, setCurrent: boolean = true): Promise<Revision> {
+        const channel = await this.getSubmissionChannel();
+        if (!channel || !channel.isSendable()) {
+            throw new Error('Cannot send messages in this submission channel.');
+        }
+
+        const currentRevisionRef = this.getRevisionsManager().getCurrentRevision();
+        const parentRevision = currentRevisionRef
+            ? await this.getRevisionsManager().getRevisionById(currentRevisionRef.id)
+            : null;
+
+        const revision: Revision = {
+            id: '',
+            messageIds: [],
+            type: RevisionType.LLM,
+            parentRevision: parentRevision?.id || null,
+            timestamp: Date.now(),
+            records: response.result,
+            styles: {},
+            references: []
+        };
+
+        revision.references = await tagReferencesInSubmissionRecords(
+            revision.records,
+            parentRevision?.references || [],
+            this.guildHolder,
+            this.getId()
+        ).catch(e => {
+            console.error("Failed to tag references:", e);
+            return [];
+        });
+
+        const messages = await RevisionEmbed.sendRevisionMessages(channel, this, revision, setCurrent);
+        revision.id = messages[messages.length - 1].id;
+        revision.messageIds = messages.map(m => m.id);
+
+        await this.getRevisionsManager().createRevision(revision);
+        if (setCurrent) {
+            await this.getRevisionsManager().setCurrentRevision(revision.id, false);
+        }
+
+        await this.statusUpdated();
+        return revision;
     }
 
     public isPublishable(withoutEndorsers: boolean = false): boolean {
