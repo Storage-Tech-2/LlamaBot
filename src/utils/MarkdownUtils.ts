@@ -379,7 +379,7 @@ export function nestedListToMarkdown(nestedList: NestedListItem, indentLevel: nu
             }
         });
     }
-    return markdown.trim();
+    return markdown;
 }
 
 
