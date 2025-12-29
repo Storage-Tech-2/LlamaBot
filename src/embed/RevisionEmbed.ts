@@ -88,7 +88,7 @@ export class RevisionEmbed {
         const authorsRefs = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS_REFERENCES);
         const post = postToMarkdown(revision.records, revision.styles, submission.getGuildHolder().getSchemaStyles());
         const transformed = transformOutputWithReferences(post, revision.references, true);
-        description += `\n${transformed.result}\n`;
+        description += `\n${transformed.result}`;
 
         const authorsWithReasons = authors.filter(author => author.reason);
         if (authorsWithReasons.length > 0) {
