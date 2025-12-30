@@ -973,6 +973,10 @@ export class Submission {
         }
         const revisions = this.getRevisionsManager().getRevisionsList();
         for (const revisionRef of revisions) {
+            if (!revisionRef.isCurrent) {
+                continue; // Only update current revision
+            }
+            
             const revision = await this.getRevisionsManager().getRevisionById(revisionRef.id);
             if (!revision) {
                 continue; // Skip if revision not found

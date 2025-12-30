@@ -133,8 +133,7 @@ export class EditRevisionModal implements Modal {
             return;
         }
 
-        const id = submission.getConfigManager().getConfig(SubmissionConfigs.SUBMISSION_THREAD_ID);
-        newRevisionData.references = await tagReferencesInSubmissionRecords(newRevisionData.records, revision.references, guildHolder, id).catch(e =>{
+        newRevisionData.references = await tagReferencesInSubmissionRecords(newRevisionData.records, revision.references, guildHolder, submission.getId()).catch(e =>{
             console.error("Failed to tag references:", e)
             return [];
         })

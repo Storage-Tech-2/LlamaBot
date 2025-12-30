@@ -2,6 +2,7 @@ import { ButtonBuilder, ButtonInteraction, ButtonStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Button } from "../../interface/Button.js";
 import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
+import { tagReferencesInSubmissionRecords } from "../../utils/ReferenceUtils.js";
 
 
 export class MakeRevisionCurrentButton implements Button {
@@ -35,6 +36,12 @@ export class MakeRevisionCurrentButton implements Button {
             interaction.editReply('Revision not found')
             return
         }
+
+        revision.references = await tagReferencesInSubmissionRecords(revision.records, revision.references, guildHolder, submission.getId()).catch(e => {
+            console.error("Failed to tag references:", e)
+            return [];
+        })
+
         await submission.getRevisionsManager().setCurrentRevision(revision.id);
         const channel = await submission.getSubmissionChannel();
         if (!channel) {
