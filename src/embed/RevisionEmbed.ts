@@ -56,9 +56,6 @@ export class RevisionEmbed {
                     .setColor(isCurrent ? '#0099ff' : '#ff9900')
                     .setTitle(`Submission Draft (Part ${i + 1})${isCurrent ? ' (Current)' : ''}`)
                     .setDescription('No continuation')
-                    .setFooter({
-                        text: 'This is a draft submission. Reply to this message with instructions to update it.'
-                    });
             }
             await existingMessages[i].edit({
                 embeds: [embed],
@@ -108,11 +105,6 @@ export class RevisionEmbed {
                     embed.setTitle(`Submission Draft (Part ${index + 1})${isCurrent ? ' (Current)' : ''}`)
                 }
                 embed.setDescription(chunk)
-                if (index === chunks.length - 1) {
-                    embed.setFooter({
-                        text: 'This is a draft submission. Reply to this message with instructions to update it.'
-                    })
-                }
                 return embed;
             });
     } else {

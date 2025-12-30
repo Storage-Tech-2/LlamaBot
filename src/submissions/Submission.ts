@@ -642,10 +642,10 @@ export class Submission {
 
     public async handleMessage(message: Message): Promise<boolean> {
         this.checkLLMExtraction();
-        if (message.reference && message.reference.type === MessageReferenceType.Default) {
-            // its a reply
-            return await this.handleReplies(message);
-        }
+        // if (message.reference && message.reference.type === MessageReferenceType.Default) {
+        //     // its a reply
+        //     return await this.handleReplies(message);
+        // }
         return false;
     }
 
@@ -976,7 +976,7 @@ export class Submission {
             if (!revisionRef.isCurrent) {
                 continue; // Only update current revision
             }
-            
+
             const revision = await this.getRevisionsManager().getRevisionById(revisionRef.id);
             if (!revision) {
                 continue; // Skip if revision not found
