@@ -75,7 +75,7 @@ export async function updateEntryAuthorsTask(guildHolder: GuildHolder): Promise<
 export async function republishAllEntries(
     guildHolder: GuildHolder,
     doChannel: ForumChannel | null,
-    replace: boolean, silent: boolean,
+    replace: boolean, silent: boolean, references: boolean,
     interaction: ChatInputCommandInteraction
 ): Promise<void> {
     const repositoryManager = guildHolder.getRepositoryManager();
@@ -107,6 +107,15 @@ export async function republishAllEntries(
                     continue; // Skip if entry cannot be loaded
                 }
                 const entryData = entry.getData();
+
+                if (references) {
+                    if (
+                        !entryData.references.some(ref => ref.type === ReferenceType.DISCORD_LINK)
+                        && !entryData.author_references.some(ref => ref.type === ReferenceType.DISCORD_LINK)
+                    ) {
+                        continue;   
+                    }
+                }
 
                 const submission = await guildHolder.getSubmissionsManager().getSubmission(entryData.id);
                 // Get channel
