@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, ChannelType, ForumChannel, InteractionContextType, MessageFlags, SlashCommandBuilder } from "discord.js";
+import { ChatInputCommandInteraction, ChannelType, ForumChannel, InteractionContextType, MessageFlags, SlashCommandBuilder, Snowflake } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { SysAdmin } from "../Bot.js";
@@ -50,6 +50,50 @@ export class DebugCommand implements Command {
                 sub
                     .setName('updaterevisions')
                     .setDescription('Retag references and refresh revision embeds for all submissions')
+            )
+            .addSubcommand(sub =>
+                sub
+                    .setName('addthanks')
+                    .setDescription('Add thank-you points to a user')
+                    .addUserOption(opt =>
+                        opt
+                            .setName('user')
+                            .setDescription('User to receive the points')
+                            .setRequired(true)
+                    )
+                    .addIntegerOption(opt =>
+                        opt
+                            .setName('amount')
+                            .setDescription('Number of points to add')
+                            .setMinValue(1)
+                    )
+                    .addBooleanOption(opt =>
+                        opt
+                            .setName('add_to_buffer')
+                            .setDescription('Also add entries to the 30-day buffer (default: yes)')
+                    )
+            )
+            .addSubcommand(sub =>
+                sub
+                    .setName('removethanks')
+                    .setDescription('Remove thank-you points from a user')
+                    .addUserOption(opt =>
+                        opt
+                            .setName('user')
+                            .setDescription('User to remove points from')
+                            .setRequired(true)
+                    )
+                    .addIntegerOption(opt =>
+                        opt
+                            .setName('amount')
+                            .setDescription('Number of points to remove')
+                            .setMinValue(1)
+                    )
+                    .addBooleanOption(opt =>
+                        opt
+                            .setName('trim_buffer')
+                            .setDescription('Also remove entries from the 30-day buffer (default: yes)')
+                    )
             );
 
         return data;
@@ -82,6 +126,12 @@ export class DebugCommand implements Command {
                 break;
             case 'updaterevisions':
                 await this.handleUpdateRevisions(guildHolder, interaction);
+                break;
+            case 'addthanks':
+                await this.handleAddThanks(guildHolder, interaction);
+                break;
+            case 'removethanks':
+                await this.handleRemoveThanks(guildHolder, interaction);
                 break;
             default:
                 await replyEphemeral(interaction, 'Unknown subcommand.');
@@ -254,5 +304,65 @@ export class DebugCommand implements Command {
 
         const errorText = errors > 0 ? ` with ${errors} error${errors === 1 ? '' : 's'} (see logs)` : '';
         await interaction.editReply({ content: `Updated ${revisionsUpdated} revision${revisionsUpdated === 1 ? '' : 's'} across ${submissionsTouched} submission${submissionsTouched === 1 ? '' : 's'}${errorText}.` });
+    }
+
+    private async handleAddThanks(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const targetUser = interaction.options.getUser('user', true);
+        const amount = interaction.options.getInteger('amount') ?? 1;
+        const addToBuffer = interaction.options.getBoolean('add_to_buffer') ?? true;
+
+        const userData = await guildHolder.getUserManager().getOrCreateUserData(targetUser.id, targetUser.username);
+        userData.username = targetUser.username;
+
+        const timestamp = Date.now();
+        const channelId = interaction.channel?.id as Snowflake | undefined;
+        const messageId = interaction.id as Snowflake;
+
+        userData.thankedCountTotal += amount;
+
+        if (addToBuffer) {
+            for (let i = 0; i < amount; i++) {
+                userData.thankedBuffer.push({
+                    thankedBy: interaction.user.id as Snowflake,
+                    timestamp,
+                    channelId: channelId ?? guildHolder.getGuild().id as Snowflake,
+                    messageId: messageId,
+                });
+            }
+        }
+
+        await guildHolder.getUserManager().saveUserData(userData);
+        await guildHolder.checkHelper(userData).catch(() => null);
+
+        await replyEphemeral(interaction, `Added ${amount} thank-you point${amount === 1 ? '' : 's'} to <@${targetUser.id}>${addToBuffer ? ' (buffer updated).' : '.'}`);
+    }
+
+    private async handleRemoveThanks(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const targetUser = interaction.options.getUser('user', true);
+        const amount = interaction.options.getInteger('amount') ?? 1;
+        const trimBuffer = interaction.options.getBoolean('trim_buffer') ?? true;
+
+        const userData = await guildHolder.getUserManager().getUserData(targetUser.id);
+        if (!userData) {
+            await replyEphemeral(interaction, `No data found for user <@${targetUser.id}>.`);
+            return;
+        }
+
+        const originalTotal = userData.thankedCountTotal;
+        userData.thankedCountTotal = Math.max(0, userData.thankedCountTotal - amount);
+
+        let removedFromBuffer = 0;
+        if (trimBuffer && userData.thankedBuffer.length > 0) {
+            removedFromBuffer = Math.min(amount, userData.thankedBuffer.length);
+            userData.thankedBuffer.splice(-removedFromBuffer, removedFromBuffer);
+        }
+
+        await guildHolder.getUserManager().saveUserData(userData);
+        await guildHolder.checkHelper(userData).catch(() => null);
+
+        await replyEphemeral(
+            interaction,
+            `Removed ${amount} thank-you point${amount === 1 ? '' : 's'} from <@${targetUser.id}> (total ${originalTotal} → ${userData.thankedCountTotal})${trimBuffer ? `. Trimmed ${removedFromBuffer} buffer entr${removedFromBuffer === 1 ? 'y' : 'ies'}.` : '.'}`
+        );
     }
 }
