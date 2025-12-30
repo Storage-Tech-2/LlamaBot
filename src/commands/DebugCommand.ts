@@ -206,22 +206,26 @@ export class DebugCommand implements Command {
                     continue;
                 }
 
-                const parentRefs = revision.parentRevision
-                    ? (retaggedRefs.get(revision.parentRevision) || (await submission.getRevisionsManager().getRevisionById(revision.parentRevision))?.references || [])
-                    : [];
+                if (ref.isCurrent) {
 
-                let newReferences = revision.references || [];
-                try {
-                    const previousRefs = parentRefs.length > 0 ? parentRefs : revision.references || [];
-                    newReferences = await tagReferencesInSubmissionRecords(revision.records, previousRefs, guildHolder, submission.getId());
-                } catch (e: any) {
-                    console.error(`Failed to retag references for revision ${revision.id}:`, e);
-                    errors++;
-                    continue;
+                    const parentRefs = revision.parentRevision
+                        ? (retaggedRefs.get(revision.parentRevision) || (await submission.getRevisionsManager().getRevisionById(revision.parentRevision))?.references || [])
+                        : [];
+
+                    let newReferences = revision.references || [];
+                    try {
+                        const previousRefs = [...parentRefs, ...newReferences];
+                        newReferences = await tagReferencesInSubmissionRecords(revision.records, previousRefs, guildHolder, submission.getId());
+                    } catch (e: any) {
+                        console.error(`Failed to retag references for revision ${revision.id}:`, e);
+                        errors++;
+                        continue;
+                    }
+
+                    revision.references = newReferences;
+                    retaggedRefs.set(revision.id, newReferences);
                 }
 
-                revision.references = newReferences;
-                retaggedRefs.set(revision.id, newReferences);
                 await submission.getRevisionsManager().updateRevision(revision);
 
                 const messages = await Promise.all(revision.messageIds.map(async (messageId) => {
