@@ -1197,76 +1197,10 @@ export class GuildHolder {
         });
     }
 
-    public async onPostUpdate(oldEntryData: ArchiveEntryData, newEntryData: ArchiveEntryData, oldPath: string, newPath: string) {
+    public async onPostUpdate(oldEntryData: ArchiveEntryData, newEntryData: ArchiveEntryData) {
         await this.updateDesignerRoles(newEntryData.id, oldEntryData.authors, newEntryData.authors).catch(e => {
             console.error(`Error updating designers for entry ${newEntryData.id}:`, e);
         });
-
-        const needsRefreshReferences = oldEntryData.post?.threadURL !== newEntryData.post?.threadURL || oldPath !== newPath;
-        if (needsRefreshReferences) {
-            this.getDictionaryManager().invalidateArchiveIndex();
-
-            const newURL = newEntryData.post?.threadURL || '';
-            // just swap urls, no need to reanalyze
-            await this.repositoryManager.iterateAllEntries(async (entry: ArchiveEntry) => {
-                if (entry.getData().id === newEntryData.id) {
-                    return;
-                }
-
-                // check references
-                const otherData = entry.getData();
-                const references = otherData.references;
-                const authorReferences = otherData.author_references;
-
-                // check if any are post
-                let updated = false;
-                for (const reference of references) {
-                    if (reference.type === ReferenceType.ARCHIVED_POST && reference.id === newEntryData.id) {
-                        reference.url = newURL;
-                        reference.path = newPath;
-                        updated = true;
-                    }
-                }
-
-                for (const authorReference of authorReferences) {
-                    if (authorReference.type === ReferenceType.ARCHIVED_POST && authorReference.id === newEntryData.id) {
-                        authorReference.url = newURL;
-                        authorReference.path = newPath;
-                        updated = true;
-                    }
-                }
-
-                if (updated && otherData.post) {
-                    await this.repositoryManager.addOrUpdateEntryFromData(otherData, otherData.post.forumId, false, false, async () => {
-                        // do nothing
-                    }).catch(e => {
-                        console.error("Error updating entry for URL update:", e);
-                    });
-                }
-            }).catch(e => {
-                console.error("Error iterating all entries:", e);
-            });
-
-            // update definitions
-            await this.getDictionaryManager().iterateEntries(async (definition) => {
-                let updated = false;
-                for (const reference of definition.references) {
-                    if (reference.type === ReferenceType.ARCHIVED_POST && reference.id === newEntryData.id) {
-                        reference.url = newURL;
-                        reference.path = newPath;
-                        updated = true;
-                    }
-                }
-                if (updated) {
-                    await this.getDictionaryManager().saveEntry(definition);
-                    await this.getDictionaryManager().updateStatusMessage(definition).catch(e => {
-                        console.error("Error updating definition status message:", e);
-                    });
-                }
-            });
-
-
-        }
     }
 
     public async onPostDelete(entryData: ArchiveEntryData) {

@@ -1197,10 +1197,79 @@ export class RepositoryManager {
 
 
         if (existing) {
-            await reportStatus('Running post-update tasks...');
             const oldPath = existing.channelRef.path + '/' + existing.entryRef.path;
             const newPath = archiveChannelRef.path + '/' + entryRef.path;
-            this.guildHolder.onPostUpdate(existing.entry.getData(), entry.getData(), oldPath, newPath).catch(e => {
+            const oldEntryData = existing.entry.getData();
+
+            const needsRefreshReferences = oldEntryData.post?.threadURL !== newEntryData.post?.threadURL || oldPath !== newPath;
+            if (needsRefreshReferences) {
+                await reportStatus('Updating cross-references in archive...');
+
+                this.getDictionaryManager().invalidateArchiveIndex();
+
+                const newURL = newEntryData.post?.threadURL || '';
+                // just swap urls, no need to reanalyze
+                await this.iterateAllEntries(async (entry: ArchiveEntry) => {
+                    if (entry.getData().id === newEntryData.id) {
+                        return;
+                    }
+
+                    // check references
+                    const otherData = entry.getData();
+                    const references = otherData.references;
+                    const authorReferences = otherData.author_references;
+
+                    // check if any are post
+                    let updated = false;
+                    for (const reference of references) {
+                        if (reference.type === ReferenceType.ARCHIVED_POST && reference.id === newEntryData.id) {
+                            reference.url = newURL;
+                            reference.path = newPath;
+                            updated = true;
+                        }
+                    }
+
+                    for (const authorReference of authorReferences) {
+                        if (authorReference.type === ReferenceType.ARCHIVED_POST && authorReference.id === newEntryData.id) {
+                            authorReference.url = newURL;
+                            authorReference.path = newPath;
+                            updated = true;
+                        }
+                    }
+
+                    if (updated && otherData.post) {
+                        await this.addOrUpdateEntryFromData(otherData, otherData.post.forumId, false, false, async () => {
+                            // do nothing
+                        }).catch(e => {
+                            console.error("Error updating entry for URL update:", e);
+                        });
+                    }
+                }).catch(e => {
+                    console.error("Error iterating all entries:", e);
+                });
+
+                // update definitions
+                await this.getDictionaryManager().iterateEntries(async (definition) => {
+                    let updated = false;
+                    for (const reference of definition.references) {
+                        if (reference.type === ReferenceType.ARCHIVED_POST && reference.id === newEntryData.id) {
+                            reference.url = newURL;
+                            reference.path = newPath;
+                            updated = true;
+                        }
+                    }
+                    if (updated) {
+                        await this.getDictionaryManager().saveEntry(definition);
+                        await this.getDictionaryManager().updateStatusMessage(definition).catch(e => {
+                            console.error("Error updating definition status message:", e);
+                        });
+                    }
+                });
+            }
+
+            await reportStatus('Running post-update tasks...');
+
+            this.guildHolder.onPostUpdate(oldEntryData, entry.getData()).catch(e => {
                 console.error("Error handling post update:", e);
             });
         } else {
@@ -1857,9 +1926,7 @@ export class RepositoryManager {
                 console.error("Error pushing to remote:", e.message);
             }
 
-            const oldPath = found.channelRef.path + '/' + found.entryRef.path;
-            const newPath = oldPath;
-            this.guildHolder.onPostUpdate(oldData, entryData, oldPath, newPath).catch(e => {
+            this.guildHolder.onPostUpdate(oldData, entryData).catch(e => {
                 console.error("Error handling post update:", e);
             });
         } catch (e) {
