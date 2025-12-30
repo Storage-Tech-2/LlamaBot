@@ -766,7 +766,7 @@ export function transformOutputWithReferencesForDiscord(
                 }
 
                 // add suffix
-                return matchedText + ` (in [${reference.serverName}](${reference.serverJoinURL}))`;
+                return matchedText + ` (in ${reference.serverName})`;
             } else if (reference.type === ReferenceType.USER_MENTION) {
                 return getAuthorsString([reference.user]);
             } else if (reference.type === ReferenceType.CHANNEL_MENTION) {
