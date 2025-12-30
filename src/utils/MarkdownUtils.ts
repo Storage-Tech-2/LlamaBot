@@ -469,6 +469,8 @@ export function postToMarkdown(record: SubmissionRecords, recordStyles?: Record<
             }
         }
 
+        parentsRecorded.add(key);
+
         const recordValue = record[key];
         const styles = getEffectiveStyle(key, schemaStyles, recordStyles);
 
