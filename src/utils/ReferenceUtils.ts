@@ -765,7 +765,7 @@ export function transformOutputWithReferencesForDiscord(
                     return; // skip, no server name
                 }
 
-                if (isWithinHyperlink && hyperlinkText && hyperlinkText.includes(reference.serverName)) {
+                if (isWithinHyperlink && hyperlinkText && hyperlinkText.toLowerCase().includes(reference.serverName.toLowerCase())) {
                     return; // skip, already linked
                 }
 
