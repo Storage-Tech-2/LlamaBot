@@ -765,6 +765,10 @@ export function transformOutputWithReferencesForDiscord(
                     return; // skip, no server name
                 }
 
+                if (isWithinHyperlink && hyperlinkText && hyperlinkText.includes(reference.serverName)) {
+                    return; // skip, already linked
+                }
+
                 // add suffix
                 return matchedText + ` (in ${reference.serverName})`;
             } else if (reference.type === ReferenceType.USER_MENTION) {
