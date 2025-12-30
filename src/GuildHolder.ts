@@ -21,7 +21,7 @@ import { ChannelSubscriptionManager } from "./config/ChannelSubscriptionManager.
 import { AntiNukeManager } from "./support/AntiNukeManager.js";
 import { DictionaryManager } from "./archive/DictionaryManager.js";
 import { DiscordServersDictionary } from "./archive/DiscordServersDictionary.js";
-import { getDiscordLinksInText, getDiscordServersFromReferences, getPostCodesInText, ReferenceType, transformOutputWithReferencesForDiscord } from "./utils/ReferenceUtils.js";
+import { getDiscordLinksInText, getDiscordServersFromReferences, getPostCodesInText, populateDiscordServerInfoInReferences, ReferenceType, transformOutputWithReferencesForDiscord } from "./utils/ReferenceUtils.js";
 import { retagEverythingTask, updateAuthorAndChannelTagsTask, updateEntryAuthorsTask } from "./archive/Tasks.js";
 import { RepositoryConfigs } from "./archive/RepositoryConfigs.js";
 /**
@@ -439,7 +439,8 @@ export class GuildHolder {
         // check for discord server references
         const discordServerMatches = getDiscordLinksInText(message.content, this.guild.id);
         if (discordServerMatches.length > 0) {
-            const matches = await getDiscordServersFromReferences(discordServerMatches, this);
+            await populateDiscordServerInfoInReferences(discordServerMatches, this);
+            const matches = getDiscordServersFromReferences(discordServerMatches);
             if (matches.length > 0) {
 
                 const newText = [];

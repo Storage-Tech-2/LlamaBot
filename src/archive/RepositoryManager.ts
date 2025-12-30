@@ -21,7 +21,7 @@ import { analyzeAttachments, filterAttachmentsForViewer, getAttachmentsFromMessa
 import { DictionaryManager } from "./DictionaryManager.js";
 import { IndexManager } from "./IndexManager.js";
 import { DiscordServersDictionary } from "./DiscordServersDictionary.js";
-import { ReferenceType, tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
+import { getDiscordServersFromReferences, ReferenceType, tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
 export class RepositoryManager {
     public folderPath: string;
     private git?: SimpleGit;
@@ -958,6 +958,22 @@ export class RepositoryManager {
                 embeds: []
             }
         });
+
+        const serverLinks = getDiscordServersFromReferences([newEntryData.references, newEntryData.author_references].flat());
+        if (serverLinks.length > 0) {
+            const serverLinkMessage: string[] = [];
+            serverLinks.forEach((link) => {
+                serverLinkMessage.push(`**${link.name}**: ${link.joinURL}`);
+            });
+            const serverLinkMsg = truncateStringWithEllipsis(serverLinkMessage.join('\n'), 4000);
+            messageChunks.push({
+                content: '',
+                showEmbed: true,
+                embeds: [
+                    new EmbedBuilder().setTitle('Server Invite Links').setDescription(serverLinkMsg).setColor(0x00AE86)
+                ]
+            });
+        }
 
         const hasAttachments = newEntryData.attachments.length > 0;
         if (hasAttachments) {

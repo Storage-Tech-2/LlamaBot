@@ -525,7 +525,7 @@ export async function tagReferences(string: string, prevReferences: Reference[],
                 return ref;
             }
 
-            
+
             const indexEntry = archiveIndex.idToData.get(id);
             if (!indexEntry) {
                 return ref;
@@ -960,21 +960,31 @@ export function getDiscordLinksInText(text: string, currentServerID: Snowflake):
     return links;
 }
 
-export async function getDiscordServersFromReferences(references: Reference[], guildHolder: GuildHolder): Promise<{ id: Snowflake, name: string, joinURL: string }[]> {
-    const serverLinks: ServerLinksMap = new Map();
+export async function populateDiscordServerInfoInReferences(references: Reference[],guildHolder: GuildHolder): Promise<void> {
     const discords = await guildHolder.getDiscordServersDictionary().getCachedServersWithFallback();
 
     for (const ref of references) {
         if (ref.type === ReferenceType.DISCORD_LINK) {
-            if (!serverLinks.has(ref.server)) {
-                const discordInfo = discords.find(d => d.id === ref.server);
-                if (discordInfo) {
-                    serverLinks.set(ref.server, {
-                        id: discordInfo.id,
-                        name: discordInfo.name,
-                        joinURL: discordInfo.joinURL
-                    });
-                }
+            const discordInfo = discords.find(d => d.id === ref.server);
+            if (discordInfo) {
+                ref.serverName = discordInfo.name;
+                ref.serverJoinURL = discordInfo.joinURL;
+            }
+        }
+    }
+}
+            
+export function getDiscordServersFromReferences(references: Reference[]): { id: Snowflake, name: string, joinURL: string }[] {
+    const serverLinks: ServerLinksMap = new Map();
+
+    for (const ref of references) {
+        if (ref.type === ReferenceType.DISCORD_LINK) {
+            if (ref.serverJoinURL && ref.serverName && !serverLinks.has(ref.server)) {
+                serverLinks.set(ref.server, {
+                    id: ref.server,
+                    name: ref.serverName,
+                    joinURL: ref.serverJoinURL
+                });
             }
         }
     }
