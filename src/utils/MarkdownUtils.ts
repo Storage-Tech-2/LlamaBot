@@ -36,7 +36,7 @@ export function splitMarkdownByHeadings(markdown: string): SchemaSection[] {
                 text = text.replace(/\(optional\)/i, "").trim();
             }
 
-            let key = text.toLowerCase().replaceAll(/\s+/g, "-");
+            let key = text.toLowerCase().replaceAll(/\s+/g, "-").replaceAll(":", ".");
 
             // try to find parent headings to prefix the key
             for (let i = splitTokens.length - 1; i > 0; i--) {
@@ -433,7 +433,21 @@ export function postToMarkdown(record: SubmissionRecords, recordStyles?: Record<
     let markdown = "";
 
     let isFirst = true;
+
+    const parentsRecorded = new Set<string>();
     for (const key in record) {
+        const keyParts = key.split(":");
+        for (let i = keyParts.length - 1; i > 0; i--) {
+            const parentKey = keyParts.slice(0, i).join(":");
+            if (!parentsRecorded.has(parentKey)) {
+                const parentStyle = getEffectiveStyle(parentKey, schemaStyles, recordStyles);
+                markdown += `\n${'#'.repeat(parentStyle.depth)} ${parentStyle.headerText}\n`;
+                parentsRecorded.add(parentKey);
+            } else {
+                break;
+            }
+        }
+
         const recordValue = record[key];
         const styles = getEffectiveStyle(key, schemaStyles, recordStyles);
 
