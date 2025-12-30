@@ -750,15 +750,8 @@ export function transformOutputWithReferencesForDiscord(
                         return `[${linkText} (${reference.code})](${reference.url}${hyperlinkTitle ? ` "${hyperlinkTitle}"` : ''})`;
                     }
                 } else {
-                    // check if match is discord url
-                    const isDiscordLink = DiscordLinkPattern.test(matchedText);
-                    if (isDiscordLink) {
-                        // keep as is, just replace URL
-                        return reference.url;
-                    } else {
-                        // create markdown link with code as text
-                        return `[${reference.code}](${reference.url})`;
-                    }
+                    // create markdown link with code as text
+                    return `[${reference.code}](${reference.url})`;
                 }
             } else if (reference.type === ReferenceType.DISCORD_LINK) {
                 if (!reference.serverName || !reference.serverJoinURL) {
