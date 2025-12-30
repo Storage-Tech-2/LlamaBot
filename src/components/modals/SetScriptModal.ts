@@ -17,6 +17,7 @@ export class SetScriptModal implements Modal {
         const descriptionInput = new TextInputBuilder()
             .setCustomId('input')
             .setStyle(TextInputStyle.Paragraph)
+            .setRequired(false)
             .setPlaceholder('JavaScript code for the script.')
 
         const descriptionLabel = new LabelBuilder()
@@ -55,13 +56,28 @@ export class SetScriptModal implements Modal {
         }
 
         existingSubscription[channelId].code = scriptCode;
+
+        if (!scriptCode && existingSubscription[channelId].subscribedUsers.length === 0) {
+            delete existingSubscription[channelId];
+        }
+
         await channelSubscriptionManager.saveSubscriptions(existingSubscription);
 
-        const embed = new EmbedBuilder()
-            .setTitle('Filter Script Set')
-            .setDescription('Matching submissions will be announced automatically: ```javascript\n' + scriptCode + '\n```')
-            .setColor(0x00FF00);
-        await interaction.reply({ embeds: [embed] });
+        if (scriptCode) {
+            const embed = new EmbedBuilder()
+                .setTitle('Filter Script Set')
+                .setDescription('Matching submissions will be announced automatically: ```javascript\n' + scriptCode + '\n```')
+                .setColor(0x00FF00);
+            await interaction.reply({ embeds: [embed] });
+        } else {
+            const embed = new EmbedBuilder()
+                .setTitle('Filter Script Removed')
+                .setDescription('The filter script has been removed. No further submissions will be matched.')
+                .setColor(0xFFFF00);
+            await interaction.reply({ embeds: [embed] });
+
+            return;
+        }
 
         if (scriptCode.length === 0) {
             return;

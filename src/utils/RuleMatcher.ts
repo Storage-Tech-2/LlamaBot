@@ -12,6 +12,10 @@ export class RuleMatcher {
 
         for (const [channelId, data] of Object.entries(subscriptions)) {
             const code = data.code;
+            if (!code) {
+                continue;
+            }
+
             const logChannel = await submission.getGuildHolder().getGuild().channels.fetch(channelId).catch(() => null);
             if (!logChannel) {
                 continue;
