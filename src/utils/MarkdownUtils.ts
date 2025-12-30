@@ -7,6 +7,7 @@ export type SchemaSection = {
     tokens: Token[];
     depth: number;
     headerText: string;
+    children: string[];
 }
 
 export function splitMarkdownByHeadings(markdown: string): SchemaSection[] {
@@ -20,6 +21,7 @@ export function splitMarkdownByHeadings(markdown: string): SchemaSection[] {
         tokens: [],
         depth: 0,
         headerText: "",
+        children: [],
     }
 
     for (const token of tokens) {
@@ -42,6 +44,7 @@ export function splitMarkdownByHeadings(markdown: string): SchemaSection[] {
                 const prevSection = splitTokens[i];
                 if (prevSection.depth < token.depth) {
                     key = `${prevSection.key}:${key}`;
+                    prevSection.children.push(key);
                     break;
                 }
             }
@@ -53,6 +56,7 @@ export function splitMarkdownByHeadings(markdown: string): SchemaSection[] {
                 tokens: [],
                 depth: token.depth,
                 headerText: text,
+                children: [],
             };
         } else {
             // Add the token to the current section
@@ -64,10 +68,11 @@ export function splitMarkdownByHeadings(markdown: string): SchemaSection[] {
         splitTokens.push(currentSection);
     }
 
-    // remove empty sections
-    splitTokens = splitTokens.filter(section => {
-        // Remove sections that have no non-whitespace tokens
-        return section.tokens.some(token => {
+    
+    for (let i = splitTokens.length - 1; i >= 0; i--) {
+        const section = splitTokens[i];
+        // check if section is empty
+        const isEmpty = !section.tokens.some(token => {
             if (token.type === "paragraph") {
                 return token.text.trim().length > 0; // Paragraphs with text
             } else if (token.type === "list") {
@@ -75,7 +80,20 @@ export function splitMarkdownByHeadings(markdown: string): SchemaSection[] {
             }
             return false; // For other token types, we can consider them empty
         });
-    });
+
+        if (isEmpty && section.children.length === 0) {
+            // Remove this section from its parent's children
+            for (let j = i - 1; j >= 0; j--) {
+                const potentialParent = splitTokens[j];
+                if (potentialParent.children.includes(section.key)) {
+                    potentialParent.children = potentialParent.children.filter(childKey => childKey !== section.key);
+                    break;
+                }
+            }
+            // Remove the empty section
+            splitTokens.splice(i, 1);
+        }
+    }
 
     return splitTokens;
 }
@@ -279,6 +297,10 @@ export function markdownMatchSchema(markdown: string, schema: JSONSchema7, schem
         }
         if (section.headerText !== (schemaStyles[propKey]?.headerText ?? undefined)) {
             newStyle.headerText = section.headerText;
+        }
+
+        if (section.children.length > 0 && Object.keys(newStyle).length > 0) {
+            newStyles[propKey] = newStyle;
         }
 
         if (!shouldBeList) {
