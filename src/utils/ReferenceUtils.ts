@@ -3,7 +3,7 @@
 //     return Array.from(text.matchAll(postReferenceRegex)).map(match => match[1]);
 // }
 
-import { hyperlink, Snowflake } from "discord.js";
+import { Snowflake } from "discord.js";
 import { recordsToRawTextNoHeaders, stripHyperlinkNames, SubmissionRecords } from "./MarkdownUtils.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Author, AuthorType } from "../submissions/Author.js";
