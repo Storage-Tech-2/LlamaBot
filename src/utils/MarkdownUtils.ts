@@ -439,12 +439,12 @@ export function getEffectiveStyle(key: string, schemaStyles?: Record<string, Sty
     }
     if (schemaStyle) {
         if (schemaStyle.depth !== undefined) style.depth = schemaStyle.depth;
-        if (schemaStyle.headerText !== undefined) style.headerText = schemaStyle.headerText;
+        if (schemaStyle.headerText) style.headerText = schemaStyle.headerText;
         if (schemaStyle.isOrdered !== undefined) style.isOrdered = schemaStyle.isOrdered;
     }
     if (recordStyle) {
         if (recordStyle.depth !== undefined) style.depth = recordStyle.depth;
-        if (recordStyle.headerText !== undefined) style.headerText = recordStyle.headerText;
+        if (recordStyle.headerText) style.headerText = recordStyle.headerText;
         if (recordStyle.isOrdered !== undefined) style.isOrdered = recordStyle.isOrdered;
     }
     return style;
