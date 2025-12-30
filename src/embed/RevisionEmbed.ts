@@ -47,11 +47,9 @@ export class RevisionEmbed {
     public static async editRevisionMessages(existingMessages: Message[], submission: Submission, revision: Revision, isCurrent = false) {
         const embed = await RevisionEmbed.create(submission, revision, isCurrent);
         const embeds = embed.getEmbeds();
-        if (existingMessages.length !== embeds.length) {
-            console.warn(`Warning: Number of existing messages (${existingMessages.length}) does not match number of embeds (${embeds.length}) for revision ${revision.id}.`);
-        }
+
         const row = embed.getRow();
-        for (let i = 0; i < existingMessages.length ; i++) {
+        for (let i = 0; i < existingMessages.length; i++) {
             let embed = embeds[i];
             if (!embed) {
                 embed = new EmbedBuilder()
@@ -64,7 +62,7 @@ export class RevisionEmbed {
             }
             await existingMessages[i].edit({
                 embeds: [embed],
-                components: i === existingMessages.length  - 1 ? [row as any] : [],
+                components: i === existingMessages.length - 1 ? [row as any] : [],
             });
         }
     }
@@ -72,50 +70,61 @@ export class RevisionEmbed {
     private static async create(submission: Submission, revision: Revision, isCurrent = false): Promise<RevisionEmbed> {
         // const submissionData = submission.submissionData
 
-        let description = ''
+        let embeds: EmbedBuilder[] = [];
+        if (isCurrent) {
+            let description = ''
 
-        // Check name
-        const channel = await submission.getSubmissionChannel();
-        if (!channel) {
-            throw new Error('Submission channel not found');
-        }
-        submission.getConfigManager().setConfig(SubmissionConfigs.NAME, channel.name);
-        description += `## ${submission.getConfigManager().getConfig(SubmissionConfigs.NAME)}\n`;
+            // Check name
+            const channel = await submission.getSubmissionChannel();
+            if (!channel) {
+                throw new Error('Submission channel not found');
+            }
+            submission.getConfigManager().setConfig(SubmissionConfigs.NAME, channel.name);
+            description += `## ${submission.getConfigManager().getConfig(SubmissionConfigs.NAME)}\n`;
 
-        const authors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
-        description += `**Authors:** ${getAuthorsString(authors.filter(a=>!a.dontDisplay))}\n`
+            const authors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
+            description += `**Authors:** ${getAuthorsString(authors.filter(a => !a.dontDisplay))}\n`
 
-        const authorsRefs = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS_REFERENCES);
-        const post = postToMarkdown(revision.records, revision.styles, submission.getGuildHolder().getSchemaStyles());
-        const transformed = transformOutputWithReferencesForDiscord(post, revision.references);
-        description += `\n${transformed}`;
+            const authorsRefs = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS_REFERENCES);
+            const post = postToMarkdown(revision.records, revision.styles, submission.getGuildHolder().getSchemaStyles());
+            const transformed = transformOutputWithReferencesForDiscord(post, revision.references);
+            description += `\n${transformed}`;
 
-        const authorsWithReasons = authors.filter(author => author.reason);
-        if (authorsWithReasons.length > 0) {
-            description += `\n## Acknowledgements\n`;
-            authorsWithReasons.forEach(author => {
-                description += `- ${getAuthorsString([author])}: ${transformOutputWithReferencesForDiscord(author.reason || "", authorsRefs)}\n`;
+            const authorsWithReasons = authors.filter(author => author.reason);
+            if (authorsWithReasons.length > 0) {
+                description += `\n## Acknowledgements\n`;
+                authorsWithReasons.forEach(author => {
+                    description += `- ${getAuthorsString([author])}: ${transformOutputWithReferencesForDiscord(author.reason || "", authorsRefs)}\n`;
+                });
+            }
+
+            const chunks = splitIntoChunks(description, 4096);
+            embeds = chunks.map((chunk, index) => {
+                const embed = new EmbedBuilder()
+                embed.setColor(isCurrent ? '#0099ff' : '#ff9900')
+                if (index === 0) {
+                    embed.setTitle(`Submission Draft${isCurrent ? ' (Current)' : ''}`)
+                } else {
+                    embed.setTitle(`Submission Draft (Part ${index + 1})${isCurrent ? ' (Current)' : ''}`)
+                }
+                embed.setDescription(chunk)
+                if (index === chunks.length - 1) {
+                    embed.setFooter({
+                        text: 'This is a draft submission. Reply to this message with instructions to update it.'
+                    })
+                }
+                return embed;
             });
-        }
-
-        const chunks = splitIntoChunks(description, 4096);
-        const embeds = chunks.map((chunk, index) => {
-            const embed = new EmbedBuilder()
-            embed.setColor(isCurrent ? '#0099ff' : '#ff9900')
-            if (index === 0) {
-                embed.setTitle(`Submission Draft${isCurrent ? ' (Current)' : ''}`)
-            } else {
-                embed.setTitle(`Submission Draft (Part ${index + 1})${isCurrent ? ' (Current)' : ''}`)
-            }
-            embed.setDescription(chunk)
-            if (index === chunks.length - 1) {
-                embed.setFooter({
-                    text: 'This is a draft submission. Reply to this message with instructions to update it.'
-                })
-            }
-            return embed;
-        });
-
+    } else {
+        const embed = new EmbedBuilder()
+            .setColor('#ff9900')
+            .setTitle('Submission Draft (Archived)')
+            .setDescription('Contents hidden to reduce clutter.')
+            .setFooter({
+                text: 'Make this revision current to restore it.'
+            });
+        embeds.push(embed);
+    }
 
         const row = new ActionRowBuilder()
             .addComponents(new EditSubmissionButton().getBuilder())
