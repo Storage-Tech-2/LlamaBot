@@ -497,6 +497,12 @@ export function stripHyperlinkNames(markdownString: string): string {
     return markdownString.replace(/\[[^\[\]]*\]\((.*?)\)/g, "$1");
 }
 
+type OrderInfo = {
+    schemaPriority: number;
+    recordPriority: number;
+    children: Map<string, OrderInfo>;
+}
+
 export function schemaToMarkdownTemplate(schema: JSONSchema7, schemaStyles: Record<string, StyleInfo>, record?: SubmissionRecords, recordStyles?: Record<string, StyleInfo>, addExtraNewline: boolean = false): string {
     let markdown = "";
     const properties = schema.properties || {};
@@ -504,30 +510,101 @@ export function schemaToMarkdownTemplate(schema: JSONSchema7, schemaStyles: Reco
     const schemaKeys = Object.keys(properties);
     const recordKeys = record ? Object.keys(record) : [];
 
-    const mergedKeys: string[] = [];
-    let i = 0;
-    let j = 0;
-    while (i < schemaKeys.length || j < recordKeys.length) {
-        const schemaKey = schemaKeys[i];
-        const recordKey = recordKeys[j];
-        if (schemaKey && (!recordKey || schemaKey.localeCompare(recordKey) < 0)) {
-            if (!mergedKeys.includes(schemaKey)) {
-                mergedKeys.push(schemaKey);
+
+    const topLevelKeys = new Map<string, OrderInfo>();
+
+    for (let i = 0; i < schemaKeys.length; i++) {
+        const key = schemaKeys[i];
+        const keyParts = key.split(":");
+        let currentMap = topLevelKeys;
+        for (let j = 0; j < keyParts.length; j++) {
+            const part = keyParts[j];
+            if (!currentMap.has(part)) {
+                currentMap.set(part, {
+                    schemaPriority: i,
+                    recordPriority: -1,
+                    children: new Map<string, OrderInfo>(),
+                });
             }
-            i++;
-        } else if (recordKey && (!schemaKey || recordKey.localeCompare(schemaKey) < 0)) {
-            if (!mergedKeys.includes(recordKey)) {
-                mergedKeys.push(recordKey);
+            const orderInfo = currentMap.get(part)!;
+            if (j === keyParts.length - 1) {
+                orderInfo.schemaPriority = i;
             }
-            j++;
-        } else {
-            if (!mergedKeys.includes(schemaKey)) {
-                mergedKeys.push(schemaKey);
-            }
-            i++;
-            j++;
+            currentMap = orderInfo.children;
         }
     }
+
+    for (let i = 0; i < recordKeys.length; i++) {
+        const key = recordKeys[i];
+        const keyParts = key.split(":");
+        let currentMap = topLevelKeys;
+        for (let j = 0; j < keyParts.length; j++) {
+            const part = keyParts[j];
+            if (!currentMap.has(part)) {
+                currentMap.set(part, {
+                    schemaPriority: -1,
+                    recordPriority: i,
+                    children: new Map<string, OrderInfo>(),
+                });
+            }
+            const orderInfo = currentMap.get(part)!;
+            if (j === keyParts.length - 1) {
+                orderInfo.recordPriority = i;
+            }
+            currentMap = orderInfo.children;
+        }
+    }
+
+    // sort
+    type SortedEntry = [string, SortedEntry[]];
+    const recursiveSort = (map: Map<string, OrderInfo>): SortedEntry[] => {
+        const entries = Array.from(map.entries());
+        entries.sort((a, b) => {
+            const aInfo = a[1];
+            const bInfo = b[1];
+            // case 1: both have schema priority, but not record priority
+            if (aInfo.schemaPriority !== -1 && bInfo.schemaPriority !== -1 && aInfo.recordPriority === -1 && bInfo.recordPriority === -1) {
+                return aInfo.schemaPriority - bInfo.schemaPriority;
+            }
+            // case 2: both have record priority, but not schema priority
+            if (aInfo.recordPriority !== -1 && bInfo.recordPriority !== -1 && aInfo.schemaPriority === -1 && bInfo.schemaPriority === -1) {
+                return aInfo.recordPriority - bInfo.recordPriority;
+            }
+
+            // case 3: one has schema priority, the other has record priority
+            // we prioritize the one with record priority
+            if (aInfo.recordPriority !== -1 && bInfo.schemaPriority !== -1) {
+                return -1;
+            }
+            if (bInfo.recordPriority !== -1 && aInfo.schemaPriority !== -1) {
+                return 1;
+            }
+            
+            // case 4: both have schema and record priority
+            if (aInfo.schemaPriority !== -1 && bInfo.schemaPriority !== -1 && aInfo.recordPriority !== -1 && bInfo.recordPriority !== -1) {
+                return aInfo.recordPriority - bInfo.recordPriority;
+            }
+
+            return 0;
+        });
+        return entries.map(([key, orderInfo]) => {
+            return [key, recursiveSort(orderInfo.children)];
+        });
+    };
+
+    const sortedKeys = recursiveSort(topLevelKeys);
+
+    const flattenSortedKeys = (entries: SortedEntry[], prefix: string = ""): string[] => {
+        let result: string[] = [];
+        for (const [key, children] of entries) {
+            const fullKey = prefix ? `${prefix}:${key}` : key;
+            result.push(fullKey);
+            result.push(...flattenSortedKeys(children, fullKey));
+        }
+        return result;
+    };
+    
+    const mergedKeys = flattenSortedKeys(sortedKeys);
 
     const requiredKeys = schema.required || [];
 
@@ -544,7 +621,7 @@ export function schemaToMarkdownTemplate(schema: JSONSchema7, schemaStyles: Reco
 
         const style = getEffectiveStyle(key, schemaStyles, recordStyles);
         if (key !== "description" || !isFirst) {
-            markdown += (addExtraNewline ? '\n' : '') + `\n## ${style.headerText}${isRequired ? "" : " (Optional)"}\n`;
+            markdown += (addExtraNewline ? '\n' : '') + `\n${'#'.repeat(style.depth)} ${style.headerText}${isRequired ? "" : " (Optional)"}\n`;
         }
         isFirst = false;
 
