@@ -25,9 +25,8 @@ export function splitMarkdownByHeadings(markdown: string): SchemaSection[] {
     for (const token of tokens) {
         if (token.type === "heading") {
             // If we have a current section, push it to the splitTokens
-            if (currentSection.tokens.length > 0) {
-                splitTokens.push(currentSection);
-            }
+            splitTokens.push(currentSection);
+            
             // Start a new section
             let text = token.text.trim();
             let isOptional = false;

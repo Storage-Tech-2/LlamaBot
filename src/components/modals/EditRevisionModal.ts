@@ -7,7 +7,6 @@ import { RevisionEmbed } from "../../embed/RevisionEmbed.js";
 import { markdownMatchSchema, schemaToMarkdownTemplate } from "../../utils/MarkdownUtils.js";
 import { FixErrorsButton } from "../buttons/FixErrorsButton.js";
 import { tagReferencesInSubmissionRecords } from "../../utils/ReferenceUtils.js";
-import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 
 export class EditRevisionModal implements Modal {
     getID(): string {
@@ -122,7 +121,7 @@ export class EditRevisionModal implements Modal {
             references: []
         }
 
-        const isCurrent = submission.getRevisionsManager().isRevisionCurrent(revision.id);
+        const isCurrent = true; // submission.getRevisionsManager().isRevisionCurrent(revision.id);
       
         await interaction.reply({
             content: `<@${interaction.user.id}> Manually edited the submission${isCurrent ? ' and set it as current' : ''}`
