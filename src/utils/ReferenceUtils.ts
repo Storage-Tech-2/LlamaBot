@@ -260,6 +260,8 @@ function shouldIncludeMatch(text: string, term: string, start: number, end: numb
             endingSatisfied = true;
         } else if (getSliceAtEnd(3) === "ing" && !isWordChar(getCharAt(3))) {
             endingSatisfied = true;
+        } else if (getSliceAtEnd(2) === "er" && !isWordChar(getCharAt(2))) {
+            endingSatisfied = true;
         }
 
         if (endingSatisfied) {
