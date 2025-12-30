@@ -3,7 +3,7 @@
 //     return Array.from(text.matchAll(postReferenceRegex)).map(match => match[1]);
 // }
 
-import { Snowflake } from "discord.js";
+import { hyperlink, Snowflake } from "discord.js";
 import { recordsToRawTextNoHeaders, stripHyperlinkNames, SubmissionRecords } from "./MarkdownUtils.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Author, AuthorType } from "../submissions/Author.js";
@@ -767,6 +767,11 @@ export function transformOutputWithReferencesForDiscord(
 
                 if (isWithinHyperlink && hyperlinkText && hyperlinkText.toLowerCase().includes(reference.serverName.toLowerCase())) {
                     return; // skip, already linked
+                }
+
+                if (isWithinHyperlink) {
+                    // add suffix with link
+                    return `[${hyperlinkText} (in ${reference.serverName})](${hyperlinkText}${hyperlinkTitle ? ` "${hyperlinkTitle}"` : ''})`;
                 }
 
                 // add suffix
