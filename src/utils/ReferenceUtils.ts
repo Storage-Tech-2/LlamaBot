@@ -773,13 +773,17 @@ export function transformOutputWithReferencesForDiscord(
                 return getAuthorsString([reference.user]);
             } else if (reference.type === ReferenceType.CHANNEL_MENTION) {
                 if (isWithinHyperlink) {
-                    return; // skip, already linked
+                    if (reference.channelURL) {
+                        return;
+                    } else {
+                        return `[${hyperlinkText} (Unknown Channel)](${hyperlinkURL}${hyperlinkTitle ? ` "${hyperlinkTitle}"` : ''})`;
+                    }
                 }
 
                 if (reference.channelName && reference.channelURL) {
                     return `<#${reference.channelID}>`;
                 } else {
-                    return `[Unknown Channel](# "ID: ${reference.channelID}")`;
+                    return `<#${reference.channelID}> (Unknown Channel)`;
                 }
             }
             return;
