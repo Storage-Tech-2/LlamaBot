@@ -562,29 +562,35 @@ export function schemaToMarkdownTemplate(schema: JSONSchema7, schemaStyles: Reco
         entries.sort((a, b) => {
             const aInfo = a[1];
             const bInfo = b[1];
-            // case 1: both have schema priority, but not record priority
-            if (aInfo.schemaPriority !== -1 && bInfo.schemaPriority !== -1 && aInfo.recordPriority === -1 && bInfo.recordPriority === -1) {
-                return aInfo.schemaPriority - bInfo.schemaPriority;
-            }
-            // case 2: both have record priority, but not schema priority
-            if (aInfo.recordPriority !== -1 && bInfo.recordPriority !== -1 && aInfo.schemaPriority === -1 && bInfo.schemaPriority === -1) {
+           
+            // if both have record priority, sort by that
+            if (aInfo.recordPriority !== -1 && bInfo.recordPriority !== -1) {
                 return aInfo.recordPriority - bInfo.recordPriority;
             }
 
-            // case 3: one has schema priority, the other has record priority
-            // we prioritize the one with record priority
-            if (aInfo.recordPriority !== -1 && bInfo.schemaPriority !== -1) {
+            // if both have schema priority, sort by that
+            if (aInfo.schemaPriority !== -1 && bInfo.schemaPriority !== -1) {
+                return aInfo.schemaPriority - bInfo.schemaPriority;
+            }
+
+            // if one has record priority, it comes first
+            if (aInfo.recordPriority !== -1) {
                 return -1;
             }
-            if (bInfo.recordPriority !== -1 && aInfo.schemaPriority !== -1) {
+
+            if (bInfo.recordPriority !== -1) {
+                return 1;
+            }
+
+            // else sort by schema priority
+            if (aInfo.schemaPriority !== -1) {
+                return -1;
+            }
+
+            if (bInfo.schemaPriority !== -1) {
                 return 1;
             }
             
-            // case 4: both have schema and record priority
-            if (aInfo.schemaPriority !== -1 && bInfo.schemaPriority !== -1 && aInfo.recordPriority !== -1 && bInfo.recordPriority !== -1) {
-                return aInfo.recordPriority - bInfo.recordPriority;
-            }
-
             return 0;
         });
         return entries.map(([key, orderInfo]) => {
