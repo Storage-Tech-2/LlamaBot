@@ -721,7 +721,7 @@ export function transformOutputWithReferencesForDiscord(
     const result = transformOutputWithReferencesWrapper(
         text,
         references,
-        (reference, matchedText, isHeader, isWithinHyperlink, hyperlinkText, _hyperlinkURL, hyperlinkTitle) => {
+        (reference, matchedText, isHeader, isWithinHyperlink, hyperlinkText, hyperlinkURL, hyperlinkTitle) => {
             if (isHeader) {
                 return; // skip replacements in headers
             }
@@ -771,7 +771,7 @@ export function transformOutputWithReferencesForDiscord(
 
                 if (isWithinHyperlink) {
                     // add suffix with link
-                    return `[${hyperlinkText} (in ${reference.serverName})](${hyperlinkText}${hyperlinkTitle ? ` "${hyperlinkTitle}"` : ''})`;
+                    return `[${hyperlinkText} (in ${reference.serverName})](${hyperlinkURL}${hyperlinkTitle ? ` "${hyperlinkTitle}"` : ''})`;
                 }
 
                 // add suffix
