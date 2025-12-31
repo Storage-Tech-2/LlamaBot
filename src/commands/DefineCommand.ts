@@ -33,20 +33,41 @@ export class DefineCommand implements Command {
     }
 
     private rankTermEntries(terms: BasicDictionaryIndexEntry[], query: string): { termsRanked: { term: string, score: number }[]; term: BasicDictionaryIndexEntry; score: number }[] {
-        const scoredTerms = terms.map(term => {
+        const normalizedQuery = this.normalizeTerm(query);
+
+        const scoredTermEntries = terms.map(termEntry => {
             let score = 0;
-            const ranked = this.rankTerms(term.terms, query);
-            if (ranked.length > 0) {
-                score = ranked[0].score;
+            let totalScore = 0;
+            const scoredTerms = termEntry.terms.map(term => {
+                const normalizedTerm = this.normalizeTerm(term);
+                let score = 0;
+                if (normalizedTerm === normalizedQuery) {
+                    score += 100;
+                } else if (normalizedTerm.startsWith(normalizedQuery)) {
+                    score += 50;
+                } else if (normalizedTerm.includes(normalizedQuery)) {
+                    score += 10;
+                }
+                totalScore += score;
+                return { term, score };
+            }).filter(entry => entry.score > 0);
+
+            if (totalScore > 0) {
+                scoredTerms.sort((a, b) => b.score - a.score);
             }
+
+            if (scoredTerms.length > 0) {
+                score = scoredTerms[0].score;
+            }
+            
             return {
-                termsRanked: ranked,
-                term: term,
+                termsRanked: scoredTerms,
+                term: termEntry,
                 score
             };
         }).filter(entry => entry.score > 0);
-        scoredTerms.sort((a, b) => b.score - a.score);
-        return scoredTerms;
+        scoredTermEntries.sort((a, b) => b.score - a.score);
+        return scoredTermEntries;
     }
 
     private rankTerms(terms: string[], query: string): { term: string, score: number }[] {
