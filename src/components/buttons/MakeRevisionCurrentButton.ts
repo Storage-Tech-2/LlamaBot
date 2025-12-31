@@ -37,10 +37,10 @@ export class MakeRevisionCurrentButton implements Button {
             return
         }
 
-        revision.references = await tagReferencesInSubmissionRecords(revision.records, revision.references, guildHolder, submission.getId()).catch(e => {
-            console.error("Failed to tag references:", e)
-            return [];
-        })
+        // revision.references = await tagReferencesInSubmissionRecords(revision.records, revision.references, guildHolder, submission.getId()).catch(e => {
+        //     console.error("Failed to tag references:", e)
+        //     return [];
+        // })
 
         await submission.getRevisionsManager().setCurrentRevision(revision.id);
         const channel = await submission.getSubmissionChannel();
