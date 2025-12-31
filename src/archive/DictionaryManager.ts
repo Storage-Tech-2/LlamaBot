@@ -30,6 +30,7 @@ export type DictionaryEntry = {
 }
 
 export type ArchiveIndexEntry = {
+    name: string;
     code: string;
     url: string;
     path: string;

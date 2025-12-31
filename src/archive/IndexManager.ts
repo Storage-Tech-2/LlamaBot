@@ -161,6 +161,7 @@ export class IndexManager {
            
             threadToId.set(data.post.threadId, data.id);
             idToData.set(data.id, {
+                name: data.name,
                 code: data.code,
                 url: data.post.threadURL,
                 path: channelRef.path + '/' + entryRef.path,
@@ -205,7 +206,7 @@ export class IndexManager {
         this.basicDictionaryIndexCache = this.buildBasicDictionaryIndex();
         return this.basicDictionaryIndexCache;
     }
-    
+
     public invalidateDictionaryTermIndex() {
         this.cachedDictionaryIndex = undefined;
     }
