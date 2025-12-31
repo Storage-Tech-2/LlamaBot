@@ -150,7 +150,7 @@ export class PostEmbed {
             });
         }
 
-        let description = ``;
+        let description =`### Attachment Embeds\n`;
 
         viewerAttachments.forEach((attachment)=>{
             description += (attachmentURLs.get(attachment.name) || attachment.url) + '\n';
