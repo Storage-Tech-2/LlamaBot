@@ -1,4 +1,4 @@
-import { AutocompleteInteraction, ChatInputCommandInteraction, EmbedBuilder, InteractionContextType, MessageFlags, SlashCommandBuilder } from "discord.js";
+import { ChatInputCommandInteraction, EmbedBuilder, InteractionContextType, MessageFlags, SlashCommandBuilder } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { isAdmin, replyEphemeral, splitIntoChunks } from "../utils/Util.js";
@@ -101,14 +101,7 @@ export class DiscordsCommand implements Command {
                 sub
                     .setName('join')
                     .setDescription('Pick a server to show its join info')
-                    .addStringOption(opt =>
-                        opt
-                            .setName('server')
-                            .setDescription('Server to join')
-                            .setRequired(true)
-                            .setAutocomplete(true)
-                    )
-            );
+            ); // kept for backward compatibility; handled separately
 
         return data;
     }
@@ -149,9 +142,6 @@ export class DiscordsCommand implements Command {
                 break;
             case 'list':
                 await this.handleList(dictionary, guildHolder, interaction);
-                break;
-            case 'join':
-                await this.handleJoin(dictionary, guildHolder, interaction);
                 break;
             default:
                 await replyEphemeral(interaction, 'Unknown subcommand.');
@@ -255,52 +245,4 @@ export class DiscordsCommand implements Command {
         }
     }
 
-    private async handleJoin(dictionary: DiscordServersDictionary, _guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
-        const servers = await dictionary.getCachedServersWithFallback();
-        if (servers.length === 0) {
-            await replyEphemeral(interaction, 'No servers registered to join.');
-            return;
-        }
-
-        const serverId = interaction.options.getString('server', true);
-        const server = servers.find(s => s.id === serverId);
-        if (!server) {
-            await replyEphemeral(interaction, 'Server not found. Please pick from the suggestions.');
-            return;
-        }
-
-        await interaction.reply({
-            content: `**${server.name}** invite:\n${server.joinURL}`,
-            flags: [MessageFlags.SuppressNotifications],
-            allowedMentions: { parse: [] },
-        });
-    }
-
-    async autocomplete(guildHolder: GuildHolder, interaction: AutocompleteInteraction): Promise<void> {
-        if (interaction.options.getSubcommand() !== 'join') {
-            await interaction.respond([]);
-            return;
-        }
-
-        const dictionary = guildHolder.getDiscordServersDictionary();
-        const servers = await dictionary.getCachedServersWithFallback();
-        const query = (interaction.options.getFocused() || '').toLowerCase();
-
-        const seen = new Set<string>();
-        const choices = servers
-            .filter(server => {
-                if (seen.has(server.id)) return false;
-                seen.add(server.id);
-                if (!query) return true;
-                return server.name.toLowerCase().includes(query) || server.id.includes(query);
-            })
-            .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
-            .slice(0, 25)
-            .map(server => ({
-                name: `${server.name} (${server.id})`.slice(0, 100),
-                value: server.id,
-            }));
-
-        await interaction.respond(choices);
-    }
 }
