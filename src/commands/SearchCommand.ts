@@ -38,9 +38,10 @@ export class SearchCommand implements Command {
         if (!query) return entries;
 
         // check if query is code
-        const isCode = PostCodePattern.test(query);
+        const isCode = /[a-z]+[0-9]{0,3}/i.test(query);
         const scored = entries.map(entry => {
             let score = 0;
+
             if (isCode) {
                 if (entry.code.toLowerCase() === query) {
                     score += 100;
@@ -136,7 +137,7 @@ export class SearchCommand implements Command {
         const ranked = this.rank(entries, query).slice(0, 25);
 
         const choices = ranked.map(entry => ({
-            name: `${entry.code} — ${entry.path}`.slice(0, 100),
+            name: `${entry.code} — ${entry.name}`.slice(0, 100),
             value: entry.code.slice(0, 100),
         }));
 
