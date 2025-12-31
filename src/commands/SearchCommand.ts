@@ -1,4 +1,4 @@
-import { AutocompleteInteraction, ChatInputCommandInteraction, EmbedBuilder, InteractionContextType, SlashCommandBuilder } from "discord.js";
+import { AutocompleteInteraction, ChatInputCommandInteraction, EmbedBuilder, InteractionContextType, MessageFlags, SlashCommandBuilder } from "discord.js";
 import { Command } from "../interface/Command.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { getAuthorsString, replyEphemeral } from "../utils/Util.js";
@@ -128,7 +128,11 @@ export class SearchCommand implements Command {
             embed.setThumbnail(image);
         }
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.reply({ 
+            embeds: [embed],
+            flags: [MessageFlags.SuppressNotifications],
+            allowedMentions: { parse: [] }
+        });
     }
 
     async autocomplete(guildHolder: GuildHolder, interaction: AutocompleteInteraction): Promise<void> {
