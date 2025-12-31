@@ -1,4 +1,4 @@
-import { AutocompleteInteraction, ChatInputCommandInteraction, EmbedBuilder, InteractionContextType, SlashCommandBuilder } from "discord.js";
+import { AutocompleteInteraction, ChatInputCommandInteraction, EmbedBuilder, InteractionContextType, MessageFlags, SlashCommandBuilder } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { DictionaryEntry } from "../archive/DictionaryManager.js";
@@ -150,9 +150,17 @@ export class DefineCommand implements Command {
             }
 
             if (i === 0) {
-                await interaction.reply({ embeds: [embed] });
+                await interaction.reply({ 
+                    embeds: [embed],
+                    flags: [MessageFlags.SuppressNotifications],
+                    allowedMentions: { parse: [] }
+                });
             } else {
-                await interaction.followUp({ embeds: [embed] });
+                await interaction.followUp({ 
+                    embeds: [embed],
+                    flags: [MessageFlags.SuppressNotifications],
+                    allowedMentions: { parse: [] }
+                });
             }
         }
     }
