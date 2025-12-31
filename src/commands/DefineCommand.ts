@@ -50,7 +50,7 @@ export class DefineCommand implements Command {
                 }
                 totalScore += score;
                 return { term, score };
-            }).filter(entry => entry.score > 0);
+            });
 
             if (totalScore > 0) {
                 scoredTerms.sort((a, b) => b.score - a.score);
@@ -59,7 +59,7 @@ export class DefineCommand implements Command {
             if (scoredTerms.length > 0) {
                 score = scoredTerms[0].score;
             }
-            
+
             return {
                 termsRanked: scoredTerms,
                 term: termEntry,
