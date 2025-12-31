@@ -271,7 +271,7 @@ export class DiscordsCommand implements Command {
 
         await interaction.reply({
             content: `**${server.name}** invite:\n${server.joinURL}`,
-            flags: [MessageFlags.SuppressNotifications, MessageFlags.Ephemeral],
+            flags: [MessageFlags.SuppressNotifications],
             allowedMentions: { parse: [] },
         });
     }
