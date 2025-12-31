@@ -19,6 +19,7 @@ import { UnsubscribeCommand } from "./UnsubscribeCommand.js";
 import { TopHelpersCommand } from "./TopHelpersCommand.js";
 import { DiscordsCommand } from "./DiscordsCommand.js";
 import { DebugCommand } from "./DebugCommand.js";
+import { DefineCommand } from "./DefineCommand.js";
 export function getCommands() {
     const Commands = [
         new Mwa(),
@@ -41,7 +42,8 @@ export function getCommands() {
         new TopHelpersCommand(),
         new DictionaryEditCommand(),
         new DiscordsCommand(),
-        new DebugCommand()
+        new DebugCommand(),
+        new DefineCommand()
     ];
     return Commands;
 }

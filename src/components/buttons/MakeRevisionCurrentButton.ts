@@ -2,7 +2,6 @@ import { ButtonBuilder, ButtonInteraction, ButtonStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Button } from "../../interface/Button.js";
 import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
-import { tagReferencesInSubmissionRecords } from "../../utils/ReferenceUtils.js";
 
 
 export class MakeRevisionCurrentButton implements Button {

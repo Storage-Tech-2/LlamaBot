@@ -1,4 +1,4 @@
-import { ChannelType, ChatInputCommandInteraction, Client, ContextMenuCommandInteraction, Events, GatewayIntentBits, Message, Partials, SelectMenuInteraction, Snowflake, TextChannel, TextThreadChannel } from "discord.js";
+import { AutocompleteInteraction, ChannelType, ChatInputCommandInteraction, Client, ContextMenuCommandInteraction, Events, GatewayIntentBits, Message, Partials, SelectMenuInteraction, Snowflake, TextChannel, TextThreadChannel } from "discord.js";
 import { GuildHolder } from "./GuildHolder.js";
 import { LLMQueue } from "./llm/LLMQueue.js";
 import path from "path";
@@ -244,6 +244,28 @@ export class Bot {
         });
         
         this.client.on(Events.InteractionCreate, async (interaction) => {
+            if (interaction.isAutocomplete()) {
+                if (!interaction.inGuild()) {
+                    await interaction.respond([]);
+                    return;
+                }
+
+                const guildHolder = this.guilds.get(interaction.guildId);
+                const command = this.commands.get(interaction.commandName) as Command | undefined;
+                if (!guildHolder || !command || !command.autocomplete) {
+                    await interaction.respond([]);
+                    return;
+                }
+
+                try {
+                    await command.autocomplete(guildHolder, interaction as AutocompleteInteraction);
+                } catch (error) {
+                    console.error(error);
+                    await interaction.respond([]);
+                }
+                return;
+            }
+
             if (!interaction.inGuild()) {
                 replyEphemeral(interaction, 'Cannot use outside of guild!')
                 return;

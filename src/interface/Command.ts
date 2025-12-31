@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import { AutocompleteInteraction, ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 
 /**
@@ -23,5 +23,5 @@ export interface Command {
     /**
      * Autocomplete handler for the command.
      */
-    autocomplete?(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction): Promise<void>;
+    autocomplete?(guildHolder: GuildHolder, interaction: AutocompleteInteraction): Promise<void>;
 }
