@@ -3,7 +3,7 @@ import fs from "fs/promises";
 import Path from "path";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { GuildHolder } from "../GuildHolder.js";
-import { findDictionaryMatches, DictionaryTermIndex, Reference, tagReferences, transformOutputWithReferencesForDiscord, DictionaryIndexEntry } from "../utils/ReferenceUtils.js";
+import { findDictionaryMatches, DictionaryTermIndex, Reference, tagReferences, transformOutputWithReferencesForDiscord, DictionaryIndexEntry, MarkdownCharacterRegex } from "../utils/ReferenceUtils.js";
 import { IndexManager } from "./IndexManager.js";
 import { RepositoryManager } from "./RepositoryManager.js";
 import { Lock } from "../utils/Lock.js";
@@ -224,9 +224,10 @@ export class DictionaryManager {
         const starterMessage = await thread.fetchStarterMessage().catch(() => null);
         const definition = starterMessage?.content.trim() ?? '';
 
+        const terms = thread.name.replace(MarkdownCharacterRegex, '').split(',').map(t => t.trim()).filter(t => t.length > 0);
         entry = {
             id: thread.id,
-            terms: [thread.name],
+            terms: terms,
             definition,
             threadURL: thread.url,
             statusURL: '',
