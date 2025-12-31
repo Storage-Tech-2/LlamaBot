@@ -34,6 +34,13 @@ export class DefineCommand implements Command {
 
     private rankTermEntries(terms: BasicDictionaryIndexEntry[], query: string): { termsRanked: { term: string, score: number }[]; term: BasicDictionaryIndexEntry; score: number }[] {
         const normalizedQuery = this.normalizeTerm(query);
+        if (normalizedQuery.length === 0) {
+            return terms.map(termEntry => ({
+                termsRanked: termEntry.terms.map(term => ({ term, score: 0 })),
+                term: termEntry,
+                score: 0
+            }));
+        }
 
         const scoredTermEntries = terms.map(termEntry => {
             let score = 0;
