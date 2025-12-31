@@ -113,6 +113,8 @@ function createNode<T extends AhoNodeOutput>(): AhoNode<T> {
     };
 }
 
+export const MarkdownCharacterRegex = /[_*~`#\[\]\(\)>]/g;
+
 /**
  * Build an Aho–Corasick index for a list of dictionary terms.
  */
@@ -167,6 +169,10 @@ export function findDictionaryMatches<T extends AhoNodeOutput>(text: string, ind
 
     for (let i = 0; i < normalizedText.length; i++) {
         const ch = normalizedText[i];
+        if (MarkdownCharacterRegex.test(ch)) {
+            continue; // skip markdown characters
+        }
+
         while (state !== 0 && !index.nodes[state].children.has(ch)) {
             state = index.nodes[state].fail;
         }

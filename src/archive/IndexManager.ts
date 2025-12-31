@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import Path from "path";
 import { Snowflake } from "discord.js";
-import { buildDictionaryIndex, DictionaryIndexEntry, DictionaryTermIndex } from "../utils/ReferenceUtils.js";
+import { buildDictionaryIndex, DictionaryIndexEntry, DictionaryTermIndex, MarkdownCharacterRegex } from "../utils/ReferenceUtils.js";
 import { ArchiveChannel, ArchiveEntryReference } from "./ArchiveChannel.js";
 import { ArchiveEntry } from "./ArchiveEntry.js";
 import { DictionaryManager, ArchiveIndex, ArchiveIndexEntry } from "./DictionaryManager.js";
@@ -96,7 +96,7 @@ export class IndexManager {
 
         for (const entry of dictionaryEntries) {
             for (const rawTerm of entry.terms || []) {
-                const normalized = rawTerm.toLowerCase();
+                const normalized = rawTerm.toLowerCase().replace(MarkdownCharacterRegex, '');
                 if (!normalized) {
                     continue;
                 }
