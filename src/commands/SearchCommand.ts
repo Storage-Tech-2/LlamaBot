@@ -1,9 +1,9 @@
 import { AutocompleteInteraction, ChatInputCommandInteraction, EmbedBuilder, InteractionContextType, SlashCommandBuilder } from "discord.js";
 import { Command } from "../interface/Command.js";
 import { GuildHolder } from "../GuildHolder.js";
-import { replyEphemeral } from "../utils/Util.js";
+import { getAuthorsString, replyEphemeral } from "../utils/Util.js";
 import { ArchiveIndexEntry } from "../archive/DictionaryManager.js";
-import { PostCodePattern } from "../utils/ReferenceUtils.js";
+import { PostCodePattern, transformOutputWithReferencesForDiscord } from "../utils/ReferenceUtils.js";
 
 export class SearchCommand implements Command {
     getID(): string {
@@ -67,7 +67,7 @@ export class SearchCommand implements Command {
         }).filter(item => item.score > 0);
 
         scored.sort((a, b) => b.score - a.score);
-        
+
         return scored.map(item => item.entry);
     }
 
@@ -78,24 +78,54 @@ export class SearchCommand implements Command {
         }
 
         const query = interaction.options.getString("query", true);
-        const entries = await this.getIndexEntries(guildHolder);
-        if (entries.length === 0) {
-            await replyEphemeral(interaction, "No archived posts found.");
+        // test code pattern
+        const isCode = PostCodePattern.test(query);
+        let entryData = null;
+        if (isCode) {
+            const entry = await guildHolder.getRepositoryManager().findEntryBySubmissionCode(query);
+            if (entry) {
+                entryData = entry.entry.getData();
+            }
+        }
+
+        if (!entryData) {
+            const entries = await this.getIndexEntries(guildHolder);
+            const ranked = this.rank(entries, query);
+            if (ranked.length > 0) {
+                const entry = await guildHolder.getRepositoryManager().findEntryBySubmissionCode(ranked[0].code);
+                if (entry) {
+                    entryData = entry.entry.getData();
+                }
+            }
+        }
+
+        if (!entryData) {
+            await interaction.reply({ content: `No results found for "${query}".`, ephemeral: true });
             return;
         }
 
-        const ranked = this.rank(entries, query);
-        const match = ranked[0];
-        if (!match) {
-            await replyEphemeral(interaction, `No archived post found matching "${query}".`);
-            return;
+        const name = entryData.code + ': ' + entryData.name;
+        const authors = getAuthorsString(entryData.authors);
+        const tags = entryData.tags.map(tag => tag.name).join(', ');
+        const description = entryData.records.description as string || '';
+        const image = entryData.images.length > 0 ? entryData.images[0].url : null;
+
+        const textArr = [
+            `**Authors:** ${authors}`,
+            `**Tags:** ${tags || 'None'}`,
+        ];
+        if (description) {
+            textArr.push('\n' + transformOutputWithReferencesForDiscord(description, entryData.references));
         }
 
         const embed = new EmbedBuilder()
-            .setTitle(match.name ? `${match.code} — ${match.name}` : match.code)
-            .setDescription(`Path: ${match.path}`)
-            .setURL(match.url)
-            .setColor(0x5865f2);
+            .setTitle(name)
+            .setDescription(textArr.join('\n'))
+            .setColor(0x00AE86)
+            .setURL(entryData.post?.threadURL || '');
+        if (image) {
+            embed.setThumbnail(image);
+        }
 
         await interaction.reply({ embeds: [embed] });
     }
