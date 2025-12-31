@@ -1,4 +1,4 @@
-import { ActionRowBuilder, AnyThreadChannel, ChannelType, EmbedBuilder, ForumChannel, Guild, GuildAuditLogsEntry, GuildMember, Message, MessageFlags, Role, PartialGuildMember, Snowflake } from "discord.js";
+import { ActionRowBuilder, AnyThreadChannel, ChannelType, EmbedBuilder, ForumChannel, Guild, GuildAuditLogsEntry, GuildMember, Message, MessageFlags, Role, PartialGuildMember, Snowflake, Attachment } from "discord.js";
 import { Bot } from "./Bot.js";
 import { ConfigManager } from "./config/ConfigManager.js";
 import Path from "path";
@@ -487,15 +487,29 @@ export class GuildHolder {
                 return;
             }
 
+            let offendingMessage: {
+                content: string;
+                files: Attachment[];
+            } | null = null;
+
             if (userData.messagesToDeleteOnTimeout) {
-                for (const msgId of userData.messagesToDeleteOnTimeout) {
+                for (let i = 0; i < userData.messagesToDeleteOnTimeout.length; i++) {
+                    const msgId = userData.messagesToDeleteOnTimeout[i];
                     const [channelId, messageId] = msgId.split('-');
                     const channel = await this.guild.channels.fetch(channelId).catch(() => null);
                     if (!channel || !channel.isTextBased()) {
                         continue;
                     }
                     const msg = await channel.messages.fetch(messageId).catch(() => null);
+
                     if (msg) {
+                        if (i === 0) {
+                            offendingMessage = {
+                                content: msg ? msg.content : '',
+                                files: msg ? Array.from(msg.attachments.values()) : [],
+                            };
+                        }
+
                         await msg.delete().catch(() => null);
                     }
                 }
@@ -506,10 +520,22 @@ export class GuildHolder {
 
             await this.userManager.saveUserData(userData);
 
+            const text = [`Timed out <@${userData.id}> for ${autoTimeout ? `not verifying within the allotted time` : `sending links/attachments again after warning`}.`];
+            
+            if (offendingMessage) {
+                text.push(`**Offending Message:**\n${truncateStringWithEllipsis(offendingMessage.content, 2000)}`);
+                if (offendingMessage.files.length > 0) {
+                    text.push(`**Attachments:**`);
+                    for (const file of offendingMessage.files) {
+                        text.push(`"${file.name}": ${file.url}`);
+                    }
+                }
+            }
+
             const embed = new EmbedBuilder()
                 .setColor(0xFF0000) // Red color for timeout message
                 .setTitle(`User Timed Out for Spam!`)
-                .setDescription(`Timed out <@${userData.id}> for ${autoTimeout ? `not verifying within the allotted time` : `sending links/attachments again after warning`}.`)
+                .setDescription(text.join('\n'))
 
             const modChannel = await this.guild.channels.fetch(this.getConfigManager().getConfig(GuildConfigs.MOD_LOG_CHANNEL_ID)).catch(() => null);
             if (modChannel && modChannel.isSendable()) {
