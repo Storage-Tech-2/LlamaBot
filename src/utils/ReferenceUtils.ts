@@ -7,7 +7,7 @@ import { Snowflake } from "discord.js";
 import { recordsToRawTextNoHeaders, stripHyperlinkNames, SubmissionRecords } from "./MarkdownUtils.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Author, AuthorType } from "../submissions/Author.js";
-import { ArchiveIndex, DictionaryEntryStatus } from "../archive/DictionaryManager.js";
+import { ArchiveIndex } from "../archive/DictionaryManager.js";
 import { getAuthorsString, reclassifyAuthors } from "./Util.js";
 
 // Convenience patterns for dynamic reference extraction
@@ -40,7 +40,6 @@ export type DictionaryIndexEntry = {
     term: string;
     id: Snowflake;
     url: string;
-    status: DictionaryEntryStatus;
 }
 
 export type DictionaryTermIndex = {
@@ -390,9 +389,6 @@ export function tagReferencesInText(text: string, dictionaryIndex?: DictionaryTe
         const dictMatches = findDictionaryMatches(text, dictionaryIndex.aho);
         for (const match of dictMatches) {
             const matchedText = text.slice(match.start, match.end);
-            if (match.output.status !== DictionaryEntryStatus.APPROVED) {
-                continue;
-            }
             references.push({
                 start: match.start,
                 end: match.end,

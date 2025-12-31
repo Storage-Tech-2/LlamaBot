@@ -3,8 +3,8 @@ import fs from "fs/promises";
 import Path from "path";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { GuildHolder } from "../GuildHolder.js";
-import { findDictionaryMatches, DictionaryTermIndex, Reference, tagReferences, transformOutputWithReferencesForDiscord, DictionaryIndexEntry, MarkdownCharacterRegex } from "../utils/ReferenceUtils.js";
-import { IndexManager } from "./IndexManager.js";
+import { DictionaryTermIndex, Reference, tagReferences, transformOutputWithReferencesForDiscord, MarkdownCharacterRegex } from "../utils/ReferenceUtils.js";
+import { BasicDictionaryIndexEntry, IndexManager } from "./IndexManager.js";
 import { RepositoryManager } from "./RepositoryManager.js";
 import { Lock } from "../utils/Lock.js";
 import { truncateStringWithEllipsis } from "../utils/Util.js";
@@ -447,33 +447,50 @@ export class DictionaryManager {
         return this.getIndexManager().getArchiveIndex();
     }
 
+    public async getBasicDictionaryIndex(): Promise<BasicDictionaryIndexEntry[]> {
+        return this.getIndexManager().getBasicDictionaryIndex();
+    }
+
     public invalidateDictionaryTermIndex() {
         this.getIndexManager().invalidateDictionaryTermIndex();
+        this.getIndexManager().invalidateBasicDictionaryIndex();
     }
 
     public invalidateArchiveIndex() {
         this.getIndexManager().invalidateArchiveIndex();
     }
 
-    private async findDuplicateEntries(entry: DictionaryEntry): Promise<{ term: string, entry: DictionaryIndexEntry }[]> {
-        const termIndex = await this.getDictionaryTermIndex();
-        const duplicates: { term: string, entry: DictionaryIndexEntry }[] = [];
-        const seenTerms = new Set<Snowflake>();
-        for (const term of entry.terms || []) {
+    private async findDuplicateEntries(entry: DictionaryEntry): Promise<{
+        matches: string[],
+        entry: DictionaryEntry
+    }[]> {
+        const terms = await this.listEntries();
 
-            const matches = findDictionaryMatches(term, termIndex.aho);
-            for (const match of matches) {
-                if (match.output.id === entry.id) {
-                    continue;
-                }
-               
-                if (seenTerms.has(match.output.id)) {
-                    continue;
-                }
-                seenTerms.add(match.output.id);
-                duplicates.push({ term: match.output.term, entry: match.output });
+        const duplicates: {
+            matches: string[],
+            entry: DictionaryEntry
+        }[] = [];
+
+        const entryNormalizedTerms = entry.terms.map(t => t.toLowerCase().replace(MarkdownCharacterRegex, ''));
+
+        terms.forEach(e => {
+            if (e.id === entry.id) {
+                return;
             }
-        }
+
+            const matches: string[] = [];
+            e.terms.forEach(t => {
+                const normalized = t.toLowerCase().replace(MarkdownCharacterRegex, '');
+                if (entryNormalizedTerms.includes(normalized)) {
+                    matches.push(t);
+                }
+            });
+
+            if (matches.length > 0 && e.id !== entry.id) {
+                duplicates.push({ matches, entry: e });
+            }
+        });
+
         return duplicates;
     }
 
@@ -490,7 +507,7 @@ export class DictionaryManager {
 
         const lines: string[] = [];
         for (const dup of duplicates) {
-            lines.push(`**${dup.term}** duplicates ${dup.entry.url}`);
+            lines.push(`**${dup.matches.join(', ')}** in ${dup.entry.threadURL}`);
         }
 
         await targetThread.send({

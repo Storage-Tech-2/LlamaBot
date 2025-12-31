@@ -1,15 +1,10 @@
 import { AutocompleteInteraction, ChatInputCommandInteraction, EmbedBuilder, InteractionContextType, SlashCommandBuilder } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
-import { DictionaryEntry, DictionaryEntryStatus } from "../archive/DictionaryManager.js";
+import { DictionaryEntry } from "../archive/DictionaryManager.js";
 import { MarkdownCharacterRegex } from "../utils/ReferenceUtils.js";
-import { replyEphemeral, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
-
-type TermEntry = {
-    term: string;
-    normalized: string;
-    entry: DictionaryEntry;
-};
+import { replyEphemeral, splitIntoChunks } from "../utils/Util.js";
+import { BasicDictionaryIndexEntry } from "../archive/IndexManager.js";
 
 export class DefineCommand implements Command {
     getID(): string {
@@ -37,75 +32,51 @@ export class DefineCommand implements Command {
         return term.toLowerCase().replace(MarkdownCharacterRegex, "").trim();
     }
 
-    private buildTermList(entries: DictionaryEntry[]): TermEntry[] {
-        const seen = new Set<string>();
-        const list: TermEntry[] = [];
-
-        for (const entry of entries) {
-            for (const term of entry.terms || []) {
-                const normalized = this.normalizeTerm(term);
-                if (!normalized) {
-                    continue;
-                }
-
-                const key = `${entry.id}:${normalized}`;
-                if (seen.has(key)) {
-                    continue;
-                }
-                seen.add(key);
-                list.push({ term, normalized, entry });
+    private rankTermEntries(terms: BasicDictionaryIndexEntry[], query: string): { termsRanked: { term: string, score: number }[]; term: BasicDictionaryIndexEntry; score: number }[] {
+        const scoredTerms = terms.map(term => {
+            let score = 0;
+            const ranked = this.rankTerms(term.terms, query);
+            if (ranked.length > 0) {
+                score = ranked[0].score;
             }
-        }
-
-        return list;
+            return {
+                termsRanked: ranked,
+                term: term,
+                score
+            };
+        }).filter(entry => entry.score > 0);
+        scoredTerms.sort((a, b) => b.score - a.score);
+        return scoredTerms;
     }
 
-    private rankTerms(terms: TermEntry[], query: string): TermEntry[] {
+    private rankTerms(terms: string[], query: string): { term: string, score: number }[] {
         const normalizedQuery = this.normalizeTerm(query);
-        const filtered = normalizedQuery
-            ? terms.filter(term => term.normalized.includes(normalizedQuery))
-            : terms;
 
-        filtered.sort((a, b) => {
-            const aStarts = normalizedQuery ? (a.normalized.startsWith(normalizedQuery) ? 1 : 0) : 0;
-            const bStarts = normalizedQuery ? (b.normalized.startsWith(normalizedQuery) ? 1 : 0) : 0;
-            if (aStarts !== bStarts) {
-                return bStarts - aStarts;
+        const scoredTerms = terms.map(term => {
+            const normalizedTerm = this.normalizeTerm(term);
+            let score = 0;
+            if (normalizedTerm === normalizedQuery) {
+                score += 100;
+            } else if (normalizedTerm.startsWith(normalizedQuery)) {
+                score += 50;
+            } else if (normalizedTerm.includes(normalizedQuery)) {
+                score += 10;
             }
+            return { term, score };
+        }).filter(entry => entry.score > 0);
 
-            if (a.entry.updatedAt !== b.entry.updatedAt) {
-                return b.entry.updatedAt - a.entry.updatedAt;
-            }
+        scoredTerms.sort((a, b) => b.score - a.score);
 
-            return a.term.localeCompare(b.term);
-        });
-
-        return filtered;
+        return scoredTerms;
     }
 
-    private findBestMatch(query: string, terms: TermEntry[]): TermEntry | null {
+    private findBestMatch(query: string, terms: BasicDictionaryIndexEntry[]): { termsRanked: { term: string, score: number }[]; term: BasicDictionaryIndexEntry; score: number } | null {
         if (terms.length === 0) {
             return null;
         }
 
-        const normalizedQuery = this.normalizeTerm(query);
-        if (!normalizedQuery) {
-            return terms[0];
-        }
-
-        const exact = terms.find(term => term.normalized === normalizedQuery);
-        if (exact) {
-            return exact;
-        }
-
-        const ranked = this.rankTerms(terms, query);
+        const ranked = this.rankTermEntries(terms, query);
         return ranked.length > 0 ? ranked[0] : null;
-    }
-
-    private async getApprovedTerms(guildHolder: GuildHolder): Promise<TermEntry[]> {
-        const entries = await guildHolder.getDictionaryManager().listEntries();
-        const approved = entries.filter(entry => entry.status === DictionaryEntryStatus.APPROVED);
-        return this.buildTermList(approved);
     }
 
     async execute(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction): Promise<void> {
@@ -114,27 +85,31 @@ export class DefineCommand implements Command {
             return;
         }
 
-        const query = interaction.options.getString("term", true);
-        const terms = await this.getApprovedTerms(guildHolder);
+        const termId = interaction.options.getString("term", true);
+        // check if id
+        let entry: DictionaryEntry | null = null;
+        if (/^[0-9]{17,19}$/.test(termId)) {
+            entry = await guildHolder.getDictionaryManager().getEntry(termId);
+        } else {
+            const terms = await guildHolder.getDictionaryManager().getBasicDictionaryIndex();
+            const match = this.findBestMatch(termId, terms);
+            if (match) {
+                entry = await guildHolder.getDictionaryManager().getEntry(match.term.id);
+            }
+        }
 
-        if (terms.length === 0) {
-            await replyEphemeral(interaction, "No approved dictionary entries found.");
+        if (!entry) {
+            await replyEphemeral(interaction, `No definition found for "${termId}".`);
             return;
         }
 
-        const match = this.findBestMatch(query, terms);
-        if (!match) {
-            await replyEphemeral(interaction, `No definition found for "${query}".`);
-            return;
-        }
+        const url = entry.statusURL || entry.threadURL || "";
+        const definitionSplit = splitIntoChunks(entry.definition, 4000);
 
-        const definition = match.entry.definition?.trim() || "No definition available.";
-        const url = match.entry.threadURL || match.entry.statusURL || "";
-        const definitionSplit = splitIntoChunks(definition, 4000);
-
-        for (let i = 0; i < definitionSplit.length - 1; i++) {
+        const closestMatchTerm = this.rankTerms(entry.terms, termId)[0]?.term || entry.terms[0];
+        for (let i = 0; i < definitionSplit.length; i++) {
             const embed = new EmbedBuilder()
-                .setTitle(match.term)
+                .setTitle(closestMatchTerm)
                 .setDescription(definitionSplit[i])
                 .setColor(0x2d7d46);
 
@@ -156,12 +131,12 @@ export class DefineCommand implements Command {
 
     async autocomplete(guildHolder: GuildHolder, interaction: AutocompleteInteraction): Promise<void> {
         const focused = interaction.options.getFocused() || "";
-        const terms = await this.getApprovedTerms(guildHolder);
-        const ranked = this.rankTerms(terms, focused).slice(0, 25);
+        const terms = (await guildHolder.getDictionaryManager().getBasicDictionaryIndex());
+        const ranked = this.rankTermEntries(terms, focused).slice(0, 25);
 
         const choices = ranked.map(term => ({
-            name: truncateStringWithEllipsis(`${term.term} — ${term.entry.definition.replace(/\s+/g, " ")}`, 100),
-            value: term.term.slice(0, 100),
+            name: term.termsRanked.map(t => t.term).join(", "),
+            value: term.term.id
         }));
 
         await interaction.respond(choices);

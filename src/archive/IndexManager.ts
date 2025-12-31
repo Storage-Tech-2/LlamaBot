@@ -4,16 +4,24 @@ import { Snowflake } from "discord.js";
 import { buildDictionaryIndex, DictionaryIndexEntry, DictionaryTermIndex, MarkdownCharacterRegex } from "../utils/ReferenceUtils.js";
 import { ArchiveChannel, ArchiveEntryReference } from "./ArchiveChannel.js";
 import { ArchiveEntry } from "./ArchiveEntry.js";
-import { DictionaryManager, ArchiveIndex, ArchiveIndexEntry } from "./DictionaryManager.js";
+import { DictionaryManager, ArchiveIndex, ArchiveIndexEntry, DictionaryEntryStatus } from "./DictionaryManager.js";
 import type { RepositoryManager } from "./RepositoryManager.js";
 import { ArchiveChannelReference } from "./RepositoryConfigs.js";
 
 const INDEX_TIMEOUT_MS = 5 * 60 * 1000;
+
+export type BasicDictionaryIndexEntry = {
+    terms: string[];
+    id: Snowflake;
+}
+
 export class IndexManager {
     private cachedDictionaryIndex?: Promise<DictionaryTermIndex>;
     private dictionaryCacheInvalidateTimeout?: NodeJS.Timeout;
     private cachedArchiveIndex?: Promise<ArchiveIndex>;
     private archiveCacheInvalidateTimeout?: NodeJS.Timeout;
+    private basicDictionaryIndexCache?: Promise<BasicDictionaryIndexEntry[]>;
+    private basicDictionaryIndexCacheInvalidateTimeout?: NodeJS.Timeout;
 
     constructor(
         private dictionaryManager: DictionaryManager,
@@ -90,11 +98,32 @@ export class IndexManager {
         }
     }
 
+    public async buildBasicDictionaryIndex(): Promise<BasicDictionaryIndexEntry[]> {
+        const dictionaryEntries = await this.dictionaryManager.listEntries();
+        const basicIndex: BasicDictionaryIndexEntry[] = [];
+
+        for (const entry of dictionaryEntries) {
+            if (entry.status !== DictionaryEntryStatus.APPROVED) {
+                continue;
+            }
+            basicIndex.push({
+                terms: entry.terms || [],
+                id: entry.id,
+            });
+        }
+
+        return basicIndex;
+    }
+
+
     public async buildDictionaryTermIndex(): Promise<DictionaryTermIndex> {
         const dictionaryEntries = await this.dictionaryManager.listEntries();
         const termToData: Map<string, DictionaryIndexEntry[]> = new Map();
 
         for (const entry of dictionaryEntries) {
+            if (entry.status !== DictionaryEntryStatus.APPROVED) {
+                continue;
+            }
             for (const rawTerm of entry.terms || []) {
                 const normalized = rawTerm.toLowerCase().replace(MarkdownCharacterRegex, '');
                 if (!normalized) {
@@ -110,7 +139,6 @@ export class IndexManager {
                         term: rawTerm,
                         id: entry.id,
                         url: entry.statusURL || entry.threadURL,
-                        status: entry.status,
                     });
                 }
             }
@@ -167,8 +195,23 @@ export class IndexManager {
         return this.cachedArchiveIndex;
     }
 
+    public async getBasicDictionaryIndex(): Promise<BasicDictionaryIndexEntry[]> {
+        clearTimeout(this.basicDictionaryIndexCacheInvalidateTimeout);
+        this.basicDictionaryIndexCacheInvalidateTimeout = setTimeout(() => {
+            this.invalidateBasicDictionaryIndex();
+        }, INDEX_TIMEOUT_MS);
+
+        if (this.basicDictionaryIndexCache) return this.basicDictionaryIndexCache;
+        this.basicDictionaryIndexCache = this.buildBasicDictionaryIndex();
+        return this.basicDictionaryIndexCache;
+    }
+    
     public invalidateDictionaryTermIndex() {
         this.cachedDictionaryIndex = undefined;
+    }
+
+    public invalidateBasicDictionaryIndex() {
+        this.basicDictionaryIndexCache = undefined;
     }
 
     public invalidateArchiveIndex() {
