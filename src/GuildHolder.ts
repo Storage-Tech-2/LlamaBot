@@ -207,6 +207,11 @@ export class GuildHolder {
                 return true;
             })) {
 
+                // make sure message isn't first message
+                if (message.id === message.channel.id) {
+                    return;
+                }
+
                 await this.handleMessageReferences(message).catch(e => {
                     console.error('Error handling post references:', e);
                 });
