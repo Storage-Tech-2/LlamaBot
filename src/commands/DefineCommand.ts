@@ -2,7 +2,7 @@ import { AutocompleteInteraction, ChatInputCommandInteraction, EmbedBuilder, Int
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { DictionaryEntry } from "../archive/DictionaryManager.js";
-import { MarkdownCharacterRegex } from "../utils/ReferenceUtils.js";
+import { MarkdownCharacterRegex, transformOutputWithReferencesForDiscord } from "../utils/ReferenceUtils.js";
 import { replyEphemeral, splitIntoChunks } from "../utils/Util.js";
 import { BasicDictionaryIndexEntry } from "../archive/IndexManager.js";
 
@@ -132,7 +132,7 @@ export class DefineCommand implements Command {
         }
 
         const url = entry.statusURL || entry.threadURL || "";
-        const definitionSplit = splitIntoChunks(entry.definition, 4000);
+        const definitionSplit = splitIntoChunks(transformOutputWithReferencesForDiscord(entry.definition, entry.references), 4000);
 
         const closestMatchTerm = this.rankTerms(entry.terms, termId)[0]?.term || entry.terms[0];
         for (let i = 0; i < definitionSplit.length; i++) {
