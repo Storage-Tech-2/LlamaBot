@@ -1672,7 +1672,7 @@ export class RepositoryManager {
                                 name: deletedComment.sender.displayName || deletedComment.sender.username || 'Unknown Author',
                                 iconURL: deletedComment.sender.iconURL || undefined,
                             })
-                            .setDescription(deletedComment.content)
+                            .setDescription(deletedComment.content || "(No content)")
                             .setTimestamp();
                         if (deletedComment.attachments.length > 0) {
                             embed.addFields({
