@@ -88,4 +88,14 @@ export const GuildConfigs = {
      * Dictionary channel ID
      */
     DICTIONARY_CHANNEL_ID: new Config<Snowflake>("dictionaryChannelId", ""),
+
+    /**
+     * Auto reply with server invites for detected Discord links
+     */
+    AUTOJOIN_ENABLED: new Config<boolean>("autojoinEnabled", true),
+
+    /**
+     * Auto reply with post embeds for detected post codes
+     */
+    AUTOLOOKUP_ENABLED: new Config<boolean>("autolookupEnabled", true),
 }

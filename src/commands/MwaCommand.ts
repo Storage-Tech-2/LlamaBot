@@ -225,6 +225,27 @@ export class Mwa implements Command {
                     .setName('setscript')
                     .setDescription('Set the rules script for a channel subscription')
             )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('setconfig')
+                    .setDescription('Set a guild config value')
+                    .addStringOption(option =>
+                        option
+                            .setName('name')
+                            .setDescription('Config to set')
+                            .setRequired(true)
+                            .addChoices(
+                                { name: 'Auto-join server links', value: 'autojoin' },
+                                { name: 'Auto-lookup post codes', value: 'autolookup' },
+                            )
+                    )
+                    .addBooleanOption(option =>
+                        option
+                            .setName('value')
+                            .setDescription('Enable or disable the config')
+                            .setRequired(true)
+                    )
+            )
             .addSubcommand(subcommand => 
                 subcommand
                     .setName('forceretag')
@@ -278,6 +299,8 @@ export class Mwa implements Command {
             this.setWebsite(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'setscript') {
             this.setScript(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'setconfig') {
+            this.setConfig(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'forceretag') {
             this.forceRetag(guildHolder, interaction);
         } else {
@@ -489,6 +512,30 @@ export class Mwa implements Command {
 
         guildHolder.getConfigManager().setConfig(GuildConfigs.DICTIONARY_CHANNEL_ID, channel.id);
         await interaction.reply(`Dictionary channel set to ${channel.name}.`);
+    }
+
+    async setConfig(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const configName = interaction.options.getString('name');
+        const value = interaction.options.getBoolean('value');
+
+        if (!configName || value === null) {
+            await replyEphemeral(interaction, 'Invalid config or value');
+            return;
+        }
+
+        const configMap = {
+            autojoin: GuildConfigs.AUTOJOIN_ENABLED,
+            autolookup: GuildConfigs.AUTOLOOKUP_ENABLED,
+        } as const;
+
+        const config = configMap[configName as keyof typeof configMap];
+        if (!config) {
+            await replyEphemeral(interaction, 'Invalid config name. Valid options: autojoin, autolookup.');
+            return;
+        }
+
+        guildHolder.getConfigManager().setConfig(config, value);
+        await interaction.reply(`Set \`${configName}\` to ${value ? 'enabled' : 'disabled'}.`);
     }
 
     async importDictionary(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
