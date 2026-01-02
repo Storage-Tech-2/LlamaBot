@@ -242,7 +242,29 @@ export class Bot {
                 console.error('Error handling member remove:', error)
             }
         });
-        
+
+        this.client.on(Events.ChannelCreate, async (channel) => {
+            if (channel.isDMBased() || !channel.guild) return;
+            const guildHolder = this.guilds.get(channel.guild.id);
+            if (!guildHolder) return;
+            try {
+                await guildHolder.handleChannelCreate(channel);
+            } catch (error) {
+                console.error('Error handling channel create:', error);
+            }
+        });
+
+        this.client.on(Events.ChannelDelete, async (channel) => {
+            if (channel.isDMBased() || !channel.guild) return;
+            const guildHolder = this.guilds.get(channel.guild.id);
+            if (!guildHolder) return;
+            try {
+                await guildHolder.handleChannelDelete(channel);
+            } catch (error) {
+                console.error('Error handling channel delete:', error);
+            }
+        });
+
         this.client.on(Events.InteractionCreate, async (interaction) => {
             if (interaction.isAutocomplete()) {
                 if (!interaction.inGuild()) {

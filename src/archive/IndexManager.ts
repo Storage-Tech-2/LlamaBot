@@ -1,12 +1,13 @@
 import fs from "fs/promises";
 import Path from "path";
-import { Snowflake } from "discord.js";
+import { ChannelType, Snowflake } from "discord.js";
 import { buildDictionaryIndex, DictionaryIndexEntry, DictionaryTermIndex, MarkdownCharacterRegex } from "../utils/ReferenceUtils.js";
 import { ArchiveChannel, ArchiveEntryReference } from "./ArchiveChannel.js";
 import { ArchiveEntry } from "./ArchiveEntry.js";
 import { DictionaryManager, ArchiveIndex, ArchiveIndexEntry, DictionaryEntryStatus } from "./DictionaryManager.js";
 import type { RepositoryManager } from "./RepositoryManager.js";
 import { ArchiveChannelReference } from "./RepositoryConfigs.js";
+import { GuildConfigs } from "../config/GuildConfigs.js";
 
 const INDEX_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -18,10 +19,11 @@ export type BasicDictionaryIndexEntry = {
 export class IndexManager {
     private cachedDictionaryIndex?: Promise<DictionaryTermIndex>;
     private dictionaryCacheInvalidateTimeout?: NodeJS.Timeout;
-    private cachedArchiveIndex?: Promise<ArchiveIndex>;
-    private archiveCacheInvalidateTimeout?: NodeJS.Timeout;
     private basicDictionaryIndexCache?: Promise<BasicDictionaryIndexEntry[]>;
     private basicDictionaryIndexCacheInvalidateTimeout?: NodeJS.Timeout;
+
+    private cachedArchiveIndex?: Promise<ArchiveIndex>;
+    private cachedArchiveChannelIds: Snowflake[] = [];
 
     constructor(
         private dictionaryManager: DictionaryManager,
@@ -96,6 +98,23 @@ export class IndexManager {
             delete index[postID];
             await this.savePostToSubmissionIndex(index);
         }
+    }
+
+    public getArchiveChannelIds(): Snowflake[] {
+        return this.cachedArchiveChannelIds;
+    }
+
+    public async updateArchiveChannelsCache(): Promise<void> {
+        const guildHolder = this.repositoryManager.getGuildHolder();
+        const categories = guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
+        const channels: Snowflake[] = [];
+        const allChannels = await guildHolder.getGuild().channels.fetch();
+        for (const channel of allChannels.values()) {
+            if (channel && channel.type === ChannelType.GuildForum && categories.includes(channel.parentId as Snowflake)) {
+                channels.push(channel.id);
+            }
+        }
+        this.cachedArchiveChannelIds = channels;
     }
 
     public async buildBasicDictionaryIndex(): Promise<BasicDictionaryIndexEntry[]> {
@@ -186,11 +205,10 @@ export class IndexManager {
     }
 
     public async getArchiveIndex(): Promise<ArchiveIndex> {
-        clearTimeout(this.archiveCacheInvalidateTimeout);
-        this.archiveCacheInvalidateTimeout = setTimeout(() => {
-            this.invalidateArchiveIndex();
-        }, INDEX_TIMEOUT_MS);
-
+        // clearTimeout(this.archiveCacheInvalidateTimeout);
+        // this.archiveCacheInvalidateTimeout = setTimeout(() => {
+        //     this.invalidateArchiveIndex();
+        // }, INDEX_TIMEOUT_MS);
         if (this.cachedArchiveIndex) return this.cachedArchiveIndex;
         this.cachedArchiveIndex = this.buildArchiveIndex();
         return this.cachedArchiveIndex;

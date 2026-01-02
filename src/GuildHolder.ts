@@ -1,4 +1,4 @@
-import { ActionRowBuilder, AnyThreadChannel, ChannelType, EmbedBuilder, ForumChannel, Guild, GuildAuditLogsEntry, GuildMember, Message, MessageFlags, Role, PartialGuildMember, Snowflake, Attachment } from "discord.js";
+import { ActionRowBuilder, AnyThreadChannel, ChannelType, EmbedBuilder, Guild, GuildAuditLogsEntry, GuildMember, Message, MessageFlags, Role, PartialGuildMember, Snowflake, Attachment, GuildChannel } from "discord.js";
 import { Bot } from "./Bot.js";
 import { ConfigManager } from "./config/ConfigManager.js";
 import Path from "path";
@@ -61,8 +61,6 @@ export class GuildHolder {
 
     private discordServersDictionary: DiscordServersDictionary
     private globalDiscordServersDictionary: DiscordServersDictionary
-
-    private cachedChannelIds: Snowflake[] = [];
 
     private repositoryManager: RepositoryManager;
     private userManager: UserManager;
@@ -137,25 +135,32 @@ export class GuildHolder {
         return this.config.getConfig(GuildConfigs.SUBMISSION_CHANNEL_ID) as Snowflake;
     }
 
-    public async getPostChannels(): Promise<ForumChannel[]> {
-        const categories = this.config.getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
-        const channels: ForumChannel[] = [];
-        const allChannels = await this.guild.channels.fetch();
-        for (const channel of allChannels.values()) {
-            if (channel && channel.type === ChannelType.GuildForum && categories.includes(channel.parentId as Snowflake)) {
-                channels.push(channel as ForumChannel);
-            }
-        }
-        return channels;
+    private isArchiveChannel(channelId: Snowflake | null | undefined): boolean {
+        return !!(channelId && this.repositoryManager.getIndexManager().getArchiveChannelIds().includes(channelId));
+    }
+
+    private async isPostChannel(channelId: Snowflake | null | undefined): Promise<boolean> {
+        if (!channelId) return false;
+        const index = await this.repositoryManager.getIndexManager().getArchiveIndex();
+        return index.threadToId.has(channelId);
     }
 
     public async updatePostChannelsCache() {
-        const channels = await this.getPostChannels();
-        this.cachedChannelIds = channels.map(channel => channel.id);
+        await this.repositoryManager.getIndexManager().updateArchiveChannelsCache();
     }
 
     handleAuditLogEntry(entry: GuildAuditLogsEntry) {
         this.antiNukeManager.handleAuditLogEntry(entry).catch(e => console.error('Error handling audit log entry:', e));
+    }
+
+    public async handleChannelCreate(channel: GuildChannel) {
+        if (channel.isDMBased() || !channel.guild || channel.type !== ChannelType.GuildForum) return;
+        await this.updatePostChannelsCache();
+    }
+
+    public async handleChannelDelete(channel: GuildChannel) {
+        if (channel.isDMBased() || !channel.guild || channel.type !== ChannelType.GuildForum) return;
+        await this.updatePostChannelsCache();
     }
 
     handleRoleDelete(role: Role) {
@@ -193,7 +198,7 @@ export class GuildHolder {
         // }
 
         // Handle message inside archived post
-        if (message.channel.isThread() && message.channel.parentId && this.cachedChannelIds.includes(message.channel.parentId)) {
+        if (message.channel.isThread() && this.isArchiveChannel(message.channel.parentId)) {
             this.getRepositoryManager().handlePostOrUpdateMessage(message).catch(e => {
                 console.error('Error handling post message:', e);
             });
@@ -636,7 +641,7 @@ export class GuildHolder {
         if (newMessage.author.bot) return
 
         // Handle message inside archived post
-        if (newMessage.channel.isThread() && newMessage.channel.parentId && this.cachedChannelIds.includes(newMessage.channel.parentId)) {
+        if (newMessage.channel.isThread() && this.isArchiveChannel(newMessage.channel.parentId)) {
             this.getRepositoryManager().handlePostOrUpdateMessage(newMessage).catch(e => {
                 console.error('Error handling post message:', e);
             });
@@ -647,14 +652,14 @@ export class GuildHolder {
     /**
      * Handles a message deletion in the guild.
      */
+    // id, channel_id, guild_id
     public async handleMessageDelete(message: Message) {
         this.antiNukeManager.handleMessageDelete(message).catch(e => console.error('Error handling message delete:', e));
 
         // Handle message inside archived post
-        const channelId = message.channelId;
-        const channel = message.channel || await this.guild.channels.fetch(channelId).catch(() => null);
+        const channel = message.channel;
 
-        if (channel.isThread() && channel.parentId && this.cachedChannelIds.includes(channel.parentId)) {
+        if (channel.isThread() && this.isArchiveChannel(channel.parentId)) {
             this.getRepositoryManager().handlePostMessageDelete(message).catch(e => {
                 console.error('Error handling post message:', e);
             });
@@ -664,11 +669,12 @@ export class GuildHolder {
     /**
      * Handles a thread deletion in the guild.
      */
+    // id, guild_id, parent_id, type
     public async handleThreadDelete(thread: AnyThreadChannel) {
         this.antiNukeManager.handleThreadDelete(thread).catch(e => console.error('Error handling thread delete:', e));
 
         // Handle message inside archived post
-        if (thread.parentId && this.cachedChannelIds.includes(thread.parentId)) {
+        if (this.isArchiveChannel(thread.parentId)) {
             this.getRepositoryManager().handlePostThreadDelete(thread).catch(e => {
                 console.error('Error handling post thread deletion:', e);
             });
@@ -705,7 +711,7 @@ export class GuildHolder {
     public async handleThreadUpdate(oldThread: AnyThreadChannel, newThread: AnyThreadChannel) {
         this.antiNukeManager.handleThreadUpdate(oldThread, newThread).catch(e => console.error('Error handling thread update:', e));
 
-        if (newThread.parentId && this.cachedChannelIds.includes(newThread.parentId)) {
+        if (this.isArchiveChannel(newThread.parentId)) {
             this.getRepositoryManager().handlePostThreadUpdate(oldThread, newThread).catch(e => {
                 console.error('Error handling post thread update:', e);
             });
