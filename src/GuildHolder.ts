@@ -1,4 +1,4 @@
-import { ActionRowBuilder, AnyThreadChannel, ChannelType, EmbedBuilder, Guild, GuildAuditLogsEntry, GuildMember, Message, MessageFlags, Role, PartialGuildMember, Snowflake, Attachment, GuildChannel } from "discord.js";
+import { ActionRowBuilder, AnyThreadChannel, ChannelType, EmbedBuilder, Guild, GuildAuditLogsEntry, GuildMember, Message, MessageFlags, Role, PartialGuildMember, Snowflake, Attachment, GuildChannel, PartialMessage } from "discord.js";
 import { Bot } from "./Bot.js";
 import { ConfigManager } from "./config/ConfigManager.js";
 import Path from "path";
@@ -137,12 +137,6 @@ export class GuildHolder {
 
     private isArchiveChannel(channelId: Snowflake | null | undefined): boolean {
         return !!(channelId && this.repositoryManager.getIndexManager().getArchiveChannelIds().includes(channelId));
-    }
-
-    private async isPostChannel(channelId: Snowflake | null | undefined): Promise<boolean> {
-        if (!channelId) return false;
-        const index = await this.repositoryManager.getIndexManager().getArchiveIndex();
-        return index.threadToId.has(channelId);
     }
 
     public async updatePostChannelsCache() {
@@ -653,13 +647,14 @@ export class GuildHolder {
      * Handles a message deletion in the guild.
      */
     // id, channel_id, guild_id
-    public async handleMessageDelete(message: Message) {
+    public async handleMessageDelete(message: Message | PartialMessage) {
         this.antiNukeManager.handleMessageDelete(message).catch(e => console.error('Error handling message delete:', e));
 
         // Handle message inside archived post
-        const channel = message.channel;
+        const channelId = message.channelId;
+        const channel = message.channel || await this.guild.channels.fetch(channelId).catch(() => null);
 
-        if (channel.isThread() && this.isArchiveChannel(channel.parentId)) {
+        if (channel && channel.isThread() && this.isArchiveChannel(channel.parentId)) {
             this.getRepositoryManager().handlePostMessageDelete(message).catch(e => {
                 console.error('Error handling post message:', e);
             });

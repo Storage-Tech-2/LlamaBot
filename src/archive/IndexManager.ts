@@ -23,6 +23,7 @@ export class IndexManager {
     private basicDictionaryIndexCacheInvalidateTimeout?: NodeJS.Timeout;
 
     private cachedArchiveIndex?: Promise<ArchiveIndex>;
+    private archiveCacheInvalidateTimeout?: NodeJS.Timeout;
     private cachedArchiveChannelIds: Snowflake[] = [];
 
     constructor(
@@ -205,10 +206,10 @@ export class IndexManager {
     }
 
     public async getArchiveIndex(): Promise<ArchiveIndex> {
-        // clearTimeout(this.archiveCacheInvalidateTimeout);
-        // this.archiveCacheInvalidateTimeout = setTimeout(() => {
-        //     this.invalidateArchiveIndex();
-        // }, INDEX_TIMEOUT_MS);
+        clearTimeout(this.archiveCacheInvalidateTimeout);
+        this.archiveCacheInvalidateTimeout = setTimeout(() => {
+            this.invalidateArchiveIndex();
+        }, INDEX_TIMEOUT_MS);
         if (this.cachedArchiveIndex) return this.cachedArchiveIndex;
         this.cachedArchiveIndex = this.buildArchiveIndex();
         return this.cachedArchiveIndex;

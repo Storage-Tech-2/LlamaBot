@@ -1,4 +1,4 @@
-import { GuildAuditLogsEntry, GuildMember, PartialGuildMember, Message, AuditLogEvent, Snowflake, User, PartialUser, GuildTextBasedChannel, Guild, EmbedBuilder } from "discord.js";
+import { GuildAuditLogsEntry, GuildMember, PartialGuildMember, Message, AuditLogEvent, Snowflake, User, PartialUser, GuildTextBasedChannel, Guild, EmbedBuilder, PartialMessage } from "discord.js";
 import { Role } from "discord.js";
 import { AnyThreadChannel } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
@@ -157,7 +157,7 @@ export class AntiNukeManager {
 
     }
 
-    async handleMessageDelete(_message: Message) {
+    async handleMessageDelete(_message: Message | PartialMessage) {
 
     }
 
