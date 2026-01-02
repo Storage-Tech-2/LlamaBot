@@ -240,18 +240,11 @@ export class Mwa implements Command {
                                 { name: 'Minimum endorsements required', value: 'minendorsements' },
                             )
                     )
-                    .addBooleanOption(option =>
+                    .addStringOption(option =>
                         option
                             .setName('value')
-                            .setDescription('Enable or disable the config')
-                            .setRequired(false)
-                    )
-                    .addIntegerOption(option =>
-                        option
-                            .setName('number')
-                            .setDescription('Numeric value for the config')
-                            .setRequired(false)
-                            .setMinValue(0)
+                            .setDescription('Value for the config (true/false or number)')
+                            .setRequired(true)
                     )
             )
             .addSubcommand(subcommand => 
@@ -524,20 +517,21 @@ export class Mwa implements Command {
 
     async setConfig(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         const configName = interaction.options.getString('name');
-        const value = interaction.options.getBoolean('value');
-        const numberValue = interaction.options.getInteger('number');
+        const rawValue = interaction.options.getString('value');
 
-        if (!configName) {
-            await replyEphemeral(interaction, 'Invalid config name');
+        if (!configName || rawValue === null) {
+            await replyEphemeral(interaction, 'Invalid config name or value');
             return;
         }
 
         if (configName === 'autojoin' || configName === 'autolookup') {
-            if (value === null) {
-                await replyEphemeral(interaction, 'Provide a boolean value for this config.');
+            const normalized = rawValue.toLowerCase();
+            if (normalized !== 'true' && normalized !== 'false') {
+                await replyEphemeral(interaction, 'Provide a boolean value (true/false) for this config.');
                 return;
             }
 
+            const value = normalized === 'true';
             const configMap = {
                 autojoin: GuildConfigs.AUTOJOIN_ENABLED,
                 autolookup: GuildConfigs.AUTOLOOKUP_ENABLED,
@@ -549,13 +543,14 @@ export class Mwa implements Command {
         }
 
         if (configName === 'minendorsements') {
-            if (numberValue === null || numberValue < 0) {
-                await replyEphemeral(interaction, 'Provide a non-negative number for minimum endorsements.');
+            const parsed = Number(rawValue);
+            if (!Number.isInteger(parsed) || parsed < 0) {
+                await replyEphemeral(interaction, 'Provide a non-negative integer for minimum endorsements.');
                 return;
             }
 
-            guildHolder.getConfigManager().setConfig(GuildConfigs.MIN_ENDORSEMENTS_REQUIRED, numberValue);
-            await interaction.reply(`Set \`minEndorsements\` to ${numberValue}.`);
+            guildHolder.getConfigManager().setConfig(GuildConfigs.MIN_ENDORSEMENTS_REQUIRED, parsed);
+            await interaction.reply(`Set \`minEndorsements\` to ${parsed}.`);
             return;
         }
 
