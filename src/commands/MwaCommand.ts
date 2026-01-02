@@ -237,13 +237,21 @@ export class Mwa implements Command {
                             .addChoices(
                                 { name: 'Auto-join server links', value: 'autojoin' },
                                 { name: 'Auto-lookup post codes', value: 'autolookup' },
+                                { name: 'Minimum endorsements required', value: 'minendorsements' },
                             )
                     )
                     .addBooleanOption(option =>
                         option
                             .setName('value')
                             .setDescription('Enable or disable the config')
-                            .setRequired(true)
+                            .setRequired(false)
+                    )
+                    .addIntegerOption(option =>
+                        option
+                            .setName('number')
+                            .setDescription('Numeric value for the config')
+                            .setRequired(false)
+                            .setMinValue(0)
                     )
             )
             .addSubcommand(subcommand => 
@@ -517,25 +525,41 @@ export class Mwa implements Command {
     async setConfig(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         const configName = interaction.options.getString('name');
         const value = interaction.options.getBoolean('value');
+        const numberValue = interaction.options.getInteger('number');
 
-        if (!configName || value === null) {
-            await replyEphemeral(interaction, 'Invalid config or value');
+        if (!configName) {
+            await replyEphemeral(interaction, 'Invalid config name');
             return;
         }
 
-        const configMap = {
-            autojoin: GuildConfigs.AUTOJOIN_ENABLED,
-            autolookup: GuildConfigs.AUTOLOOKUP_ENABLED,
-        } as const;
+        if (configName === 'autojoin' || configName === 'autolookup') {
+            if (value === null) {
+                await replyEphemeral(interaction, 'Provide a boolean value for this config.');
+                return;
+            }
 
-        const config = configMap[configName as keyof typeof configMap];
-        if (!config) {
-            await replyEphemeral(interaction, 'Invalid config name. Valid options: autojoin, autolookup.');
+            const configMap = {
+                autojoin: GuildConfigs.AUTOJOIN_ENABLED,
+                autolookup: GuildConfigs.AUTOLOOKUP_ENABLED,
+            } as const;
+
+            guildHolder.getConfigManager().setConfig(configMap[configName], value);
+            await interaction.reply(`Set \`${configName}\` to ${value ? 'enabled' : 'disabled'}.`);
             return;
         }
 
-        guildHolder.getConfigManager().setConfig(config, value);
-        await interaction.reply(`Set \`${configName}\` to ${value ? 'enabled' : 'disabled'}.`);
+        if (configName === 'minendorsements') {
+            if (numberValue === null || numberValue < 0) {
+                await replyEphemeral(interaction, 'Provide a non-negative number for minimum endorsements.');
+                return;
+            }
+
+            guildHolder.getConfigManager().setConfig(GuildConfigs.MIN_ENDORSEMENTS_REQUIRED, numberValue);
+            await interaction.reply(`Set \`minEndorsements\` to ${numberValue}.`);
+            return;
+        }
+
+        await replyEphemeral(interaction, 'Invalid config name. Valid options: autojoin, autolookup, minendorsements.');
     }
 
     async importDictionary(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {

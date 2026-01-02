@@ -98,4 +98,9 @@ export const GuildConfigs = {
      * Auto reply with post embeds for detected post codes
      */
     AUTOLOOKUP_ENABLED: new Config<boolean>("autolookupEnabled", true),
+
+    /**
+     * Minimum endorsements required before publishing
+     */
+    MIN_ENDORSEMENTS_REQUIRED: new Config<number>("minEndorsementsRequired", 1),
 }

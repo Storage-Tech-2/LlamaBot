@@ -1,4 +1,4 @@
-import { ActionRowBuilder, AnyThreadChannel, ChannelType, EmbedBuilder, Message, MessageReferenceType, Snowflake, TextThreadChannel } from "discord.js";
+import { ActionRowBuilder, AnyThreadChannel, ChannelType, EmbedBuilder, Message, Snowflake, TextThreadChannel } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
@@ -250,15 +250,14 @@ export class Submission {
         }
 
         // check endorsers
-        if (withoutEndorsers) {
-            // If we are checking without endorsers, we can skip this check
-            return true;
-        }
+        if (!withoutEndorsers && this.areEndorsersRequired()) {
+            const endorsers = this.config.getConfig(SubmissionConfigs.ENDORSERS);
+            const requiredEndorsements = this.getRequiredEndorsementsCount();
 
-        const endorsers = this.config.getConfig(SubmissionConfigs.ENDORSERS);
-        if (endorsers.length === 0 && this.areEndorsersRequired()) {
-            // If there are no endorsers, we cannot proceed
-            return false;
+            if (endorsers.length < requiredEndorsements) {
+                // If the submission does not meet the endorsement threshold, we cannot proceed
+                return false;
+            }
         }
 
         return true; // All conditions met, submission is publishable
@@ -266,6 +265,12 @@ export class Submission {
 
     public areEndorsersRequired(): boolean {
         return this.guildHolder.getConfigManager().getConfig(GuildConfigs.ENDORSE_ROLE_IDS).length > 0
+            && this.getRequiredEndorsementsCount() > 0;
+    }
+
+    public getRequiredEndorsementsCount(): number {
+        const count = this.guildHolder.getConfigManager().getConfig(GuildConfigs.MIN_ENDORSEMENTS_REQUIRED);
+        return Math.max(0, count);
     }
 
     public async checkReview() {
@@ -640,7 +645,7 @@ export class Submission {
         await channel.setAppliedTags(newTags)
     }
 
-    public async handleMessage(message: Message): Promise<boolean> {
+    public async handleMessage(_message: Message): Promise<boolean> {
         this.checkLLMExtraction();
         // if (message.reference && message.reference.type === MessageReferenceType.Default) {
         //     // its a reply

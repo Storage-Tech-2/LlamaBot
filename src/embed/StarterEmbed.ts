@@ -8,7 +8,6 @@ import { SetAuthorsButton } from "../components/buttons/SetAuthorsButton.js";
 import { getAuthorsString } from "../utils/Util.js";
 import { PublishButton } from "../components/buttons/PublishButton.js";
 import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
-import { GuildConfigs } from "../config/GuildConfigs.js";
 
 export class StarterEmbed {
     private embed: EmbedBuilder;
@@ -40,7 +39,8 @@ export class StarterEmbed {
         const attachments = configs.getConfig(SubmissionConfigs.ATTACHMENTS);
         const endorsers = configs.getConfig(SubmissionConfigs.ENDORSERS);
         const status = configs.getConfig(SubmissionConfigs.STATUS);
-        const requiresEndorsements = submission.getGuildHolder().getConfigManager().getConfig(GuildConfigs.ENDORSE_ROLE_IDS).length > 0;
+        const requiresEndorsements = submission.areEndorsersRequired();
+        const requiredEndorsementCount = submission.getRequiredEndorsementsCount();
         const embed = new EmbedBuilder()
         if (status === SubmissionStatus.ACCEPTED) {
             embed.setColor('#00ff00')
@@ -95,10 +95,12 @@ export class StarterEmbed {
         }
 
         if (requiresEndorsements) {
-            if (endorsers.length > 0) {
-                description += `:white_check_mark: Endorsed by: ${getAuthorsString(endorsers)}\n`
+            const endorsementProgress = `${endorsers.length}/${requiredEndorsementCount}`;
+            if (endorsers.length >= requiredEndorsementCount) {
+                description += `:white_check_mark: Endorsed (${endorsementProgress}): ${endorsers.length ? getAuthorsString(endorsers) : 'No endorsers listed'}\n`
             } else {
-                description += ':five: Obtain endorsements\n'
+                const outstanding = requiredEndorsementCount - endorsers.length;
+                description += `:five: Obtain endorsements (${endorsementProgress}, need ${outstanding} more)\n`
             }
         }
 
