@@ -629,7 +629,7 @@ export class GuildHolder {
         return false;
     }
 
-    public async handleMessageUpdate(_oldMessage: Message, newMessage: Message) {
+    public async handleMessageUpdate(_oldMessage: Message | PartialMessage, newMessage: Message) {
         this.antiNukeManager.handleMessageUpdate(_oldMessage, newMessage).catch(e => console.error('Error handling message update:', e));
 
         if (newMessage.author.bot) return

@@ -377,17 +377,19 @@ export class Bot {
 
 
         this.client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
+
+
+            if (!oldMessage.guildId || !newMessage.guildId) return
+
+            const guildHolder = this.guilds.get(newMessage.guildId)
+            if (!guildHolder) return;
+
             if (newMessage.partial) {
                 await newMessage.fetch()
                     .catch(error => {
                         console.log('Something went wrong when fetching the message: ', error);
                     });
             }
-
-            if (!oldMessage.inGuild() || !newMessage.inGuild()) return
-
-            const guildHolder = this.guilds.get(newMessage.guildId)
-            if (!guildHolder) return
 
             // Handle message in guild
             try {

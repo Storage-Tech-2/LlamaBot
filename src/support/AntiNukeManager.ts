@@ -153,7 +153,7 @@ export class AntiNukeManager {
     async handleMemberRemove(_member: GuildMember | PartialGuildMember) {
     }
 
-    async handleMessageUpdate(_oldMessage: Message, _newMessage: Message) {
+    async handleMessageUpdate(_oldMessage: Message | PartialMessage, _newMessage: Message | PartialMessage) {
 
     }
 
