@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
-import { getAuthorFromIdentifier, replyEphemeral } from "../utils/Util.js";
+import { getAuthorFromIdentifier, getAuthorName, replyEphemeral } from "../utils/Util.js";
 
 export class GetPostsByCommand implements Command {
     getID(): string {
@@ -72,7 +72,7 @@ export class GetPostsByCommand implements Command {
 
             // split into chunks of 2000 characters
             const chunks = [];
-            let currentChunk = `Found ${entries.length} posts where ${author.displayName || author.username} ${subcommand === 'author' ? 'is an author' : 'is an endorser'}:\n`;
+            let currentChunk = `Found ${entries.length} posts where ${getAuthorName(author)} ${subcommand === 'author' ? 'is an author' : 'is an endorser'}:\n`;
             for (const post of postList) {
                 if ((currentChunk + post).length > 2000) {
                     chunks.push(currentChunk);

@@ -5,7 +5,7 @@ import { SubmissionStatus } from "./SubmissionStatus.js";
 import { Tag } from "./Tag.js";
 import { RevisionReference } from "./Revision.js";
 import { Attachment } from "./Attachment.js";
-import { Author } from "./Author.js";
+import { Author, DiscordAuthor } from "./Author.js";
 import { DiscordPostReference } from "../archive/ArchiveEntry.js";
 import { Reference } from "../utils/ReferenceUtils.js";
 
@@ -101,7 +101,7 @@ export const SubmissionConfigs = {
     /**
      * Endorers of the submission.
      */
-    ENDORSERS: new Config<Author[]>("endorsers", []),
+    ENDORSERS: new Config<DiscordAuthor[]>("endorsers", []),
 
     /**
      * Post

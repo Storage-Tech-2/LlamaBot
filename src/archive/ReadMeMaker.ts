@@ -1,7 +1,7 @@
 import { Attachment } from "../submissions/Attachment.js";
 import { postToMarkdown, StyleInfo } from "../utils/MarkdownUtils.js";
 import { transformOutputWithReferencesForGithub } from "../utils/ReferenceUtils.js";
-import { escapeDiscordString, escapeString } from "../utils/Util.js";
+import { escapeDiscordString, escapeString, getAuthorName } from "../utils/Util.js";
 import { ArchiveComment } from "./ArchiveComments.js";
 import { ArchiveEntryData } from "./ArchiveEntry.js";
 
@@ -40,10 +40,10 @@ export function makeEntryReadMe(
         text.push(`<img alt="${escapeString(image.name)}" src="${encodeURI(image.path || '')}?raw=1"${(image.height || 200) > 300 ? " height=\"300px\"" : ""}>\n\n`)
     }
     if (entryData.authors.length > 0) {
-        text.push(`**Authors:** *${entryData.authors.filter(a=> !a.dontDisplay).map(o => o.displayName || o.username).join(", ")}*\n\n`);
+        text.push(`**Authors:** *${entryData.authors.filter(a=> !a.dontDisplay).map(o => getAuthorName(o)).join(", ")}*\n\n`);
     }
     if (entryData.endorsers.length > 0) {
-        text.push(`**Endorsed by:** *${entryData.endorsers.map(o => o.displayName || o.username).join(", ")}*\n\n`);
+        text.push(`**Endorsed by:** *${entryData.endorsers.map(o => getAuthorName(o)).join(", ")}*\n\n`);
     }
     text.push(`**Tags:** *${entryData.tags.map(o => o.name).join(", ")}*\n\n`);
     if (entryData.post) {
@@ -59,7 +59,7 @@ export function makeEntryReadMe(
     if (authorsWithReasons.length > 0) {
         text.push(`\n## Acknowledgements:\n`);
         for (const author of authorsWithReasons) {
-            text.push(`- ${author.displayName || author.username}: ${transformOutputWithReferencesForGithub(author.reason || '', entryData.author_references)}\n`);
+            text.push(`- ${getAuthorName(author)}: ${transformOutputWithReferencesForGithub(author.reason || '', entryData.author_references)}\n`);
         }
     }
 
@@ -78,7 +78,7 @@ export function makeEntryReadMe(
     if (comments.length > 0) {
         text.push(`\n## Comments\n`);
         comments.forEach(comment => {
-            text.push(`\n### ${comment.sender.displayName || comment.sender.username} (${new Date(comment.timestamp).toLocaleDateString()})\n`);
+            text.push(`\n### ${getAuthorName(comment.sender)} (${new Date(comment.timestamp).toLocaleDateString()})\n`);
             text.push(`${comment.content}\n`);
 
             const imageAttachments = comment.attachments.filter(attachment => attachment.contentType.startsWith('image/'));
