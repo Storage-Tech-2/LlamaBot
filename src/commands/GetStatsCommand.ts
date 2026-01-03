@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
-import { getAuthorFromIdentifier, replyEphemeral } from "../utils/Util.js";
+import { getAuthorFromIdentifier, getAuthorName, replyEphemeral } from "../utils/Util.js";
 
 export class GetStatsCommand implements Command {
     getID(): string {
@@ -43,7 +43,7 @@ export class GetStatsCommand implements Command {
                 return;
             }
             const response = [
-                `**Archive Statistics for ${author.displayName || author.username}**`,
+                `**Archive Statistics for ${getAuthorName(author)}**`,
                 `- **Total Submissions:** ${stats.numSubmissions}`,
                 `- **Total Archived Posts:** ${stats.numPosts}`,
                 `- **Total Endorsed Posts:** ${stats.numEndorsed}`
