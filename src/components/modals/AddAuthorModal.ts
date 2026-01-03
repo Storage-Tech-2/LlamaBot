@@ -1,7 +1,7 @@
 import { LabelBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
-import { areAuthorsSame, canEditSubmission, reclassifyAuthors, replyEphemeral } from "../../utils/Util.js";
+import { areAuthorsSame, canEditSubmission, getAuthorsString, getDiscordAuthorsFromIDs, reclassifyAuthors, replyEphemeral } from "../../utils/Util.js";
 import { Author, AuthorType } from "../../submissions/Author.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { SetArchiveCategoryMenu } from "../menus/SetArchiveCategoryMenu.js";
@@ -17,9 +17,6 @@ export class AddAuthorModal implements Modal {
             .setCustomId(this.getID())
             .setTitle('Add Author Manually')
 
-
-
-        
         const userIDInput = new TextInputBuilder()
             .setCustomId('idInput')
            
@@ -120,16 +117,16 @@ export class AddAuthorModal implements Modal {
         const shouldDisplay = interaction.fields.getStringSelectValues('shouldDisplay')[0] === 'yes';
         const url = interaction.fields.getTextInputValue('urlInput') || undefined;
         
-        let author: Author = {
-            type: AuthorType.Unknown,
-            id: userId || undefined,
-            username: name || 'Unknown',
-            reason: reason
-        };
+        // let author: Author = {
+        //     type: AuthorType.Unknown,
+        //     id: userId || undefined,
+        //     username: name || 'Unknown',
+        //     reason: reason
+        // };
 
-        if (!shouldDisplay) {
-            author.dontDisplay = true; // If the user doesn't want to display this author, we set dontDisplay to true
-        }
+        // if (!shouldDisplay) {
+        //     author.dontDisplay = true; // If the user doesn't want to display this author, we set dontDisplay to true
+        // }
 
         if (userId && !/^\d{17,19}$/.test(userId)) {
             replyEphemeral(interaction, 'Invalid Discord User ID format. Please provide a valid ID or leave it empty.');
@@ -141,14 +138,29 @@ export class AddAuthorModal implements Modal {
             return;
         }
 
+        let author: Author;
+
         if (userId) {
-            author.type = AuthorType.DiscordExternal;
-            author.id = userId;
-            author = (await reclassifyAuthors(guildHolder, [author]))[0];
-            if (author.type === AuthorType.Unknown) {
+            // fetch user
+            const user = await getDiscordAuthorsFromIDs(guildHolder, [userId]);
+            if (user.length === 0) {
                 replyEphemeral(interaction, 'User not found. Please provide a valid Discord User ID or leave it empty.');
                 return;
             }
+            author = user[0];
+        } else {
+            author = {
+                type: AuthorType.Unknown,
+                username: name,
+            };
+        }
+
+        if (!shouldDisplay) {
+            author.dontDisplay = true; // If the user doesn't want to display this author, we set dontDisplay to true
+        }
+
+        if (reason) {
+            author.reason = reason;
         }
 
         if (url) {
@@ -170,8 +182,10 @@ export class AddAuthorModal implements Modal {
             replyEphemeral(interaction, 'This author is already in the list!');
             return;
         }
-
         currentAuthors.push(author);
+
+        currentAuthors = await reclassifyAuthors(guildHolder, currentAuthors);
+    
         submission.getConfigManager().setConfig(SubmissionConfigs.AUTHORS, currentAuthors);
 
         const channel = await submission.getSubmissionChannel();
@@ -180,7 +194,7 @@ export class AddAuthorModal implements Modal {
             return;
         }
         channel.send({
-            content: `<@${interaction.user.id}> added author: ${author.url ? `[${author.username}](${author.url})` : author.username} (${author.id ? `<@${author.id}>` : 'Unknown ID'})${author.reason ? ` with reason: ${author.reason}` : ''}`,
+            content: `<@${interaction.user.id}> added author: ${getAuthorsString([author])}${author.reason ? ` with reason: ${author.reason}` : ''}`,
             flags: MessageFlags.SuppressNotifications
         });
 

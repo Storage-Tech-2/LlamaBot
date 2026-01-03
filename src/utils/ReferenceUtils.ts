@@ -6,9 +6,9 @@
 import { Snowflake } from "discord.js";
 import { recordsToRawTextNoHeaders, stripHyperlinkNames, SubmissionRecords } from "./MarkdownUtils.js";
 import { GuildHolder } from "../GuildHolder.js";
-import { Author, AuthorType } from "../submissions/Author.js";
+import { Author, AuthorType, DiscordAuthor } from "../submissions/Author.js";
 import { ArchiveIndex } from "../archive/DictionaryManager.js";
-import { getAuthorsString, reclassifyAuthors } from "./Util.js";
+import { areAuthorsSameStrict, getAuthorName, getAuthorsString, reclassifyAuthors } from "./Util.js";
 
 // Convenience patterns for dynamic reference extraction
 export const PostCodePattern = /\b([A-Za-z]+[0-9]{3})\b/g;
@@ -86,7 +86,7 @@ export type ArchivedPostReference = ReferenceBase & {
 
 export type UserMentionReference = ReferenceBase & {
     type: ReferenceType.USER_MENTION,
-    user: Author,
+    user: DiscordAuthor,
 }
 
 export type ChannelMentionReference = ReferenceBase & {
@@ -360,7 +360,9 @@ export function tagReferencesInText(text: string, dictionaryIndex?: DictionaryTe
                 type: ReferenceType.USER_MENTION,
                 user: {
                     type: AuthorType.DiscordExternal,
-                    id: userID as Snowflake
+                    id: userID as Snowflake,
+                    username: 'Unknown User',
+                    iconURL: '',
                 },
                 matches: [match.match],
             }
@@ -832,7 +834,7 @@ export function transformOutputWithReferencesForGithub(
                 // add suffix
                 return matchedText + ` (in [${reference.serverName}](${reference.serverJoinURL}))`;
             } else if (reference.type === ReferenceType.USER_MENTION) {
-                return reference.user.displayName || reference.user.username || "Unknown User";
+                return getAuthorName(reference.user) || "Unknown User";
             } else if (reference.type === ReferenceType.CHANNEL_MENTION) {
                 if (isWithinHyperlink) {
                     return; // skip, already linked
@@ -858,7 +860,7 @@ export function areReferencesIdentical(a: Reference, b: Reference): boolean {
     } else if (a.type === ReferenceType.DICTIONARY_TERM && b.type === ReferenceType.DICTIONARY_TERM) {
         return a.id === b.id && a.term === b.term && a.url === b.url;
     } else if (a.type === ReferenceType.USER_MENTION && b.type === ReferenceType.USER_MENTION) {
-        return a.user.id === b.user.id && a.user.type === b.user.type && a.user.username === b.user.username && a.user.displayName === b.user.displayName;
+        return areAuthorsSameStrict(a.user, b.user);
     } else if (a.type === ReferenceType.CHANNEL_MENTION && b.type === ReferenceType.CHANNEL_MENTION) {
         return a.channelID === b.channelID && a.channelName === b.channelName && a.channelURL === b.channelURL;
     }

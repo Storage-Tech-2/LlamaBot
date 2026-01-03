@@ -13,7 +13,7 @@ import { SubmissionConfigs } from "./submissions/SubmissionConfigs.js";
 import { SubmissionStatus } from "./submissions/SubmissionStatus.js";
 import fs from "fs/promises";
 import { countCharactersInRecord, StyleInfo } from "./utils/MarkdownUtils.js";
-import { Author, AuthorType } from "./submissions/Author.js";
+import { Author, AuthorType, DiscordAuthor } from "./submissions/Author.js";
 import { NotABotButton } from "./components/buttons/NotABotButton.js";
 import { generateText, JSONSchema7, ModelMessage } from "ai";
 import { UserSubscriptionManager } from "./config/UserSubscriptionManager.js";
@@ -22,7 +22,7 @@ import { AntiNukeManager } from "./support/AntiNukeManager.js";
 import { DictionaryManager } from "./archive/DictionaryManager.js";
 import { DiscordServersDictionary } from "./archive/DiscordServersDictionary.js";
 import { getDiscordLinksInText, getDiscordServersFromReferences, getPostCodesInText, populateDiscordServerInfoInReferences, ReferenceType, transformOutputWithReferencesForDiscord } from "./utils/ReferenceUtils.js";
-import { retagEverythingTask, updateAuthorAndChannelTagsTask, updateEntryAuthorsTask } from "./archive/Tasks.js";
+import { retagEverythingTask, updateMetadataTask } from "./archive/Tasks.js";
 import { RepositoryConfigs } from "./archive/RepositoryConfigs.js";
 /**
  * GuildHolder is a class that manages guild-related data.
@@ -1003,17 +1003,13 @@ export class GuildHolder {
             this.lastDayLoop = now;
             await this.purgeThanksBuffer();
 
-            await updateEntryAuthorsTask(this).catch(e => {
+            await updateMetadataTask(this).catch(e => {
                 console.error('Error updating entry authors:', e);
             });
 
             if (this.retaggingRequested) {
                 await retagEverythingTask(this).catch(e => {
                     console.error('Error retagging everything:', e);
-                });
-            } else {
-                await updateAuthorAndChannelTagsTask(this).catch(e => {
-                    console.error('Error updating author and channel tags:', e);
                 });
             }
         }
@@ -1302,14 +1298,22 @@ export class GuildHolder {
     }
 
     public async updateDesignerRoles(entryId: Snowflake, oldAuthors: Author[], newAuthors: Author[]) {
-        const oldDesigners = oldAuthors.filter(a => a.type === AuthorType.DiscordInGuild && !a.dontDisplay).map(a => a.id || "");
-        const newDesigners = newAuthors.filter(a => a.type === AuthorType.DiscordInGuild && !a.dontDisplay).map(a => a.id || "");
+        const oldDesigners = oldAuthors.filter(a => a.type === AuthorType.DiscordInGuild && !a.dontDisplay) as DiscordAuthor[];
+        const newDesigners = newAuthors.filter(a => a.type === AuthorType.DiscordInGuild && !a.dontDisplay) as DiscordAuthor[];
+        
+        const oldDesignerIds = oldDesigners.map(a => a.id);
+        const newDesignerIds = newDesigners.map(a => a.id);
 
-        const addedDesigners = newDesigners.filter(id => !oldDesigners.includes(id));
-        const removedDesigners = oldDesigners.filter(id => !newDesigners.includes(id));
+        const oldSet = new Set(oldDesignerIds);
+        const newSet = new Set(newDesignerIds);
+        
+
+        const added = newSet.difference(oldSet);
+        const removed = oldSet.difference(newSet);
+
         const designerRoleId = this.getConfigManager().getConfig(GuildConfigs.DESIGNER_ROLE_ID);
 
-        for (const designerId of addedDesigners) {
+        for (const designerId of added) {
             // get userdata for designer
             const member = await this.getGuild().members.fetch(designerId).catch(() => undefined);
             if (!member) {
@@ -1337,7 +1341,7 @@ export class GuildHolder {
             }
         }
 
-        for (const designerId of removedDesigners) {
+        for (const designerId of removed) {
             // get userdata for designer
             const member = await this.getGuild().members.fetch(designerId).catch(() => undefined);
             if (!member) {
@@ -1367,8 +1371,8 @@ export class GuildHolder {
     public async rebuildDesignerRoles() {
         const allDesignerIdsToPosts = new Map<Snowflake, Snowflake[]>();
         await this.getRepositoryManager().iterateAllEntries(async (entry: ArchiveEntry) => {
-            entry.getData().authors.filter(a => a.type === AuthorType.DiscordInGuild && !a.dontDisplay).forEach(author => {
-                if (author.id) {
+            entry.getData().authors.forEach(author => {
+                if (author.type === AuthorType.DiscordInGuild && !author.dontDisplay && author.id) {
                     if (!allDesignerIdsToPosts.has(author.id)) {
                         allDesignerIdsToPosts.set(author.id, []);
                     }

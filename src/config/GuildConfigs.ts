@@ -1,6 +1,6 @@
 import { Snowflake } from "discord.js";
 import { Config } from "./ConfigManager.js";
-import { Author } from "../submissions/Author.js";
+import { DiscordAuthor } from "../submissions/Author.js";
 
 export const GuildConfigs = {
     /**
@@ -62,7 +62,7 @@ export const GuildConfigs = {
     /**
      * User blacklist
      */
-    THANKS_BLACKLIST: new Config<Author[]>("thanksBlacklist", []),
+    THANKS_BLACKLIST: new Config<DiscordAuthor[]>("thanksBlacklist", []),
 
     /**
      * Honeypot channel ID

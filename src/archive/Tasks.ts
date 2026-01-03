@@ -1,76 +1,14 @@
-import { Author } from "../submissions/Author.js";
+import { Author, AuthorType, DiscordAuthor } from "../submissions/Author.js";
 import { ArchiveEntry } from "./ArchiveEntry.js";
-import { areAuthorsSame, reclassifyAuthors, splitIntoChunks } from "../utils/Util.js";
+import { areAuthorsSameStrict, getDiscordAuthorsFromIDs, splitIntoChunks } from "../utils/Util.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { ArchiveChannelReference } from "./RepositoryConfigs.js";
-import { ChannelType, ChatInputCommandInteraction, ForumChannel, GuildForumTag, Message, MessageFlags } from "discord.js";
+import { ChannelType, ChatInputCommandInteraction, ForumChannel, GuildForumTag, Message, MessageFlags, Snowflake } from "discord.js";
 import { ArchiveChannel, ArchiveEntryReference } from "./ArchiveChannel.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import Path from "path";
-import { hasReferencesChanged, ReferenceType, tagReferences, tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
+import { hasReferencesChanged, Reference, ReferenceType, tagReferences, tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
 import { iterateAllMessages } from "../utils/AttachmentUtils.js";
-
-export async function updateEntryAuthorsTask(guildHolder: GuildHolder): Promise<number> {
-    const repositoryManager = guildHolder.getRepositoryManager();
-    if (!repositoryManager.isReady()) {
-        return 0;
-    }
-
-    await repositoryManager.getLock().acquire();
-
-    // First, collect authors
-    const authors: Author[] = [];
-
-    await repositoryManager.iterateAllEntries(async (entry: ArchiveEntry) => {
-        const entryData = entry.getData();
-        for (const author of entryData.authors) {
-            if (!authors.some(a => areAuthorsSame(a, author))) {
-                authors.push(author);
-            }
-        }
-        for (const endorser of entryData.endorsers) {
-            if (!authors.some(a => areAuthorsSame(a, endorser))) {
-                authors.push(endorser);
-            }
-        }
-    });
-
-
-    const reclassified: Author[] = [];
-    const chunkSize = 10;
-    for (let i = 0; i < authors.length; i += chunkSize) {
-        const chunk = authors.slice(i, i + chunkSize);
-        const reclassifiedChunk = await reclassifyAuthors(guildHolder, chunk);
-        reclassified.push(...reclassifiedChunk);
-    }
-
-    let modifiedCount = 0;
-    await repositoryManager.iterateAllEntries(async (entry: ArchiveEntry, _entryRef: ArchiveEntryReference, channelRef: ArchiveChannelReference) => {
-        try {
-            if (await repositoryManager.updateEntryAuthors(entry, reclassified)) {
-                modifiedCount++;
-            }
-        } catch (e: any) {
-            console.error(`Error updating authors for entry ${entry.getData().name} in channel ${channelRef.name}:`, e.message);
-        }
-    });
-
-    if (modifiedCount > 0) {
-        try {
-            await repositoryManager.commit(`Updated authors for ${modifiedCount} entries`);
-            try {
-                await repositoryManager.push();
-            } catch (e: any) {
-                console.error("Error pushing to remote:", e.message);
-            }
-        }
-        catch (e: any) {
-            console.error("Error committing updated authors:", e.message);
-        }
-    }
-    repositoryManager.getLock().release();
-    return modifiedCount;
-}
 
 export async function republishAllEntries(
     guildHolder: GuildHolder,
@@ -113,7 +51,7 @@ export async function republishAllEntries(
                         !entryData.references.some(ref => ref.type === ReferenceType.DISCORD_LINK)
                         && !entryData.author_references.some(ref => ref.type === ReferenceType.DISCORD_LINK)
                     ) {
-                        continue;   
+                        continue;
                     }
                 }
 
@@ -179,169 +117,183 @@ export async function republishAllEntries(
 
 }
 
-export async function updateAuthorAndChannelTagsTask(guildHolder: GuildHolder): Promise<void> {
+export async function updateMetadataTask(guildHolder: GuildHolder): Promise<number> {
     const repositoryManager = guildHolder.getRepositoryManager();
     if (!repositoryManager.isReady()) {
-        return;
+        return 0;
     }
+
     await repositoryManager.getLock().acquire();
 
-    let modifiedCount = 0;
+    // First, collect authors & channels
+    const authorIds: Set<Snowflake> = new Set();
+    const channelIds: Set<Snowflake> = new Set();
 
-
-    // First, collect authors
-    const authors: Author[] = [];
-    const channels: {
-        id: string;
-        name?: string;
-        url?: string
-    }[] = [];
+    const collectFromRefs = (refs: Reference[]) => {
+        refs.forEach(ref => {
+            if (ref.type === ReferenceType.USER_MENTION) {
+                authorIds.add(ref.user.id);
+            } else if (ref.type === ReferenceType.CHANNEL_MENTION) {
+                channelIds.add(ref.channelID);
+            }
+        });
+    }
 
     await repositoryManager.iterateAllEntries(async (entry: ArchiveEntry) => {
         const entryData = entry.getData();
-        entryData.references.forEach(ref => {
-            if (ref.type === ReferenceType.USER_MENTION) {
-                if (!authors.some(a => a.id === ref.user.id)) {
-                    authors.push(ref.user);
-                }
-            } else if (ref.type === ReferenceType.CHANNEL_MENTION) {
-                if (!channels.some(c => c.id === ref.channelID)) {
-                    channels.push({
-                        id: ref.channelID,
-                        name: ref.channelName,
-                        url: ref.channelURL
-                    });
-                }
+        for (const author of entryData.authors) {
+            if (author.type !== AuthorType.Unknown) {
+                authorIds.add(author.id);
             }
-        });
-        entryData.author_references.forEach(ref => {
-            if (ref.type === ReferenceType.USER_MENTION) {
-                if (!authors.some(a => a.id === ref.user.id)) {
-                    authors.push(ref.user);
-                }
-            } else if (ref.type === ReferenceType.CHANNEL_MENTION) {
-                if (!channels.some(c => c.id === ref.channelID)) {
-                    channels.push({
-                        id: ref.channelID,
-                        name: ref.channelName,
-                        url: ref.channelURL
-                    });
-                }
+        }
+        for (const endorser of entryData.endorsers) {
+            if (endorser.type !== AuthorType.Unknown) {
+                authorIds.add(endorser.id);
             }
-        });
+        }
+
+        collectFromRefs(entryData.references);
+        collectFromRefs(entryData.author_references);
     });
+
 
     const dictionaryManager = guildHolder.getDictionaryManager();
 
     await dictionaryManager.iterateEntries(async (definition) => {
-        definition.references.forEach(ref => {
+        collectFromRefs(definition.references);
+    });
+
+    const authorMap: Map<Snowflake, DiscordAuthor> = new Map();
+    const chunkSize = 10;
+    const authorIdsArray = Array.from(authorIds);
+    for (let i = 0; i < authorIdsArray.length; i += chunkSize) {
+        const chunk = authorIdsArray.slice(i, i + chunkSize);
+        getDiscordAuthorsFromIDs(guildHolder, chunk).then(fetchedAuthors => {
+            fetchedAuthors.forEach(author => {
+                authorMap.set(author.id, author);
+            });
+        });
+    }
+
+    const channelMap: Map<Snowflake, {
+        name: string;
+        url: string;
+    }> = new Map();
+    for (const channelId of channelIds) {
+        const channel = await guildHolder.getGuild().channels.fetch(channelId).catch(() => null);
+        if (channel) {
+            channelMap.set(channelId, {
+                name: channel.name,
+                url: channel.url,
+            });
+        }
+    }
+
+    let modifiedCount = 0;
+
+    const updateRefs = (refs: Reference[]): boolean => {
+        let changed = false;
+        refs.forEach(ref => {
             if (ref.type === ReferenceType.USER_MENTION) {
-                if (!authors.some(a => a.id === ref.user.id)) {
-                    authors.push(ref.user);
+                const updatedAuthor = authorMap.get(ref.user.id);
+                if (!updatedAuthor && ref.user.type !== AuthorType.DiscordDeleted) {
+                    ref.user = {
+                        type: AuthorType.DiscordDeleted,
+                        id: ref.user.id,
+                        username: ref.user.username,
+                    };
+                    changed = true;
+                } else if (updatedAuthor && !areAuthorsSameStrict(ref.user, updatedAuthor)) {
+                    ref.user = updatedAuthor;
+                    changed = true;
                 }
             } else if (ref.type === ReferenceType.CHANNEL_MENTION) {
-                if (!channels.some(c => c.id === ref.channelID)) {
-                    channels.push({
-                        id: ref.channelID,
-                        name: ref.channelName,
-                        url: ref.channelURL
-                    });
+                const updatedChannel = channelMap.get(ref.channelID);
+                if (updatedChannel) {
+                    ref.channelName = updatedChannel.name;
+                    ref.channelURL = updatedChannel.url;
+                    changed = true;
                 }
             }
         });
-    });
+        return changed;
+    }
 
-    const chunkSize = 10;
-    const reclassified: Author[] = [];
-    for (let i = 0; i < authors.length; i += chunkSize) {
-        const chunk = authors.slice(i, i + chunkSize);
-        const reclassifiedChunk = await reclassifyAuthors(guildHolder, chunk);
-        reclassified.push(...reclassifiedChunk);
+    const getNewAuthors = (authors: Author[]): Author[] | null => {
+        let changed = false;
+        const newAuthors: Author[] = authors.map(author => {
+            if (author.type === AuthorType.Unknown) {
+                return author;
+            }
+
+            const found = authorMap.get(author.id);
+            if (author.type !== AuthorType.DiscordDeleted && !found) {
+                changed = true;
+                return {
+                    ...author,
+                    type: AuthorType.DiscordDeleted,
+                }
+            } else if (found) {
+                if (!areAuthorsSameStrict(author, found)) {
+                    changed = true;
+                    return {
+                        ...author,
+                        ...found,
+                    }
+                }
+            }
+            return author;
+        });
+        return changed ? newAuthors : null;
     }
 
     await repositoryManager.iterateAllEntries(async (entry: ArchiveEntry, _entryRef: ArchiveEntryReference, channelRef: ArchiveChannelReference) => {
         const data = entry.getData();
-        const newReferences = data.references.map(ref => {
-            if (ref.type === ReferenceType.USER_MENTION) {
-                const updatedAuthor = reclassified.find(a => a.id === ref.user.id);
-                if (updatedAuthor) {
-                    ref.user = updatedAuthor;
-                }
-            } else if (ref.type === ReferenceType.CHANNEL_MENTION) {
-                const updatedChannel = channels.find(c => c.id === ref.channelID);
-                if (updatedChannel) {
-                    ref.channelName = updatedChannel.name;
-                    ref.channelURL = updatedChannel.url;
-                }
-            }
-            return ref;
-        });
+        const updatedReferences = updateRefs(data.references);
+        const updatedAuthorReferences = updateRefs(data.author_references);
+        const newAuthors = getNewAuthors(data.authors);
+        const newEndorsers = getNewAuthors(data.endorsers);
 
-        const newAuthorReferences = data.author_references.map(ref => {
-            if (ref.type === ReferenceType.USER_MENTION) {
-                const updatedAuthor = reclassified.find(a => a.id === ref.user.id);
-                if (updatedAuthor) {
-                    ref.user = updatedAuthor;
-                }
-            } else if (ref.type === ReferenceType.CHANNEL_MENTION) {
-                const updatedChannel = channels.find(c => c.id === ref.channelID);
-                if (updatedChannel) {
-                    ref.channelName = updatedChannel.name;
-                    ref.channelURL = updatedChannel.url;
-                }
-            }
-            return ref;
-        });
-
-        const changed = hasReferencesChanged(data.references, newReferences).changed ||
-            hasReferencesChanged(data.author_references, newAuthorReferences).changed;
+        const changed = updatedReferences || updatedAuthorReferences || newAuthors !== null || newEndorsers !== null;
         if (!changed) {
             return;
         }
 
-        data.references = newReferences;
-        data.author_references = newAuthorReferences;
+        if (newAuthors) {
+            data.authors = newAuthors;
+        }
+        if (newEndorsers) {
+            data.endorsers = newEndorsers;
+        }
 
         await repositoryManager.addOrUpdateEntryFromData(data, channelRef.id, false, false, async () => { }).catch((e) => {
             console.error(`Error updating references for entry ${data.name} in channel ${channelRef.name}:`, e.message);
         });
+
         modifiedCount++;
     });
 
-    await dictionaryManager.iterateEntries(async (definition) => {
-        const newReferences = definition.references.map(ref => {
-            if (ref.type === ReferenceType.USER_MENTION) {
-                const updatedAuthor = reclassified.find(a => a.id === ref.user.id);
-                if (updatedAuthor) {
-                    ref.user = updatedAuthor;
-                }
-            } else if (ref.type === ReferenceType.CHANNEL_MENTION) {
-                const updatedChannel = channels.find(c => c.id === ref.channelID);
-                if (updatedChannel) {
-                    ref.channelName = updatedChannel.name;
-                    ref.channelURL = updatedChannel.url;
-                }
-            }
-            return ref;
-        });
 
-        const changed = hasReferencesChanged(definition.references, newReferences).changed;
+    await dictionaryManager.iterateEntries(async (definition) => {
+        const changed = updateRefs(definition.references);
+
         if (!changed) {
             return;
         }
-        definition.references = newReferences;
+
         await dictionaryManager.saveEntry(definition).catch((e) => {
             console.error(`Error updating references for definition ${definition.terms[0]}:`, e.message);
         });
         await dictionaryManager.updateStatusMessage(definition).catch((e) => {
             console.error(`Error updating status message for definition ${definition.terms[0]}:`, e.message);
         });
+
         modifiedCount++;
     });
 
     if (modifiedCount > 0) {
         try {
-            await repositoryManager.commit(`Updated author and channel tags for ${modifiedCount} items`);
+            await repositoryManager.commit(`Updated metadata for ${modifiedCount} entries`);
             try {
                 await repositoryManager.push();
             } catch (e: any) {
@@ -349,10 +301,11 @@ export async function updateAuthorAndChannelTagsTask(guildHolder: GuildHolder): 
             }
         }
         catch (e: any) {
-            console.error("Error committing updated author and channel tags:", e.message);
+            console.error("Error committing updated authors:", e.message);
         }
     }
     repositoryManager.getLock().release();
+    return modifiedCount;
 }
 
 export async function retagEverythingTask(guildHolder: GuildHolder): Promise<void> {

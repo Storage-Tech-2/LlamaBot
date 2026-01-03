@@ -4,7 +4,7 @@ import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
 import { AnyThreadChannel, AttachmentBuilder, ChannelType, EmbedBuilder, ForumChannel, ForumLayoutType, GuildTextBasedChannel, Message, MessageFlags, PartialMessage, Snowflake } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
-import { areAuthorsListEqual, areAuthorsSame, deepClone, escapeString, generateCommitMessage, getChangeIDs, getCodeAndDescriptionFromTopic, getGithubOwnerAndProject, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
+import { areAuthorsSame, deepClone, escapeString, generateCommitMessage, getAuthorIconURL, getAuthorName, getChangeIDs, getCodeAndDescriptionFromTopic, getGithubOwnerAndProject, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";
 import { Submission } from "../submissions/Submission.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
@@ -1158,8 +1158,8 @@ export class RepositoryManager {
 
                     const commentMessage = await threadWebhook.send({
                         content: truncateStringWithEllipsis(comment.content, 2000),
-                        username: author.displayName || author.username || 'Unknown Author',
-                        avatarURL: author.iconURL || undefined,
+                        username: getAuthorName(author) || 'Unknown Author',
+                        avatarURL: getAuthorIconURL(author),
                         files: files,
                         threadId: thread.id,
                         flags: [MessageFlags.SuppressNotifications]
@@ -1501,7 +1501,7 @@ export class RepositoryManager {
                     type: AuthorType.DiscordInGuild,
                     id: message.author.id,
                     username: message.author.username,
-                    displayName: message.member?.displayName || undefined,
+                    displayName: message.member?.displayName || message.author.username,
                     iconURL: message.author.displayAvatarURL()
                 },
                 content: content,
@@ -1541,8 +1541,8 @@ export class RepositoryManager {
                             .setURL(message.url)
                             .setColor(existingComment ? '#ffa500' : '#00ff00')
                             .setAuthor({
-                                name: newComment.sender.displayName || newComment.sender.username || 'Unknown Author',
-                                iconURL: newComment.sender.iconURL || undefined,
+                                name: getAuthorName(newComment.sender) || 'Unknown Author',
+                                iconURL: getAuthorIconURL(newComment.sender),
                             })
                             .setDescription(newComment.content)
                             .setTimestamp(newComment.timestamp ? new Date(newComment.timestamp) : undefined);
@@ -1656,7 +1656,7 @@ export class RepositoryManager {
             }
 
             await this.git.add(await this.updateEntryReadme(found.entry));
-            await this.git.commit(`Deleted ${deletedComment.sender?.displayName}'s comment from ${found.entry.getData().code}`);
+            await this.git.commit(`Deleted ${getAuthorName(deletedComment.sender)}'s comment from ${found.entry.getData().code}`);
 
             // check submission
             try {
@@ -1669,8 +1669,8 @@ export class RepositoryManager {
                             .setTitle(`Comment Deleted`)
                             .setColor('#ff0000')
                             .setAuthor({
-                                name: deletedComment.sender.displayName || deletedComment.sender.username || 'Unknown Author',
-                                iconURL: deletedComment.sender.iconURL || undefined,
+                                name: getAuthorName(deletedComment.sender) || 'Unknown Author',
+                                iconURL: getAuthorIconURL(deletedComment.sender),
                             })
                             .setDescription(deletedComment.content || "(No content)")
                             .setTimestamp();
@@ -1950,95 +1950,13 @@ export class RepositoryManager {
                 const entryData = entry.getData();
                 const compareAuthors = endorsers ? entryData.endorsers : entryData.authors;
                 if (compareAuthors.some(otherAuthor => {
-                    if (author.type === AuthorType.Unknown) {
-                        return otherAuthor.username === author.username;
-                    } else {
-                        return otherAuthor.id === author.id;
-                    }
+                    return areAuthorsSame(otherAuthor, author);
                 })) {
                     entries.push(entryData);
                 }
             }
         }
         return entries;
-    }
-
-    async updateEntryAuthors(entry: ArchiveEntry, updatedAuthors: Author[]) {
-        if (!this.git) {
-            return false;
-        }
-
-        const entryData = deepClone(entry.getData());
-        const newAuthors = entryData.authors.map(author => {
-            const updatedAuthor = updatedAuthors.find(a => areAuthorsSame(a, author));
-            return updatedAuthor || author;
-        });
-
-        const newEndorsers = entryData.endorsers.map(endorser => {
-            const updatedAuthor = updatedAuthors.find(a => areAuthorsSame(a, endorser));
-            return updatedAuthor || endorser;
-        });
-
-        // check if they have changed
-        const authorsChanged = !areAuthorsListEqual(entryData.authors, newAuthors, true);
-        const endorsersChanged = !areAuthorsListEqual(entryData.endorsers, newEndorsers, true);
-        if (!authorsChanged && !endorsersChanged) {
-            return false; // No changes, nothing to do
-        }
-
-        // Read entry again
-        await entry.load();
-
-        // Check if the entry is still valid
-        const newData = entry.getData();
-        const authorsValid = areAuthorsListEqual(entryData.authors, newData.authors, true);
-        const endorsersValid = areAuthorsListEqual(entryData.endorsers, newData.endorsers, true);
-        if (!authorsValid || !endorsersValid) {
-            console.warn(`Entry ${entryData.code} has been modified by another process, skipping author update.`);
-            this.lock.release();
-            return false; // Entry has been modified, skip this update
-        }
-
-        // Update authors and endorsers
-        newData.authors.forEach(author => {
-            if (author.type === AuthorType.Unknown) {
-                return;
-            }
-
-            const updatedAuthor = updatedAuthors.find(a => areAuthorsSame(a, author));
-            if (!updatedAuthor) {
-                console.warn(`Author ${author.username} (${author.id}) not found in updated authors, skipping.`);
-            } else {
-                author.displayName = updatedAuthor.displayName;
-                author.iconURL = updatedAuthor.iconURL;
-                author.type = updatedAuthor.type;
-                author.username = updatedAuthor.username;
-            }
-        });
-
-        newData.endorsers.forEach(author => {
-            if (author.type === AuthorType.Unknown) {
-                return;
-            }
-
-            const updatedAuthor = updatedAuthors.find(a => areAuthorsSame(a, author));
-            if (!updatedAuthor) {
-                console.warn(`Endorser ${author.username} (${author.id}) not found in updated authors, skipping.`);
-            } else {
-                author.displayName = updatedAuthor.displayName;
-                author.iconURL = updatedAuthor.iconURL;
-                author.type = updatedAuthor.type;
-                author.username = updatedAuthor.username;
-            }
-        });
-
-        await entry.save();
-
-        if (newData.post && newData.post.forumId) {
-            await this.addOrUpdateEntryFromData(newData, newData.post.forumId, false, false, async () => { });
-        }
-
-        return true;
     }
 
     async updateEntryReadme(entry: ArchiveEntry): Promise<string> {

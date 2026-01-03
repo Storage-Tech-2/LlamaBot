@@ -1,7 +1,7 @@
 import { ActionRowBuilder, Interaction, Message, MessageFlags, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, UserSelectMenuBuilder, UserSelectMenuInteraction } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { canEditSubmission, getAuthorsString, reclassifyAuthors, replyEphemeral } from "../../utils/Util.js";
+import { areAuthorsSame, canEditSubmission, getAuthorName, getAuthorsString, getDiscordAuthorsFromIDs, reclassifyAuthors, replyEphemeral } from "../../utils/Util.js";
 import { Author, AuthorType } from "../../submissions/Author.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
@@ -15,37 +15,41 @@ export class SetAuthorsMenu implements Menu {
     }
 
     async getBuilder(guildHolder: GuildHolder, submission: Submission, isExtra: boolean): Promise<UserSelectMenuBuilder | StringSelectMenuBuilder> {
-        const currentAuthors = (submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || (isExtra ? [] : await submission.getPotentialAuthorsFromMessageContent())).filter(author => {
-            if (author.type === AuthorType.Unknown || author.type === AuthorType.DiscordDeleted) {
-                return isExtra;
-            } else {
-                return !isExtra;
-            }
-        });
+        let currentAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS);
+
+        if (currentAuthors === null) {
+            currentAuthors = (isExtra ? [] : await submission.getPotentialAuthorsFromMessageContent())
+        }
 
         if (isExtra) {
+            const extraAuthors = currentAuthors.filter(author => {
+                return author.type === AuthorType.Unknown || author.type === AuthorType.DiscordDeleted;
+            });
             const userSize = currentAuthors.length;
             return new StringSelectMenuBuilder()
                 .setCustomId(this.getID() + "|e")
                 .setMinValues(0)
                 .setMaxValues(Math.min(userSize, 25))
                 .setPlaceholder('Select authors')
-                .setOptions(currentAuthors.map(author => {
+                .setOptions(extraAuthors.map(author => {
                     const opt = new StringSelectMenuOptionBuilder();
-                    opt.setLabel(author.displayName || author.username || 'Unknown Author');
+                    opt.setLabel(getAuthorName(author) || 'Unknown Author');
                     opt.setValue(author.username || 'unknown-author');
-                    opt.setDefault(currentAuthors.some(a => a.username === author.username));
+                    opt.setDefault(extraAuthors.some(a => a.username === author.username));
                     return opt;
                 }))
         } else {
+            const discordAuthors = currentAuthors.filter(author => {
+                return author.type !== AuthorType.Unknown && author.type !== AuthorType.DiscordDeleted;
+            });
             // get list of users
-            const userSize = Math.max(guildHolder.getGuild().members.cache.size, currentAuthors.length);
+            const userSize = Math.max(guildHolder.getGuild().members.cache.size, discordAuthors.length);
             return new UserSelectMenuBuilder()
                 .setCustomId(this.getID() + "|d")
                 .setMinValues(0)
                 .setMaxValues(Math.min(userSize, 25))
                 .setPlaceholder('Select authors')
-                .setDefaultUsers(currentAuthors.map(author => author.id || '').filter(id => !!id))
+                .setDefaultUsers(discordAuthors.map(author => author.id || '').filter(id => !!id))
         }
     }
 
@@ -71,26 +75,24 @@ export class SetAuthorsMenu implements Menu {
             return;
         }
 
-        const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) === null;
-        let currentAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || (await submission.getPotentialAuthorsFromMessageContent(true));
-
-        const newAuthors = await reclassifyAuthors(submission.getGuildHolder(), interaction.values.map((id) => {
-            return {
-                type: AuthorType.DiscordInGuild,
-                id: id
-            }
-        }));
+        const configAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS);
+        const isFirstTime = configAuthors === null;
+        let currentAuthors = configAuthors || [];
+        if (isFirstTime === null) {
+            currentAuthors = await submission.getPotentialAuthorsFromMessageContent();
+        }
+        const newAuthors = await getDiscordAuthorsFromIDs(guildHolder, interaction.values);
 
         const added: Author[] = [];
         const removed: Author[] = [];
         for (const author of newAuthors) {
-            if (isFirstTime || !currentAuthors.some(a => a.id === author.id)) {
+            if (isFirstTime || !currentAuthors.some(a => areAuthorsSame(a, author))) {
                 added.push(author);
             }
         }
 
         for (const author of currentAuthors) {
-            if (author.type !== AuthorType.Unknown && !newAuthors.some(a => a.id === author.id)) {
+            if (!newAuthors.some(a => areAuthorsSame(a, author))) {
                 removed.push(author);
             }
         }
@@ -107,12 +109,14 @@ export class SetAuthorsMenu implements Menu {
                 currentAuthors.push(author);
             });
             removed.forEach(author => {
-                const index = currentAuthors.findIndex(a => a.id === author.id);
+                const index = currentAuthors.findIndex(a => areAuthorsSame(a, author));
                 if (index !== -1) {
                     currentAuthors.splice(index, 1);
                 }
             });
         }
+
+        currentAuthors = await reclassifyAuthors(guildHolder, currentAuthors);
 
         submission.getConfigManager().setConfig(SubmissionConfigs.AUTHORS, currentAuthors);
 
@@ -136,30 +140,6 @@ export class SetAuthorsMenu implements Menu {
                 flags: [MessageFlags.SuppressNotifications]
             });
         }
-
-        // const blacklist = guildHolder.getConfigManager().getConfig(GuildConfigs.BLACKLISTED_USERS);
-        // const blacklistedAuthors = blacklist.filter(entry => {
-        //     return currentAuthors.some(b => !b.dontDisplay && areAuthorsSame(b, entry.author));
-        // });
-        // if (blacklistedAuthors.length > 0) {
-        //     const msg = `Warning: The following authors are on the Do-not-archive list:\n` + blacklistedAuthors.map(entry => {
-        //         return `- ${getAuthorsString([entry.author])}: ${entry.reason || 'No reason provided'}`;
-        //     }).join('\n');
-        //     const split = splitIntoChunks(msg, 2000);
-        //     for (let i = 0; i < split.length; i++) {
-        //         if (!interaction.replied) {
-        //             await interaction.reply({
-        //                 content: split[0],
-        //                 flags: [MessageFlags.SuppressNotifications]
-        //             });
-        //         } else {
-        //             await interaction.followUp({
-        //                 content: split[i],
-        //                 flags: [MessageFlags.SuppressNotifications]
-        //             });
-        //         }
-        //     }
-        // }
 
         if (isFirstTime) {
             await SetArchiveCategoryMenu.sendArchiveCategorySelector(submission, interaction);
@@ -188,10 +168,16 @@ export class SetAuthorsMenu implements Menu {
 
         const newAuthors = interaction.values.map((name) => {
             const existingAuthor = currentAuthors.find(a => a.type === AuthorType.Unknown && a.username === name);
-            return existingAuthor || {
+            if (existingAuthor) {
+                return existingAuthor;
+            }
+
+            const newAuthor: Author = {
                 type: AuthorType.Unknown,
                 username: name
             }
+
+            return newAuthor;
         }).filter(author => author !== null);
 
         const added: Author[] = [];
@@ -242,30 +228,6 @@ export class SetAuthorsMenu implements Menu {
             await submission.statusUpdated()
         }
 
-        // const blacklist = guildHolder.getConfigManager().getConfig(GuildConfigs.BLACKLISTED_USERS);
-        // const blacklistedAuthors = blacklist.filter(entry => {
-        //     return currentAuthors.some(b => !b.dontDisplay && areAuthorsSame(b, entry.author));
-        // });
-        // if (blacklistedAuthors.length > 0) {
-        //     const msg = `Warning: The following authors are on the Do-not-archive list:\n` + blacklistedAuthors.map(entry => {
-        //         return `- ${getAuthorsString([entry.author])}: ${entry.reason || 'No reason provided'}`;
-        //     }).join('\n');
-        //     const split = splitIntoChunks(msg, 2000);
-        //     for (let i = 0; i < split.length; i++) {
-        //         if (!interaction.replied) {
-        //             await interaction.reply({
-        //                 content: split[0],
-        //                 flags: [MessageFlags.SuppressNotifications]
-        //             });
-        //         } else {
-        //             await interaction.followUp({
-        //                 content: split[i],
-        //                 flags: [MessageFlags.SuppressNotifications]
-        //             });
-        //         }
-        //     }
-        // }
-
         if (isFirstTime) {
             await SetArchiveCategoryMenu.sendArchiveCategorySelector(submission, interaction);
         }
@@ -281,23 +243,24 @@ export class SetAuthorsMenu implements Menu {
             .addComponents(await new SetAuthorsMenu().getBuilder(guildHolder, submission, false));
         components.push(row);
 
-        const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) === null;
+        const configAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS);
+        const isFirstTime = configAuthors === null;
 
-        // Update existing authors
-        const updatedAuthors = await reclassifyAuthors(guildHolder, submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || []);
-        if (updatedAuthors.length > 0) {
-            submission.getConfigManager().setConfig(SubmissionConfigs.AUTHORS, updatedAuthors);
+        let currentAuthors = await reclassifyAuthors(guildHolder, configAuthors || []);
+        if (currentAuthors.length > 0) {
+            submission.getConfigManager().setConfig(SubmissionConfigs.AUTHORS, currentAuthors);
         }
 
-        // get authors
-        const currentAuthors = (submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || []).filter(author => {
+        const extraAuthors = currentAuthors.filter(author => {
             return author.type === AuthorType.Unknown || author.type === AuthorType.DiscordDeleted;
         });
-        if (currentAuthors.length > 0) {
+        
+        if (extraAuthors.length > 0) {
             const row1 = new ActionRowBuilder()
                 .addComponents(await new SetAuthorsMenu().getBuilder(guildHolder, submission, true));
             components.push(row1);
         }
+
         const row2 = new ActionRowBuilder();
         if (isFirstTime) {
             row2.addComponents(new ConfirmAuthorsButton().getBuilder());

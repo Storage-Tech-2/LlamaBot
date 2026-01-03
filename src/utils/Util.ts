@@ -8,7 +8,7 @@ import { GuildHolder } from '../GuildHolder.js'
 import { Attachment } from '../submissions/Attachment.js'
 import { Image } from '../submissions/Image.js'
 import Path from 'path'
-import { Author, AuthorType } from '../submissions/Author.js'
+import { AllAuthorPropertiesAccessor, Author, AuthorType, DiscordAuthor } from '../submissions/Author.js'
 import { ArchiveEntryData } from '../archive/ArchiveEntry.js'
 import { GuildConfigs } from '../config/GuildConfigs.js'
 import { Submission } from '../submissions/Submission.js'
@@ -76,17 +76,30 @@ export function getAuthorsString(authors: Author[] | null): string {
         return 'No authors';
     }
     return authors.map(author => {
-        const name = author.displayName || author.username || 'Unknown';
         if (author.type === AuthorType.DiscordInGuild) {
             return `<@${author.id}>`;
+        } else if (author.type === AuthorType.DiscordLeftGuild) {
+            return `${author.url ? `[${escapeDiscordString(author.displayName)}](${author.url})` : escapeDiscordString(author.displayName)} (<@${author.id}>)`;
         } else if (author.type === AuthorType.DiscordExternal) {
-            return `${author.url ? `[${escapeDiscordString(name)}](${author.url})` : escapeDiscordString(name)} (<@${author.id}>)`;
+            return `${author.url ? `[${escapeDiscordString(author.username)}](${author.url})` : escapeDiscordString(author.username)} (<@${author.id}>)`;
         } else if (author.url) {
-            return `[${escapeDiscordString(name)}](${author.url})`;
+            return `[${escapeDiscordString(author.username)}](${author.url})`;
         } else {
-            return escapeDiscordString(name);
+            return escapeDiscordString(author.username);
         }
     }).join(', ');
+}
+
+export function getAuthorName(author: Author): string {
+    if (author.type === AuthorType.DiscordInGuild || author.type === AuthorType.DiscordLeftGuild) {
+        return author.displayName;
+    } else {
+        return author.username;
+    }
+}
+
+export function getAuthorIconURL(author: Author): string | undefined {
+    return (author as AllAuthorPropertiesAccessor).iconURL;
 }
 
 export function getCodeAndDescriptionFromTopic(topic: string): { code: string | null, description: string } {
@@ -482,10 +495,38 @@ export function canSetPrivilegedTags(interaction: Interaction, submission: Submi
     return false
 }
 
-export async function reclassifyAuthors(guildHolder: GuildHolder, list: Author[]): Promise<Author[]> {
+export async function getDiscordAuthorsFromIDs(guildHolder: GuildHolder, ids: Snowflake[]): Promise<DiscordAuthor[]> {
+    const authors: DiscordAuthor[] = [];
+    for (const id of ids) {
+        const member = await guildHolder.getGuild().members.fetch(id).catch(() => null);
+        if (member) {
+            authors.push({
+                type: AuthorType.DiscordInGuild,
+                id: id,
+                username: member.user.username,
+                displayName: member.displayName,
+                iconURL: member.user.displayAvatarURL()
+            });
+            continue;
+        }
+        
+        const user = await guildHolder.getBot().client.users.fetch(id).catch(() => null);
+        if (user) {
+            authors.push({
+                type: AuthorType.DiscordExternal,
+                id: id,
+                username: user.username,
+                iconURL: user.displayAvatarURL()
+            });
+        }
+    }
+    return authors;
+}
+
+export async function reclassifyAuthors<T extends (DiscordAuthor | Author)>(guildHolder: GuildHolder, list: T[]): Promise<T[]> {
     return Promise.all(list.map(async author => {
-        const newAuthor: Author = { ...author };
-        if (author.type === AuthorType.Unknown || !author.id || author.type === AuthorType.DiscordDeleted) {
+        const newAuthor: T = { ...author };
+        if (author.type === AuthorType.Unknown) {
             // keep as is
             return newAuthor;
         }
@@ -493,15 +534,24 @@ export async function reclassifyAuthors(guildHolder: GuildHolder, list: Author[]
         const member = await guildHolder.getGuild().members.fetch(author.id).catch(() => null);
         if (member) { // is a member of the guild
             newAuthor.type = AuthorType.DiscordInGuild;
-            newAuthor.displayName = member.displayName;
-            newAuthor.username = member.user.username;
-            newAuthor.iconURL = member.user.displayAvatarURL();
+            if (newAuthor.type === AuthorType.DiscordInGuild) { // to avoid casting
+                newAuthor.displayName = member.displayName;
+                newAuthor.username = member.user.username;
+                newAuthor.iconURL = member.user.displayAvatarURL();
+            }
         } else {
             const user = await guildHolder.getBot().client.users.fetch(author.id).catch(() => null);
             if (user) { // is a user but not a member of the guild
-                newAuthor.type = AuthorType.DiscordExternal;
-                newAuthor.username = user.username;
-                newAuthor.iconURL = user.displayAvatarURL();
+                if (newAuthor.type === AuthorType.DiscordInGuild) {
+                    // just change type
+                    newAuthor.type = AuthorType.DiscordLeftGuild;
+                } else {
+                    newAuthor.type = AuthorType.DiscordExternal;
+                    if (newAuthor.type === AuthorType.DiscordExternal) { // to avoid casting
+                        newAuthor.username = user.username;
+                        newAuthor.iconURL = user.displayAvatarURL();
+                    }
+                }
             } else {
                 newAuthor.type = AuthorType.DiscordDeleted;
             }
@@ -612,37 +662,42 @@ export function truncateFileName(fileName: string, maxLength: number): string {
     return newName;
 }
 
-export async function getAuthorFromIdentifier(guildHolder: GuildHolder, identifier: string): Promise<Author | null> {
+export async function getAuthorFromIdentifier(guildHolder: GuildHolder, identifier: string): Promise<DiscordAuthor | null> {
     // check if identifier is a valid Discord ID
     const isId = /^\d{17,19}$/.test(identifier) || (identifier.startsWith('<@') && identifier.endsWith('>'));
-    const author: Author = {
-        type: AuthorType.Unknown,
-        username: identifier,
-    }
     if (isId) {
         const userId = identifier.replace(/<@!?/, '').replace(/>/, '');
         const user = await guildHolder.getGuild().members.fetch(userId).catch(() => null);
         if (user) {
-
-            author.id = user.id;
-            author.username = user.user.username;
-            author.displayName = user.displayName;
-            author.iconURL = user.displayAvatarURL();
-            author.type = AuthorType.DiscordInGuild;
+            return {
+                type: AuthorType.DiscordInGuild,
+                id: user.id,
+                username: user.user.username,
+                displayName: user.displayName,
+                iconURL: user.user.displayAvatarURL(),
+            }
         } else {
             // try to fetch the user from the client
             const user = await guildHolder.getBot().client.users.fetch(userId).catch(() => null);
             if (user) {
-                author.id = user.id;
-                author.username = user.username;
-                author.iconURL = user.displayAvatarURL();
-                author.type = AuthorType.DiscordExternal;
-            } else {
-                return null; // User not found
+                return {
+                    type: AuthorType.DiscordExternal,
+                    id: user.id,
+                    username: user.username,
+                    iconURL: user.displayAvatarURL(),
+                }
             }
         }
     }
-    return author;
+    return null;
+}
+
+export function getAuthorKey(author: Author): string {
+    if (author.type === AuthorType.Unknown) {
+        return `unknown:${author.username}`;
+    } else {
+        return `discord:${author.id}`;
+    }
 }
 
 export function areAuthorsSame(
@@ -651,48 +706,56 @@ export function areAuthorsSame(
 ): boolean {
     if (!author1 && !author2) return true; // Both are null
     if (!author1 || !author2) return false; // One is null, the other is not
+    return getAuthorKey(author1) === getAuthorKey(author2);
+}
 
-    // Compare IDs and types
-    if (author1.id && author2.id && author1.id === author2.id) {
-        return true;
-    }
+export function areAuthorsSameStrict(
+    author1: Author | null,
+    author2: Author | null,
+): boolean {
+    if (!author1 && !author2) return true; // Both are null
+    if (!author1 || !author2) return false; // One is null, the other is not
 
-    // if they are not unknown, then retun false
-    if (author1.type !== AuthorType.Unknown && author2.type !== AuthorType.Unknown) {
-        return false;
-    }
+    const fullAccess1 = author1 as AllAuthorPropertiesAccessor;
+    const fullAccess2 = author2 as AllAuthorPropertiesAccessor;
 
-    // compare usernames
-    return author1.username === author2.username;
+    return fullAccess1.type === fullAccess2.type &&
+        fullAccess1.id === fullAccess2.id &&
+        fullAccess1.username === fullAccess2.username &&
+        fullAccess1.displayName === fullAccess2.displayName &&
+        fullAccess1.iconURL === fullAccess2.iconURL;
 }
 
 export function areAuthorsListEqual(
     list1: Author[] | null,
     list2: Author[] | null,
     checkSharedFields: boolean = false,
-    checkUniqueFields: boolean = false,
+    checkReason: boolean = false,
 ): boolean {
     if (!list1 && !list2) return true; // Both are null
     if (!list1 || !list2) return false; // One is null, the other is not
 
     if (list1.length !== list2.length) return false; // Different lengths
 
+    const list2Map = new Map<string, Author>();
+    for (const author of list2) {
+        list2Map.set(getAuthorKey(author), author);
+    }
 
     for (let i = 0; i < list1.length; i++) {
         const author1 = list1[i];
-        const otherFound = list2.find(author2 => {
-            return areAuthorsSame(author1, author2);
-        });
+        const otherFound = list2Map.get(getAuthorKey(author1));
         if (!otherFound) {
             return false; // No matching author found
         }
+
         if (checkSharedFields) {
-            if (author1.type !== otherFound.type || author1.id !== otherFound.id || author1.username !== otherFound.username || author1.displayName !== otherFound.displayName || author1.iconURL !== otherFound.iconURL) {
-                return false; // Authors are not the same
+            if (!areAuthorsSameStrict(author1, otherFound)) {
+                return false; // Shared fields are not the same
             }
         }
 
-        if (checkUniqueFields) {
+        if (checkReason) {
             if (author1.dontDisplay !== otherFound.dontDisplay || author1.reason !== otherFound.reason) {
                 return false; // Unique fields are not the same
             }
