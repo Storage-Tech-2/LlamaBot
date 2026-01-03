@@ -168,10 +168,10 @@ export async function updateMetadataTask(guildHolder: GuildHolder): Promise<numb
     const authorIdsArray = Array.from(authorIds);
     for (let i = 0; i < authorIdsArray.length; i += chunkSize) {
         const chunk = authorIdsArray.slice(i, i + chunkSize);
-        getDiscordAuthorsFromIDs(guildHolder, chunk).then(fetchedAuthors => {
-            fetchedAuthors.forEach(author => {
-                authorMap.set(author.id, author);
-            });
+        const fetchedAuthors = await getDiscordAuthorsFromIDs(guildHolder, chunk);
+
+        fetchedAuthors.forEach(author => {
+            authorMap.set(author.id, author);
         });
     }
 
