@@ -979,6 +979,7 @@ export class Mwa implements Command {
                 await permissions.edit(guildHolder.getGuild().roles.everyone, {
                     SendMessages: false,
                     SendMessagesInThreads: false,
+                    AddReactions: true,
                     CreatePrivateThreads: false,
                     CreatePublicThreads: false,
                 });
