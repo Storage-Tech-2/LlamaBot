@@ -824,12 +824,12 @@ export class GuildHolder {
         // Check if receiver is blacklisted
         const blacklistedReceiver = this.getConfigManager().getConfig(GuildConfigs.THANKS_BLACKLIST).find(user => user.id === thanksReceiverID);
         if (blacklistedReceiver) {
-            const embed = new EmbedBuilder()
-                .setColor(0xFF0000) // Red color for error message
-                .setTitle(`User Blacklisted!`)
-                .setDescription(`<@${thanksReceiverID}> is blacklisted from receiving points because of reason: ${blacklistedReceiver.reason}. Thank you for appreciating them anyway!`)
-                .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
-            await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
+            // const embed = new EmbedBuilder()
+            //     .setColor(0xFF0000) // Red color for error message
+            //     .setTitle(`User Blacklisted!`)
+            //     .setDescription(`<@${thanksReceiverID}> is blacklisted from receiving points because of reason: ${blacklistedReceiver.reason}. Thank you for appreciating them anyway!`)
+            //     .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
+            // await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
             return;
         }
 
