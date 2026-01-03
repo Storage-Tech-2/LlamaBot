@@ -1298,6 +1298,11 @@ export class GuildHolder {
     }
 
     public async updateDesignerRoles(entryId: Snowflake, oldAuthors: Author[], newAuthors: Author[]) {
+        const designerRoleId = this.getConfigManager().getConfig(GuildConfigs.DESIGNER_ROLE_ID);
+        if (!designerRoleId) {
+            return;
+        }
+
         const oldDesigners = oldAuthors.filter(a => a.type === AuthorType.DiscordInGuild && !a.dontDisplay) as DiscordAuthor[];
         const newDesigners = newAuthors.filter(a => a.type === AuthorType.DiscordInGuild && !a.dontDisplay) as DiscordAuthor[];
         
@@ -1310,8 +1315,6 @@ export class GuildHolder {
 
         const added = newSet.difference(oldSet);
         const removed = oldSet.difference(newSet);
-
-        const designerRoleId = this.getConfigManager().getConfig(GuildConfigs.DESIGNER_ROLE_ID);
 
         for (const designerId of added) {
             // get userdata for designer
