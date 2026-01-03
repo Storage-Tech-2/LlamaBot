@@ -78,7 +78,7 @@ export class SetAuthorsMenu implements Menu {
         const configAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS);
         const isFirstTime = configAuthors === null;
         let currentAuthors = configAuthors || [];
-        if (isFirstTime === null) {
+        if (isFirstTime) {
             currentAuthors = await submission.getPotentialAuthorsFromMessageContent();
         }
         const newAuthors = await getDiscordAuthorsFromIDs(guildHolder, interaction.values);
