@@ -95,6 +95,9 @@ export class Bot {
      */
     globalDiscordServersDictionary: DiscordServersDictionary;
 
+    
+    dayTaskTimestamps: Map<string, number> = new Map();
+
     constructor() {
         this.guilds = new Map()
         this.llmQueue = new LLMQueue(this)
@@ -160,11 +163,17 @@ export class Bot {
                 this.ready = true
 
                 const guilds = await Promise.all((await this.client.guilds.fetch()).map((guild) => guild.fetch()))
-                guilds.forEach((guild) => {
+                guilds.forEach((guild, i) => {
                     const holder = new GuildHolder(this, guild, this.globalDiscordServersDictionary);
                     this.guilds.set(guild.id, holder);
+                    const now = Date.now();
+                    this.dayTaskTimestamps.set(guild.id, 24 * 60 * 60 * 1000 + now + i * 60 * 60 * 1000); // staggered by 1 hour
                     deployCommands(this.commands, holder, secrets)
                 })
+
+                for (const guildHolder of this.guilds.values()) {
+                    await guildHolder.dayTasks();
+                }
 
                 this.loop()
 
@@ -184,12 +193,14 @@ export class Bot {
             console.log(`Joined guild: ${guild.name} (${guild.id})`)
             const holder = this.guilds.get(guild.id) ?? new GuildHolder(this, guild, this.globalDiscordServersDictionary);
             this.guilds.set(guild.id, holder);
+            this.dayTaskTimestamps.set(guild.id, Date.now() + 24 * 60 * 60 * 1000);
             deployCommands(this.commands, holder, secrets)
         })
 
         this.client.on(Events.GuildDelete, (guild) => {
             console.log(`Left guild: ${guild.name} (${guild.id})`)
             this.guilds.delete(guild.id)
+            this.dayTaskTimestamps.delete(guild.id);
         })
 
 
@@ -457,6 +468,19 @@ export class Bot {
         for (const guildHolder of this.guilds.values()) {
             await guildHolder.loop()
         }
+
+        const now = Date.now();
+        for (const [guildId, guildHolder] of this.guilds.entries()) {
+            const lastDayTask = this.dayTaskTimestamps.get(guildId) || 0;
+            if (now >= lastDayTask) {
+                try {
+                    await guildHolder.dayTasks();
+                    this.dayTaskTimestamps.set(guildId, now + 24 * 60 * 60 * 1000);
+                } catch (error) {
+                    console.error(`Error running day tasks for guild ${guildId}:`, error);
+                }
+            }
+        } 
 
         setTimeout(() => this.loop(), 1000)
     }

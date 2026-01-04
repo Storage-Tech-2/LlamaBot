@@ -65,7 +65,7 @@ export class GuildHolder {
     private repositoryManager: RepositoryManager;
     private userManager: UserManager;
 
-    private lastDayLoop: number = 0;
+   // private lastDayLoop: number = 0;
     private ready: boolean = false;
 
     private antiNukeManager: AntiNukeManager;
@@ -535,7 +535,7 @@ export class GuildHolder {
             await this.userManager.saveUserData(userData);
 
             const text = [`Timed out <@${userData.id}> for ${autoTimeout ? `not verifying within the allotted time` : `sending links/attachments again after warning`}.`];
-            
+
             if (offendingMessage) {
                 text.push(`**Offending Message:**\n${truncateStringWithEllipsis(offendingMessage.content, 2000)}`);
                 if (offendingMessage.files.length > 0) {
@@ -998,20 +998,34 @@ export class GuildHolder {
         await this.submissions.saveSubmissions();
         await this.repositoryManager.save();
 
-        const now = Date.now();
-        if (now - this.lastDayLoop >= 24 * 60 * 60 * 1000) { // Every 24 hours
-            this.lastDayLoop = now;
-            await this.purgeThanksBuffer();
+        // const now = Date.now();
+        // if (now - this.lastDayLoop >= 24 * 60 * 60 * 1000) { // Every 24 hours
+        //     this.lastDayLoop = now;
+        //     await this.purgeThanksBuffer();
 
-            await updateMetadataTask(this).catch(e => {
-                console.error('Error updating entry authors:', e);
+        //     await updateMetadataTask(this).catch(e => {
+        //         console.error('Error updating entry authors:', e);
+        //     });
+
+        //     if (this.retaggingRequested) {
+        //         await retagEverythingTask(this).catch(e => {
+        //             console.error('Error retagging everything:', e);
+        //         });
+        //     }
+        // }
+    }
+
+    public async dayTasks() {
+        await this.purgeThanksBuffer();
+
+        await updateMetadataTask(this).catch(e => {
+            console.error('Error updating entry authors:', e);
+        });
+
+        if (this.retaggingRequested) {
+            await retagEverythingTask(this).catch(e => {
+                console.error('Error retagging everything:', e);
             });
-
-            if (this.retaggingRequested) {
-                await retagEverythingTask(this).catch(e => {
-                    console.error('Error retagging everything:', e);
-                });
-            }
         }
     }
 
@@ -1033,7 +1047,7 @@ export class GuildHolder {
             await this.userManager.saveUserData(userData);
         }
 
-        const members = await this.guild.members.fetch().catch(()=> null);
+        const members = await this.guild.members.fetch().catch(() => null);
         if (!members) {
             return;
         }
@@ -1309,13 +1323,13 @@ export class GuildHolder {
 
         const oldDesigners = oldAuthors.filter(a => a.type === AuthorType.DiscordInGuild && !a.dontDisplay) as DiscordAuthor[];
         const newDesigners = newAuthors.filter(a => a.type === AuthorType.DiscordInGuild && !a.dontDisplay) as DiscordAuthor[];
-        
+
         const oldDesignerIds = oldDesigners.map(a => a.id);
         const newDesignerIds = newDesigners.map(a => a.id);
 
         const oldSet = new Set(oldDesignerIds);
         const newSet = new Set(newDesignerIds);
-        
+
 
         const added = newSet.difference(oldSet);
         const removed = oldSet.difference(newSet);
