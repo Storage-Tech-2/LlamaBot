@@ -65,7 +65,7 @@ export class GuildHolder {
     private repositoryManager: RepositoryManager;
     private userManager: UserManager;
 
-   // private lastDayLoop: number = 0;
+    // private lastDayLoop: number = 0;
     private ready: boolean = false;
 
     private antiNukeManager: AntiNukeManager;
@@ -103,8 +103,9 @@ export class GuildHolder {
 
             await this.updatePostChannelsCache();
 
-            this.getSchema(); // migrate schema if needed
-            this.getSchemaStyles(); // migrate styles if needed
+            await this.checkAllUsersForHelperRole();
+
+
             console.log(`GuildHolder initialized for guild: ${guild.name} (${guild.id})`);
             this.ready = true;
 
@@ -161,8 +162,16 @@ export class GuildHolder {
         this.antiNukeManager.handleRoleDelete(role).catch(e => console.error('Error handling role delete:', e));
     }
 
-    handleMemberAdd(member: GuildMember) {
+    async handleMemberAdd(member: GuildMember) {
         this.antiNukeManager.handleMemberAdd(member).catch(e => console.error('Error handling member add:', e));
+
+        // check thanks
+        const userData = await this.userManager.getUserData(member.id);
+        if (userData) {
+            await this.checkHelper(userData, member).catch(e => {
+                console.error(`Error checking helper role for user ${member.id}:`, e);
+            });
+        }
     }
 
     handleMemberUpdate(oldMember: GuildMember | PartialGuildMember, newMember: GuildMember) {
@@ -879,7 +888,9 @@ export class GuildHolder {
             .setDescription(`<@${thanksSenderID}> gave a point to <@${thanksReceiverID}>!`)
             .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
         await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
-        await this.checkHelper(userData);
+        await this.checkHelper(userData).catch(e => {
+            console.error('Error checking helper status:', e);
+        });
     }
 
     private truncateContentForLLM(content: string, maxLength: number = 400) {
@@ -1041,16 +1052,23 @@ export class GuildHolder {
 
             // Purge buffer entries older than 30 days
             const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-            userData.thankedBuffer = userData.thankedBuffer.filter(thank => thank.timestamp >= thirtyDaysAgo);
-
+            const newThanks = userData.thankedBuffer.filter(thank => thank.timestamp >= thirtyDaysAgo);
+            const changed = newThanks.length !== userData.thankedBuffer.length;
+            userData.thankedBuffer = newThanks;
             // Save updated user data
             await this.userManager.saveUserData(userData);
+
+            if (changed) {
+                await this.checkHelper(userData).catch(e => {
+                    console.error(`Error checking helper role for user ${userId}:`, e);
+                });
+            }
         }
 
-        const members = await this.guild.members.fetch().catch(() => null);
-        if (!members) {
-            return;
-        }
+    }
+
+    public async checkAllUsersForHelperRole() {
+        const members = await this.guild.members.fetch();
 
         for (const member of members.values()) {
             const userData = await this.userManager.getUserData(member.id);
