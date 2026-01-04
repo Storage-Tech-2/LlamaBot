@@ -1033,7 +1033,11 @@ export class GuildHolder {
             await this.userManager.saveUserData(userData);
         }
 
-        const members = await this.guild.members.fetch();
+        const members = await this.guild.members.fetch().catch(()=> null);
+        if (!members) {
+            return;
+        }
+
         for (const member of members.values()) {
             const userData = await this.userManager.getUserData(member.id);
             if (!userData) continue;

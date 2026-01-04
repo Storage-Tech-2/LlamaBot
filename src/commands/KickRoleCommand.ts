@@ -11,7 +11,7 @@ export class KickRoleCommand implements Command {
 
     getBuilder(_guildHolder: GuildHolder): SlashCommandBuilder {
         const data = new SlashCommandBuilder();
-            
+
         data.setName(this.getID())
             .setDescription('Kick every member with the given role')
             .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
@@ -45,7 +45,12 @@ export class KickRoleCommand implements Command {
 
         await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
-        const members = await interaction.guild.members.fetch();
+        const members = await interaction.guild.members.fetch().catch(() => null);
+        if (!members) {
+            await replyEphemeral(interaction, 'Failed to fetch all members');
+            return;
+        }
+
         const membersWithRole = members.filter(member => member.roles.cache.has(role.id));
 
         let kicked = 0;
