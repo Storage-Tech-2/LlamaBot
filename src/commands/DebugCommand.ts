@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, ChannelType, ForumChannel, InteractionContextType, MessageFlags, SlashCommandBuilder, Snowflake } from "discord.js";
+import { AttachmentBuilder, ChatInputCommandInteraction, ChannelType, Collection, ForumChannel, GuildMember, InteractionContextType, MessageFlags, SlashCommandBuilder, Snowflake } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { SysAdmin } from "../Bot.js";
@@ -94,6 +94,11 @@ export class DebugCommand implements Command {
                             .setName('trim_buffer')
                             .setDescription('Also remove entries from the 30-day buffer (default: yes)')
                     )
+            )
+            .addSubcommand(sub =>
+                sub
+                    .setName('memberstats')
+                    .setDescription('Export member usernames, roles, and join dates as JSON')
             );
 
         return data;
@@ -132,6 +137,9 @@ export class DebugCommand implements Command {
                 break;
             case 'removethanks':
                 await this.handleRemoveThanks(guildHolder, interaction);
+                break;
+            case 'memberstats':
+                await this.handleMemberStats(guildHolder, interaction);
                 break;
             default:
                 await replyEphemeral(interaction, 'Unknown subcommand.');
@@ -364,5 +372,34 @@ export class DebugCommand implements Command {
             interaction,
             `Removed ${amount} thank-you point${amount === 1 ? '' : 's'} from <@${targetUser.id}> (total ${originalTotal} → ${userData.thankedCountTotal})${trimBuffer ? `. Trimmed ${removedFromBuffer} buffer entr${removedFromBuffer === 1 ? 'y' : 'ies'}.` : '.'}`
         );
+    }
+
+    private async handleMemberStats(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
+        const guild = guildHolder.getGuild();
+        let members: Collection<Snowflake, GuildMember>;
+        try {
+            members = await guild.members.fetch();
+        } catch (error: any) {
+            await interaction.editReply({ content: `Failed to fetch members: ${error?.message || 'Unknown error'}` });
+            return;
+        }
+
+        const stats = members.map(member => ({
+            username: member.user.username,
+            roles: member.roles.cache
+                .filter(role => role.id !== guild.id)
+                .map(role => role.name),
+            joinedAt: member.joinedAt ? member.joinedAt.toISOString() : null,
+        }));
+
+        const buffer = Buffer.from(JSON.stringify(stats, null, 2));
+        const attachment = new AttachmentBuilder(buffer, { name: `memberstats-${guild.id}.json` });
+
+        await interaction.editReply({
+            content: `Exported ${stats.length} member${stats.length === 1 ? '' : 's'}.`,
+            files: [attachment]
+        });
     }
 }
