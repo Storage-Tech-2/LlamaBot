@@ -238,6 +238,7 @@ export class Mwa implements Command {
                                 { name: 'Auto-join server links', value: 'autojoin' },
                                 { name: 'Auto-lookup post codes', value: 'autolookup' },
                                 { name: 'Minimum endorsements required', value: 'minendorsements' },
+                                { name: 'Helper role threshold', value: 'helperrolethreshold' },
                             )
                     )
                     .addStringOption(option =>
@@ -554,7 +555,19 @@ export class Mwa implements Command {
             return;
         }
 
-        await replyEphemeral(interaction, 'Invalid config name. Valid options: autojoin, autolookup, minendorsements.');
+        if (configName === 'helperrolethreshold') {
+            const parsed = Number(rawValue);
+            if (!Number.isInteger(parsed) || parsed < 0) {
+                await replyEphemeral(interaction, 'Provide a non-negative integer for the helper role threshold.');
+                return;
+            }
+
+            guildHolder.getConfigManager().setConfig(GuildConfigs.HELPER_ROLE_THRESHOLD, parsed);
+            await interaction.reply(`Set \`helperRoleThreshold\` to ${parsed}.`);
+            return;
+        }
+
+        await replyEphemeral(interaction, 'Invalid config name. Valid options: autojoin, autolookup, minendorsements, helperrolethreshold.');
     }
 
     async importDictionary(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
