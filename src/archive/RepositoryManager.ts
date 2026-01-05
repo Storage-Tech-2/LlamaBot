@@ -249,7 +249,7 @@ export class RepositoryManager {
                 // recursive
                 await fs.rm(filePath, { recursive: true, force: true });
             }
-            await this.git.rm(channelPath);
+            await this.git.rm(['-r', channelPath]);
             await this.git.commit(`Removed channel ${channel.name} (${channel.code})`);
         }
 
