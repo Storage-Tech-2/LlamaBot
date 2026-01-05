@@ -103,6 +103,10 @@ export class Submission {
                 if (forumChannel && forumChannel.type === ChannelType.GuildForum) {
                     const newTag = forumChannel.availableTags.find(tag => tag.name === SubmissionTagNames.NEW);
                     if (newTag) {
+                        // check if tag is already applied
+                        if (channel.appliedTags && channel.appliedTags.includes(newTag.id)) {
+                            return;
+                        }
                         const tags = channel.appliedTags || [];
                         tags.push(newTag?.id || '');
                         await channel.setAppliedTags(tags);
