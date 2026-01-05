@@ -10,6 +10,7 @@ export type ArchiveChannelReference = {
     description: string;
     path: string;
     availableTags: string[];
+    position: number;
 }
 
 

@@ -212,9 +212,6 @@ export class RepositoryManager {
 
         this.dictionaryManager.invalidateArchiveIndex();
 
-        // sort by position
-        channels.sort((a, b) => a.position - b.position);
-
         const reMapped: ArchiveChannelReference[] = [];
         for (const channel of channels.values()) {
             await channel.fetch();
@@ -230,9 +227,13 @@ export class RepositoryManager {
                 category: channel.parent?.name || '',
                 path: `Archive/${code}_${escapeString(channel.name) || ''}`,
                 description: description || 'No description',
-                availableTags: channel.availableTags?.map(tag => tag.name) || []
+                availableTags: channel.availableTags?.map(tag => tag.name) || [],
+                position: channel.position
             });
         }
+
+        // sort by position
+        reMapped.sort((a, b) => a.position - b.position);
 
 
         const existingChannels = this.getChannelReferences();
