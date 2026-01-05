@@ -228,8 +228,9 @@ export class RepositoryManager {
                 path: `Archive/${code}_${escapeString(channel.name) || ''}`,
                 description: description || 'No description',
                 availableTags: channel.availableTags?.map(tag => tag.name) || [],
-                position: channel.rawPosition || 0,
+                position: channel.position
             });
+            console.log(`Mapped channel ${channel.name} (${channel.id}) with code ${code} and position ${channel.position}`);
         }
 
         // sort by position
