@@ -228,7 +228,7 @@ export class RepositoryManager {
                 path: `Archive/${code}_${escapeString(channel.name) || ''}`,
                 description: description || 'No description',
                 availableTags: channel.availableTags?.map(tag => tag.name) || [],
-                position: channel.position
+                position: channel.rawPosition
             });
         }
 
