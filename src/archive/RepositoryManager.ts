@@ -43,7 +43,7 @@ export class RepositoryManager {
 
         this.configManager.setChangeListener(async () => {
             if (this.git) {
-                await this.git.commit('Updated repository configuration', [Path.join(this.folderPath, 'config.json')]).catch(() => { });
+                await this.commit('Updated repository configuration', [Path.join(this.folderPath, 'config.json')]).catch(() => { });
                 await this.push().catch(() => { });
             }
         });
@@ -69,7 +69,7 @@ export class RepositoryManager {
             false)) {
             await fs.writeFile(gitignorePath, '.DS_Store\n', 'utf-8');
             await this.git.add('.gitignore');
-            await this.git.commit('Initial commit: add .gitignore');
+            await this.commit('Initial commit: add .gitignore');
         }
 
 
@@ -250,7 +250,7 @@ export class RepositoryManager {
                 await fs.rm(filePath, { recursive: true, force: true });
             }
             await this.git.rm(['-r', channelPath]);
-            await this.git.commit(`Removed channel ${channel.name} (${channel.code})`);
+            await this.commit(`Removed channel ${channel.name} (${channel.code})`);
         }
 
         // Then, add new channels
@@ -266,7 +266,7 @@ export class RepositoryManager {
 
             // Commit the new channel
             await this.git.add(channelPath);
-            await this.git.commit(`Added channel ${channel.name} (${channel.code})`);
+            await this.commit(`Added channel ${channel.name} (${channel.code})`);
         }
 
         // Finally, update modified channels
@@ -382,7 +382,7 @@ export class RepositoryManager {
                 msg = `Updated channel ${oldChannel.name} (${channel.code})`;
             }
             await this.git.add(newPath);
-            await this.git.commit(msg);
+            await this.commit(msg);
         }
 
         // Check tags for entries
@@ -421,7 +421,7 @@ export class RepositoryManager {
 
         // Add config if it doesn't exist
         await this.git.add(Path.join(this.folderPath, 'config.json'));
-        await this.git.commit('Updated repository configuration');
+        await this.commit('Updated repository configuration');
         try {
             await this.push();
         } catch (e: any) {
@@ -704,9 +704,9 @@ export class RepositoryManager {
             const newEntryData = result.newEntryData;
             const oldEntryData = result.oldEntryData;
             if (oldEntryData) {
-                await this.git.commit(`${newEntryData.code}: ${generateCommitMessage(oldEntryData, newEntryData)}`);
+                await this.commit(`${newEntryData.code}: ${generateCommitMessage(oldEntryData, newEntryData)}`);
             } else {
-                await this.git.commit(`Added entry ${newEntryData.name} (${newEntryData.code}) to channel ${archiveChannel.getData().name} (${archiveChannel.getData().code})`);
+                await this.commit(`Added entry ${newEntryData.name} (${newEntryData.code}) to channel ${archiveChannel.getData().name} (${archiveChannel.getData().code})`);
             }
             try {
                 await this.push();
@@ -1333,7 +1333,7 @@ export class RepositoryManager {
             await this.git.add(foundChannel.getDataPath());
 
             // Commit the removal
-            await this.git.commit(`Retracted entry ${entryData.name} (${entryData.code}) from channel ${foundChannel.getData().name} (${foundChannel.getData().code})\nReason: ${reason || 'No reason provided'}`);
+            await this.commit(`Retracted entry ${entryData.name} (${entryData.code}) from channel ${foundChannel.getData().name} (${foundChannel.getData().code})\nReason: ${reason || 'No reason provided'}`);
 
             // Now post to discord
             await this.removeDiscordPost(entryData, submission, reason);
@@ -1385,11 +1385,15 @@ export class RepositoryManager {
     }
 
 
+    public sanitizeGit(message: string): string {
+        return message.replace(/"/g, '').replace(/'/g, '');
+    }
+
     public async commit(message: string, files?: string | string[]) {
         if (!this.git) {
             return;
         }
-        await this.git.commit(message, files);
+        await this.git.commit(this.sanitizeGit(message), files);
     }
 
     public getLock(): Lock {
@@ -1521,9 +1525,9 @@ export class RepositoryManager {
             await this.git.add(await this.updateEntryReadme(found.entry));
 
             if (existingComment) {
-                await this.git.commit(`Updated comment by ${message.member?.displayName} on ${found.entry.getData().code}`);
+                await this.commit(`Updated comment by ${message.member?.displayName} on ${found.entry.getData().code}`);
             } else {
-                await this.git.commit(`Added ${message.member?.displayName}'s comment to ${found.entry.getData().code}`);
+                await this.commit(`Added ${message.member?.displayName}'s comment to ${found.entry.getData().code}`);
             }
 
             // check submission
@@ -1656,7 +1660,7 @@ export class RepositoryManager {
             }
 
             await this.git.add(await this.updateEntryReadme(found.entry));
-            await this.git.commit(`Deleted ${getAuthorName(deletedComment.sender)}'s comment from ${found.entry.getData().code}`);
+            await this.commit(`Deleted ${getAuthorName(deletedComment.sender)}'s comment from ${found.entry.getData().code}`);
 
             // check submission
             try {
@@ -1755,7 +1759,7 @@ export class RepositoryManager {
             await this.git.add(found.channel.getDataPath());
             await this.indexManager.deleteSubmissionIDForPostID(postId);
             // Commit the removal
-            await this.git.commit(`Force deleted ${found.entry.getData().code} ${found.entry.getData().name} from channel ${found.channel.getData().name} (${found.channel.getData().code})`);
+            await this.commit(`Force deleted ${found.entry.getData().code} ${found.entry.getData().name} from channel ${found.channel.getData().name} (${found.channel.getData().code})`);
 
             // check submission
             try {
@@ -1919,7 +1923,7 @@ export class RepositoryManager {
                 console.error("Error updating submission config:", e.message);
             }
 
-            await this.git.commit(`Updated tags for ${entryData.code} because thread was updated`);
+            await this.commit(`Updated tags for ${entryData.code} because thread was updated`);
             try {
                 await this.push();
             } catch (e: any) {
