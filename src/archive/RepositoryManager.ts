@@ -42,10 +42,10 @@ export class RepositoryManager {
         this.discordServersDictionary = new DiscordServersDictionary(this.folderPath, this, globalDiscordServersDictionary);
 
         this.configManager.setChangeListener(async () => {
-            if (this.git) {
-                await this.commit('Updated repository configuration', [Path.join(this.folderPath, 'config.json')]).catch(() => { });
-                await this.push().catch(() => { });
-            }
+            // if (this.git) {
+            //     await this.commit('Updated repository configuration', [Path.join(this.folderPath, 'config.json')]).catch(() => { });
+            //     await this.push().catch(() => { });
+            // }
         });
     }
 
@@ -230,7 +230,6 @@ export class RepositoryManager {
                 availableTags: channel.availableTags?.map(tag => tag.name) || [],
                 position: channel.position
             });
-       //     console.log(`Mapped channel ${channel.name} (${channel.id}) with code ${code} and position ${channel.position}`);
         }
 
         // sort by position
