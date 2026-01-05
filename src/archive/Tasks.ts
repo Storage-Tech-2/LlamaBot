@@ -323,79 +323,83 @@ export async function retagEverythingTask(guildHolder: GuildHolder): Promise<voi
 
     await repositoryManager.getLock().acquire();
 
-    const definitionToEntryCodes: Map<string, Set<string>> = new Map();
+    try {
+        const definitionToEntryCodes: Map<string, Set<string>> = new Map();
 
-    let modifiedCount = 0;
-    await repositoryManager.iterateAllEntries(async (entry: ArchiveEntry, _entryRef: ArchiveEntryReference, channelRef: ArchiveChannelReference) => {
-        const data = entry.getData();
-        const newReferences = await tagReferencesInSubmissionRecords(data.records, data.references, guildHolder, data.id);
-        const newAuthorReferences = await tagReferencesInAcknowledgements(data.authors, data.author_references, guildHolder, data.id);
+        let modifiedCount = 0;
+        await repositoryManager.iterateAllEntries(async (entry: ArchiveEntry, _entryRef: ArchiveEntryReference, channelRef: ArchiveChannelReference) => {
+            const data = entry.getData();
+            const newReferences = await tagReferencesInSubmissionRecords(data.records, data.references, guildHolder, data.id);
+            const newAuthorReferences = await tagReferencesInAcknowledgements(data.authors, data.author_references, guildHolder, data.id);
 
-        const changed = hasReferencesChanged(data.references, newReferences).changed ||
-            hasReferencesChanged(data.author_references, newAuthorReferences).changed;
-        if (!changed) {
-            return;
-        }
-
-        data.references = newReferences;
-
-        newReferences.forEach((ref) => {
-            if (ref.type !== ReferenceType.DICTIONARY_TERM) return;
-            const defID = ref.id;
-            if (!definitionToEntryCodes.has(defID)) {
-                definitionToEntryCodes.set(defID, new Set());
+            const changed = hasReferencesChanged(data.references, newReferences).changed ||
+                hasReferencesChanged(data.author_references, newAuthorReferences).changed;
+            if (!changed) {
+                return;
             }
-            definitionToEntryCodes.get(defID)!.add(data.code);
+
+            data.references = newReferences;
+
+            newReferences.forEach((ref) => {
+                if (ref.type !== ReferenceType.DICTIONARY_TERM) return;
+                const defID = ref.id;
+                if (!definitionToEntryCodes.has(defID)) {
+                    definitionToEntryCodes.set(defID, new Set());
+                }
+                definitionToEntryCodes.get(defID)!.add(data.code);
+            });
+
+            data.author_references = newAuthorReferences;
+
+            await repositoryManager.addOrUpdateEntryFromData(data, channelRef.id, false, false, async () => { }).catch((e) => {
+                console.error(`Error updating references for entry ${data.name} in channel ${channelRef.name}:`, e.message);
+            });
+            modifiedCount++;
+        }).catch((e) => {
+            console.error("Error during retagging:", e);
         });
 
-        data.author_references = newAuthorReferences;
+        // update definitions
+        const dictionaryManager = guildHolder.getDictionaryManager();
+        await dictionaryManager.iterateEntries(async (definition) => {
+            const newReferences = await tagReferences(definition.definition, definition.references, guildHolder, definition.id);
+            let changed = hasReferencesChanged(definition.references, newReferences).changed;
+            const entryCodes = definitionToEntryCodes.get(definition.id);
+            if (entryCodes && entryCodes.intersection(new Set(definition.referencedBy)).size !== entryCodes.size) {
+                changed = true;
+                definition.referencedBy = Array.from(entryCodes);
+            }
 
-        await repositoryManager.addOrUpdateEntryFromData(data, channelRef.id, false, false, async () => { }).catch((e) => {
-            console.error(`Error updating references for entry ${data.name} in channel ${channelRef.name}:`, e.message);
+            if (!changed) {
+                return;
+            }
+            definition.references = newReferences;
+            await dictionaryManager.saveEntry(definition).catch((e) => {
+                console.error(`Error updating references for definition ${definition.terms[0]}:`, e.message);
+            });
+            await dictionaryManager.updateStatusMessage(definition).catch((e) => {
+                console.error(`Error updating status message for definition ${definition.terms[0]}:`, e.message);
+            });
+            modifiedCount++;
+        }).catch((e) => {
+            console.error("Error during retagging definitions:", e);
         });
-        modifiedCount++;
-    }).catch((e) => {
-        console.error("Error during retagging:", e);
-    });
 
-    // update definitions
-    const dictionaryManager = guildHolder.getDictionaryManager();
-    await dictionaryManager.iterateEntries(async (definition) => {
-        const newReferences = await tagReferences(definition.definition, definition.references, guildHolder, definition.id);
-        let changed = hasReferencesChanged(definition.references, newReferences).changed;
-        const entryCodes = definitionToEntryCodes.get(definition.id);
-        if (entryCodes && entryCodes.intersection(new Set(definition.referencedBy)).size !== entryCodes.size) {
-            changed = true;
-            definition.referencedBy = Array.from(entryCodes);
-        }
-
-        if (!changed) {
-            return;
-        }
-        definition.references = newReferences;
-        await dictionaryManager.saveEntry(definition).catch((e) => {
-            console.error(`Error updating references for definition ${definition.terms[0]}:`, e.message);
-        });
-        await dictionaryManager.updateStatusMessage(definition).catch((e) => {
-            console.error(`Error updating status message for definition ${definition.terms[0]}:`, e.message);
-        });
-        modifiedCount++;
-    }).catch((e) => {
-        console.error("Error during retagging definitions:", e);
-    });
-
-    if (modifiedCount > 0) {
-        try {
-            await repositoryManager.commit(`Retagged references for ${modifiedCount} items`);
+        if (modifiedCount > 0) {
             try {
-                await repositoryManager.push();
-            } catch (e: any) {
-                console.error("Error pushing to remote:", e.message);
+                await repositoryManager.commit(`Retagged references for ${modifiedCount} items`);
+                try {
+                    await repositoryManager.push();
+                } catch (e: any) {
+                    console.error("Error pushing to remote:", e.message);
+                }
+            }
+            catch (e: any) {
+                console.error("Error committing retagged references:", e.message);
             }
         }
-        catch (e: any) {
-            console.error("Error committing retagged references:", e.message);
-        }
+    } catch (e) {
+        console.error("Error during retagging process:", e);
     }
     repositoryManager.getLock().release();
 }
