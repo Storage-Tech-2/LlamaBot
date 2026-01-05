@@ -96,6 +96,7 @@ export class ConfigManager {
      * Sets a configuration value ensuring type safety with Config<T>.
      */
     public setConfig<T>(config: Config<T>, value: T): void {
+        console.log(config.id, value, typeof value);
         if (this.configMap.get(config.id) !== value || typeof value === 'object') {
             this.configChanged = true;
         }
