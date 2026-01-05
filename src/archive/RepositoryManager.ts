@@ -42,10 +42,10 @@ export class RepositoryManager {
         this.discordServersDictionary = new DiscordServersDictionary(this.folderPath, this, globalDiscordServersDictionary);
 
         this.configManager.setChangeListener(async () => {
-            // if (this.git) {
-            //     await this.commit('Updated repository configuration', [Path.join(this.folderPath, 'config.json')]).catch(() => { });
-            //     await this.push().catch(() => { });
-            // }
+            if (this.git) {
+                await this.commit('Updated repository configuration', [Path.join(this.folderPath, 'config.json')]).catch(() => { });
+                await this.push().catch(() => { });
+            }
         });
     }
 
@@ -424,13 +424,13 @@ export class RepositoryManager {
         await this.save();
 
         // Add config if it doesn't exist
-        await this.git.add(Path.join(this.folderPath, 'config.json'));
-        await this.commit('Updated repository configuration');
-        try {
-            await this.push();
-        } catch (e: any) {
-            console.error("Error pushing to remote:", e.message);
-        }
+        //await this.git.add(Path.join(this.folderPath, 'config.json'));
+        //await this.commit('Updated repository configuration');
+        // try {
+        //     await this.push();
+        // } catch (e: any) {
+        //     console.error("Error pushing to remote:", e.message);
+        // }
         await this.lock.release();
     }
 
