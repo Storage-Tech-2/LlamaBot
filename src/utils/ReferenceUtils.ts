@@ -244,7 +244,8 @@ function shouldIncludeMatch(text: string, term: string, start: number, end: numb
         return true;
     }
 
-    const hasNoNumbers = !/[0-9]/.test(term);
+    const lastWord = term.split(" ").pop() || "";
+    const hasNoNumbers = !/[0-9]/.test(lastWord);
 
     if (hasNoNumbers && startSatisfied && !endingSatisfied) { // just some words
         // check if next character is possessive
@@ -263,6 +264,8 @@ function shouldIncludeMatch(text: string, term: string, start: number, end: numb
         } else if (getSliceAtEnd(3) === "ing" && !isWordChar(getCharAt(3))) {
             endingSatisfied = true;
         } else if (getSliceAtEnd(2) === "er" && !isWordChar(getCharAt(2))) {
+            endingSatisfied = true;
+        } else if (getSliceAtEnd(3) === "est" && !isWordChar(getCharAt(3))) {
             endingSatisfied = true;
         }
 
