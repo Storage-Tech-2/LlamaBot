@@ -44,7 +44,7 @@ export function getCommands() {
         new TopHelpersCommand(),
         new DictionaryEditCommand(),
         new DiscordsCommand(),
-        new DebugCommand(),
+     //   new DebugCommand(),
         new DefineCommand(),
         new SearchCommand(),
         new JoinDiscordCommand()
