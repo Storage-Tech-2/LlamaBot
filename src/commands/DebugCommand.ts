@@ -2,11 +2,12 @@ import { AttachmentBuilder, ChatInputCommandInteraction, ChannelType, Collection
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { SysAdmin } from "../Bot.js";
-import { replyEphemeral } from "../utils/Util.js";
+import { getAuthorKey, getAuthorName, replyEphemeral } from "../utils/Util.js";
 import { deleteACAImportThreadsTask, importACAChannelTask } from "../archive/Tasks.js";
 import { SetTemplateModal } from "../components/modals/SetTemplateModal.js";
 import { Reference, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
 import { RevisionEmbed } from "../embed/RevisionEmbed.js";
+import { AuthorType, DiscordAuthor } from "../submissions/Author.js";
 
 export class DebugCommand implements Command {
     getID(): string {
@@ -99,6 +100,11 @@ export class DebugCommand implements Command {
                 sub
                     .setName('memberstats')
                     .setDescription('Export member usernames, roles, and join dates as JSON')
+            )
+            .addSubcommand(sub =>
+                sub
+                    .setName('listauthors')
+                    .setDescription('List archived post authors who are not in the guild')
             );
 
         return data;
@@ -140,6 +146,9 @@ export class DebugCommand implements Command {
                 break;
             case 'memberstats':
                 await this.handleMemberStats(guildHolder, interaction);
+                break;
+            case 'listauthors':
+                await this.handleListAuthors(guildHolder, interaction);
                 break;
             default:
                 await replyEphemeral(interaction, 'Unknown subcommand.');
@@ -399,6 +408,100 @@ export class DebugCommand implements Command {
 
         await interaction.editReply({
             content: `Exported ${stats.length} member${stats.length === 1 ? '' : 's'}.`,
+            files: [attachment]
+        });
+    }
+
+    private async handleListAuthors(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
+        const guild = guildHolder.getGuild();
+
+        const repositoryManager = guildHolder.getRepositoryManager();
+        if (repositoryManager.getChannelReferences().length === 0) {
+            await interaction.editReply({ content: 'No archive channels configured.' });
+            return;
+        }
+
+        type AuthorPosts = { author: DiscordAuthor; posts: Map<string, string> };
+
+        const authorMap = new Map<string, AuthorPosts>();
+        const postsWithMissingAuthors = new Set<string>();
+        let postsScanned = 0;
+
+        try {
+            await repositoryManager.iterateAllEntries(async (entry, entryRef) => {
+                const data = entry.getData();
+                postsScanned++;
+
+                const postCode = data.code || entryRef.code;
+                const postTitle = data.name || entryRef.name || postCode;
+                const authors = data.authors || [];
+
+                for (const author of authors) {
+                    if (author.type === AuthorType.Unknown) {
+                        continue;
+                    }
+
+                    const key = getAuthorKey(author);
+                    const existing = authorMap.get(key);
+                    if (existing) {
+                        if (!existing.posts.has(postCode)) {
+                            existing.posts.set(postCode, postTitle);
+                        }
+                    } else {
+                        const posts = new Map<string, string>();
+                        posts.set(postCode, postTitle);
+                        authorMap.set(key, { author, posts });
+                    }
+                }
+            });
+        } catch (error: any) {
+            await interaction.editReply({ content: `Failed to scan archive entries: ${error?.message || 'Unknown error'}` });
+            return;
+        }
+
+        if (authorMap.size === 0) {
+            await interaction.editReply({ content: `No archived post authors found outside of ${guild.name}.` });
+            return;
+        }
+
+        const report = Array.from(authorMap.values())
+            .map(({ author, posts }) => {
+                const postList = Array.from(posts.values()).sort((a, b) => a.localeCompare(b));
+                return {
+                    name: getAuthorName(author),
+                    type: author.type,
+                    posts: postList
+                };
+            });
+
+        // sort by name
+        report.sort((a, b) => a.name.localeCompare(b.name));
+
+        const escapeCsv = (value: string) => {
+            const safe = value.replace(/"/g, '""');
+            return `"${safe}"`;
+        };
+        const csvLines = [
+            'Username,Status,Archived Posts',
+            ...report.map(item => {
+                const posts = item.posts.join(' | ');
+                return [
+                    escapeCsv(item.name),
+                    escapeCsv(item.type),
+                    escapeCsv(posts)
+                ].join(',');
+            })
+        ];
+
+        const buffer = Buffer.from(csvLines.join('\n'));
+        const attachment = new AttachmentBuilder(buffer, { name: `authors-${guild.id}.csv` });
+
+        const summary = `Found ${report.length} author${report.length === 1 ? '' : 's'} not in ${guild.name} across ${postsWithMissingAuthors.size} post${postsWithMissingAuthors.size === 1 ? '' : 's'} (scanned ${postsScanned} total).`;
+
+        await interaction.editReply({
+            content: summary,
             files: [attachment]
         });
     }
