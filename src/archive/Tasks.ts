@@ -5,7 +5,6 @@ import { GuildHolder } from "../GuildHolder.js";
 import { ArchiveChannelReference } from "./RepositoryConfigs.js";
 import { ChannelType, ChatInputCommandInteraction, ForumChannel, GuildForumTag, Message, MessageFlags, Snowflake } from "discord.js";
 import { ArchiveChannel, ArchiveEntryReference } from "./ArchiveChannel.js";
-import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import Path from "path";
 import { hasReferencesChanged, Reference, ReferenceType, tagReferences, tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
 import { iterateAllMessages } from "../utils/AttachmentUtils.js";
