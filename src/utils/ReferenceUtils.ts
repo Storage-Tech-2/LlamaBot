@@ -947,12 +947,13 @@ export function getPostCodesInText(text: string): string[] {
     return Array.from(codes);
 }
 
-export function getDiscordLinksInText(text: string, currentServerID: Snowflake): DiscordLinkReference[] {
+
+export function getDiscordLinksInText(text: string): DiscordLinkReference[] {
     const matches = findRegexMatches(text, [DiscordLinkPattern]);
     const links: DiscordLinkReference[] = [];
     for (const match of matches) {
         const [server, channel, message] = match.groups;
-        if (!server || !channel || server === currentServerID) {
+        if (!server || !channel) {
             continue;
         }
 
@@ -968,7 +969,7 @@ export function getDiscordLinksInText(text: string, currentServerID: Snowflake):
     return links;
 }
 
-export async function populateDiscordServerInfoInReferences(references: Reference[],guildHolder: GuildHolder): Promise<void> {
+export async function populateDiscordServerInfoInReferences(references: Reference[], guildHolder: GuildHolder): Promise<void> {
     const discords = await guildHolder.getDiscordServersDictionary().getCachedServersWithFallback();
 
     for (const ref of references) {
@@ -981,7 +982,7 @@ export async function populateDiscordServerInfoInReferences(references: Referenc
         }
     }
 }
-            
+
 export function getDiscordServersFromReferences(references: Reference[]): { id: Snowflake, name: string, joinURL: string }[] {
     const serverLinks: ServerLinksMap = new Map();
 

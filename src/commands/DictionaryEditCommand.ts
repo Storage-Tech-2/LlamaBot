@@ -211,7 +211,7 @@ export class DictionaryEditCommand implements Command {
 
             const matches: { name: string; url: string }[] = [];
             for (const code of entry.referencedBy) {
-                const archiveEntry = await guildHolder.getRepositoryManager().findEntryBySubmissionCode(code);
+                const archiveEntry = await guildHolder.getRepositoryManager().getEntryByPostCode(code);
                 if (!archiveEntry) continue;
                 const data = archiveEntry.entry.getData();
                 matches.push({

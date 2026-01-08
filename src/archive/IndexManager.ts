@@ -19,6 +19,7 @@ export type BasicDictionaryIndexEntry = {
 export type ArchiveIndexEntry = {
     name: string;
     code: string;
+    thread: string;
     url: string;
     path: string;
 }
@@ -208,6 +209,7 @@ export class IndexManager {
             idToData.set(data.id, {
                 name: data.name,
                 code: data.code,
+                thread: data.post.threadId,
                 url: data.post.threadURL,
                 path: channelRef.path + '/' + entryRef.path,
             });

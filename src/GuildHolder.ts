@@ -423,59 +423,140 @@ export class GuildHolder {
             return;
         }
 
-        const matches = getPostCodesInText(message.content);
-        // limit to 3 matches per message
-        if (matches.length > 3) {
-            matches.splice(3);
-        }
+
+        const discordServerMatches = getDiscordLinksInText(message.content);
 
         const repositoryManager = this.getRepositoryManager();
 
         const embeds = [];
         if (autoLookupEnabled) {
-            for (const postCode of matches) {
-                const found = await repositoryManager.findEntryBySubmissionCode(postCode);
-                if (!found) {
-                    continue;
+
+            const internalDiscordLinks = discordServerMatches.filter(ref => ref.server === this.guild.id).slice(0, 3);
+
+            const postCodeMatches = getPostCodesInText(message.content);
+
+
+            if (internalDiscordLinks.length > 0 || postCodeMatches.length > 0) {
+
+                const index = await repositoryManager.getIndexManager().getArchiveIndex();
+
+                const toSend: {
+                    code: string;
+                    oldCode: string | null;
+                    moved: boolean;
+                }[] = [];
+
+                for (const discordLink of internalDiscordLinks) {
+                    const channelId = discordLink.channel;
+                    const id = index.threadToId.get(channelId);
+                    if (!id) {
+                        continue;
+                    }
+
+                    const data = index.idToData.get(id);
+                    if (!data) {
+                        continue;
+                    }
+
+                    if (channelId === data.thread) {
+                        continue;
+                    }
+
+                    if (toSend.find(item => item.code === data.code)) {
+                        continue;
+                    }
+
+                    toSend.push({
+                        code: data.code,
+                        oldCode: null,
+                        moved: true,
+                    });
                 }
 
-                const entryData = found.entry.getData();
-                if (!entryData.post) {
-                    continue;
+                for (const postCode of postCodeMatches) {
+                    const id = index.codeToId.get(postCode.toUpperCase());
+                    if (!id) {
+                        continue;
+                    }
+
+                    const data = index.idToData.get(id);
+                    if (!data) {
+                        continue;
+                    }
+
+                    if (postCode.toUpperCase() === data.code) {
+                        continue;
+                    }
+
+                    if (toSend.find(item => item.code === data.code)) {
+                        continue;
+                    }
+
+                    toSend.push({
+                        code: data.code,
+                        oldCode: postCode.toUpperCase(),
+                        moved: false,
+                    });
+
                 }
 
-                const name = entryData.code + ': ' + entryData.name;
-                const authors = getAuthorsString(entryData.authors);
-                const tags = entryData.tags.map(tag => tag.name).join(', ');
-                const description = entryData.records.description as string || '';
-                const image = entryData.images.length > 0 ? entryData.images[0].url : null;
-
-                const textArr = [
-                    `**Authors:** ${authors}`,
-                    `**Tags:** ${tags || 'None'}`,
-                ];
-                if (description) {
-                    textArr.push('\n' + transformOutputWithReferencesForDiscord(description, entryData.references));
-                }
-                const embed = new EmbedBuilder()
-                    .setTitle(name)
-                    .setDescription(textArr.join('\n'))
-                    .setColor(0x00AE86)
-                    .setURL(entryData.post.threadURL);
-                if (image) {
-                    embed.setThumbnail(image);
+                if (toSend.length > 3) {
+                    toSend.splice(3);
                 }
 
-                embeds.push(embed);
+
+                for (const data of toSend) {
+                    const found = await repositoryManager.getEntryByPostCode(data.code);
+                    if (!found) {
+                        continue;
+                    }
+
+                    const entryData = found.entry.getData();
+                    if (!entryData.post) {
+                        continue;
+                    }
+
+                    let name;
+
+                    if (data.oldCode) {
+                        name = `${data.oldCode} → ${entryData.code}: ${entryData.name}`;
+                    } else if (data.moved) {
+                        name = `${entryData.code} (moved): ${entryData.name}`;
+                    } else {
+                        name = entryData.code + ': ' + entryData.name;
+                    }
+                    const authors = getAuthorsString(entryData.authors);
+                    const tags = entryData.tags.map(tag => tag.name).join(', ');
+                    const description = entryData.records.description as string || '';
+                    const image = entryData.images.length > 0 ? entryData.images[0].url : null;
+
+                    const textArr = [
+                        `**Authors:** ${authors}`,
+                        `**Tags:** ${tags || 'None'}`,
+                    ];
+                    if (description) {
+                        textArr.push('\n' + transformOutputWithReferencesForDiscord(description, entryData.references));
+                    }
+                    const embed = new EmbedBuilder()
+                        .setTitle(truncateStringWithEllipsis(name, 256))
+                        .setDescription(truncateStringWithEllipsis(textArr.join('\n'), 500))
+                        .setColor(0x00AE86)
+                        .setURL(entryData.post.threadURL);
+                    if (image) {
+                        embed.setThumbnail(image);
+                    }
+
+                    embeds.push(embed);
+                }
             }
         }
 
         // check for discord server references
         if (autoJoinEnabled) {
-            const discordServerMatches = getDiscordLinksInText(message.content, this.guild.id);
-            if (discordServerMatches.length > 0) {
-                await populateDiscordServerInfoInReferences(discordServerMatches, this);
-                const matches = getDiscordServersFromReferences(discordServerMatches);
+            const externalDiscordServerMatches = discordServerMatches.filter(ref => ref.server !== this.guild.id);
+            if (externalDiscordServerMatches.length > 0) {
+                await populateDiscordServerInfoInReferences(externalDiscordServerMatches, this);
+                const matches = getDiscordServersFromReferences(externalDiscordServerMatches);
                 if (matches.length > 0) {
 
                     const newText = [];
@@ -1389,7 +1470,7 @@ export class GuildHolder {
             if (!member) {
                 continue; // Skip if member not found
             }
-            
+
             if (!member.roles.cache.has(designerRoleId)) {
                 const designerRole = this.getGuild().roles.cache.get(designerRoleId);
                 if (designerRole) {

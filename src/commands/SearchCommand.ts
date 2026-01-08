@@ -1,7 +1,7 @@
 import { AutocompleteInteraction, ChatInputCommandInteraction, EmbedBuilder, InteractionContextType, MessageFlags, SlashCommandBuilder } from "discord.js";
 import { Command } from "../interface/Command.js";
 import { GuildHolder } from "../GuildHolder.js";
-import { getAuthorsString, replyEphemeral } from "../utils/Util.js";
+import { getAuthorsString, replyEphemeral, truncateStringWithEllipsis } from "../utils/Util.js";
 import { PostCodePattern, transformOutputWithReferencesForDiscord } from "../utils/ReferenceUtils.js";
 import { ArchiveIndexEntry } from "../archive/IndexManager.js";
 
@@ -83,7 +83,7 @@ export class SearchCommand implements Command {
         const isCode = PostCodePattern.test(query);
         let entryData = null;
         if (isCode) {
-            const entry = await guildHolder.getRepositoryManager().findEntryBySubmissionCode(query);
+            const entry = await guildHolder.getRepositoryManager().getEntryByPostCode(query);
             if (entry) {
                 entryData = entry.entry.getData();
             }
@@ -93,7 +93,7 @@ export class SearchCommand implements Command {
             const entries = await this.getIndexEntries(guildHolder);
             const ranked = this.rank(entries, query);
             if (ranked.length > 0) {
-                const entry = await guildHolder.getRepositoryManager().findEntryBySubmissionCode(ranked[0].code);
+                const entry = await guildHolder.getRepositoryManager().getEntryByPostCode(ranked[0].code);
                 if (entry) {
                     entryData = entry.entry.getData();
                 }
@@ -120,8 +120,8 @@ export class SearchCommand implements Command {
         }
 
         const embed = new EmbedBuilder()
-            .setTitle(name)
-            .setDescription(textArr.join('\n'))
+            .setTitle(truncateStringWithEllipsis(name, 256))
+            .setDescription(truncateStringWithEllipsis(textArr.join('\n'), 500))
             .setColor(0x00AE86)
             .setURL(entryData.post?.threadURL || '');
         if (image) {

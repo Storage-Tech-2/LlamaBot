@@ -3,7 +3,7 @@ import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { DictionaryEntry } from "../archive/DictionaryManager.js";
 import { MarkdownCharacterRegex, transformOutputWithReferencesForDiscord } from "../utils/ReferenceUtils.js";
-import { replyEphemeral, splitIntoChunks } from "../utils/Util.js";
+import { replyEphemeral, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
 import { BasicDictionaryIndexEntry } from "../archive/IndexManager.js";
 
 export class DefineCommand implements Command {
@@ -137,7 +137,7 @@ export class DefineCommand implements Command {
         const closestMatchTerm = this.rankTerms(entry.terms, termId)[0]?.term || entry.terms[0];
         for (let i = 0; i < definitionSplit.length; i++) {
             const embed = new EmbedBuilder()
-                .setTitle(closestMatchTerm)
+                .setTitle(truncateStringWithEllipsis(closestMatchTerm, 256))
                 .setDescription(definitionSplit[i])
                 .setColor(0x2d7d46);
 

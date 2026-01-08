@@ -467,7 +467,7 @@ export class RepositoryManager {
         return null;
     }
 
-    async findEntryBySubmissionCode(submissionCode: string): Promise<null | {
+    async getEntryByPostCode(submissionCode: string): Promise<null | {
         channelRef: ArchiveChannelReference,
         channel: ArchiveChannel,
         entry: ArchiveEntry,

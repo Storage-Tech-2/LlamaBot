@@ -31,7 +31,7 @@ export class GetPostCommand implements Command {
 
         // Find the post by code
         const code = interaction.options.getString('code', true);
-        const found = await guildHolder.getRepositoryManager().findEntryBySubmissionCode(code);
+        const found = await guildHolder.getRepositoryManager().getEntryByPostCode(code);
         if (!found) {
             await replyEphemeral(interaction, `No post found with code \`${code}\`.`);
             return;
