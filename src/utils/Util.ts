@@ -102,6 +102,14 @@ export function getAuthorIconURL(author: Author): string | undefined {
     return (author as AllAuthorPropertiesAccessor).iconURL;
 }
 
+export function mergeTwoArraysUnique<T>(array1: T[], array2: T[]): T[] {
+    const set = new Set<T>(array1);
+    for (const item of array2) {
+        set.add(item);
+    }
+    return Array.from(set);
+}
+
 export function getCodeAndDescriptionFromTopic(topic: string): { code: string | null, description: string } {
     if (!topic) {
         return { code: null, description: '' };

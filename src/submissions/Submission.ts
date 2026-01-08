@@ -858,7 +858,7 @@ export class Submission {
             }
         }
 
-        this.getConfigManager().setConfig(SubmissionConfigs.POST, newEntryData.post);
+        this.guildHolder.getRepositoryManager().updateSubmissionFromEntryData(this, newEntryData);
         this.getConfigManager().setConfig(SubmissionConfigs.STATUS, SubmissionStatus.ACCEPTED);
 
         if (this.areEndorsersRequired()) {

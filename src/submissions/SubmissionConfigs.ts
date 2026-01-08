@@ -112,4 +112,9 @@ export const SubmissionConfigs = {
      * Reserved code
      */
     RESERVED_CODES: new Config<string[]>("reserved_codes", []),
+
+    /**
+     * Past post thread IDs
+     */
+    PAST_POST_THREAD_IDS: new Config<Snowflake[]>("past_post_thread_ids", []),
 }

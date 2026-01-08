@@ -2,8 +2,8 @@ import { AutocompleteInteraction, ChatInputCommandInteraction, EmbedBuilder, Int
 import { Command } from "../interface/Command.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { getAuthorsString, replyEphemeral } from "../utils/Util.js";
-import { ArchiveIndexEntry } from "../archive/DictionaryManager.js";
 import { PostCodePattern, transformOutputWithReferencesForDiscord } from "../utils/ReferenceUtils.js";
+import { ArchiveIndexEntry } from "../archive/IndexManager.js";
 
 export class SearchCommand implements Command {
     getID(): string {

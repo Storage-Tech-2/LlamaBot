@@ -4,7 +4,7 @@ import { ChannelType, Snowflake } from "discord.js";
 import { buildDictionaryIndex, DictionaryIndexEntry, DictionaryTermIndex, MarkdownCharacterRegex } from "../utils/ReferenceUtils.js";
 import { ArchiveChannel, ArchiveEntryReference } from "./ArchiveChannel.js";
 import { ArchiveEntry } from "./ArchiveEntry.js";
-import { DictionaryManager, ArchiveIndex, ArchiveIndexEntry, DictionaryEntryStatus } from "./DictionaryManager.js";
+import { DictionaryManager, DictionaryEntryStatus } from "./DictionaryManager.js";
 import type { RepositoryManager } from "./RepositoryManager.js";
 import { ArchiveChannelReference } from "./RepositoryConfigs.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
@@ -14,6 +14,24 @@ const INDEX_TIMEOUT_MS = 5 * 60 * 1000;
 export type BasicDictionaryIndexEntry = {
     terms: string[];
     id: Snowflake;
+}
+
+export type ArchiveIndexEntry = {
+    name: string;
+    code: string;
+    url: string;
+    path: string;
+}
+
+export type ArchiveIndex = {
+    threadToId: Map<Snowflake, Snowflake>,
+    codeToId: Map<string, Snowflake>,
+    idToData: Map<string, ArchiveIndexEntry>,
+}
+
+export type Indexes = {
+    dictionary: DictionaryTermIndex,
+    archive: ArchiveIndex,
 }
 
 export class IndexManager {
@@ -179,14 +197,20 @@ export class IndexManager {
             const data = entry.getData();
             if (!data.post) return;
            
-            threadToId.set(data.post.threadId, data.id);
+            data.pastPostThreadIds.forEach(threadId => {
+                threadToId.set(threadId, data.id);
+            });
+        
+            data.reservedCodes.forEach(code => {
+                codeToId.set(code, data.id);
+            });
+
             idToData.set(data.id, {
                 name: data.name,
                 code: data.code,
                 url: data.post.threadURL,
                 path: channelRef.path + '/' + entryRef.path,
             });
-            codeToId.set(data.code, data.id);
         });
 
         return {

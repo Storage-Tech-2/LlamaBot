@@ -20,6 +20,10 @@ export type ArchiveEntryData = {
     id: Snowflake;
     name: string;
     code: string;
+
+    reservedCodes: string[];
+    pastPostThreadIds: Snowflake[];
+
     authors: Author[];
     endorsers: Author[];
     tags: Tag[];
@@ -77,6 +81,8 @@ export class ArchiveEntry {
         if (!this.data.author_references) this.data.author_references = [];
         if (!this.data.archivedAt) this.data.archivedAt = this.data.timestamp || Date.now();
         if (!this.data.updatedAt) this.data.updatedAt = this.data.archivedAt;
+        if (!this.data.reservedCodes) this.data.reservedCodes = [this.data.code];
+        if (!this.data.pastPostThreadIds) this.data.pastPostThreadIds = this.data.post ? [this.data.post.threadId] : [];
     }
 
     public static async fromFolder(folder: string): Promise<ArchiveEntry | null> {
@@ -87,6 +93,8 @@ export class ArchiveEntry {
             if (!data.author_references) data.author_references = [];
             if (!data.archivedAt) data.archivedAt = data.timestamp || Date.now();
             if (!data.updatedAt) data.updatedAt = data.archivedAt;
+            if (!data.reservedCodes) data.reservedCodes = [data.code];
+            if (!data.pastPostThreadIds) data.pastPostThreadIds = data.post ? [data.post.threadId] : [];
             const entry = new ArchiveEntry(data, folder);
             return entry;
         } catch (error) {

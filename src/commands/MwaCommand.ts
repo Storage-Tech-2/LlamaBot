@@ -8,7 +8,6 @@ import { SetEndorseRolesMenu } from "../components/menus/SetEndorseRolesMenu.js"
 import { SubmissionTags } from "../submissions/SubmissionTags.js";
 import { SetEditorRolesMenu } from "../components/menus/SetEditorRolesMenu.js";
 import { SetHelperRoleMenu } from "../components/menus/SetHelperRoleMenu.js";
-import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import { SetTemplateModal } from "../components/modals/SetTemplateModal.js";
 import { SetDesignerRoleMenu } from "../components/menus/SetDesignerRoleMenu.js";
 import { SetScriptModal } from "../components/modals/SetScriptModal.js";
@@ -1168,7 +1167,7 @@ export class Mwa implements Command {
             // try get post entry
             const entry = await guildHolder.getRepositoryManager().findEntryBySubmissionId(submissionID);
             if (entry) {
-                submission.getConfigManager().setConfig(SubmissionConfigs.POST, entry.entry.getData().post);
+                guildHolder.getRepositoryManager().updateSubmissionFromEntryData(submission, entry.entry.getData());
             }
 
             try {

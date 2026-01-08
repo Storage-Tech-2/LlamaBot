@@ -4,7 +4,7 @@ import Path from "path";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { DictionaryTermIndex, Reference, tagReferences, transformOutputWithReferencesForDiscord, MarkdownCharacterRegex } from "../utils/ReferenceUtils.js";
-import { BasicDictionaryIndexEntry, IndexManager } from "./IndexManager.js";
+import { ArchiveIndex, BasicDictionaryIndexEntry, IndexManager } from "./IndexManager.js";
 import { RepositoryManager } from "./RepositoryManager.js";
 import { Lock } from "../utils/Lock.js";
 import { truncateStringWithEllipsis } from "../utils/Util.js";
@@ -27,24 +27,6 @@ export type DictionaryEntry = {
     updatedAt: number;
     references: Reference[];
     referencedBy: string[];
-}
-
-export type ArchiveIndexEntry = {
-    name: string;
-    code: string;
-    url: string;
-    path: string;
-}
-
-export type ArchiveIndex = {
-    threadToId: Map<Snowflake, Snowflake>,
-    codeToId: Map<string, Snowflake>,
-    idToData: Map<string, ArchiveIndexEntry>,
-}
-
-export type Indexes = {
-    dictionary: DictionaryTermIndex,
-    archive: ArchiveIndex,
 }
 
 export class DictionaryManager {

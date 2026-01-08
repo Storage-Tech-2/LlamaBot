@@ -7,8 +7,8 @@ import { Snowflake } from "discord.js";
 import { recordsToRawTextNoHeaders, stripHyperlinkNames, SubmissionRecords } from "./MarkdownUtils.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Author, AuthorType, DiscordAuthor } from "../submissions/Author.js";
-import { ArchiveIndex } from "../archive/DictionaryManager.js";
 import { areAuthorsSameStrict, getAuthorName, getAuthorsString, reclassifyAuthors } from "./Util.js";
+import { ArchiveIndex } from "../archive/IndexManager.js";
 
 // Convenience patterns for dynamic reference extraction
 export const PostCodePattern = /\b([A-Za-z]+[0-9]{3})\b/g;
@@ -429,7 +429,7 @@ export function tagReferencesInText(text: string, dictionaryIndex?: DictionaryTe
                 ref: {
                     type: ReferenceType.ARCHIVED_POST,
                     id,
-                    code,
+                    code: indexEntry.code,
                     url: indexEntry.url,
                     path: indexEntry.path,
                     matches: [match.match]

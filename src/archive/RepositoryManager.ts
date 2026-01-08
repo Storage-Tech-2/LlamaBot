@@ -4,7 +4,7 @@ import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
 import { AnyThreadChannel, AttachmentBuilder, ChannelType, EmbedBuilder, ForumChannel, ForumLayoutType, GuildTextBasedChannel, Message, MessageFlags, PartialMessage, Snowflake } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
-import { areAuthorsSame, deepClone, escapeString, generateCommitMessage, getAuthorIconURL, getAuthorName, getChangeIDs, getCodeAndDescriptionFromTopic, getGithubOwnerAndProject, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
+import { areAuthorsSame, deepClone, escapeString, generateCommitMessage, getAuthorIconURL, getAuthorName, getChangeIDs, getCodeAndDescriptionFromTopic, getGithubOwnerAndProject, mergeTwoArraysUnique, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";
 import { Submission } from "../submissions/Submission.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
@@ -597,6 +597,7 @@ export class RepositoryManager {
 
             config.setConfig(SubmissionConfigs.NAME, submissionChannel.name);
 
+            const pastPostThreadIds = config.getConfig(SubmissionConfigs.PAST_POST_THREAD_IDS);
             const oldRef = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS_REFERENCES);
             const authors = await reclassifyAuthors(this.guildHolder, config.getConfig(SubmissionConfigs.AUTHORS) || []);
             const now = Date.now();
@@ -604,6 +605,10 @@ export class RepositoryManager {
                 id: submission.getId(),
                 name: config.getConfig(SubmissionConfigs.NAME),
                 code: newCode,
+
+                reservedCodes: reservedCodes,
+                pastPostThreadIds: pastPostThreadIds,
+
                 authors: authors,
                 endorsers: await reclassifyAuthors(this.guildHolder, config.getConfig(SubmissionConfigs.ENDORSERS)),
                 tags: config.getConfig(SubmissionConfigs.TAGS) || [],
@@ -1034,6 +1039,18 @@ export class RepositoryManager {
         newEntryData.post.threadId = thread.id;
         newEntryData.post.threadURL = thread.url;
 
+        newEntryData.pastPostThreadIds = mergeTwoArraysUnique(existing ? existing.entry.getData().pastPostThreadIds : [], newEntryData.pastPostThreadIds);
+        
+        if (!newEntryData.pastPostThreadIds.includes(thread.id)) {
+            newEntryData.pastPostThreadIds.push(thread.id);
+        }
+
+        newEntryData.reservedCodes = mergeTwoArraysUnique(existing ? existing.entry.getData().reservedCodes : [], newEntryData.reservedCodes);
+
+        if (!newEntryData.reservedCodes.includes(newEntryData.code)) {
+            newEntryData.reservedCodes.push(newEntryData.code);
+        }
+
         if (newEntryData.name !== thread.name) {
             await thread.edit({
                 name: newEntryData.code + ' ' + newEntryData.name
@@ -1289,6 +1306,19 @@ export class RepositoryManager {
         }
     }
 
+    public updateSubmissionFromEntryData(submission: Submission, entryData?: ArchiveEntryData, removed: boolean = false) {
+        const submissionConfig = submission.getConfigManager();
+        submissionConfig.setConfig(SubmissionConfigs.POST, removed ? null : (entryData?.post || null));
+        const pastThreadsPost = entryData?.pastPostThreadIds || [];
+        const pastThreadsSubmission =  submissionConfig.getConfig(SubmissionConfigs.PAST_POST_THREAD_IDS);
+        const merged = mergeTwoArraysUnique(pastThreadsSubmission, pastThreadsPost);
+        submissionConfig.setConfig(SubmissionConfigs.PAST_POST_THREAD_IDS, merged);
+        const pastReservedCodes = submissionConfig.getConfig(SubmissionConfigs.RESERVED_CODES);
+        const reservedCodesFromEntry = entryData?.reservedCodes || [];
+        const mergedCodes = mergeTwoArraysUnique(pastReservedCodes, reservedCodesFromEntry);
+        submissionConfig.setConfig(SubmissionConfigs.RESERVED_CODES, mergedCodes);
+    }
+
     async retractSubmission(submission: Submission, reason: string): Promise<ArchiveEntryData> {
         if (!this.git) {
             throw new Error("Git not initialized");
@@ -1343,7 +1373,8 @@ export class RepositoryManager {
             await this.removeDiscordPost(entryData, submission, reason);
 
             // Remove post
-            submission.getConfigManager().setConfig(SubmissionConfigs.POST, null);
+            this.updateSubmissionFromEntryData(submission, entryData, true);
+
             await submission.save();
             try {
                 await this.push();
@@ -1769,7 +1800,7 @@ export class RepositoryManager {
             try {
                 const submission = await this.guildHolder.getSubmissionsManager().getSubmission(submissionId);
                 if (submission) {
-                    submission.getConfigManager().setConfig(SubmissionConfigs.POST, null);
+                    this.updateSubmissionFromEntryData(submission, found.entry.getData(), true);
                     submission.getConfigManager().setConfig(SubmissionConfigs.STATUS, SubmissionStatus.RETRACTED);
                     submission.getConfigManager().setConfig(SubmissionConfigs.RETRACTION_REASON, 'Thread deleted');
 

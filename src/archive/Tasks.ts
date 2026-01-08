@@ -83,7 +83,7 @@ export async function republishAllEntries(
                     continue;
                 }
 
-                submission.getConfigManager().setConfig(SubmissionConfigs.POST, result?.newEntryData.post || null);
+                repositoryManager.updateSubmissionFromEntryData(submission, result?.newEntryData);
 
                 try {
                     await submission.statusUpdated();
