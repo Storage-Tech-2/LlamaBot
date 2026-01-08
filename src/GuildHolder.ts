@@ -171,6 +171,19 @@ export class GuildHolder {
             await this.checkHelper(userData, member).catch(e => {
                 console.error(`Error checking helper role for user ${member.id}:`, e);
             });
+
+            // check if designer role should be assigned
+            const designerRoleId = this.getConfigManager().getConfig(GuildConfigs.DESIGNER_ROLE_ID);
+
+            if (designerRoleId && userData.archivedPosts && userData.archivedPosts.length > 0) {
+                // add role
+                const role = member.guild.roles.cache.get(designerRoleId);
+                if (role && member.manageable && !member.roles.cache.has(role.id)) {
+                    await member.roles.add(role, 'User has archived posts').catch(e => {
+                        console.error(`Error adding designer role to user ${member.id}:`, e);
+                    });
+                }
+            }
         }
     }
 
@@ -1352,13 +1365,17 @@ export class GuildHolder {
         const added = newSet.difference(oldSet);
         const removed = oldSet.difference(newSet);
 
+        const idToUsernameMap = new Map<Snowflake, string>();
+        oldDesigners.forEach(a => {
+            idToUsernameMap.set(a.id, a.username);
+        });
+        newDesigners.forEach(a => {
+            idToUsernameMap.set(a.id, a.username);
+        });
+
         for (const designerId of added) {
             // get userdata for designer
-            const member = await this.getGuild().members.fetch(designerId).catch(() => undefined);
-            if (!member) {
-                continue; // Skip if member not found
-            }
-            let userData = await this.userManager.getOrCreateUserData(designerId, member.user.username);
+            let userData = await this.userManager.getOrCreateUserData(designerId, idToUsernameMap.get(designerId) || 'Unknown');
             if (!userData.archivedPosts) {
                 userData.archivedPosts = [];
             }
@@ -1368,6 +1385,11 @@ export class GuildHolder {
 
             await this.userManager.saveUserData(userData);
 
+            const member = await this.getGuild().members.fetch(designerId).catch(() => undefined);
+            if (!member) {
+                continue; // Skip if member not found
+            }
+            
             if (!member.roles.cache.has(designerRoleId)) {
                 const designerRole = this.getGuild().roles.cache.get(designerRoleId);
                 if (designerRole) {
@@ -1382,11 +1404,7 @@ export class GuildHolder {
 
         for (const designerId of removed) {
             // get userdata for designer
-            const member = await this.getGuild().members.fetch(designerId).catch(() => undefined);
-            if (!member) {
-                continue; // Skip if member not found
-            }
-            let userData = await this.userManager.getOrCreateUserData(designerId, member.user.username);
+            let userData = await this.userManager.getOrCreateUserData(designerId, idToUsernameMap.get(designerId) || 'Unknown');
             if (!userData.archivedPosts) {
                 userData.archivedPosts = [];
             }
@@ -1394,6 +1412,10 @@ export class GuildHolder {
 
             await this.userManager.saveUserData(userData);
 
+            const member = await this.getGuild().members.fetch(designerId).catch(() => undefined);
+            if (!member) {
+                continue; // Skip if member not found
+            }
             if (member.roles.cache.has(designerRoleId) && userData.archivedPosts.length === 0) {
                 const designerRole = this.getGuild().roles.cache.get(designerRoleId);
                 if (designerRole) {
