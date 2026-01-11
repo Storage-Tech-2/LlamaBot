@@ -211,7 +211,7 @@ export async function updateMetadataTask(guildHolder: GuildHolder): Promise<numb
                     }
                 } else if (ref.type === ReferenceType.CHANNEL_MENTION) {
                     const updatedChannel = channelMap.get(ref.channelID);
-                    if (updatedChannel) {
+                    if (updatedChannel && (ref.channelName !== updatedChannel.name || ref.channelURL !== updatedChannel.url)) {
                         ref.channelName = updatedChannel.name;
                         ref.channelURL = updatedChannel.url;
                         changed = true;
@@ -260,6 +260,8 @@ export async function updateMetadataTask(guildHolder: GuildHolder): Promise<numb
             if (!changed) {
                 return;
             }
+
+            console.log(`For entry ${data.code}, updated, the changes are: references ${updatedReferences}, author references ${updatedAuthorReferences}, authors ${newAuthors ? 'yes' : 'no'}, endorsers ${newEndorsers ? 'yes' : 'no'}`);
 
             if (newAuthors) {
                 data.authors = newAuthors;
