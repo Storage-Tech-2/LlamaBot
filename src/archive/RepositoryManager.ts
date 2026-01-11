@@ -174,6 +174,7 @@ export class RepositoryManager {
                 const currentCode = entryData.code;
                 const pastCodes = entryData.reservedCodes.filter(code => code !== currentCode);
                 entries.push({
+                    id: entryData.id,
                     codes: [currentCode, ...pastCodes],
                     name: entryData.name,
                     authors: authorIndexes,

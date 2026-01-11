@@ -1,5 +1,6 @@
 import { StyleInfo } from "./MarkdownUtils.js";
 
+// persistent index file is located at repository root/persistent.idx
 export type PersistentIndex = {
     updated_at: number;
     all_tags: string[];
@@ -13,17 +14,18 @@ export type PersistentIndexChannel = {
     code: string;
     name: string;
     description: string;
-    category: number;
-    tags: number[];
+    category: number; // index into all_categories
+    tags: number[]; // indices into all_tags
     path: string;
     entries: PersistentIndexEntry[];
 }
 
 export type PersistentIndexEntry = {
-    codes: string[]
+    id: string;
+    codes: string[] // first code is primary code, others are alternative codes
     name: string;
-    authors: number[];
-    tags: number[];
+    authors: number[]; // indices into all_authors
+    tags: number[]; // indices into all_tags
     updated_at: number;
     archived_at: number;
     path: string;
@@ -31,7 +33,7 @@ export type PersistentIndexEntry = {
 }
 
 export function serializePersistentIndex(index: PersistentIndex): ArrayBuffer {
-    let bufferParts = [];
+    const bufferParts = [];
 
     const textEncoder = new TextEncoder();
 
@@ -122,6 +124,12 @@ export function serializePersistentIndex(index: PersistentIndex): ArrayBuffer {
         const entriesCount = new Uint32Array([channel.entries.length]);
         bufferParts.push(entriesCount.buffer);
         for (const entry of channel.entries) {
+            // ID
+            const idBytes = textEncoder.encode(entry.id);
+            const idLength = new Uint16Array([idBytes.length]);
+            bufferParts.push(idLength.buffer);
+            bufferParts.push(idBytes.buffer);
+
             // Codes
             const entryCodeBytes = textEncoder.encode(entry.codes.join(','));
             const entryCodeLength = new Uint16Array([entryCodeBytes.length]);
@@ -259,6 +267,13 @@ export function deserializePersistentIndex(buffer: ArrayBuffer): PersistentIndex
     // Read channels
     const channels = [];
     while (offset < buffer.byteLength) {
+        // ID
+        const idLength = dataView.getUint16(offset);
+        offset += 2;
+        const idBytes = new Uint8Array(buffer, offset, idLength);
+        const id = textDecoder.decode(idBytes);
+        offset += idLength;
+
         // Code
         const codeLength = dataView.getUint16(offset);
         offset += 2;
@@ -366,6 +381,7 @@ export function deserializePersistentIndex(buffer: ArrayBuffer): PersistentIndex
             }
 
             entries.push({
+                id: id,
                 codes: entryCodes,
                 name: entryName,
                 authors: authors,
