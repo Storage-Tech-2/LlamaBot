@@ -22,6 +22,7 @@ import { DictionaryManager } from "./DictionaryManager.js";
 import { IndexManager } from "./IndexManager.js";
 import { DiscordServersDictionary } from "./DiscordServersDictionary.js";
 import { getDiscordServersFromReferences, ReferenceType, tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
+import { PersistentIndex, PersistentIndexChannel, PersistentIndexEntry, serializePersistentIndex } from "../utils/PersistentIndexUtils.js";
 export class RepositoryManager {
     public folderPath: string;
     private git?: SimpleGit;
@@ -42,10 +43,10 @@ export class RepositoryManager {
         this.discordServersDictionary = new DiscordServersDictionary(this.folderPath, this, globalDiscordServersDictionary);
 
         this.configManager.setChangeListener(async () => {
-            if (this.git) {
-                await this.commit('Updated repository configuration', [Path.join(this.folderPath, 'config.json')]).catch(() => { });
-                await this.push().catch(() => { });
-            }
+            // if (this.git) {
+            //     await this.commit('Updated repository configuration', [Path.join(this.folderPath, 'config.json')]).catch(() => { });
+            //     await this.push().catch(() => { });
+            // }
         });
     }
 
@@ -122,13 +123,115 @@ export class RepositoryManager {
         }
     }
 
+    public async buildPersistentIndex(): Promise<string> {
+        const authors = new Map<string, number>();
+        const tags = new Map<string, number>();
+        const categories = new Map<string, number>();
+
+        const channelReferences = this.getChannelReferences();
+
+        channelReferences.sort((a, b) => a.position - b.position);
+
+        const channels: PersistentIndexChannel[] = [];
+        for (const channelRef of channelReferences) {
+            const channelPath = Path.join(this.folderPath, channelRef.path);
+            const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
+            const entryRefs = archiveChannel.getData().entries;
+
+
+            const entries: PersistentIndexEntry[] = [];
+
+            const channelTags = new Set<number>();
+
+            for (const entryRef of entryRefs) {
+                const entryPath = Path.join(channelPath, entryRef.path);
+                const archiveEntry = await ArchiveEntry.fromFolder(entryPath);
+                if (!archiveEntry) {
+                    continue;
+                }
+                const entryData = archiveEntry.getData();
+
+                // map authors
+                const authorIndexes = entryData.authors.map(author => {
+                    const name = getAuthorName(author);
+                    if (!authors.has(name)) {
+                        authors.set(name, authors.size);
+                    }
+                    return authors.get(name)!;
+                });
+
+                // map tags
+                const tagIndexes = entryData.tags.map(tag => {
+                    if (!tags.has(tag.name)) {
+                        tags.set(tag.name, tags.size);
+                    }
+                    const tagIndex = tags.get(tag.name)!;
+                    channelTags.add(tagIndex);
+                    return tagIndex;
+                });
+
+
+                const currentCode = entryData.code;
+                const pastCodes = entryData.reservedCodes.filter(code => code !== currentCode);
+                entries.push({
+                    codes: [currentCode, ...pastCodes],
+                    name: entryData.name,
+                    authors: authorIndexes,
+                    tags: tagIndexes,
+                    path: entryRef.path,
+                    archived_at: entryData.archivedAt,
+                    updated_at: entryData.updatedAt,
+                    main_image_path: entryData.images.length > 0 ? entryData.images[0].path || null : null
+                });
+            }
+
+            // map categories
+            if (!categories.has(channelRef.category)) {
+                categories.set(channelRef.category, categories.size);
+            }
+            const categoryIndex = categories.get(channelRef.category)!;
+
+            channels.push({
+                code: channelRef.code,
+                name: channelRef.name,
+                description: channelRef.description,
+                category: categoryIndex,
+                tags: Array.from(channelTags),
+                path: channelRef.path,
+                entries: entries
+            })
+        }
+
+        const persistentIndex: PersistentIndex = {
+            schemaStyles: this.configManager.getConfig(RepositoryConfigs.POST_STYLE),
+            updated_at: Date.now(),
+            all_authors: Array.from(authors.keys()),
+            all_tags: Array.from(tags.keys()),
+            all_categories: Array.from(categories.keys()),
+            channels: channels
+        };
+
+        const serialized = serializePersistentIndex(persistentIndex);
+
+        const indexPath = this.getPersistentIndexPath();
+        await fs.writeFile(indexPath, Buffer.from(serialized));
+
+        await this.git?.add(indexPath);
+
+        return indexPath;
+    }
+
+    public getPersistentIndexPath(): string {
+        return Path.join(this.folderPath, 'persistent.idx');
+    }
+
     public async iterateAllEntries(callback: (entry: ArchiveEntry, entryRef: ArchiveEntryReference, channelRef: ArchiveChannelReference, channel: ArchiveChannel) => Promise<void>) {
         const channelReferences = this.getChannelReferences();
         for (const channelRef of channelReferences) {
             const channelPath = Path.join(this.folderPath, channelRef.path);
             const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
             if (!archiveChannel) {
-                console.warn(`Channel ${channelRef.name} (${channelRef.id}) not found in memory`);
+                console.warn(`Channel ${channelRef.name} (${channelRef.id}) not found in repository`);
                 continue;
             }
             const entries = archiveChannel.getData().entries;
@@ -136,7 +239,7 @@ export class RepositoryManager {
                 const entryPath = Path.join(channelPath, entryRef.path);
                 const entry = await ArchiveEntry.fromFolder(entryPath);
                 if (!entry) {
-                    console.warn(`Entry ${entryRef.name} (${entryRef.code}) not found in memory`);
+                    console.warn(`Entry ${entryRef.code} not found in repository`);
                     continue;
                 }
                 await callback(entry, entryRef, channelRef, archiveChannel);
@@ -150,7 +253,7 @@ export class RepositoryManager {
             const channelPath = Path.join(this.folderPath, channelRef.path);
             const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
             if (!archiveChannel) {
-                console.warn(`Channel ${channelRef.name} (${channelRef.id}) not found in memory`);
+                console.warn(`Channel ${channelRef.name} (${channelRef.id}) not found in repository`);
                 continue;
             }
             const entries = archiveChannel.getData().entries;
@@ -227,7 +330,6 @@ export class RepositoryManager {
                 category: channel.parent?.name || '',
                 path: `Archive/${code}_${escapeString(channel.name) || ''}`,
                 description: description || 'No description',
-                availableTags: channel.availableTags?.map(tag => tag.name) || [],
                 position: channel.rawPosition
             });
         }
@@ -265,7 +367,7 @@ export class RepositoryManager {
 
             // make new channel
             const newChannel = ArchiveChannel.newFromReference(channel, channelPath);
-            await newChannel.save();
+            await newChannel.savePrivate();
 
 
             // Commit the new channel
@@ -288,7 +390,7 @@ export class RepositoryManager {
             // check each post. Iterate through the files in the new path
             const channelInstance = await ArchiveChannel.fromFolder(newPath);
             if (!channelInstance) {
-                throw new Error(`Channel ${channel.name} (${channel.id}) not found in memory`);
+                throw new Error(`Channel ${channel.name} (${channel.id}) not found in repository`);
             }
 
             const entries = channelInstance.getData().entries;
@@ -299,8 +401,14 @@ export class RepositoryManager {
                     ...oldEntryRef
                 };
 
+                // get name and code
+                const oldEntry = await ArchiveEntry.fromFolder(Path.join(newPath, oldEntryRef.path));
+                if (!oldEntry) {
+                    throw new Error(`Old entry ${oldEntryRef.code} not found in repository`);
+                }
+
                 newEntryRef.code = channel.code + oldEntryRef.code.replace(new RegExp(`^${oldChannel.code}`), '');
-                newEntryRef.path = `${newEntryRef.code}_${escapeString(oldEntryRef.name || '')}`;
+                newEntryRef.path = `${newEntryRef.code}_${escapeString(oldEntry.getData().name || '')}`;
 
                 const oldFolderPath = Path.join(newPath, oldEntryRef.path);
                 const newFolderPath = Path.join(newPath, newEntryRef.path);
@@ -312,7 +420,7 @@ export class RepositoryManager {
                 // Load entry
                 const entry = await ArchiveEntry.fromFolder(newFolderPath);
                 if (!entry) {
-                    throw new Error(`Entry ${oldEntryRef.name} (${oldEntryRef.code}) not found in memory`);
+                    throw new Error(`Entry ${oldEntryRef.code} not found in repository`);
                 }
                 entry.getData().code = newEntryRef.code;
 
@@ -337,7 +445,7 @@ export class RepositoryManager {
 
                 // Save the entry
                 await this.git.add(entry.getDataPath());
-                await entry.save();
+                await entry.savePrivate();
                 newEntries.push(newEntryRef);
                 //await this.git.add(await this.updateEntryReadme(entry));
 
@@ -350,7 +458,7 @@ export class RepositoryManager {
             channelInstance.getData().description = channel.description;
             channelInstance.getData().code = channel.code;
             channelInstance.getData().entries = newEntries;
-            await channelInstance.save();
+            await channelInstance.savePrivate();
 
             if (oldPath !== newPath) {
                 // republish everything
@@ -358,7 +466,7 @@ export class RepositoryManager {
                     const entryPath = Path.join(newPath, entryRef.path);
                     const entry = await ArchiveEntry.fromFolder(entryPath);
                     if (!entry) {
-                        throw new Error(`Entry ${entryRef.name} (${entryRef.code}) not found in memory`);
+                        throw new Error(`Entry ${entryRef.code} not found in repository`);
                     }
                     // republish the entry
                     await this.addOrUpdateEntryFromData(entry.getData(), channel.id, false, false, async () => { });
@@ -394,7 +502,7 @@ export class RepositoryManager {
             const channelPath = Path.join(this.folderPath, channel.path);
             const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
             if (!archiveChannel) {
-                console.warn(`Channel ${channel.name} (${channel.id}) not found in memory`);
+                console.warn(`Channel ${channel.name} (${channel.id}) not found in repository`);
                 continue;
             }
             const entries = archiveChannel.getData().entries;
@@ -403,18 +511,12 @@ export class RepositoryManager {
                 const entryPath = Path.join(channelPath, entryRef.path);
                 const entry = await ArchiveEntry.fromFolder(entryPath);
                 if (!entry) {
-                    console.warn(`Entry ${entryRef.name} (${entryRef.code}) not found in memory`);
+                    console.warn(`Entry ${entryRef.code} not found in repository`);
                     continue;
-                }
-                const newTags = entry.getData().tags.map(tag => tag.name);
-                const currentTags = entryRef.tags || [];
-                if (JSON.stringify(newTags) !== JSON.stringify(currentTags)) {
-                    entryRef.tags = newTags;
-                    changed = true;
                 }
             }
             if (changed) {
-                await archiveChannel.save();
+                await archiveChannel.savePrivate();
                 await this.git.add(archiveChannel.getDataPath());
             }
         }
@@ -423,14 +525,17 @@ export class RepositoryManager {
         this.configManager.setConfig(RepositoryConfigs.ARCHIVE_CHANNELS, reMapped);
         await this.save();
 
+        // Rebuild index
+        await this.buildPersistentIndex();
+
         // Add config if it doesn't exist
-        //await this.git.add(Path.join(this.folderPath, 'config.json'));
-        //await this.commit('Updated repository configuration');
-        // try {
-        //     await this.push();
-        // } catch (e: any) {
-        //     console.error("Error pushing to remote:", e.message);
-        // }
+        await this.git.add(Path.join(this.folderPath, 'config.json'));
+        await this.commit('Updated repository configuration');
+        try {
+            await this.push();
+        } catch (e: any) {
+            console.error("Error pushing to remote:", e.message);
+        }
         await this.lock.release();
     }
 
@@ -571,7 +676,7 @@ export class RepositoryManager {
                 }
             }
 
-            await archiveChannel.save();
+            await archiveChannel.savePrivate();
 
             // Add the new code to the reserved codes if it doesn't already exist
             if (!reservedCodes.includes(newCode)) {
@@ -712,6 +817,9 @@ export class RepositoryManager {
 
             const newEntryData = result.newEntryData;
             const oldEntryData = result.oldEntryData;
+
+            await this.buildPersistentIndex();
+
             if (oldEntryData) {
                 await this.commit(`${newEntryData.code}: ${generateCommitMessage(oldEntryData, newEntryData)}`);
             } else {
@@ -787,16 +895,12 @@ export class RepositoryManager {
 
         const entryRef: ArchiveEntryReference = {
             id: newEntryData.id,
-            name: newEntryData.name,
             code: newEntryData.code,
-            archivedAt: existing ? existing.entryRef.archivedAt : newEntryData.archivedAt,
-            updatedAt: newEntryData.updatedAt,
             path: `${newEntryData.code}_${escapeString(newEntryData.name) || ''}`,
-            tags: newEntryData.tags.map(tag => tag.name),
         }
 
         if (existing) {
-            newEntryData.archivedAt = existing.entryRef.archivedAt;
+            newEntryData.archivedAt = existing.entry.getData().archivedAt;
         }
 
         const entryFolderPath = Path.join(channelPath, entryRef.path);
@@ -822,7 +926,7 @@ export class RepositoryManager {
             if (!isSameChannel) {
                 // If the channel is different, we need to remove the old entry from the old channel
                 existing.channel.getData().entries.splice(existing.entryIndex, 1);
-                await existing.channel.save();
+                await existing.channel.savePrivate();
                 await this.git.add(existing.channel.getDataPath());
 
                 // Also remove old discord post if it exists
@@ -1040,7 +1144,7 @@ export class RepositoryManager {
         newEntryData.post.threadURL = thread.url;
 
         newEntryData.pastPostThreadIds = mergeTwoArraysUnique(existing ? existing.entry.getData().pastPostThreadIds : [], newEntryData.pastPostThreadIds);
-        
+
         if (!newEntryData.pastPostThreadIds.includes(thread.id)) {
             newEntryData.pastPostThreadIds.push(thread.id);
         }
@@ -1204,8 +1308,8 @@ export class RepositoryManager {
         }
 
         await reportStatus('Saving data in repository...');
-        await entry.save();
-        await archiveChannel.save();
+        await entry.savePrivate();
+        await archiveChannel.savePrivate();
         await this.git.add(archiveChannel.getDataPath());
 
         await this.git.add(await this.updateEntryReadme(entry));
@@ -1310,7 +1414,7 @@ export class RepositoryManager {
         const submissionConfig = submission.getConfigManager();
         submissionConfig.setConfig(SubmissionConfigs.POST, removed ? null : (entryData?.post || null));
         const pastThreadsPost = entryData?.pastPostThreadIds || [];
-        const pastThreadsSubmission =  submissionConfig.getConfig(SubmissionConfigs.PAST_POST_THREAD_IDS);
+        const pastThreadsSubmission = submissionConfig.getConfig(SubmissionConfigs.PAST_POST_THREAD_IDS);
         const merged = mergeTwoArraysUnique(pastThreadsSubmission, pastThreadsPost);
         submissionConfig.setConfig(SubmissionConfigs.PAST_POST_THREAD_IDS, merged);
         const pastReservedCodes = submissionConfig.getConfig(SubmissionConfigs.RESERVED_CODES);
@@ -1363,8 +1467,10 @@ export class RepositoryManager {
             await fs.rm(entryPath, { recursive: true, force: true });
 
             foundChannel.getData().entries.splice(foundEntryIndex, 1);
-            await foundChannel.save();
+            await foundChannel.savePrivate();
             await this.git.add(foundChannel.getDataPath());
+
+            await this.buildPersistentIndex();
 
             // Commit the removal
             await this.commit(`Retracted entry ${entryData.name} (${entryData.code}) from channel ${foundChannel.getData().name} (${foundChannel.getData().code})\nReason: ${reason || 'No reason provided'}`);
@@ -1790,9 +1896,12 @@ export class RepositoryManager {
             await fs.rm(entryPath, { recursive: true, force: true });
 
             found.channel.getData().entries.splice(found.entryIndex, 1);
-            await found.channel.save();
+            await found.channel.savePrivate();
             await this.git.add(found.channel.getDataPath());
             await this.indexManager.deleteSubmissionIDForPostID(postId);
+
+            await this.buildPersistentIndex();
+
             // Commit the removal
             await this.commit(`Force deleted ${found.entry.getData().code} ${found.entry.getData().name} from channel ${found.channel.getData().name} (${found.channel.getData().code})`);
 
@@ -1904,12 +2013,10 @@ export class RepositoryManager {
                 id: tag.id,
                 name: tag.name
             }));
-            // update entry ref
-            found.entryRef.tags = entryData.tags.map(tag => tag.name);
 
-            await found.channel.save();
+            await found.channel.savePrivate();
             await this.git.add(found.channel.getDataPath());
-            await found.entry.save();
+            await found.entry.savePrivate();
             await this.git.add(found.entry.getDataPath());
             await this.git.add(await this.updateEntryReadme(found.entry));
             // check submission
@@ -1948,6 +2055,8 @@ export class RepositoryManager {
                             });
                             await submission.save();
                             await submission.statusUpdated();
+
+                            await this.buildPersistentIndex();
                         }
                     }
                 }

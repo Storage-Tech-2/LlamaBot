@@ -40,7 +40,7 @@ export async function republishAllEntries(
                 const entry = await ArchiveEntry.fromFolder(entryPath);
 
                 if (!entry) {
-                    await channel.send({ content: `Entry ${entryRef.name} (${entryRef.code}) could not be loaded, skipping.` });
+                    await channel.send({ content: `Entry ${entryRef.code} could not be loaded, skipping.` });
                     continue; // Skip if entry cannot be loaded
                 }
                 const entryData = entry.getData();
@@ -98,6 +98,8 @@ export async function republishAllEntries(
                 }
             }
         }
+
+        await repositoryManager.buildPersistentIndex();
 
         // Commit changes
         await repositoryManager.commit(`Republished all entries${doChannel ? ` in channel ${doChannel.name}` : ''}`);
@@ -292,6 +294,7 @@ export async function updateMetadataTask(guildHolder: GuildHolder): Promise<numb
         });
 
         if (modifiedCount > 0) {
+            await repositoryManager.buildPersistentIndex();
             try {
                 await repositoryManager.commit(`Updated metadata for ${modifiedCount} entries`);
                 try {

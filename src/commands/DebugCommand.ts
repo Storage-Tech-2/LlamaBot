@@ -435,7 +435,7 @@ export class DebugCommand implements Command {
                 postsScanned++;
 
                 const postCode = data.code || entryRef.code;
-                const postTitle = data.name || entryRef.name || postCode;
+                const postTitle = data.name || postCode;
                 const authors = data.authors || [];
 
                 for (const author of authors) {

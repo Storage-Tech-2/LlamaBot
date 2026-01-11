@@ -69,7 +69,7 @@ export class ArchiveEntry {
         return Path.join(this.folderPath, 'data.json');
     }
 
-    public async save(): Promise<void> {
+    public async savePrivate(): Promise<void> {
         const dataPath = this.getDataPath();
         return fs.writeFile(dataPath, JSON.stringify(this.data, null, 2), 'utf-8');
     }
