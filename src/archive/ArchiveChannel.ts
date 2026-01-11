@@ -42,7 +42,22 @@ export class ArchiveChannel {
 
     public async savePrivate(): Promise<void> {
         const dataPath = this.getDataPath();
-        return fs.writeFile(dataPath, JSON.stringify(this.data, null, 2), 'utf-8');
+
+        const dataCleaned: ArchiveChannelData = {
+            id: this.data.id,
+            name: this.data.name,
+            code: this.data.code,
+            category: this.data.category,
+            description: this.data.description,
+            currentCodeId: this.data.currentCodeId,
+            entries: this.data.entries.map(entry => ({
+                id: entry.id,
+                code: entry.code,
+                path: entry.path
+            }))
+        };
+
+        return fs.writeFile(dataPath, JSON.stringify(dataCleaned, null, 2), 'utf-8');
     }
 
     public async load(): Promise<void> {
