@@ -1,6 +1,6 @@
 import { Author, AuthorType, DiscordAuthor } from "../submissions/Author.js";
 import { ArchiveEntry } from "./ArchiveEntry.js";
-import { areAuthorsSameStrict, getDiscordAuthorsFromIDs, splitIntoChunks } from "../utils/Util.js";
+import { areAuthorsSameStrict, deepClone, getDiscordAuthorsFromIDs, splitIntoChunks } from "../utils/Util.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { ArchiveChannelReference } from "./RepositoryConfigs.js";
 import { ChannelType, ChatInputCommandInteraction, ForumChannel, GuildForumTag, Message, MessageFlags, Snowflake } from "discord.js";
@@ -206,7 +206,7 @@ export async function updateMetadataTask(guildHolder: GuildHolder): Promise<numb
                         };
                         changed = true;
                     } else if (updatedAuthor && !areAuthorsSameStrict(ref.user, updatedAuthor)) {
-                        ref.user = updatedAuthor;
+                        ref.user = deepClone(updatedAuthor);
                         changed = true;
                     }
                 } else if (ref.type === ReferenceType.CHANNEL_MENTION) {
@@ -238,10 +238,14 @@ export async function updateMetadataTask(guildHolder: GuildHolder): Promise<numb
                 } else if (found) {
                     if (!areAuthorsSameStrict(author, found)) {
                         changed = true;
-                        return {
-                            ...author,
-                            ...found,
+                        const cloned = deepClone(found);
+                        if (author.dontDisplay) {
+                            cloned.dontDisplay = author.dontDisplay;
                         }
+                        if (author.reason) {
+                            cloned.reason = author.reason;
+                        }
+                        return cloned;
                     }
                 }
                 return author;
@@ -261,7 +265,7 @@ export async function updateMetadataTask(guildHolder: GuildHolder): Promise<numb
                 return;
             }
 
-            console.log(`For entry ${data.code}, updated, the changes are: references ${updatedReferences}, author references ${updatedAuthorReferences}, authors ${newAuthors ? 'yes' : 'no'}, endorsers ${newEndorsers ? 'yes' : 'no'}`);
+            // console.log(`For entry ${data.code}, updated, the changes are: references ${updatedReferences}, author references ${updatedAuthorReferences}, authors ${newAuthors ? 'yes' : 'no'}, endorsers ${newEndorsers ? 'yes' : 'no'}`);
 
             if (newAuthors) {
                 data.authors = newAuthors;
