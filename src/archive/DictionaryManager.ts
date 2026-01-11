@@ -9,6 +9,7 @@ import { RepositoryManager } from "./RepositoryManager.js";
 import { Lock } from "../utils/Lock.js";
 import { truncateStringWithEllipsis } from "../utils/Util.js";
 import { EditDictionaryEntryButton } from "../components/buttons/EditDictionaryEntryButton.js";
+import { buildDictionarySlug } from "../utils/SlugUtils.js";
 
 export enum DictionaryEntryStatus {
     PENDING = "PENDING",
@@ -364,10 +365,12 @@ export class DictionaryManager {
         // check if website URL is configured
         const websiteURL = this.guildHolder.getConfigManager().getConfig(GuildConfigs.WEBSITE_URL);
         if (websiteURL && entry.status === DictionaryEntryStatus.APPROVED) {
+            const postURLObj = new URL(websiteURL);
+            postURLObj.pathname = `/dictionary/${buildDictionarySlug(entry.id, entry.terms)}`;
             const viewButton = new ButtonBuilder()
                 .setLabel('View on Website')
                 .setStyle(ButtonStyle.Link) // Link button
-                .setURL(`${websiteURL}?view=dictionary&did=${entry.id}`);
+                .setURL(postURLObj.href);
             row.addComponents(viewButton);
         }
 

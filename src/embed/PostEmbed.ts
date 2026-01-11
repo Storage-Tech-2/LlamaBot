@@ -9,6 +9,7 @@ import fs from "fs/promises";
 import { processImageForDiscord } from "../utils/AttachmentUtils.js";
 import { postToMarkdown } from "../utils/MarkdownUtils.js";
 import { transformOutputWithReferencesForDiscord } from "../utils/ReferenceUtils.js";
+import { buildEntrySlug } from "../utils/SlugUtils.js";
 
 export class PostEmbed {
     private embed: EmbedBuilder;
@@ -207,7 +208,7 @@ export class PostEmbed {
         const websiteURL = guildHolder.getConfigManager().getConfig(GuildConfigs.WEBSITE_URL);
         if (websiteURL) {
             const postURLObj = new URL(websiteURL);
-            postURLObj.searchParams.append('id', entryData.id);
+            postURLObj.pathname = `/archives/${buildEntrySlug(entryData.code, entryData.name)}`;
             content.push(` | [Website](${postURLObj.href})`);
         }
         content.push(`\nArchived on <t:${Math.floor(entryData.archivedAt / 1000)}:F>`);
