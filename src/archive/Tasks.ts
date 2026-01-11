@@ -364,7 +364,7 @@ export async function retagEverythingTask(guildHolder: GuildHolder): Promise<voi
             const newReferences = await tagReferences(definition.definition, definition.references, guildHolder, definition.id);
             let changed = hasReferencesChanged(definition.references, newReferences).changed;
             const entryCodes = definitionToEntryCodes.get(definition.id);
-            if (entryCodes && entryCodes.intersection(new Set(definition.referencedBy)).size !== entryCodes.size) {
+            if (entryCodes && (entryCodes.size !== definition.referencedBy.length || entryCodes.intersection(new Set(definition.referencedBy)).size !== entryCodes.size)) {
                 changed = true;
                 definition.referencedBy = Array.from(entryCodes);
             }
