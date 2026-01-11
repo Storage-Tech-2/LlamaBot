@@ -80,6 +80,7 @@ export type ArchivedPostReference = ReferenceBase & {
     type: ReferenceType.ARCHIVED_POST,
     id: Snowflake,
     code: string,
+    name: string,
     url: string,
     path: string,
 }
@@ -430,6 +431,7 @@ export function tagReferencesInText(text: string, dictionaryIndex?: DictionaryTe
                     type: ReferenceType.ARCHIVED_POST,
                     id,
                     code: indexEntry.code,
+                    name: indexEntry.name,
                     url: indexEntry.url,
                     path: indexEntry.path,
                     matches: [match.match]
@@ -518,6 +520,7 @@ export async function tagReferences(string: string, prevReferences: Reference[],
                 type: ReferenceType.ARCHIVED_POST,
                 id: match.id,
                 code: indexEntry.code,
+                name: indexEntry.name,
                 url: indexEntry.url,
                 path: indexEntry.path,
                 matches: ref.matches
@@ -541,6 +544,7 @@ export async function tagReferences(string: string, prevReferences: Reference[],
                 type: ReferenceType.ARCHIVED_POST,
                 id,
                 code: indexEntry.code,
+                name: indexEntry.name,
                 url: indexEntry.url,
                 path: indexEntry.path,
                 matches: ref.matches
@@ -757,7 +761,7 @@ export function transformOutputWithReferencesForDiscord(
                     }
                 } else {
                     // create markdown link with code as text
-                    return `[${reference.code}](${reference.url})`;
+                    return `[${reference.code} (${reference.name})](${reference.url})`;
                 }
             } else if (reference.type === ReferenceType.DISCORD_LINK) {
                 if (!reference.serverName || !reference.serverJoinURL) {
@@ -857,7 +861,7 @@ export function transformOutputWithReferencesForGithub(
 
 export function areReferencesIdentical(a: Reference, b: Reference): boolean {
     if (a.type === ReferenceType.ARCHIVED_POST && b.type === ReferenceType.ARCHIVED_POST) {
-        return a.code === b.code && a.id === b.id && a.url === b.url && a.path === b.path;
+        return a.code === b.code && a.id === b.id && a.url === b.url && a.path === b.path && a.name === b.name;
     } else if (a.type === ReferenceType.DISCORD_LINK && b.type === ReferenceType.DISCORD_LINK) {
         return a.server === b.server && a.channel === b.channel && a.message === b.message && a.url === b.url && a.serverName === b.serverName && a.serverJoinURL === b.serverJoinURL;
     } else if (a.type === ReferenceType.DICTIONARY_TERM && b.type === ReferenceType.DICTIONARY_TERM) {
