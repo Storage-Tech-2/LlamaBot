@@ -267,13 +267,6 @@ export function deserializePersistentIndex(buffer: ArrayBuffer): PersistentIndex
     // Read channels
     const channels = [];
     while (offset < buffer.byteLength) {
-        // ID
-        const idLength = dataView.getUint16(offset);
-        offset += 2;
-        const idBytes = new Uint8Array(buffer, offset, idLength);
-        const id = textDecoder.decode(idBytes);
-        offset += idLength;
-
         // Code
         const codeLength = dataView.getUint16(offset);
         offset += 2;
@@ -321,6 +314,13 @@ export function deserializePersistentIndex(buffer: ArrayBuffer): PersistentIndex
         offset += 4;
         const entries = [];
         for (let i = 0; i < entriesCount; i++) {
+            // ID
+            const idLength = dataView.getUint16(offset);
+            offset += 2;
+            const idBytes = new Uint8Array(buffer, offset, idLength);
+            const id = textDecoder.decode(idBytes);
+            offset += idLength;
+
             // Code
             const entryCodeLength = dataView.getUint16(offset);
             offset += 2;
