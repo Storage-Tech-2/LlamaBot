@@ -207,6 +207,16 @@ export function deserializePersistentIndex(buffer: ArrayBuffer): PersistentIndex
     const textDecoder = new TextDecoder();
     const dataView = new DataView(buffer);
     let offset = 0;
+    const readU16 = () => {
+        const value = dataView.getUint16(offset, true);
+        offset += 2;
+        return value;
+    };
+    const readU32 = () => {
+        const value = dataView.getUint32(offset, true);
+        offset += 4;
+        return value;
+    };
 
     // Read version and updated_at
     const version = dataView.getUint16(offset);
@@ -218,12 +228,10 @@ export function deserializePersistentIndex(buffer: ArrayBuffer): PersistentIndex
     offset += 8;
 
     // Read all_tags
-    const allTagsCount = dataView.getUint16(offset);
-    offset += 2;
+    const allTagsCount = readU16();
     const all_tags = [];
     for (let i = 0; i < allTagsCount; i++) {
-        const tagLength = dataView.getUint16(offset);
-        offset += 2;
+        const tagLength = readU16();
         const tagBytes = new Uint8Array(buffer, offset, tagLength);
         const tag = textDecoder.decode(tagBytes);
         all_tags.push(tag);
@@ -231,12 +239,10 @@ export function deserializePersistentIndex(buffer: ArrayBuffer): PersistentIndex
     }
 
     // Read all_authors
-    const allAuthorsCount = dataView.getUint16(offset);
-    offset += 2;
+    const allAuthorsCount = readU16();
     const all_authors = [];
     for (let i = 0; i < allAuthorsCount; i++) {
-        const authorLength = dataView.getUint16(offset);
-        offset += 2;
+        const authorLength = readU16();
         const authorBytes = new Uint8Array(buffer, offset, authorLength);
         const author = textDecoder.decode(authorBytes);
         all_authors.push(author);
@@ -244,12 +250,10 @@ export function deserializePersistentIndex(buffer: ArrayBuffer): PersistentIndex
     }
 
     // Read all_categories
-    const allCategoriesCount = dataView.getUint16(offset);
-    offset += 2;
+    const allCategoriesCount = readU16();
     const all_categories = [];
     for (let i = 0; i < allCategoriesCount; i++) {
-        const categoryLength = dataView.getUint16(offset);
-        offset += 2;
+        const categoryLength = readU16();
         const categoryBytes = new Uint8Array(buffer, offset, categoryLength);
         const category = textDecoder.decode(categoryBytes);
         all_categories.push(category);
@@ -257,8 +261,7 @@ export function deserializePersistentIndex(buffer: ArrayBuffer): PersistentIndex
     }
 
     // Read schemaStyles
-    const schemaStylesLength = dataView.getUint32(offset);
-    offset += 4;
+    const schemaStylesLength = readU32();
     const schemaStylesBytes = new Uint8Array(buffer, offset, schemaStylesLength);
     const schemaStylesJson = textDecoder.decode(schemaStylesBytes);
     const schemaStyles: Record<string, StyleInfo> = JSON.parse(schemaStylesJson);
@@ -268,90 +271,75 @@ export function deserializePersistentIndex(buffer: ArrayBuffer): PersistentIndex
     const channels = [];
     while (offset < buffer.byteLength) {
         // Code
-        const codeLength = dataView.getUint16(offset);
-        offset += 2;
+        const codeLength = readU16();
         const codeBytes = new Uint8Array(buffer, offset, codeLength);
         const code = textDecoder.decode(codeBytes);
         offset += codeLength;
 
         // Name
-        const nameLength = dataView.getUint16(offset);
-        offset += 2;
+        const nameLength = readU16();
         const nameBytes = new Uint8Array(buffer, offset, nameLength);
         const name = textDecoder.decode(nameBytes);
         offset += nameLength;
 
         // Description
-        const descLength = dataView.getUint16(offset);
-        offset += 2;
+        const descLength = readU16();
         const descBytes = new Uint8Array(buffer, offset, descLength);
         const description = textDecoder.decode(descBytes);
         offset += descLength;
 
         // Category
-        const category = dataView.getUint16(offset);
-        offset += 2;
+        const category = readU16();
 
         // Tags
-        const tagsCount = dataView.getUint16(offset);
-        offset += 2;
+        const tagsCount = readU16();
         const tags = [];
         for (let i = 0; i < tagsCount; i++) {
-            const tagIndex = dataView.getUint16(offset);
-            offset += 2;
+            const tagIndex = readU16();
             tags.push(tagIndex);
         }
 
         // Path
-        const pathLength = dataView.getUint16(offset);
-        offset += 2;
+        const pathLength = readU16();
         const pathBytes = new Uint8Array(buffer, offset, pathLength);
         const path = textDecoder.decode(pathBytes);
         offset += pathLength;
 
         // Entries
-        const entriesCount = dataView.getUint32(offset);
-        offset += 4;
+        const entriesCount = readU32();
         const entries = [];
         for (let i = 0; i < entriesCount; i++) {
             // ID
-            const idLength = dataView.getUint16(offset);
-            offset += 2;
+            const idLength = readU16();
             const idBytes = new Uint8Array(buffer, offset, idLength);
             const id = textDecoder.decode(idBytes);
             offset += idLength;
 
-            // Code
-            const entryCodeLength = dataView.getUint16(offset);
-            offset += 2;
+            // Codes
+            const entryCodeLength = readU16();
             const entryCodeBytes = new Uint8Array(buffer, offset, entryCodeLength);
             const entryCodes = textDecoder.decode(entryCodeBytes).split(',');
             offset += entryCodeLength;
 
             // Name
-            const entryNameLength = dataView.getUint16(offset);
-            offset += 2;
+            const entryNameLength = readU16();
             const entryNameBytes = new Uint8Array(buffer, offset, entryNameLength);
             const entryName = textDecoder.decode(entryNameBytes);
             offset += entryNameLength;
 
             // Authors
-            const authorsCount = dataView.getUint16(offset);
-            offset += 2;
+            const authorsCount = readU16();
             const authors = [];
             for (let j = 0; j < authorsCount; j++) {
-                const authorIndex = dataView.getUint16(offset);
-                offset += 2;
+                const authorIndex = readU16();
                 authors.push(authorIndex);
             }
 
             // Tags
-            const entryTagsCount = dataView.getUint16(offset);
-            offset += 2;
+            const entryTagsCount = readU16();
             const entryTags = [];
             for (let j = 0; j < entryTagsCount; j++) {
-                const tagIndex = dataView.getUint16(offset);
-                offset += 2;
+                const tagIndex = readU16();
                 entryTags.push(tagIndex);
             }
 
@@ -364,15 +352,13 @@ export function deserializePersistentIndex(buffer: ArrayBuffer): PersistentIndex
             offset += 8;
 
             // Path
-            const entryPathLength = dataView.getUint16(offset);
-            offset += 2;
+            const entryPathLength = readU16();
             const entryPathBytes = new Uint8Array(buffer, offset, entryPathLength);
             const entryPath = textDecoder.decode(entryPathBytes);
             offset += entryPathLength;
 
             // Main image path
-            const mainImagePathLength = dataView.getUint16(offset);
-            offset += 2;
+            const mainImagePathLength = readU16();
             let main_image_path: string | null = null;
             if (mainImagePathLength > 0) {
                 const mainImagePathBytes = new Uint8Array(buffer, offset, mainImagePathLength);
