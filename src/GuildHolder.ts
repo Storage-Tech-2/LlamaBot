@@ -484,19 +484,23 @@ export class GuildHolder {
                         continue;
                     }
 
-                    if (postCode.toUpperCase() === data.code) {
-                        continue;
-                    }
-
                     if (toSend.find(item => item.code === data.code)) {
                         continue;
                     }
 
-                    toSend.push({
-                        code: data.code,
-                        oldCode: postCode.toUpperCase(),
-                        moved: false,
-                    });
+                    if (data.code.toUpperCase() !== postCode.toUpperCase()) {
+                        toSend.push({
+                            code: data.code,
+                            oldCode: postCode,
+                            moved: false,
+                        });
+                    } else {
+                        toSend.push({
+                            code: data.code,
+                            oldCode: null,
+                            moved: false,
+                        });
+                    }
 
                 }
 

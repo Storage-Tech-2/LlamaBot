@@ -203,7 +203,7 @@ export class IndexManager {
             });
         
             data.reservedCodes.forEach(code => {
-                codeToId.set(code, data.id);
+                codeToId.set(code.toUpperCase(), data.id);
             });
 
             codeToId.set(data.code.toUpperCase(), data.id);
