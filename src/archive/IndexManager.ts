@@ -206,6 +206,8 @@ export class IndexManager {
                 codeToId.set(code, data.id);
             });
 
+            codeToId.set(data.code.toUpperCase(), data.id);
+
             idToData.set(data.id, {
                 name: data.name,
                 code: data.code,
