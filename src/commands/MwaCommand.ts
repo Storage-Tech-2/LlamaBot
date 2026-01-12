@@ -524,7 +524,7 @@ export class Mwa implements Command {
             return;
         }
 
-        if (configName === 'autojoin' || configName === 'autolookup') {
+        if (configName === 'autojoin' || configName === 'autolookup' || configName === 'acknowledgethanks') {
             const normalized = rawValue.toLowerCase();
             if (normalized !== 'true' && normalized !== 'false') {
                 await replyEphemeral(interaction, 'Provide a boolean value (true/false) for this config.');
@@ -535,6 +535,7 @@ export class Mwa implements Command {
             const configMap = {
                 autojoin: GuildConfigs.AUTOJOIN_ENABLED,
                 autolookup: GuildConfigs.AUTOLOOKUP_ENABLED,
+                acknowledgethanks: GuildConfigs.ACKNOWLEDGE_THANKS,
             } as const;
 
             guildHolder.getConfigManager().setConfig(configMap[configName], value);

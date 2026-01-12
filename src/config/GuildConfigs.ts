@@ -50,6 +50,11 @@ export const GuildConfigs = {
     HELPER_ROLE_ID: new Config<Snowflake>("helperRoleId", ""),
 
     /**
+     * Helper message
+     */
+    ACKNOWLEDGE_THANKS: new Config<boolean>("acknowledgeThanks", false),
+
+    /**
      * Designer role
      */
     DESIGNER_ROLE_ID: new Config<Snowflake>("designerRoleId", ""),

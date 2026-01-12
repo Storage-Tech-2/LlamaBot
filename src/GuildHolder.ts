@@ -976,15 +976,20 @@ export class GuildHolder {
         await this.userManager.saveUserData(senderData);
 
         // Send a thank you message in the channel
-        const embed = new EmbedBuilder()
-            .setColor(0x00FF00) // Green color for thank you message
-            .setTitle(`Point Received!`)
-            .setDescription(`<@${thanksSenderID}> gave a point to <@${thanksReceiverID}>!`)
-            .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
-        await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
-        await this.checkHelper(userData).catch(e => {
-            console.error('Error checking helper status:', e);
-        });
+        if (this.getConfigManager().getConfig(GuildConfigs.ACKNOWLEDGE_THANKS)) {
+            const embed = new EmbedBuilder()
+                .setColor(0x00FF00) // Green color for thank you message
+                .setTitle(`Point Received!`)
+                .setDescription(`<@${thanksSenderID}> gave a point to <@${thanksReceiverID}>!`)
+                .setFooter({ text: `Thank a helpful member by saying "thanks" in a reply.` });
+            await message.reply({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
+            await this.checkHelper(userData).catch(e => {
+                console.error('Error checking helper status:', e);
+            });
+        } else {
+            // send heart reaction
+            await message.react('❤️').catch(() => { /* ignore */ });
+        }
     }
 
     private truncateContentForLLM(content: string, maxLength: number = 400) {
