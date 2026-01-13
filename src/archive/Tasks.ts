@@ -340,14 +340,6 @@ export async function retagEverythingTask(guildHolder: GuildHolder): Promise<voi
             const newReferences = await tagReferencesInSubmissionRecords(data.records, data.references, guildHolder, data.id);
             const newAuthorReferences = await tagReferencesInAcknowledgements(data.authors, data.author_references, guildHolder, data.id);
 
-            const changed = hasReferencesChanged(data.references, newReferences).changed ||
-                hasReferencesChanged(data.author_references, newAuthorReferences).changed;
-            if (!changed) {
-                return;
-            }
-
-            data.references = newReferences;
-
             newReferences.forEach((ref) => {
                 if (ref.type !== ReferenceType.DICTIONARY_TERM) return;
                 const defID = ref.id;
@@ -356,6 +348,15 @@ export async function retagEverythingTask(guildHolder: GuildHolder): Promise<voi
                 }
                 definitionToEntryCodes.get(defID)!.add(data.code);
             });
+
+            const changed = hasReferencesChanged(data.references, newReferences).changed ||
+                hasReferencesChanged(data.author_references, newAuthorReferences).changed;
+            if (!changed) {
+                return;
+            }
+
+            data.references = newReferences;
+
 
             data.author_references = newAuthorReferences;
 
