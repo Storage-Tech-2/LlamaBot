@@ -92,8 +92,8 @@ export class PostEmbed {
             litematics.forEach(attachment => {
                 const url = attachmentURLs.get(attachment.name) || attachment.url;
                 const githubLink = `${rawURL}/${attachment.path}`;
-                const viewerURL = `https://schemat.io/view?url=${githubLink}`;
-                description += `- ${url} [[Schemat.io Viewer]](${viewerURL}): ` + (attachment.litematic?.error || `MC ${attachment.litematic?.version}, Size ${attachment.litematic?.size} \n`);
+                const viewerURL = `https://storagetech2.org/renderer?url=${githubLink}`;
+                description += `- ${url} [[View Schematic]](${viewerURL}): ` + (attachment.litematic?.error || `MC ${attachment.litematic?.version}, Size ${attachment.litematic?.size} \n`);
             })
         }
 
