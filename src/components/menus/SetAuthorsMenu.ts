@@ -25,7 +25,7 @@ export class SetAuthorsMenu implements Menu {
             const extraAuthors = currentAuthors.filter(author => {
                 return author.type === AuthorType.Unknown || author.type === AuthorType.DiscordDeleted;
             });
-            const userSize = currentAuthors.length;
+            const userSize = extraAuthors.length;
             return new StringSelectMenuBuilder()
                 .setCustomId(this.getID() + "|e")
                 .setMinValues(0)
