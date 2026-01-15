@@ -22,6 +22,7 @@ import { DiscordsCommand } from "./DiscordsCommand.js";
 import { DefineCommand } from "./DefineCommand.js";
 import { SearchCommand } from "./SearchCommand.js";
 import { JoinDiscordCommand } from "./JoinDiscordCommand.js";
+import { AskCommand } from "./AskCommand.js";
 export function getCommands() {
     const Commands = [
         new Mwa(),
@@ -44,6 +45,7 @@ export function getCommands() {
         new TopHelpersCommand(),
         new DictionaryEditCommand(),
         new DiscordsCommand(),
+        new AskCommand(),
      //   new DebugCommand(),
         new DefineCommand(),
         new SearchCommand(),

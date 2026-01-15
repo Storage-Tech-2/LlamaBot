@@ -24,7 +24,7 @@ import { DiscordServersDictionary } from "./DiscordServersDictionary.js";
 import { getDiscordServersFromReferences, ReferenceType, tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords, transformOutputWithReferencesForEmbeddings, transformOutputWithReferencesForGithub } from "../utils/ReferenceUtils.js";
 import { PersistentIndex, PersistentIndexChannel, PersistentIndexEntry, serializePersistentIndex } from "../utils/PersistentIndexUtils.js";
 import { postToMarkdown } from "../utils/MarkdownUtils.js";
-import got from "got";
+import { generateDocumentEmbeddings } from "../llm/EmbeddingUtils.js";
 
 export type EmbeddingsEntry = {
     code: string;
@@ -132,6 +132,13 @@ export class RepositoryManager {
         }
     }
 
+    public async getEmbeddings(): Promise<EmbeddingsEntry[]> {
+        const embeddingPath = this.getEmbeddingPath();
+        return fs.readFile(embeddingPath, 'utf-8')
+            .then(data => JSON.parse(data) as EmbeddingsEntry[])
+            .catch(() => []);
+    }
+
     public async buildPersistentIndexAndEmbeddings() {
         const authors = new Map<string, number>();
         const tags = new Map<string, number>();
@@ -143,7 +150,7 @@ export class RepositoryManager {
 
         const channels: PersistentIndexChannel[] = [];
 
-        const embeddings = JSON.parse(await fs.readFile(this.getEmbeddingPath(), 'utf-8').catch(() => '[]')) as EmbeddingsEntry[];
+        const embeddings = await this.getEmbeddings();
         const embeddingsMap = new Map<string, EmbeddingsEntry>(embeddings.map(e => [e.code, e]));
         const seenCodes = new Set<string>();
         const toRefreshEmbeddings = new Set<string>();
@@ -270,24 +277,12 @@ export class RepositoryManager {
                 return entryData.name + '\n' + transformOutputWithReferencesForEmbeddings(postToMarkdown(entryData.records, entryData.styles, persistentIndex.schemaStyles), entryData.references);
             });
 
+            const result = await generateDocumentEmbeddings(texts).catch((e) => {
+                console.error("Error generating document embeddings for archive entries:", e);
+                return null;
+            });
 
-            const URL = 'http://localhost:8000/embed'
-
-            let result;
-            try {
-                result = await got.post(URL, {
-                    json: {
-                        texts: texts,
-                        model_type: 'document'
-                    },
-                    timeout: {
-                        request: 60000 // 60 seconds
-                    }
-                }).json() as {
-                    embeddings: string[];
-                }
-            } catch (e) {
-                console.error("Error generating embeddings:", e);
+            if (result === null) {
                 continue;
             }
 

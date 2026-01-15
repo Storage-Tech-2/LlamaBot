@@ -175,7 +175,11 @@ def embed(req: EmbedRequest, request: Request):
             raise HTTPException(status_code=400, detail=f"Invalid model_type: {req.model_type}")
 
         try:
-            embeddings = model.encode(req.texts, truncate_dim=256)
+            if req.model_type == "document":
+                embeddings = model.encode(req.texts, truncate_dim=256)
+            else:
+                embeddings = model.encode(req.texts, truncate_dim=256, prompt_name="query")
+
             ranges = torch.tensor([[-0.3], [+0.3]]).expand(2, embeddings.shape[1]).cpu().numpy()
             quantized = quantize_embeddings(embeddings, "int8", ranges=ranges)
             # quantized = quantize_embeddings(embeddings,"binary")

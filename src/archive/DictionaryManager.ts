@@ -10,7 +10,7 @@ import { Lock } from "../utils/Lock.js";
 import { chunkArray, truncateStringWithEllipsis } from "../utils/Util.js";
 import { EditDictionaryEntryButton } from "../components/buttons/EditDictionaryEntryButton.js";
 import { buildDictionarySlug } from "../utils/SlugUtils.js";
-import { got } from "got";
+import { generateDocumentEmbeddings } from "../llm/EmbeddingUtils.js";
 
 export enum DictionaryEntryStatus {
     PENDING = "PENDING",
@@ -106,7 +106,7 @@ export class DictionaryManager {
         await fs.writeFile(configPath, JSON.stringify(configData, null, 2), 'utf-8');
         await this.repositoryManager.add(configPath);
 
-        const embeddings = JSON.parse(await fs.readFile(this.getDictionaryEmbeddingPath(), 'utf-8').catch(() => '[]')) as DictionaryEmbeddingsEntry[];
+        const embeddings = await this.getEmbeddings();
         const embeddingsMap = new Map<string, DictionaryEmbeddingsEntry>(embeddings.map(e => [e.id, e]));
         const seenCodes = new Set<string>();
         const toRefreshEmbeddings = new Set<string>();
@@ -149,24 +149,12 @@ export class DictionaryManager {
                 return transformOutputWithReferencesForEmbeddings(entryData.definition, entryData.references);
             });
 
-
-            const URL = 'http://localhost:8000/embed'
-
-            let result;
-            try {
-                result = await got.post(URL, {
-                    json: {
-                        texts: texts,
-                        model_type: 'document'
-                    },
-                    timeout: {
-                        request: 60000 // 60 seconds
-                    }
-                }).json() as {
-                    embeddings: string[];
-                }
-            } catch (e) {
-                console.error("Error generating dictionary embeddings:", e);
+            const result = await generateDocumentEmbeddings(texts).catch((e) => {
+                console.error("Error generating document embeddings for dictionary entries:", e);
+                return null;
+            });
+            
+            if (result === null) {
                 continue;
             }
 
@@ -186,6 +174,13 @@ export class DictionaryManager {
             await fs.writeFile(this.getDictionaryEmbeddingPath(), JSON.stringify(newEmbeddings, null, 2), 'utf-8');
             await this.repositoryManager.add(this.getDictionaryEmbeddingPath());
         }
+    }
+
+    public async getEmbeddings(): Promise<DictionaryEmbeddingsEntry[]> {
+        const embeddingPath = this.getDictionaryEmbeddingPath();
+        return fs.readFile(embeddingPath, 'utf-8')
+            .then(data => JSON.parse(data) as DictionaryEmbeddingsEntry[])
+            .catch(() => []);
     }
 
     getLock(): Lock {
