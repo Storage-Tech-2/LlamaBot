@@ -1,9 +1,8 @@
-import { AutocompleteInteraction, ChatInputCommandInteraction, EmbedBuilder, InteractionContextType, MessageFlags, SlashCommandBuilder } from "discord.js";
+import { ChatInputCommandInteraction, EmbedBuilder, InteractionContextType, MessageFlags, SlashCommandBuilder } from "discord.js";
 import { Command } from "../interface/Command.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { getAuthorsString, replyEphemeral, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
-import { PostCodePattern, transformOutputWithReferencesForDiscord } from "../utils/ReferenceUtils.js";
-import { ArchiveIndexEntry } from "../archive/IndexManager.js";
+import { transformOutputWithReferencesForDiscord } from "../utils/ReferenceUtils.js";
 import { base64ToInt8Array, computeSimilarities, generateQueryEmbeddings } from "../llm/EmbeddingUtils.js";
 import { RepositoryConfigs } from "../archive/RepositoryConfigs.js";
 
