@@ -82,16 +82,18 @@ export class AskCommand implements Command {
             source: "dictionary" | "repository" | "channel";
             codeOrId: string;
         };
-        const combinedScores: ScoredEntry[] = [];
+        const dictionaryScored: ScoredEntry[] = [];
+        const repositoryScored: ScoredEntry[] = [];
+        const channelScored: ScoredEntry[] = [];
         for (let i = 0; i < dictionaryScores.length; i++) {
-            combinedScores.push({
+            dictionaryScored.push({
                 score: dictionaryScores[i],
                 source: "dictionary",
                 codeOrId: dictionaryEmbeddings[i].id
             });
         }
         for (let i = 0; i < repositoryScores.length; i++) {
-            combinedScores.push({
+            repositoryScored.push({
                 score: repositoryScores[i],
                 source: "repository",
                 codeOrId: repositoryEmbeddings[i].code
@@ -99,17 +101,36 @@ export class AskCommand implements Command {
         }
 
         for (let i = 0; i < channelScores.length; i++) {
-            combinedScores.push({
+            channelScored.push({
                 score: channelScores[i],
                 source: "channel",
                 codeOrId: channels[i].id
             });
         }
 
-        combinedScores.sort((a, b) => b.score - a.score);
+        //combinedScores.sort((a, b) => b.score - a.score);
+
+        const getHighestScoredItem = (list: ScoredEntry[]) => {
+            return list.reduce((prev, current) => (prev && prev.score > current.score) ? prev : current, null as ScoredEntry | null);
+        }
+
+
+
+        // dictionaryScored.sort((a, b) => b.score - a.score);
+        // repositoryScored.sort((a, b) => b.score - a.score);
+        // channelScored.sort((a, b) => b.score - a.score);
+
+        const topDictionary = getHighestScoredItem(dictionaryScored);
+        const topRepository = getHighestScoredItem(repositoryScored);
+        const topChannel = getHighestScoredItem(channelScored);
 
         // take top 3
-        const topEntries = combinedScores.slice(0, 1);
+        // const topEntries = combinedScores.slice(0, 1);
+
+        const topEntries: ScoredEntry[] = [];
+        if (topChannel) topEntries.push(topChannel);
+        if (topDictionary) topEntries.push(topDictionary);
+        if (topRepository) topEntries.push(topRepository);
 
         const embeds = [];
 
