@@ -859,6 +859,41 @@ export function transformOutputWithReferencesForGithub(
 }
 
 
+export function transformOutputWithReferencesForEmbeddings(
+    text: string,
+    references: Reference[]
+): string {
+    return transformOutputWithReferencesWrapper(
+        text,
+        references,
+        (reference, matchedText, isHeader, isWithinHyperlink, hyperlinkText, _hyperlinkURL, hyperlinkTitle) => {
+            if (isHeader) {
+                return; // skip replacements in headers
+            }
+
+            if (reference.type === ReferenceType.DICTIONARY_TERM) {
+                return hyperlinkText || matchedText;
+            }
+
+            if (reference.type === ReferenceType.ARCHIVED_POST) {
+                return reference.code + ' ' + reference.name;
+            } else if (reference.type === ReferenceType.DISCORD_LINK) {
+                return `[redacted Discord link]`;
+            } else if (reference.type === ReferenceType.USER_MENTION) {
+                return getAuthorName(reference.user) || "Unknown User";
+            } else if (reference.type === ReferenceType.CHANNEL_MENTION) {
+                if (reference.channelName && reference.channelURL) {
+                    return `#${reference.channelName}`;
+                } else {
+                    return `#unknown-channel`;
+                }
+            }
+            return;
+        }
+    );
+}
+
+
 export function areReferencesIdentical(a: Reference, b: Reference): boolean {
     if (a.type === ReferenceType.ARCHIVED_POST && b.type === ReferenceType.ARCHIVED_POST) {
         return a.code === b.code && a.id === b.id && a.url === b.url && a.path === b.path && a.name === b.name;

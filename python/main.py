@@ -8,8 +8,11 @@ Run locally:
 
 from __future__ import annotations
 from sentence_transformers import SentenceTransformer  
+from sentence_transformers.quantization import quantize_embeddings
 
 import json as pyjson
+import base64
+import torch
 from pathlib import Path
 from threading import RLock
 from typing import Dict
@@ -102,7 +105,7 @@ class EmbedRequest(BaseModel):
     model_type: str = Field(..., description="Type of embedding model to use (document or query).")
 
 class EmbedResponse(BaseModel):
-    embeddings: list[list[float]]
+    embeddings: list[str]
 
 
 
@@ -172,7 +175,13 @@ def embed(req: EmbedRequest, request: Request):
             raise HTTPException(status_code=400, detail=f"Invalid model_type: {req.model_type}")
 
         try:
-            embeddings = model.encode(req.texts).tolist()
+            embeddings = model.encode(req.texts, truncate_dim=256)
+            ranges = torch.tensor([[-0.3], [+0.3]]).expand(2, embeddings.shape[1]).cpu().numpy()
+            quantized = quantize_embeddings(embeddings, "int8", ranges=ranges)
+            # quantized = quantize_embeddings(embeddings,"binary")
+            # convert to base64 strings
+            quantized = [base64.b64encode(emb).decode('utf-8') for emb in quantized]
+            
             model = None  # Clear the model to free resources
             gc.collect()
         except Exception as exc:  # noqa: BLE001
@@ -181,7 +190,7 @@ def embed(req: EmbedRequest, request: Request):
             gc.collect()
             raise HTTPException(status_code=500, detail=f"Embedding failed: {exc}") from exc
 
-        return EmbedResponse(embeddings=embeddings)
+        return EmbedResponse(embeddings=quantized)
 # Example curl command:
 # curl -X POST "http://localhost:8000/embed" -H "Content-Type: application/json" -d '{"texts": ["example text"], "model_type": "document"}'
 

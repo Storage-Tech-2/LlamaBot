@@ -98,6 +98,14 @@ export function getAuthorName(author: Author): string {
     }
 }
 
+export function chunkArray<T>(array: T[], chunkSize: number): T[][] {
+    const results: T[][] = [];
+    for (let i = 0; i < array.length; i += chunkSize) {
+        results.push(array.slice(i, i + chunkSize));
+    }
+    return results;
+}
+
 export function getAuthorIconURL(author: Author): string | undefined {
     return (author as AllAuthorPropertiesAccessor).iconURL;
 }

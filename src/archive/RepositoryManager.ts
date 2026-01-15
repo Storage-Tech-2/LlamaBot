@@ -4,7 +4,7 @@ import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
 import { AnyThreadChannel, AttachmentBuilder, ChannelType, EmbedBuilder, ForumChannel, ForumLayoutType, GuildTextBasedChannel, Message, MessageFlags, PartialMessage, Snowflake } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
-import { areAuthorsSame, deepClone, escapeString, generateCommitMessage, getAuthorIconURL, getAuthorName, getChangeIDs, getCodeAndDescriptionFromTopic, getGithubOwnerAndProject, mergeTwoArraysUnique, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
+import { areAuthorsSame, chunkArray, deepClone, escapeString, generateCommitMessage, getAuthorIconURL, getAuthorName, getChangeIDs, getCodeAndDescriptionFromTopic, getGithubOwnerAndProject, mergeTwoArraysUnique, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";
 import { Submission } from "../submissions/Submission.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
@@ -21,8 +21,17 @@ import { analyzeAttachments, filterAttachmentsForViewer, getAttachmentsFromMessa
 import { DictionaryManager } from "./DictionaryManager.js";
 import { IndexManager } from "./IndexManager.js";
 import { DiscordServersDictionary } from "./DiscordServersDictionary.js";
-import { getDiscordServersFromReferences, ReferenceType, tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
+import { getDiscordServersFromReferences, ReferenceType, tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords, transformOutputWithReferencesForEmbeddings, transformOutputWithReferencesForGithub } from "../utils/ReferenceUtils.js";
 import { PersistentIndex, PersistentIndexChannel, PersistentIndexEntry, serializePersistentIndex } from "../utils/PersistentIndexUtils.js";
+import { postToMarkdown } from "../utils/MarkdownUtils.js";
+import got from "got";
+
+export type EmbeddingsEntry = {
+    code: string;
+    updated_at: number;
+    embedding: string; // base64 encoded string
+}
+
 export class RepositoryManager {
     public folderPath: string;
     private git?: SimpleGit;
@@ -123,7 +132,7 @@ export class RepositoryManager {
         }
     }
 
-    public async buildPersistentIndex(): Promise<string> {
+    public async buildPersistentIndex() {
         const authors = new Map<string, number>();
         const tags = new Map<string, number>();
         const categories = new Map<string, number>();
@@ -133,6 +142,12 @@ export class RepositoryManager {
         channelReferences.sort((a, b) => a.position - b.position);
 
         const channels: PersistentIndexChannel[] = [];
+
+        const embeddings = JSON.parse(await fs.readFile(this.getEmbeddingPath(), 'utf-8')) as EmbeddingsEntry[];
+        const embeddingsMap = new Map<string, EmbeddingsEntry>(embeddings.map(e => [e.code, e]));
+        const seenCodes = new Set<string>();
+        const toRefreshEmbeddings = new Set<string>();
+
         for (const channelRef of channelReferences) {
             const channelPath = Path.join(this.folderPath, channelRef.path);
             const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
@@ -184,6 +199,13 @@ export class RepositoryManager {
                     updated_at: entryData.updatedAt,
                     main_image_path: entryData.images.length > 0 ? entryData.images[0].path || null : null
                 });
+
+                seenCodes.add(currentCode);
+
+                const embeddingEntry = embeddingsMap.get(currentCode);
+                if (!embeddingEntry || embeddingEntry.updated_at !== entryData.updatedAt) {
+                    toRefreshEmbeddings.add(entryPath);
+                }
             }
 
             // map categories
@@ -219,11 +241,80 @@ export class RepositoryManager {
 
         await this.git?.add(indexPath);
 
-        return indexPath;
+        // now handle embeddings refresh
+        const embeddingsToDelete: string[] = [];
+        for (const embeddingEntry of embeddings) {
+            if (!seenCodes.has(embeddingEntry.code)) {
+                embeddingsToDelete.push(embeddingEntry.code);
+            }
+        }
+
+        for (const code of embeddingsToDelete) {
+            embeddingsMap.delete(code);
+        }
+
+        const toRefreshEmbeddingsChunked = chunkArray(Array.from(toRefreshEmbeddings), 20);
+        for (const chunk of toRefreshEmbeddingsChunked) {
+            const entries = (await Promise.all(chunk.map(async entryPath => {
+                const archiveEntry = await ArchiveEntry.fromFolder(entryPath);
+                if (!archiveEntry) {
+                    return null;
+                }
+                const entryData = archiveEntry.getData();
+                return entryData;
+            }))).filter((e): e is ArchiveEntryData => e !== null);
+
+
+            // get text
+            const texts = entries.map(entryData => {
+                return entryData.name + '\n' + transformOutputWithReferencesForEmbeddings(postToMarkdown(entryData.records, entryData.styles, persistentIndex.schemaStyles), entryData.references);
+            });
+
+
+            const URL = 'http://localhost:8000/embed'
+
+            let result;
+            try {
+                result = await got.post(URL, {
+                    json: {
+                        texts: texts,
+                        model_type: 'document'
+                    },
+                    timeout: {
+                        request: 60000 // 60 seconds
+                    }
+                }).json() as {
+                    embeddings: string[];
+                }
+            } catch (e) {
+                console.error("Error generating embeddings:", e);
+                continue;
+            }
+
+            for (let i = 0; i < entries.length; i++) {
+                const entryData = entries[i];
+                const embedding = result.embeddings[i];
+                embeddingsMap.set(entryData.code, {
+                    code: entryData.code,
+                    updated_at: entryData.updatedAt,
+                    embedding: embedding
+                });
+            }
+        }
+
+        if (toRefreshEmbeddings.size > 0 || embeddingsToDelete.length > 0) {
+            const newEmbeddings = Array.from(embeddingsMap.values());
+            await fs.writeFile(this.getEmbeddingPath(), JSON.stringify(newEmbeddings, null, 2), 'utf-8');
+            await this.git?.add(this.getEmbeddingPath());
+        }
     }
 
     public getPersistentIndexPath(): string {
         return Path.join(this.folderPath, 'persistent.idx');
+    }
+
+    public getEmbeddingPath(): string {
+        return Path.join(this.folderPath, 'embeddings.json');
     }
 
     public async iterateAllEntries(callback: (entry: ArchiveEntry, entryRef: ArchiveEntryReference, channelRef: ArchiveChannelReference, channel: ArchiveChannel) => Promise<void>) {
