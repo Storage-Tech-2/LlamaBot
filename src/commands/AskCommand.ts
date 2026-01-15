@@ -195,7 +195,7 @@ export class AskCommand implements Command {
                 if (!channel) continue;
 
                 const embed = new EmbedBuilder()
-                    .setTitle(truncateStringWithEllipsis(`Channel:` + channel.name, 256))
+                    .setTitle(truncateStringWithEllipsis(`Channel: ` + channel.name, 256))
                     .setDescription(truncateStringWithEllipsis(channel.description, 4000))
                     .setColor(0x0099ff);
 
