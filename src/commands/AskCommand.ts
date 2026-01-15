@@ -135,7 +135,7 @@ export class AskCommand implements Command {
                     if (url) {
                         embed.setURL(url);
                     }
-                    
+
                     embeds.push(embed);
                 }
 
@@ -177,6 +177,9 @@ export class AskCommand implements Command {
                     .setTitle(truncateStringWithEllipsis(channel.name, 256))
                     .setDescription(truncateStringWithEllipsis(channel.description, 4000))
                     .setColor(0x0099ff);
+
+                const url = `https://discord.com/channels/${guildHolder.getGuildId()}/${channel.id}`;
+                embed.setURL(url);
 
                 embeds.push(embed);
             }
