@@ -144,7 +144,7 @@ export class AskCommand implements Command {
 
                 const embed = new EmbedBuilder()
                     .setTitle(truncateStringWithEllipsis(name, 256))
-                    .setDescription(truncateStringWithEllipsis(textArr.join('\n'), 500))
+                    .setDescription(truncateStringWithEllipsis(textArr.join('\n'), 4000))
                     .setColor(0x00AE86)
                     .setURL(entryData.post?.threadURL || '');
                 if (image) {
@@ -163,7 +163,7 @@ export class AskCommand implements Command {
         }
 
         await interaction.editReply({
-            content: truncateStringWithEllipsis(`You asked: "${question}"\n\nHere are the most relevant entries I found:`, 2000),
+            content: truncateStringWithEllipsis(`You asked: \`${question}\`"\nHere are the most relevant entries I found:`, 2000),
             allowedMentions: { parse: [] }
         });
 
