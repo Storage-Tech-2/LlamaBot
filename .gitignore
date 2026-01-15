@@ -7,4 +7,5 @@ coverage
 /config
 secrets.json
 __pycache__
+.venv
 dist

@@ -7,6 +7,7 @@ Run locally:
 """
 
 from __future__ import annotations
+from sentence_transformers import SentenceTransformer  
 
 import json as pyjson
 from pathlib import Path
@@ -56,6 +57,22 @@ def _load_model(app: FastAPI):
     return model
 
 
+
+def _load_document_model(app: FastAPI):
+    """Load the document embedding model"""
+    print("⏳  Loading document model …")
+    model = SentenceTransformer("Snowflake/snowflake-arctic-embed-m-v1.5") 
+    print("✅  Model ready.")
+    return model
+
+def _load_query_model(app: FastAPI):
+    """Load the query embedding model"""
+    print("⏳  Loading query model …")
+    model = SentenceTransformer("MongoDB/mdbr-leaf-ir") 
+    print("✅  Model ready.")
+    return model
+
+
 # ---------------------------------------------------------------------------
 # FastAPI app (no lifespan handler)
 # ---------------------------------------------------------------------------
@@ -78,6 +95,15 @@ class GenerateRequest(BaseModel):
 
 class GenerateResponse(BaseModel):
     result: dict
+
+
+class EmbedRequest(BaseModel):
+    texts: list[str] = Field(..., description="List of texts to embed.")
+    model_type: str = Field(..., description="Type of embedding model to use (document or query).")
+
+class EmbedResponse(BaseModel):
+    embeddings: list[list[float]]
+
 
 
 # ---------------------------------------------------------------------------
@@ -133,6 +159,31 @@ def generate(req: GenerateRequest, request: Request):
 
         return GenerateResponse(result=output)
 
+
+@app.post("/embed", response_model=EmbedResponse, status_code=200)
+def embed(req: EmbedRequest, request: Request):
+    with _MODEL_LOCK:
+        # Ensure the appropriate model is initialised
+        if req.model_type == "document":
+            model = _load_document_model(request.app)
+        elif req.model_type == "query":
+            model = _load_query_model(request.app)
+        else:
+            raise HTTPException(status_code=400, detail=f"Invalid model_type: {req.model_type}")
+
+        try:
+            embeddings = model.encode(req.texts).tolist()
+            model = None  # Clear the model to free resources
+            gc.collect()
+        except Exception as exc:  # noqa: BLE001
+            print(f"❌  Embedding failed: {exc}")
+            model = None  # Clear the model to free resources
+            gc.collect()
+            raise HTTPException(status_code=500, detail=f"Embedding failed: {exc}") from exc
+
+        return EmbedResponse(embeddings=embeddings)
+# Example curl command:
+# curl -X POST "http://localhost:8000/embed" -H "Content-Type: application/json" -d '{"texts": ["example text"], "model_type": "document"}'
 
 # ---------------------------------------------------------------------------
 # Lightweight health check
