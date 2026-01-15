@@ -274,7 +274,7 @@ export class RepositoryManager {
 
             // get text
             const texts = entries.map(entryData => {
-                return entryData.name + '\n' + transformOutputWithReferencesForEmbeddings(postToMarkdown(entryData.records, entryData.styles, persistentIndex.schemaStyles), entryData.references);
+                return 'Name: ' +entryData.name + '\n\n' + transformOutputWithReferencesForEmbeddings(postToMarkdown(entryData.records, entryData.styles, persistentIndex.schemaStyles), entryData.references);
             });
 
             const result = await generateDocumentEmbeddings(texts).catch((e) => {

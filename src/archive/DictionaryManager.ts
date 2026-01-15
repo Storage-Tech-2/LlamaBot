@@ -146,7 +146,7 @@ export class DictionaryManager {
 
             // get text
             const texts = entries.map(entryData => {
-                return transformOutputWithReferencesForEmbeddings(entryData.definition, entryData.references);
+                return "Terms: " + entryData.terms.join(", ") + `\nDefinition: ` + transformOutputWithReferencesForEmbeddings(entryData.definition, entryData.references);
             });
 
             const result = await generateDocumentEmbeddings(texts).catch((e) => {
