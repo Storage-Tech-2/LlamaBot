@@ -143,7 +143,7 @@ export class RepositoryManager {
 
         const channels: PersistentIndexChannel[] = [];
 
-        const embeddings = JSON.parse(await fs.readFile(this.getEmbeddingPath(), 'utf-8')) as EmbeddingsEntry[];
+        const embeddings = JSON.parse(await fs.readFile(this.getEmbeddingPath(), 'utf-8').catch(() => '[]')) as EmbeddingsEntry[];
         const embeddingsMap = new Map<string, EmbeddingsEntry>(embeddings.map(e => [e.code, e]));
         const seenCodes = new Set<string>();
         const toRefreshEmbeddings = new Set<string>();
