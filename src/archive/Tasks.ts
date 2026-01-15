@@ -99,7 +99,7 @@ export async function republishAllEntries(
             }
         }
 
-        await repositoryManager.buildPersistentIndex();
+        await repositoryManager.buildPersistentIndexAndEmbeddings();
 
         // Commit changes
         await repositoryManager.commit(`Republished all entries${doChannel ? ` in channel ${doChannel.name}` : ''}`);
@@ -300,7 +300,7 @@ export async function updateMetadataTask(guildHolder: GuildHolder): Promise<numb
         });
 
         if (modifiedCount > 0) {
-            await repositoryManager.buildPersistentIndex();
+            await repositoryManager.buildPersistentIndexAndEmbeddings();
             try {
                 await repositoryManager.commit(`Updated metadata for ${modifiedCount} entries`);
                 try {

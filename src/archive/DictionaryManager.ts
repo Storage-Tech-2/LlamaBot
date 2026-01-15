@@ -3,18 +3,25 @@ import fs from "fs/promises";
 import Path from "path";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { GuildHolder } from "../GuildHolder.js";
-import { DictionaryTermIndex, Reference, tagReferences, transformOutputWithReferencesForDiscord, MarkdownCharacterRegex } from "../utils/ReferenceUtils.js";
+import { DictionaryTermIndex, Reference, tagReferences, transformOutputWithReferencesForDiscord, MarkdownCharacterRegex, transformOutputWithReferencesForEmbeddings } from "../utils/ReferenceUtils.js";
 import { ArchiveIndex, BasicDictionaryIndexEntry, IndexManager } from "./IndexManager.js";
 import { RepositoryManager } from "./RepositoryManager.js";
 import { Lock } from "../utils/Lock.js";
-import { truncateStringWithEllipsis } from "../utils/Util.js";
+import { chunkArray, truncateStringWithEllipsis } from "../utils/Util.js";
 import { EditDictionaryEntryButton } from "../components/buttons/EditDictionaryEntryButton.js";
 import { buildDictionarySlug } from "../utils/SlugUtils.js";
+import { got } from "got";
 
 export enum DictionaryEntryStatus {
     PENDING = "PENDING",
     APPROVED = "APPROVED",
     REJECTED = "REJECTED"
+}
+
+export type DictionaryEmbeddingsEntry = {
+    id: string;
+    updated_at: number;
+    embedding: string; // base64 encoded string
 }
 
 export type DictionaryEntry = {
@@ -79,6 +86,10 @@ export class DictionaryManager {
         return false;
     }
 
+    public getDictionaryEmbeddingPath(): string {
+        return Path.join(this.folderPath, 'embeddings.json');
+    }
+
     async rebuildConfigIndex(): Promise<void> {
         const configPath = this.getConfigPath();
         const entries = await this.listEntries();
@@ -93,41 +104,116 @@ export class DictionaryManager {
             })
         };
         await fs.writeFile(configPath, JSON.stringify(configData, null, 2), 'utf-8');
+        await this.repositoryManager.add(configPath);
+
+        const embeddings = JSON.parse(await fs.readFile(this.getDictionaryEmbeddingPath(), 'utf-8').catch(() => '[]')) as DictionaryEmbeddingsEntry[];
+        const embeddingsMap = new Map<string, DictionaryEmbeddingsEntry>(embeddings.map(e => [e.id, e]));
+        const seenCodes = new Set<string>();
+        const toRefreshEmbeddings = new Set<string>();
+
+
+        for (const entry of configData.entries) {
+            const data = await this.getEntry(entry.id);
+            if (!data) {
+                continue;
+            }
+            seenCodes.add(entry.id);
+            const existingEmbedding = embeddingsMap.get(entry.id);
+            if (!existingEmbedding || existingEmbedding.updated_at !== data.updatedAt) {
+                toRefreshEmbeddings.add(entry.id);
+            }
+        }
+
+        // now handle embeddings refresh
+        const embeddingsToDelete: string[] = [];
+        for (const embeddingEntry of embeddings) {
+            if (!seenCodes.has(embeddingEntry.id)) {
+                embeddingsToDelete.push(embeddingEntry.id);
+            }
+        }
+
+        for (const code of embeddingsToDelete) {
+            embeddingsMap.delete(code);
+        }
+
+        const toRefreshEmbeddingsChunked = chunkArray(Array.from(toRefreshEmbeddings), 20);
+        for (const chunk of toRefreshEmbeddingsChunked) {
+            const entries = (await Promise.all(chunk.map(async entryPath => {
+                const entryData = await this.getEntry(entryPath);
+                return entryData;
+            }))).filter((e): e is DictionaryEntry => e !== null);
+
+
+            // get text
+            const texts = entries.map(entryData => {
+                return transformOutputWithReferencesForEmbeddings(entryData.definition, entryData.references);
+            });
+
+
+            const URL = 'http://localhost:8000/embed'
+
+            let result;
+            try {
+                result = await got.post(URL, {
+                    json: {
+                        texts: texts,
+                        model_type: 'document'
+                    },
+                    timeout: {
+                        request: 60000 // 60 seconds
+                    }
+                }).json() as {
+                    embeddings: string[];
+                }
+            } catch (e) {
+                console.error("Error generating dictionary embeddings:", e);
+                continue;
+            }
+
+            for (let i = 0; i < entries.length; i++) {
+                const entryData = entries[i];
+                const embedding = result.embeddings[i];
+                embeddingsMap.set(entryData.id, {
+                    id: entryData.id,
+                    updated_at: entryData.updatedAt,
+                    embedding: embedding
+                });
+            }
+        }
+
+        if (toRefreshEmbeddings.size > 0 || embeddingsToDelete.length > 0) {
+            const newEmbeddings = Array.from(embeddingsMap.values());
+            await fs.writeFile(this.getDictionaryEmbeddingPath(), JSON.stringify(newEmbeddings, null, 2), 'utf-8');
+            await this.repositoryManager.add(this.getDictionaryEmbeddingPath());
+        }
     }
 
-    async saveEntry(entry: DictionaryEntry, push: boolean = false): Promise<void> {
+    getLock(): Lock {
+        return this.repositoryManager.getLock();
+    }
+
+    async saveEntry(entry: DictionaryEntry): Promise<void> {
         const oldEntry = await this.getEntry(entry.id);
         const entryPath = Path.join(this.getEntriesPath(), `${entry.id}.json`);
         await fs.mkdir(this.getEntriesPath(), { recursive: true });
         await fs.writeFile(entryPath, JSON.stringify(entry, null, 2), 'utf-8');
+        await this.repositoryManager.add(entryPath).catch(() => { });
         const rebuildNeeded = !oldEntry || oldEntry.status !== entry.status || this.haveTermsChanged(oldEntry.terms, entry.terms);
-        if (rebuildNeeded) {
-            await this.rebuildConfigIndex();
-        }
-        if (push) {
-            await this.repositoryManager.getLock().acquire();
-            await this.repositoryManager.add(entryPath).catch(() => { });
-            if (rebuildNeeded) {
-                await this.repositoryManager.add(this.getConfigPath()).catch(() => { });
-            }
-            await this.repositoryManager.commit(oldEntry ? `Updated dictionary entry ${entry.terms[0]}` : `Added dictionary entry ${entry.terms[0]}`).catch(() => { });
-            await this.repositoryManager.push().catch(() => { });
-            this.repositoryManager.getLock().release();
-        } else {
-            await this.repositoryManager.add(entryPath).catch(() => { });
-            if (rebuildNeeded) {
-                await this.repositoryManager.add(this.getConfigPath()).catch(() => { });
-            }
-        }
-
+        await this.rebuildConfigIndex().catch((e) => {
+            console.error("Error rebuilding dictionary config index:", e);
+        });
         this.invalidateDictionaryTermIndex();
         if (rebuildNeeded) {
-            // if (push) {
-            //     await retagEverythingTask(this.guildHolder);
-            // } else {
             this.repositoryManager.getGuildHolder().requestRetagging();
-            //}
         }
+    }
+
+    async saveEntryAndPush(entry: DictionaryEntry): Promise<void> {
+        await this.repositoryManager.getLock().acquire();
+        await this.saveEntry(entry);
+        await this.repositoryManager.commit(`Updated dictionary entry ${entry.terms[0]}`).catch(() => { });
+        await this.repositoryManager.push().catch(() => { });
+        this.repositoryManager.getLock().release();
     }
 
     async deleteEntry(entry: DictionaryEntry): Promise<void> {

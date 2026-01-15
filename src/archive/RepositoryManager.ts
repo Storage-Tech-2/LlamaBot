@@ -132,7 +132,7 @@ export class RepositoryManager {
         }
     }
 
-    public async buildPersistentIndex() {
+    public async buildPersistentIndexAndEmbeddings() {
         const authors = new Map<string, number>();
         const tags = new Map<string, number>();
         const categories = new Map<string, number>();
@@ -308,6 +308,7 @@ export class RepositoryManager {
             await this.git?.add(this.getEmbeddingPath());
         }
     }
+
 
     public getPersistentIndexPath(): string {
         return Path.join(this.folderPath, 'persistent.idx');
@@ -618,7 +619,7 @@ export class RepositoryManager {
         await this.save();
 
         // Rebuild index
-        await this.buildPersistentIndex();
+        await this.buildPersistentIndexAndEmbeddings();
 
         // Add config if it doesn't exist
         await this.git.add(Path.join(this.folderPath, 'config.json'));
@@ -910,7 +911,7 @@ export class RepositoryManager {
             const newEntryData = result.newEntryData;
             const oldEntryData = result.oldEntryData;
 
-            await this.buildPersistentIndex();
+            await this.buildPersistentIndexAndEmbeddings();
 
             if (oldEntryData) {
                 await this.commit(`${newEntryData.code}: ${generateCommitMessage(oldEntryData, newEntryData)}`);
@@ -1562,7 +1563,7 @@ export class RepositoryManager {
             await foundChannel.savePrivate();
             await this.git.add(foundChannel.getDataPath());
 
-            await this.buildPersistentIndex();
+            await this.buildPersistentIndexAndEmbeddings();
 
             // Commit the removal
             await this.commit(`Retracted entry ${entryData.name} (${entryData.code}) from channel ${foundChannel.getData().name} (${foundChannel.getData().code})\nReason: ${reason || 'No reason provided'}`);
@@ -1992,7 +1993,7 @@ export class RepositoryManager {
             await this.git.add(found.channel.getDataPath());
             await this.indexManager.deleteSubmissionIDForPostID(postId);
 
-            await this.buildPersistentIndex();
+            await this.buildPersistentIndexAndEmbeddings();
 
             // Commit the removal
             await this.commit(`Force deleted ${found.entry.getData().code} ${found.entry.getData().name} from channel ${found.channel.getData().name} (${found.channel.getData().code})`);
@@ -2148,7 +2149,7 @@ export class RepositoryManager {
                             await submission.save();
                             await submission.statusUpdated();
 
-                            await this.buildPersistentIndex();
+                            await this.buildPersistentIndexAndEmbeddings();
                         }
                     }
                 }

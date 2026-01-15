@@ -260,7 +260,7 @@ export class DictionaryEditCommand implements Command {
 
         await interaction.deferReply();
 
-        await dictionaryManager.saveEntry(entry, true);
+        await dictionaryManager.saveEntryAndPush(entry);
         await dictionaryManager.updateStatusMessage(entry, thread);
         await interaction.editReply({
             content:

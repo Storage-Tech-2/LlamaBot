@@ -106,7 +106,7 @@ export class DictionaryEditModal implements Modal {
         }
 
         entry.updatedAt = Date.now();
-        await dictionaryManager.saveEntry(entry, true);
+        await dictionaryManager.saveEntryAndPush(entry);
         await dictionaryManager.updateStatusMessage(entry, thread);
         await dictionaryManager.warnIfDuplicate(entry, thread);
 
