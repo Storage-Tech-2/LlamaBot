@@ -404,7 +404,12 @@ export class RepositoryManager {
         this.dictionaryManager.invalidateArchiveIndex();
 
         const reMapped: ArchiveChannelReference[] = [];
-        for (const channel of channels.values()) {
+        const channelsArray = Array.from(channels.values());
+
+        const embeddingsTextToGenerate: string[] = [];
+        const codeAndDescriptions: string[][] = [];
+        const posititons: number[] = [];
+        for (const channel of channelsArray) {
             await channel.fetch();
             const { code, description } = getCodeAndDescriptionFromTopic(channel.topic || '');
             if (!code) {
@@ -412,16 +417,27 @@ export class RepositoryManager {
                 throw new Error(`Channel ${channel.name} (${channel.id}) does not have a valid code in the topic.`);
             }
 
-            const embeddings = await generateDocumentEmbeddings([`Channel: ${channel.name}\nDesigns archived in this channel: ${description || 'No description'}`]).catch(() => null);
+            codeAndDescriptions.push([code, description || 'No description', channel.name, channel.parent?.name || '']);
+            posititons.push(channel.rawPosition);
+            embeddingsTextToGenerate.push(`Channel: ${channel.name}\nDesigns archived in this channel: ${description || 'No description'}`);
+        }
+
+        const allEmbeddings = await generateDocumentEmbeddings(embeddingsTextToGenerate).catch(() => null);
+
+
+        for (let i = 0; i < channelsArray.length; i++) {
+            const channel = channelsArray[i];
+            const [code, description, name, category] = codeAndDescriptions[i];
+            const embeddings = allEmbeddings ? allEmbeddings.embeddings[i] : undefined;
             reMapped.push({
                 id: channel.id,
-                name: channel.name,
+                name,
                 code,
-                embedding: embeddings?.embeddings[0] || undefined,
-                category: channel.parent?.name || '',
-                path: `Archive/${code}_${escapeString(channel.name) || ''}`,
+                embedding: embeddings,
+                category,
+                path: `Archive/${code}_${escapeString(name) || ''}`,
                 description: description || 'No description',
-                position: channel.rawPosition
+                position: posititons[i]
             });
         }
 
