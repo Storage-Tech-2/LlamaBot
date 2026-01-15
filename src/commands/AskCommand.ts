@@ -124,7 +124,7 @@ export class AskCommand implements Command {
                 const closestMatchTerm = dictEntry.terms[0];
                 for (let i = 0; i < definitionSplit.length; i++) {
                     const embed = new EmbedBuilder()
-                        .setTitle(truncateStringWithEllipsis(closestMatchTerm, 256))
+                        .setTitle(truncateStringWithEllipsis(`Term: ` + closestMatchTerm, 256))
                         .setDescription(definitionSplit[i])
                         .setColor(0x2d7d46);
 
@@ -174,7 +174,7 @@ export class AskCommand implements Command {
                 if (!channel) continue;
 
                 const embed = new EmbedBuilder()
-                    .setTitle(truncateStringWithEllipsis(channel.name, 256))
+                    .setTitle(truncateStringWithEllipsis(`Channel:` + channel.name, 256))
                     .setDescription(truncateStringWithEllipsis(channel.description, 4000))
                     .setColor(0x0099ff);
 
