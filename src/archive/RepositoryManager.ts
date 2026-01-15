@@ -412,7 +412,7 @@ export class RepositoryManager {
                 throw new Error(`Channel ${channel.name} (${channel.id}) does not have a valid code in the topic.`);
             }
 
-            const embeddings = await generateDocumentEmbeddings([`Channel: ${channel.name}\nDescription: ${description || 'No description'}`]).catch(() => null);
+            const embeddings = await generateDocumentEmbeddings([`Channel: ${channel.name}\nDesigns archived in this channel: ${description || 'No description'}`]).catch(() => null);
             reMapped.push({
                 id: channel.id,
                 name: channel.name,

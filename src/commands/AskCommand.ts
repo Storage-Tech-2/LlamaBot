@@ -109,7 +109,7 @@ export class AskCommand implements Command {
         combinedScores.sort((a, b) => b.score - a.score);
 
         // take top 3
-        const topEntries = combinedScores.slice(0, 3);
+        const topEntries = combinedScores.slice(0, 1);
 
         const embeds = [];
 
@@ -193,7 +193,7 @@ export class AskCommand implements Command {
         }
 
         await interaction.editReply({
-            content: truncateStringWithEllipsis(`You asked: \`${question}\`"\nHere are the most relevant entries I found:`, 2000),
+            content: truncateStringWithEllipsis(`You asked: \`${question}\`\nHere are the most relevant entries I found:`, 2000),
             allowedMentions: { parse: [] }
         });
 
