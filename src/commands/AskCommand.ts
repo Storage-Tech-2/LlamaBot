@@ -40,6 +40,11 @@ export class AskCommand implements Command {
             return;
         }
 
+        if (!interaction.channel?.isSendable()) {
+            await replyEphemeral(interaction, "I cannot send messages in this channel.");
+            return;
+        }
+
         // defer reply
         await interaction.deferReply();
 
@@ -165,7 +170,7 @@ export class AskCommand implements Command {
                     allowedMentions: { parse: [] }
                 });
             } else {
-                await interaction.followUp({
+                await interaction.channel.send({
                     embeds: [embeds[i]],
                     flags: [MessageFlags.SuppressNotifications],
                     allowedMentions: { parse: [] }
