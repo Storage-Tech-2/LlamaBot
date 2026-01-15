@@ -5,6 +5,7 @@ import { getAuthorsString, replyEphemeral, splitIntoChunks, truncateStringWithEl
 import { PostCodePattern, transformOutputWithReferencesForDiscord } from "../utils/ReferenceUtils.js";
 import { ArchiveIndexEntry } from "../archive/IndexManager.js";
 import { base64ToInt8Array, computeSimilarities, generateQueryEmbeddings } from "../llm/EmbeddingUtils.js";
+import { RepositoryConfigs } from "../archive/RepositoryConfigs.js";
 
 export class AskCommand implements Command {
     getID(): string {
@@ -66,17 +67,20 @@ export class AskCommand implements Command {
         // get indexes
         const dictionaryEmbeddings = await guildHolder.getDictionaryManager().getEmbeddings();
         const repositoryEmbeddings = await guildHolder.getRepositoryManager().getEmbeddings();
-
+        const channels = guildHolder.getRepositoryManager().getConfigManager().getConfig(RepositoryConfigs.ARCHIVE_CHANNELS).filter(c => c.embedding);
+        
         const dictionaryEmbeddingVectors = dictionaryEmbeddings.map(e => base64ToInt8Array(e.embedding));
         const repositoryEmbeddingVectors = repositoryEmbeddings.map(e => base64ToInt8Array(e.embedding));
+        const channelEmbeddingVectors = channels.map(c => base64ToInt8Array(c.embedding!));
 
         const dictionaryScores = computeSimilarities(queryEmbedding, dictionaryEmbeddingVectors);
         const repositoryScores = computeSimilarities(queryEmbedding, repositoryEmbeddingVectors);
+        const channelScores = computeSimilarities(queryEmbedding, channelEmbeddingVectors);
 
         // combine and sort
         type ScoredEntry = {
             score: number;
-            source: "dictionary" | "repository";
+            source: "dictionary" | "repository" | "channel";
             codeOrId: string;
         };
         const combinedScores: ScoredEntry[] = [];
@@ -92,6 +96,14 @@ export class AskCommand implements Command {
                 score: repositoryScores[i],
                 source: "repository",
                 codeOrId: repositoryEmbeddings[i].code
+            });
+        }
+
+        for (let i = 0; i < channelScores.length; i++) {
+            combinedScores.push({
+                score: channelScores[i],
+                source: "channel",
+                codeOrId: channels[i].id
             });
         }
 
@@ -151,6 +163,16 @@ export class AskCommand implements Command {
                     embed.setThumbnail(image);
                 }
 
+                embeds.push(embed);
+            } else if (entry.source === "channel") {
+                const channel = channels.find(c => c.id === entry.codeOrId);
+                if (!channel) continue;
+
+                const embed = new EmbedBuilder()
+                    .setTitle(truncateStringWithEllipsis(channel.name, 256))
+                    .setDescription(truncateStringWithEllipsis(channel.description, 4000))
+                    .setColor(0x0099ff);
+                    
                 embeds.push(embed);
             }
         }

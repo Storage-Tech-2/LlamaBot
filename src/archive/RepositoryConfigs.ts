@@ -6,6 +6,7 @@ export type ArchiveChannelReference = {
     id: string;
     name: string;
     code: string;
+    embedding?: string;
     category: string;
     description: string;
     path: string;
