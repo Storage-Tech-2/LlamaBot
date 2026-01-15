@@ -67,7 +67,7 @@ export class AskCommand implements Command {
         const dictionaryEmbeddings = await guildHolder.getDictionaryManager().getEmbeddings();
         const repositoryEmbeddings = await guildHolder.getRepositoryManager().getEmbeddings();
         const channels = guildHolder.getRepositoryManager().getConfigManager().getConfig(RepositoryConfigs.ARCHIVE_CHANNELS).filter(c => c.embedding);
-        
+
         const dictionaryEmbeddingVectors = dictionaryEmbeddings.map(e => base64ToInt8Array(e.embedding));
         const repositoryEmbeddingVectors = repositoryEmbeddings.map(e => base64ToInt8Array(e.embedding));
         const channelEmbeddingVectors = channels.map(c => base64ToInt8Array(c.embedding!));
@@ -119,6 +119,7 @@ export class AskCommand implements Command {
                 if (!dictEntry) continue;
 
                 const definitionSplit = splitIntoChunks(transformOutputWithReferencesForDiscord(dictEntry.definition, dictEntry.references), 4000);
+                const url = dictEntry.statusURL || dictEntry.threadURL || "";
 
                 const closestMatchTerm = dictEntry.terms[0];
                 for (let i = 0; i < definitionSplit.length; i++) {
@@ -130,6 +131,11 @@ export class AskCommand implements Command {
                     if (definitionSplit.length > 1) {
                         embed.setFooter({ text: `Part ${i + 1} of ${definitionSplit.length}` });
                     }
+
+                    if (url) {
+                        embed.setURL(url);
+                    }
+                    
                     embeds.push(embed);
                 }
 
@@ -171,7 +177,7 @@ export class AskCommand implements Command {
                     .setTitle(truncateStringWithEllipsis(channel.name, 256))
                     .setDescription(truncateStringWithEllipsis(channel.description, 4000))
                     .setColor(0x0099ff);
-                    
+
                 embeds.push(embed);
             }
         }
