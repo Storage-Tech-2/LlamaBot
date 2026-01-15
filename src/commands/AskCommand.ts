@@ -162,20 +162,18 @@ export class AskCommand implements Command {
             return;
         }
 
+        await interaction.editReply({
+            content: truncateStringWithEllipsis(`You asked: "${question}"\n\nHere are the most relevant entries I found:`, 2000),
+            allowedMentions: { parse: [] }
+        });
+
         // each embed gets its own message if more than 1
         for (let i = 0; i < embeds.length; i++) {
-            if (i === 0) {
-                await interaction.editReply({
-                    embeds: [embeds[i]],
-                    allowedMentions: { parse: [] }
-                });
-            } else {
-                await interaction.channel.send({
-                    embeds: [embeds[i]],
-                    flags: [MessageFlags.SuppressNotifications],
-                    allowedMentions: { parse: [] }
-                });
-            }
+            await interaction.channel.send({
+                embeds: [embeds[i]],
+                flags: [MessageFlags.SuppressNotifications],
+                allowedMentions: { parse: [] }
+            });
         }
     }
 }
