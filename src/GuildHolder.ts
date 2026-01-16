@@ -1728,7 +1728,7 @@ export class GuildHolder {
                 {
                     schema: zodSchema(
                         z.object({
-                            response: z.string().optional().describe('The response from the assistant to be sent in the Discord channel. Optional, may be empty if no response is needed.'),
+                            response_text: z.string().optional().describe('The response from the assistant to be sent in the Discord channel. Optional, may be empty if no response is needed. You can and should mention post codes when relevant, but do not cite Snowflake IDs for definitions here, just provide the answer. '),
                             citations: z.array(z.string()).describe('A list of citations used in the response. Put the code of designs, id of definitions, or URL of the resource being cited.').optional(),
                         })
                     ),
@@ -1898,7 +1898,7 @@ export class GuildHolder {
         }
 
         // replace @username with actual mentions if possible
-        let responseText = response.output.response;
+        let responseText = response.output.response_text || '';
 
         if (!responseText) {
             return '';
