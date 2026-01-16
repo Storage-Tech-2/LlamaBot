@@ -1948,7 +1948,7 @@ export class GuildHolder {
                     })
                 ),
                 execute: async (input: { query: string }) => {
-                    console.log('Executing factsheet tool with query:', input.query);
+                    // console.log('Executing factsheet tool with query:', input.query);
                     const queryEmbeddings = await generateQueryEmbeddings([input.query.trim()]).catch(e => {
                         console.error('Error generating query embeddings:', e);
                         return null;
