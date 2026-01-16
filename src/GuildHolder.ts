@@ -1,5 +1,5 @@
 import { ActionRowBuilder, AnyThreadChannel, ChannelType, EmbedBuilder, Guild, GuildAuditLogsEntry, GuildMember, Message, MessageFlags, Role, PartialGuildMember, Snowflake, Attachment, GuildChannel, PartialMessage, TextChannel, TextThreadChannel } from "discord.js";
-import { Bot } from "./Bot.js";
+import { Bot, SysAdmin } from "./Bot.js";
 import { ConfigManager } from "./config/ConfigManager.js";
 import Path from "path";
 import { GuildConfigs } from "./config/GuildConfigs.js";
@@ -25,7 +25,7 @@ import { getDiscordLinksInText, getDiscordServersFromReferences, getPostCodesInT
 import { retagEverythingTask, updateMetadataTask } from "./archive/Tasks.js";
 import { RepositoryConfigs } from "./archive/RepositoryConfigs.js";
 import z from "zod";
-import { base64ToInt8Array, cosineSimilarity, generateQueryEmbeddings } from "./llm/EmbeddingUtils.js";
+import { base64ToInt8Array, generateQueryEmbeddings } from "./llm/EmbeddingUtils.js";
 import { PrivateFactBase } from "./archive/PrivateFactBase.js";
 /**
  * GuildHolder is a class that manages guild-related data.
@@ -352,7 +352,7 @@ export class GuildHolder {
 
         const llmEnabled = this.getConfigManager().getConfig(GuildConfigs.CONVERSATIONAL_LLM_ENABLED);
         const llmChannel = this.getConfigManager().getConfig(GuildConfigs.CONVERSATIONAL_LLM_CHANNEL);
-        const canConverse = this.canConverse() && (llmEnabled || (llmChannel && llmChannel === message.channel.id));
+        const canConverse = this.canConverse() && (llmEnabled || (llmChannel && llmChannel === message.channel.id) || SysAdmin === message.author.id);
         if (!canConverse) {
             return;
         }
