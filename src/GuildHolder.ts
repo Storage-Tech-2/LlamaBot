@@ -15,7 +15,7 @@ import fs from "fs/promises";
 import { countCharactersInRecord, postToMarkdown, StyleInfo } from "./utils/MarkdownUtils.js";
 import { Author, AuthorType, DiscordAuthor } from "./submissions/Author.js";
 import { NotABotButton } from "./components/buttons/NotABotButton.js";
-import { generateText, JSONSchema7, ModelMessage, zodSchema } from "ai";
+import { generateText, JSONSchema7, ModelMessage, stepCountIs, zodSchema } from "ai";
 import { UserSubscriptionManager } from "./config/UserSubscriptionManager.js";
 import { ChannelSubscriptionManager } from "./config/ChannelSubscriptionManager.js";
 import { AntiNukeManager } from "./support/AntiNukeManager.js";
@@ -1729,6 +1729,7 @@ export class GuildHolder {
             providerOptions: {
 
             },
+            stopWhen: stepCountIs(10),
             tools: {
                 search: {
                     description: 'Lookup designs made by expert Minecraft redstone engineers using semantic search.',
