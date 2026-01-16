@@ -85,6 +85,11 @@ export const GuildConfigs = {
     CONVERSATIONAL_LLM_ENABLED: new Config<boolean>("conversationalLlmEnabled", false),
 
     /**
+     * Conversational LLM enabled
+     */
+    CONVERSATIONAL_LLM_CHANNEL: new Config<Snowflake>("conversationalLlmChannel", ""),
+
+    /**
      * Website URL
      */
     WEBSITE_URL: new Config<string>("websiteUrl", ""),

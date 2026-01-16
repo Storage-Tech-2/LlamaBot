@@ -175,7 +175,14 @@ export class Mwa implements Command {
                         option
                             .setName('enabled')
                             .setDescription('Enable or disable conversational LLM features')
-                            .setRequired(true)
+                            .setRequired(false)
+                    )
+                    .addChannelOption(option =>
+                        option
+                            .setName('channel')
+                            .setDescription('Channel for conversational LLM features')
+                            .setRequired(false)
+                            .addChannelTypes(ChannelType.GuildText)
                     )
             )
 
@@ -247,7 +254,7 @@ export class Mwa implements Command {
                             .setRequired(true)
                     )
             )
-            .addSubcommand(subcommand => 
+            .addSubcommand(subcommand =>
                 subcommand
                     .setName('forceretag')
                     .setDescription('Force retagging of all archive and dictionary entries')
@@ -317,7 +324,7 @@ export class Mwa implements Command {
         });
         await interaction.followUp('<@' + interaction.user.id + '> Retagging of all archive and dictionary entries completed.');
     }
-    
+
     async setWebsite(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         const url = interaction.options.getString('url')
         if (!url) {
@@ -470,13 +477,21 @@ export class Mwa implements Command {
 
     async toggleLlm(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         const enabled = interaction.options.getBoolean('enabled');
-        if (enabled === null) {
-            await replyEphemeral(interaction, 'Invalid option');
+        const channel = interaction.options.getChannel('channel');
+
+        if (enabled !== null) {
+            guildHolder.getConfigManager().setConfig(GuildConfigs.CONVERSATIONAL_LLM_ENABLED, enabled);
+            await interaction.reply(`Conversational LLM features have been ${enabled ? 'enabled' : 'disabled'}.`);
             return;
         }
 
-        guildHolder.getConfigManager().setConfig(GuildConfigs.CONVERSATIONAL_LLM_ENABLED, enabled);
-        await interaction.reply(`Conversational LLM features have been ${enabled ? 'enabled' : 'disabled'}.`);
+        if (channel !== null) {
+            guildHolder.getConfigManager().setConfig(GuildConfigs.CONVERSATIONAL_LLM_CHANNEL, channel.id);
+            await interaction.reply(`Conversational LLM channel has been set to <#${channel.id}>.`);
+        } else {
+            guildHolder.getConfigManager().setConfig(GuildConfigs.CONVERSATIONAL_LLM_CHANNEL, '');
+            await interaction.reply(`Conversational LLM channel has been cleared.`);
+        }
     }
 
     async setSubmissions(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {

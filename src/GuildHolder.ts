@@ -21,7 +21,7 @@ import { ChannelSubscriptionManager } from "./config/ChannelSubscriptionManager.
 import { AntiNukeManager } from "./support/AntiNukeManager.js";
 import { DictionaryManager } from "./archive/DictionaryManager.js";
 import { DiscordServersDictionary } from "./archive/DiscordServersDictionary.js";
-import { getDiscordLinksInText, getDiscordServersFromReferences, getPostCodesInText, populateDiscordServerInfoInReferences, PostCodePattern, Reference, ReferenceType, tagReferences, transformOutputWithReferencesForDiscord, transformOutputWithReferencesForEmbeddings } from "./utils/ReferenceUtils.js";
+import { getDiscordLinksInText, getDiscordServersFromReferences, getPostCodesInText, populateDiscordServerInfoInReferences, Reference, ReferenceType, tagReferences, transformOutputWithReferencesForDiscord, transformOutputWithReferencesForEmbeddings } from "./utils/ReferenceUtils.js";
 import { retagEverythingTask, updateMetadataTask } from "./archive/Tasks.js";
 import { RepositoryConfigs } from "./archive/RepositoryConfigs.js";
 import z from "zod";
@@ -346,9 +346,10 @@ export class GuildHolder {
             return;
         }
 
-        // Finally, check if llm is available;
-        const isAdmin = message.member?.permissions.has('Administrator') || false;
-        if (!this.canConverse() || (!this.getConfigManager().getConfig(GuildConfigs.CONVERSATIONAL_LLM_ENABLED) && !isAdmin)) {
+        const llmEnabled = this.getConfigManager().getConfig(GuildConfigs.CONVERSATIONAL_LLM_ENABLED);
+        const llmChannel = this.getConfigManager().getConfig(GuildConfigs.CONVERSATIONAL_LLM_CHANNEL);
+        const canConverse = this.canConverse() && (llmEnabled || (llmChannel && llmChannel === message.channel.id));
+        if (!canConverse) {
             return;
         }
 
@@ -1672,7 +1673,7 @@ export class GuildHolder {
     }
 
 
-    public async canConverse() {
+    public canConverse() {
         return this.bot.xaiClient !== undefined;
     }
 
