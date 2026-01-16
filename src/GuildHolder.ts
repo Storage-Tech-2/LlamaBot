@@ -1922,7 +1922,7 @@ export class GuildHolder {
 
         if (this.privateFactBase.isFactBaseEnabled()) {
             tools.facts = {
-                description: 'Lookup information from the private fact database. This is the largest resource. Use this resource frequently to understand comprehensive knowledge about Minecraft, redstone, and common community practices.',
+                description: 'Lookup information from the private fact database. This is the largest resource. Use this resource frequently to understand comprehensive knowledge about Minecraft, redstone, and common community practices. Always check this before making recommendations.',
                 inputSchema: z.object({
                     query: z.string().min(1).max(256).describe('The search query to find relevant factsheet information.'),
                 }),
@@ -1930,7 +1930,7 @@ export class GuildHolder {
                     z.object({
                         results: z.array(z.object({
                             content: z.string().describe('The content of the factsheet.'),
-                        })).describe('Top 3 list of factsheet entries matching the search query.'),
+                        })).describe('Top 5 list of factsheet entries matching the search query.'),
                         error: z.string().optional().describe('An error message, if an error occurred during the search.'),
                     })
                 ),
@@ -1945,7 +1945,7 @@ export class GuildHolder {
                     }
                     try {
                         const queryEmbeddingVector = base64ToInt8Array(queryEmbeddings.embeddings[0]);
-                        const results = await this.privateFactBase.getClosest(queryEmbeddingVector, 3);
+                        const results = await this.privateFactBase.getClosest(queryEmbeddingVector, 5);
                         const data = [];
                         for (const result of results) {
                             const sheet = await this.privateFactBase.getFact(result.identifier);
