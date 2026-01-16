@@ -61,19 +61,21 @@ def _load_model(app: FastAPI):
 
 
 
-def _load_document_model(app: FastAPI):
+def _load_document_model():
     """Load the document embedding model"""
     print("⏳  Loading document model …")
     model = SentenceTransformer("Snowflake/snowflake-arctic-embed-m-v1.5") 
     print("✅  Model ready.")
     return model
 
-def _load_query_model(app: FastAPI):
+def _load_query_model():
     """Load the query embedding model"""
     print("⏳  Loading query model …")
     model = SentenceTransformer("MongoDB/mdbr-leaf-ir") 
     print("✅  Model ready.")
     return model
+
+query_model_cached = _load_query_model()
 
 
 # ---------------------------------------------------------------------------
@@ -168,9 +170,9 @@ def embed(req: EmbedRequest, request: Request):
     with _MODEL_LOCK:
         # Ensure the appropriate model is initialised
         if req.model_type == "document":
-            model = _load_document_model(request.app)
+            model = _load_document_model()
         elif req.model_type == "query":
-            model = _load_query_model(request.app)
+            model = query_model_cached
         else:
             raise HTTPException(status_code=400, detail=f"Invalid model_type: {req.model_type}")
 
