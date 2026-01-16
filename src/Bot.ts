@@ -15,9 +15,10 @@ import { getModals } from "./components/modals/index.js";
 import { TempDataStore } from "./utils/TempDataStore.js";
 import { App } from "octokit";
 import { createXai, XaiProvider } from "@ai-sdk/xai";
-import { generateText, ModelMessage } from "ai";
+import { generateText, ModelMessage, zodSchema } from "ai";
 import { ContextMenuCommand } from "./interface/ContextMenuCommand.js";
 import { DiscordServersDictionary } from "./archive/DiscordServersDictionary.js";
+import z from "zod";
 
 export const SysAdmin = '239078039831445504';
 
@@ -564,112 +565,4 @@ export class Bot {
         return this.paidLlmClient !== undefined;
     }
 
-    public async respondToConversation(channel: TextChannel | TextThreadChannel, message: Message): Promise<string> {
-        if (!this.paidLlmClient) {
-            throw new Error('LLM client not configured');
-        }
-
-        const channelName = channel.name;
-        const channelTopic = channel.isThread() ? getCodeAndDescriptionFromTopic(channel.parent?.topic || '').description : (channel.topic ?? '');
-        let contextLength;
-        let model;
-        let systemPrompt;
-        let maxOutputLength;
-        const specialQuestions = ['who is right', 'is this true', 'translate'];
-        if (specialQuestions.some(q => message.content.toLowerCase().includes(q))) {
-            contextLength = 50; // more context for "who is right" questions
-            model = this.paidLlmClient("grok-4-1-fast-reasoning"); // use better model for complex questions
-            systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration. You are friendly and talk casually. You are logical and do not flatter. User mentions are in the format <@UserID> and will be prepended to messages they send. NEVER use emojis or em-dashes. Mention the correct user to keep the conversation clear. EG: If a message says "<@123456789012345678> tell them" and a previous message from user 4987654321012345678 said "I love Minecraft", you should respond with "<@4987654321012345678> Minecraft is great!"`;
-            maxOutputLength = 20000;
-        } else {
-            contextLength = 10;
-            model = this.paidLlmClient("grok-4-1-fast-non-reasoning");
-
-            // get channel list
-            const channelList = channel.guild.channels.cache
-                .filter(c => (c.isTextBased() || c.type === ChannelType.GuildForum) && !c.isThread() && !c.isVoiceBased())
-                .filter(c => c.permissionsFor(channel.guild.roles.everyone).has('ViewChannel'))
-                .map(c => {
-                    let topic = c.topic ? getCodeAndDescriptionFromTopic(c.topic || "").description : "No topic";
-                    return `#${c.name} - ${topic}`;
-                })
-                .join(', ');
-
-            systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration and development. You are friendly, concise, and talk casually. You are talking in a channel called #${channelName}.${channelTopic ? ` The channel topic is: ${channelTopic}.` : ''} Direct users to the appropriate channel if they ask where they can find something. Available channels: ${channelList}. User mentions are in the format <@UserID> and will be prepended to messages they send. NEVER use emojis or em-dashes. Mention the correct user to keep the conversation clear. EG: If a message says "<@123456789012345678> tell them" and a previous message from user 4987654321012345678 said "I love Minecraft", you should respond with "<@4987654321012345678> Minecraft is great!"`;
-            maxOutputLength = 1000;
-        }
-        const messages = await channel.messages.fetch({ limit: contextLength });
-
-        // Remove messages that are not in the last 24 hours
-        // const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
-        //const recentMessages = messages.filter(msg => msg.createdTimestamp > oneDayAgo);
-
-        // Sort messages so that newest is last
-        const sortedMessages = messages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
-
-        const messagesIn: { mid: Snowflake, id: number, obj: ModelMessage }[] = [];
-
-        messagesIn.push({ mid: '0', id: 0, obj: { role: 'system', content: systemPrompt } });
-        sortedMessages.forEach(msg => {
-            const isBot = msg.author.id === this.client.user?.id;
-            const role = isBot ? 'assistant' : 'user';
-            const content = msg.content;
-            // replace mentions with @username
-            // const mentionRegex = /<@!?(\d+)>/g;
-            const contentWithMentions = content;
-
-            // if content length is greater than 1000, truncate it
-            const maxLength = 1000;
-            const truncatedContent = contentWithMentions.length > maxLength ? contentWithMentions.slice(0, maxLength) + '... (truncated)' : contentWithMentions;
-
-            // check reply
-            let replyTo = null;
-            if (msg.reference && msg.reference.messageId) {
-                const repliedMessage = messagesIn.find(m => m.mid === msg.reference?.messageId);
-                if (repliedMessage) {
-                    replyTo = repliedMessage.id;
-                }
-            }
-            messagesIn.push({ mid: msg.id, id: messagesIn.length, obj: { role, content: `[${messagesIn.length}] <@${msg.author.id}> ${replyTo === null ? "said" : ` replied to [${replyTo}]`}: ${truncatedContent}` } });
-        });
-
-        const response = await generateText({
-            model: model,
-            messages: messagesIn.map(m => m.obj),
-            maxOutputTokens: maxOutputLength,
-        })
-
-        if (response.warnings?.length) {
-            console.warn('LLM Warnings:', response.warnings);
-        }
-
-        if (!response.text) {
-            //console.error('No response from LLM:', response);
-            throw new Error('No response from LLM');
-        }
-
-        // replace @username with actual mentions if possible
-        let responseText = response.text;
-
-        // Check for channel name mentions eg #ask-questions
-        const channelMentionRegex = /#([a-zA-Z0-9-_]+)/g;
-        let match;
-        while ((match = channelMentionRegex.exec(responseText)) !== null) {
-            const channelName = match[1];
-            const foundChannel = channel.guild.channels.cache.find(c => c.name === channelName && (c.isTextBased() || c.type === ChannelType.GuildForum) && !c.isThread());
-            if (foundChannel) {
-                responseText = responseText.replace(`#${channelName}`, `<#${foundChannel.id}>`);
-            }
-        }
-
-        // remove everyone mentions
-        responseText = responseText.replace(/@everyone/g, 'everyone');
-        responseText = responseText.replace(/@here/g, 'here');
-
-        // Sometimes, the llm will respond with "[n] @LlamaBot said: blabla" or "[n] @LlamaBot replied to [m]: blabla" so we remove that
-        const botMentionRegex = /\[\d+\]\s+<@!?(\d+)>\s+(said|replied to \[\d+\]):\s+/g;
-        responseText = responseText.replace(botMentionRegex, '');
-
-        return responseText;
-    }
 }

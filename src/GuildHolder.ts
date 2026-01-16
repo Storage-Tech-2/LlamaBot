@@ -1,4 +1,4 @@
-import { ActionRowBuilder, AnyThreadChannel, ChannelType, EmbedBuilder, Guild, GuildAuditLogsEntry, GuildMember, Message, MessageFlags, Role, PartialGuildMember, Snowflake, Attachment, GuildChannel, PartialMessage } from "discord.js";
+import { ActionRowBuilder, AnyThreadChannel, ChannelType, EmbedBuilder, Guild, GuildAuditLogsEntry, GuildMember, Message, MessageFlags, Role, PartialGuildMember, Snowflake, Attachment, GuildChannel, PartialMessage, TextChannel, TextThreadChannel } from "discord.js";
 import { Bot } from "./Bot.js";
 import { ConfigManager } from "./config/ConfigManager.js";
 import Path from "path";
@@ -6,24 +6,27 @@ import { GuildConfigs } from "./config/GuildConfigs.js";
 import { SubmissionsManager } from "./submissions/SubmissionsManager.js";
 import { RepositoryManager } from "./archive/RepositoryManager.js";
 import { ArchiveEntry, ArchiveEntryData } from "./archive/ArchiveEntry.js";
-import { escapeDiscordString, getAuthorsString, getChanges, truncateStringWithEllipsis } from "./utils/Util.js";
+import { escapeDiscordString, getAuthorName, getAuthorsString, getChanges, getCodeAndDescriptionFromTopic, splitIntoChunks, truncateStringWithEllipsis } from "./utils/Util.js";
 import { UserManager } from "./support/UserManager.js";
 import { AttachmentsState, UserData } from "./support/UserData.js";
 import { SubmissionConfigs } from "./submissions/SubmissionConfigs.js";
 import { SubmissionStatus } from "./submissions/SubmissionStatus.js";
 import fs from "fs/promises";
-import { countCharactersInRecord, StyleInfo } from "./utils/MarkdownUtils.js";
+import { countCharactersInRecord, postToMarkdown, StyleInfo } from "./utils/MarkdownUtils.js";
 import { Author, AuthorType, DiscordAuthor } from "./submissions/Author.js";
 import { NotABotButton } from "./components/buttons/NotABotButton.js";
-import { generateText, JSONSchema7, ModelMessage } from "ai";
+import { generateText, JSONSchema7, ModelMessage, zodSchema } from "ai";
 import { UserSubscriptionManager } from "./config/UserSubscriptionManager.js";
 import { ChannelSubscriptionManager } from "./config/ChannelSubscriptionManager.js";
 import { AntiNukeManager } from "./support/AntiNukeManager.js";
 import { DictionaryManager } from "./archive/DictionaryManager.js";
 import { DiscordServersDictionary } from "./archive/DiscordServersDictionary.js";
-import { getDiscordLinksInText, getDiscordServersFromReferences, getPostCodesInText, populateDiscordServerInfoInReferences, ReferenceType, transformOutputWithReferencesForDiscord } from "./utils/ReferenceUtils.js";
+import { getDiscordLinksInText, getDiscordServersFromReferences, getPostCodesInText, populateDiscordServerInfoInReferences, ReferenceType, transformOutputWithReferencesForDiscord, transformOutputWithReferencesForEmbeddings } from "./utils/ReferenceUtils.js";
 import { retagEverythingTask, updateMetadataTask } from "./archive/Tasks.js";
 import { RepositoryConfigs } from "./archive/RepositoryConfigs.js";
+import z from "zod";
+import { base64ToInt8Array, cosineSimilarity, generateQueryEmbeddings } from "./llm/EmbeddingUtils.js";
+import { da } from "zod/locales";
 /**
  * GuildHolder is a class that manages guild-related data.
  */
@@ -342,50 +345,50 @@ export class GuildHolder {
             return;
         }
 
-        // // Finally, check if llm is available;
-        // const isAdmin = message.member?.permissions.has('Administrator') || false;
-        // if (!this.bot.canConverse() || (!this.getConfigManager().getConfig(GuildConfigs.CONVERSATIONAL_LLM_ENABLED) && !isAdmin)) {
-        //     return;
-        // }
+        // Finally, check if llm is available;
+        const isAdmin = message.member?.permissions.has('Administrator') || false;
+        if (!this.bot.canConverse() || (!this.getConfigManager().getConfig(GuildConfigs.CONVERSATIONAL_LLM_ENABLED) && !isAdmin)) {
+            return;
+        }
 
-        // let shouldReply = false;
-        // // check if message is a reply to the bot
-        // if (message.reference && message.reference.messageId) {
-        //     const referencedMessage = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
-        //     if (referencedMessage && referencedMessage.author.id === this.getBot().client.user?.id) {
-        //         shouldReply = true;
-        //     }
-        // }
+        let shouldReply = false;
+        // check if message is a reply to the bot
+        if (message.reference && message.reference.messageId) {
+            const referencedMessage = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
+            if (referencedMessage && referencedMessage.author.id === this.getBot().client.user?.id) {
+                shouldReply = true;
+            }
+        }
 
-        // // check if message mentions the bot
-        // if (message.mentions.has(this.getBot().client.user?.id || '')) {
-        //     shouldReply = true;
-        // }
+        // check if message mentions the bot
+        if (message.mentions.has(this.getBot().client.user?.id || '')) {
+            shouldReply = true;
+        }
 
-        // if (shouldReply && (message.channel.type === ChannelType.GuildText || message.channel.type === ChannelType.PublicThread)) {
-        //     const channel = message.channel;
-        //     // send typing
-        //     await channel.sendTyping().catch(() => null);
-        //     // typing interval
-        //     const typingInterval = setInterval(() => {
-        //         channel.sendTyping().catch(() => null);
-        //     }, 9000);
-        //     const reply = await this.bot.respondToConversation(channel, message).catch(e => {
-        //         console.error('Error responding to conversation:', e);
-        //         return 'Sorry, I had an error trying to respond to that message.';
-        //     });
-        //     clearInterval(typingInterval);
-        //     if (reply) {
-        //         const split = splitIntoChunks(reply, 2000);
-        //         for (let i = 0; i < split.length; i++) {
-        //             if (i === 0) {
-        //                 await message.reply({ content: split[i], flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
-        //             } else {
-        //                 await channel.send({ content: reply, flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
-        //             }
-        //         }
-        //     }
-        // }
+        if (shouldReply && (message.channel.type === ChannelType.GuildText || message.channel.type === ChannelType.PublicThread)) {
+            const channel = message.channel;
+            // send typing
+            await channel.sendTyping().catch(() => null);
+            // typing interval
+            const typingInterval = setInterval(() => {
+                channel.sendTyping().catch(() => null);
+            }, 9000);
+            const reply = await this.respondToConversation(channel, message).catch(e => {
+                console.error('Error responding to conversation:', e);
+                return 'Sorry, I had an error trying to respond to that message.';
+            });
+            clearInterval(typingInterval);
+            if (reply) {
+                const split = splitIntoChunks(reply, 2000);
+                for (let i = 0; i < split.length; i++) {
+                    if (i === 0) {
+                        await message.reply({ content: split[i], flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
+                    } else {
+                        await channel.send({ content: reply, flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
+                    }
+                }
+            }
+        }
     }
 
     public async handleThanks(message: Message) {
@@ -1659,5 +1662,245 @@ export class GuildHolder {
 
     public getChannelSubscriptionManager(): ChannelSubscriptionManager {
         return this.channelSubscriptionManager;
+    }
+
+    public async respondToConversation(channel: TextChannel | TextThreadChannel, message: Message): Promise<string> {
+        if (!this.bot.paidLlmClient) {
+            throw new Error('LLM client not configured');
+        }
+
+        const channelName = channel.name;
+        const channelTopic = channel.isThread() ? getCodeAndDescriptionFromTopic(channel.parent?.topic || '').description : (channel.topic ?? '');
+        let contextLength;
+        let model;
+        let systemPrompt;
+        let maxOutputLength;
+        const specialQuestions = ['who is right', 'is this true', 'translate'];
+        if (specialQuestions.some(q => message.content.toLowerCase().includes(q))) {
+            contextLength = 50; // more context for "who is right" questions
+            model = this.bot.paidLlmClient("grok-4-1-fast-reasoning"); // use better model for complex questions
+            systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration. You are friendly and talk casually. You are logical and do not flatter. Use the tools available to you to answer user's questions. NEVER use emojis or em-dashes. User mentions are in the format <@UserID> and will be prepended to messages they send. Mention the correct user to keep the conversation clear. EG: If a message says "<@123456789012345678> tell them" and a previous message from user 4987654321012345678 said "I love Minecraft", you should respond with "<@4987654321012345678> Minecraft is great!"`;
+            maxOutputLength = 20000;
+        } else {
+            contextLength = 10;
+            model = this.bot.paidLlmClient("grok-4-1-fast-non-reasoning");
+            systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration and development. You are friendly, concise, and talk casually. Use the tools available to you to answer user's questions. You are talking in a channel called #${channelName}.${channelTopic ? ` The channel topic is: ${channelTopic}.` : ''} Direct users to the appropriate channel if they ask where they can find something. User mentions are in the format <@UserID> and will be prepended to messages they send. NEVER use emojis or em-dashes. Mention the correct user to keep the conversation clear. EG: If a message says "<@123456789012345678> tell them" and a previous message from user 4987654321012345678 said "I love Minecraft", you should respond with "<@4987654321012345678> Minecraft is great!"`;
+            maxOutputLength = 20000;
+        }
+        const messages = await channel.messages.fetch({ limit: contextLength });
+
+        // Remove messages that are not in the last 24 hours
+        // const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+        //const recentMessages = messages.filter(msg => msg.createdTimestamp > oneDayAgo);
+
+        // Sort messages so that newest is last
+        const sortedMessages = messages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+
+        const messagesIn: { mid: Snowflake, id: number, obj: ModelMessage }[] = [];
+
+        messagesIn.push({ mid: '0', id: 0, obj: { role: 'system', content: systemPrompt } });
+        sortedMessages.forEach(msg => {
+            const isBot = msg.author.id === this.getBot().client.user?.id;
+            const role = isBot ? 'assistant' : 'user';
+            const content = msg.content;
+            // replace mentions with @username
+            // const mentionRegex = /<@!?(\d+)>/g;
+            const contentWithMentions = content;
+
+            // if content length is greater than 1000, truncate it
+            const maxLength = 1000;
+            const truncatedContent = contentWithMentions.length > maxLength ? contentWithMentions.slice(0, maxLength) + '... (truncated)' : contentWithMentions;
+
+            // check reply
+            let replyTo = null;
+            if (msg.reference && msg.reference.messageId) {
+                const repliedMessage = messagesIn.find(m => m.mid === msg.reference?.messageId);
+                if (repliedMessage) {
+                    replyTo = repliedMessage.id;
+                }
+            }
+            messagesIn.push({ mid: msg.id, id: messagesIn.length, obj: { role, content: `[${messagesIn.length}] <@${msg.author.id}> ${replyTo === null ? "said" : ` replied to [${replyTo}]`}: ${truncatedContent}` } });
+        });
+
+        const response = await generateText({
+            model: model,
+            messages: messagesIn.map(m => m.obj),
+            maxOutputTokens: maxOutputLength,
+            tools: {
+                search: {
+                    description: 'Lookup designs made by expert Minecraft redstone engineers using semantic search.',
+                    inputSchema: z.object({
+                        query: z.string().min(1).max(256).describe('The search query to find relevant Minecraft redstone designs.'),
+                    }),
+                    inputExample: {
+                        query: '2x hopperspeed box loader'
+                    },
+                    outputSchema: zodSchema(
+                        z.object({
+                            results: z.array(z.object({
+                                title: z.string().describe('The title of the design.'),
+                                code: z.string().describe('The identifier code for the design.'),
+                                authors: z.array(z.string()).describe('List of authors who created the design.'),
+                                snippet: z.string().describe('A brief snippet describing the design.'),
+                                url: z.string().describe('A URL to view the design in the archive. Cite this URL in your response if relevant.'),
+                            })).describe('Top 5 list of Minecraft redstone designs matching the search query.'),
+                            error: z.string().optional().describe('An error message, if an error occurred during the search.'),
+                        })
+                    ),
+                    func: async (input: { query: string }) => {
+                        const queryEmbeddings = await generateQueryEmbeddings([input.query.trim()]).catch(e => {
+                            console.error('Error generating query embeddings:', e);
+                            return null;
+                        });
+                        if (!queryEmbeddings) {
+                            return { results: [], error: 'Error generating query embeddings' };
+                        }
+
+                        const queryEmbeddingVector = base64ToInt8Array(queryEmbeddings.embeddings[0]);
+                        const embeddings = await this.repositoryManager.getEmbeddings();
+                        const scores = embeddings.map(embedding => {
+                            return {
+                                code: embedding.code,
+                                score: cosineSimilarity(queryEmbeddingVector, base64ToInt8Array(embedding.embedding)),
+                            };
+                        });
+                        scores.sort((a, b) => b.score - a.score);
+                        const topResults = scores.slice(0, 5);
+                        const results = [];
+                        for (const result of topResults) {
+                            const entry = await this.repositoryManager.getEntryByPostCode(result.code);
+                            if (entry) {
+                                const data = entry.entry.getData();
+                                // first entry
+                                const text = transformOutputWithReferencesForEmbeddings(postToMarkdown(data.records, data.styles, this.getSchemaStyles()), data.references);
+                                results.push({
+                                    title: data.name,
+                                    code: data.code,
+                                    authors: data.authors.map(a => getAuthorName(a)),
+                                    snippet: truncateStringWithEllipsis(text, 2000),
+                                    url: data.post?.threadURL || '',
+                                });
+                            }
+                        }
+                    }
+                },
+                define: {
+                    description: 'Lookup Minecraft and redstone related terms from a custom dictionary of definitions.',
+                    inputSchema: z.object({
+                        query: z.string().min(1).max(256).describe('The search query to find relevant Minecraft and redstone definitions.'),
+                    }),
+                    inputExample: {
+                        query: 'What is a comparator update detector?'
+                    },
+                    outputSchema: zodSchema(
+                        z.object({
+                            results: z.array(z.object({
+                                terms: z.string().describe('The terms defined.'),
+                                definition: z.string().describe('A brief snippet of the definition.'),
+                                url: z.string().describe('A URL to view the full definition in the dictionary. Cite this URL in your response if relevant.'),
+                            })).describe('Top 5 list of definitions matching the search query.'),
+                            error: z.string().optional().describe('An error message, if an error occurred during the search.'),
+                        })
+                    ),
+                    func: async (input: { query: string }) => {
+                        const queryEmbeddings = await generateQueryEmbeddings([input.query.trim()]).catch(e => {
+                            console.error('Error generating query embeddings:', e);
+                            return null;
+                        });
+                        if (!queryEmbeddings) {
+                            return { results: [], error: 'Error generating query embeddings' };
+                        }
+
+                        const queryEmbeddingVector = base64ToInt8Array(queryEmbeddings.embeddings[0]);
+                        const embeddings = await this.getDictionaryManager().getEmbeddings();
+                        const scores = embeddings.map(embedding => {
+                            return {
+                                id: embedding.id,
+                                score: cosineSimilarity(queryEmbeddingVector, base64ToInt8Array(embedding.embedding)),
+                            };
+                        });
+                        scores.sort((a, b) => b.score - a.score);
+                        const topResults = scores.slice(0, 5);
+                        const results = [];
+                        for (const result of topResults) {
+                            const entry = await this.getDictionaryManager().getEntry(result.id);
+                            if (entry) {
+                                // first entry
+                                const text = transformOutputWithReferencesForEmbeddings(entry.definition, entry.references);
+                                results.push({
+                                    terms: entry.terms.join(', '),
+                                    definition: truncateStringWithEllipsis(text, 2000),
+                                    url: entry.statusURL
+                                });
+                            }
+                        }
+
+                        return { results };
+                    }
+                },
+                channels: {
+                    description: 'Get a list of channels in the server.',
+                    inputSchema: z.object({}),
+                    outputSchema: zodSchema(
+                        z.object({
+                            channels: z.array(z.object({
+                                name: z.string().describe('The name of the channel.'),
+                                topic: z.string().describe('The topic of the channel.'),
+                                id: z.string().describe('The ID of the channel.'),
+                                isArchiveChannel: z.boolean().describe('Whether the channel is an archive channel containing redstone designs.'),
+                            })).describe('List of channels in the server.'),
+                        })
+                    ),
+                    func: async (_input: {}) => {
+                        const channels: { name: string; topic: string; id: string, isArchiveChannel: boolean }[] = [];
+                        const archiveCategories = this.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS) || [];
+                        this.guild.channels.cache.forEach(channel => {
+                            if (channel.isTextBased() && !channel.isThread() && !channel.isVoiceBased()) {
+                                channels.push({
+                                    name: channel.name,
+                                    topic: getCodeAndDescriptionFromTopic(channel.topic || '').description,
+                                    id: channel.id,
+                                    isArchiveChannel: archiveCategories.includes(channel.parentId || ''),
+                                });
+                            }
+                        });
+                        return { channels };
+                    }
+                }
+            }
+        })
+
+        if (response.warnings?.length) {
+            console.warn('LLM Warnings:', response.warnings);
+        }
+
+        if (!response.text) {
+            //console.error('No response from LLM:', response);
+            throw new Error('No response from LLM');
+        }
+
+        // replace @username with actual mentions if possible
+        let responseText = response.text;
+
+        // Check for channel name mentions eg #ask-questions
+        const channelMentionRegex = /#([a-zA-Z0-9-_]+)/g;
+        let match;
+        while ((match = channelMentionRegex.exec(responseText)) !== null) {
+            const channelName = match[1];
+            const foundChannel = channel.guild.channels.cache.find(c => c.name === channelName && (c.isTextBased() || c.type === ChannelType.GuildForum) && !c.isThread());
+            if (foundChannel) {
+                responseText = responseText.replace(`#${channelName}`, `<#${foundChannel.id}>`);
+            }
+        }
+
+        // remove everyone mentions
+        responseText = responseText.replace(/@everyone/g, 'everyone');
+        responseText = responseText.replace(/@here/g, 'here');
+
+        // Sometimes, the llm will respond with "[n] @LlamaBot said: blabla" or "[n] @LlamaBot replied to [m]: blabla" so we remove that
+        const botMentionRegex = /\[\d+\]\s+<@!?(\d+)>\s+(said|replied to \[\d+\]):\s+/g;
+        responseText = responseText.replace(botMentionRegex, '');
+
+        return responseText;
     }
 }
