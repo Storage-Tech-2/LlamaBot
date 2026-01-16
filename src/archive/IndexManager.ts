@@ -8,6 +8,7 @@ import { DictionaryManager, DictionaryEntryStatus } from "./DictionaryManager.js
 import type { RepositoryManager } from "./RepositoryManager.js";
 import { ArchiveChannelReference } from "./RepositoryConfigs.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
+import { TemporaryCache } from "./TemporaryCache.js";
 
 const INDEX_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -36,20 +37,29 @@ export type Indexes = {
 }
 
 export class IndexManager {
-    private cachedDictionaryIndex?: Promise<DictionaryTermIndex>;
-    private dictionaryCacheInvalidateTimeout?: NodeJS.Timeout;
-    private basicDictionaryIndexCache?: Promise<BasicDictionaryIndexEntry[]>;
-    private basicDictionaryIndexCacheInvalidateTimeout?: NodeJS.Timeout;
-
-    private cachedArchiveIndex?: Promise<ArchiveIndex>;
-    private archiveCacheInvalidateTimeout?: NodeJS.Timeout;
+    private cachedDictionaryIndex: TemporaryCache<DictionaryTermIndex>;
+    private basicDictionaryIndexCache: TemporaryCache<BasicDictionaryIndexEntry[]>;
+    private cachedArchiveIndex: TemporaryCache<ArchiveIndex>;
     private cachedArchiveChannelIds: Snowflake[] = [];
 
     constructor(
         private dictionaryManager: DictionaryManager,
         private repositoryManager: RepositoryManager,
         private archiveFolderPath: string,
-    ) { }
+    ) { 
+        this.cachedDictionaryIndex = new TemporaryCache<DictionaryTermIndex>(
+            INDEX_TIMEOUT_MS,
+            () => this.buildDictionaryTermIndex()
+        );
+        this.basicDictionaryIndexCache = new TemporaryCache<BasicDictionaryIndexEntry[]>(
+            INDEX_TIMEOUT_MS,
+            () => this.buildBasicDictionaryIndex()
+        );
+        this.cachedArchiveIndex = new TemporaryCache<ArchiveIndex>(
+            INDEX_TIMEOUT_MS,
+            () => this.buildArchiveIndex()
+        );
+    }
 
     private getPostToSubmissionIndexPath() {
         return Path.join(this.archiveFolderPath, 'post_to_submission_index.json');
@@ -223,46 +233,26 @@ export class IndexManager {
     }
 
     public async getDictionaryTermIndex(): Promise<DictionaryTermIndex> {
-        clearTimeout(this.dictionaryCacheInvalidateTimeout);
-        this.dictionaryCacheInvalidateTimeout = setTimeout(() => {
-            this.invalidateDictionaryTermIndex();
-        }, INDEX_TIMEOUT_MS);
-
-        if (this.cachedDictionaryIndex) return this.cachedDictionaryIndex;
-        this.cachedDictionaryIndex = this.buildDictionaryTermIndex();
-        return this.cachedDictionaryIndex;
+        return this.cachedDictionaryIndex.get();
     }
 
     public async getArchiveIndex(): Promise<ArchiveIndex> {
-        clearTimeout(this.archiveCacheInvalidateTimeout);
-        this.archiveCacheInvalidateTimeout = setTimeout(() => {
-            this.invalidateArchiveIndex();
-        }, INDEX_TIMEOUT_MS);
-        if (this.cachedArchiveIndex) return this.cachedArchiveIndex;
-        this.cachedArchiveIndex = this.buildArchiveIndex();
-        return this.cachedArchiveIndex;
+        return this.cachedArchiveIndex.get();
     }
 
     public async getBasicDictionaryIndex(): Promise<BasicDictionaryIndexEntry[]> {
-        clearTimeout(this.basicDictionaryIndexCacheInvalidateTimeout);
-        this.basicDictionaryIndexCacheInvalidateTimeout = setTimeout(() => {
-            this.invalidateBasicDictionaryIndex();
-        }, INDEX_TIMEOUT_MS);
-
-        if (this.basicDictionaryIndexCache) return this.basicDictionaryIndexCache;
-        this.basicDictionaryIndexCache = this.buildBasicDictionaryIndex();
-        return this.basicDictionaryIndexCache;
+        return this.basicDictionaryIndexCache.get();
     }
 
     public invalidateDictionaryTermIndex() {
-        this.cachedDictionaryIndex = undefined;
+        this.cachedDictionaryIndex.clear();
     }
 
     public invalidateBasicDictionaryIndex() {
-        this.basicDictionaryIndexCache = undefined;
+        this.basicDictionaryIndexCache.clear();
     }
 
     public invalidateArchiveIndex() {
-        this.cachedArchiveIndex = undefined;
+        this.cachedArchiveIndex.clear();
     }
 }
