@@ -14,6 +14,12 @@ export enum AttachmentsState {
     ALLOWED = "allowed",
 }
 
+export type LLMWarning = {
+    messageId: Snowflake;
+    timestamp: number;
+    reason: string;
+}
+
 export type UserData = {
     id: Snowflake;
     username: string;
@@ -30,5 +36,7 @@ export type UserData = {
     attachmentsAllowedExpiry?: number; // Timestamp when attachments allowed state expires
 
     messagesToDeleteOnTimeout?: Snowflake[]; // List of message IDs to delete
+
+    llmWarnings: LLMWarning[];
 }
 

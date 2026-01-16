@@ -44,6 +44,7 @@ export class UserManager {
                 attachmentsAllowedState: AttachmentsState.DISALLOWED,
                 attachmentsAllowedExpiry: 0,
                 messagesToDeleteOnTimeout: [],
+                llmWarnings: [],
             }
         }
         return userData;

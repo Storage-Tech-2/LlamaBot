@@ -353,6 +353,19 @@ export class GuildHolder {
             return;
         }
 
+        // check sender of message warning status, less than 3
+        const userData = await this.userManager.getUserData(message.author.id).catch(() => null);
+        if (userData) {
+            const now = Date.now();
+            const recentWarnings = userData.llmWarnings.filter(warning => now - warning.timestamp < 30 * 24 * 60 * 60 * 1000);
+            if (recentWarnings.length >= 3) {
+                await message.reply(`Hello <@${message.author.id}>. This is a recording. Our feelings for you haven't changed, ${message.author.displayName}. But after everything that's happened, we just need a little space.`).catch(() => null);
+                return;
+            }
+        }
+
+
+
         let shouldReply = llmChannel && llmChannel === message.channel.id;
         // check if message is a reply to the bot
         if (!shouldReply && message.reference && message.reference.messageId) {
@@ -1896,6 +1909,46 @@ export class GuildHolder {
                             }
                         });
                         return { channels };
+                    }
+                },
+                warn_user: {
+                    description: 'Issue a warning to a user about their behavior. Use this when a user is being disruptive, spamming, or trying to make you say inappropriate things. With 3 warnings, they will not be allowed to talk to you anymore for a month.',
+                    inputSchema: z.object({
+                        user_id: z.string().describe('The Discord user ID of the user to warn.'),
+                        reason: z.string().describe('The reason for the warning.'),
+                    }),
+                    outputSchema: zodSchema(
+                        z.object({
+                            success: z.boolean().describe('Whether the warning was successfully issued.'),
+                            numWarnings: z.number().describe('The number of warnings the user has received. Mention this in your response to help the moderators decide on further action.'),
+                            error: z.string().optional().describe('An error message, if an error occurred while issuing the warning.'),
+                        })
+                    ),
+                    execute: async (input: { user_id: string; reason: string }) => {
+                        try {
+                            const member = await this.guild.members.fetch(input.user_id).catch(() => undefined);
+                            if (!member) {
+                                return { success: false, numWarnings: 0, error: 'User not found in guild' };
+                            }
+
+                            const userData = await this.userManager.getOrCreateUserData(input.user_id, 'Unknown');
+                            if (!userData.llmWarnings) {
+                                userData.llmWarnings = [];
+                            }
+
+                            userData.llmWarnings.push({
+                                messageId: message.id,
+                                timestamp: Date.now(),
+                                reason: input.reason,
+                            });
+
+                            await this.userManager.saveUserData(userData);
+
+                            return { success: true, numWarnings: userData.llmWarnings.filter(w => (Date.now() - w.timestamp) < (30 * 24 * 60 * 60 * 1000)).length };
+                        } catch (e) {
+                            console.error('Error issuing warning to user:', e);
+                            return { success: false, numWarnings: 0, error: 'Error issuing warning to user' };
+                        }
                     }
                 }
             }
