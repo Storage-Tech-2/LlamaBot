@@ -1148,8 +1148,8 @@ export class Mwa implements Command {
     }
 
     async setAlias(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
-        const url = interaction.options.getString('url', true);
-        const alias = interaction.options.getString('alias', false) || "";
+        const url = interaction.options.getString('url', true).trim();
+        const alias = (interaction.options.getString('alias', false) || "").trim();
 
         const aliasManager = guildHolder.getAliasManager();
 
