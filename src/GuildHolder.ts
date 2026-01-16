@@ -1792,18 +1792,10 @@ export class GuildHolder {
 
                         try {
                             const queryEmbeddingVector = base64ToInt8Array(queryEmbeddings.embeddings[0]);
-                            const embeddings = await this.repositoryManager.getEmbeddings();
-                            const scores = embeddings.map(embedding => {
-                                return {
-                                    code: embedding.code,
-                                    score: cosineSimilarity(queryEmbeddingVector, base64ToInt8Array(embedding.embedding)),
-                                };
-                            });
-                            scores.sort((a, b) => b.score - a.score);
-                            const topResults = scores.slice(0, 5);
+                            const closest = await this.repositoryManager.getClosest(queryEmbeddingVector, 5);
                             const results = [];
-                            for (const result of topResults) {
-                                const entry = await this.repositoryManager.getEntryByPostCode(result.code);
+                            for (const result of closest) {
+                                const entry = await this.repositoryManager.getEntryByPostCode(result.identifier);
                                 if (entry) {
                                     const data = entry.entry.getData();
                                     // first entry
@@ -1853,18 +1845,10 @@ export class GuildHolder {
 
                         try {
                             const queryEmbeddingVector = base64ToInt8Array(queryEmbeddings.embeddings[0]);
-                            const embeddings = await this.getDictionaryManager().getEmbeddings();
-                            const scores = embeddings.map(embedding => {
-                                return {
-                                    id: embedding.id,
-                                    score: cosineSimilarity(queryEmbeddingVector, base64ToInt8Array(embedding.embedding)),
-                                };
-                            });
-                            scores.sort((a, b) => b.score - a.score);
-                            const topResults = scores.slice(0, 5);
+                            const topResults = await this.getDictionaryManager().getClosest(queryEmbeddingVector, 5);
                             const results = [];
                             for (const result of topResults) {
-                                const entry = await this.getDictionaryManager().getEntry(result.id);
+                                const entry = await this.getDictionaryManager().getEntry(result.identifier);
                                 if (entry) {
                                     // first entry
                                     const text = transformOutputWithReferencesForEmbeddings(entry.definition, entry.references);

@@ -10,18 +10,13 @@ import { Lock } from "../utils/Lock.js";
 import { chunkArray, truncateStringWithEllipsis } from "../utils/Util.js";
 import { EditDictionaryEntryButton } from "../components/buttons/EditDictionaryEntryButton.js";
 import { buildDictionarySlug } from "../utils/SlugUtils.js";
-import { generateDocumentEmbeddings } from "../llm/EmbeddingUtils.js";
+import { base64ToInt8Array, EmbeddingsEntry, EmbeddingsSearchResult, generateDocumentEmbeddings, getClosestWithIndex, loadHNSWIndex, makeHNSWIndex } from "../llm/EmbeddingUtils.js";
+import { HierarchicalNSW } from "hnswlib-node";
 
 export enum DictionaryEntryStatus {
     PENDING = "PENDING",
     APPROVED = "APPROVED",
     REJECTED = "REJECTED"
-}
-
-export type DictionaryEmbeddingsEntry = {
-    id: string;
-    updated_at: number;
-    embedding: string; // base64 encoded string
 }
 
 export type DictionaryEntry = {
@@ -41,6 +36,9 @@ export class DictionaryManager {
     private indexManager?: IndexManager;
 
     private entryLock: Lock = new Lock();
+
+    private indexRebuildRequested: boolean = false;
+    private indexRebuildTimeoutHandle: NodeJS.Timeout | null = null;
 
     constructor(
         private guildHolder: GuildHolder,
@@ -90,6 +88,10 @@ export class DictionaryManager {
         return Path.join(this.folderPath, 'embeddings.json');
     }
 
+    public getHNSWIndexPath(): string {
+        return Path.join(this.folderPath, 'hnsw.idx');
+    }
+
     async rebuildIndexAndEmbeddings(): Promise<void> {
         const configPath = this.getConfigPath();
         const entries = await this.listEntries();
@@ -107,7 +109,7 @@ export class DictionaryManager {
         await this.repositoryManager.add(configPath);
 
         const embeddings = await this.getEmbeddings();
-        const embeddingsMap = new Map<string, DictionaryEmbeddingsEntry>(embeddings.map(e => [e.id, e]));
+        const embeddingsMap = new Map<string, EmbeddingsEntry>(embeddings.map(e => [e.identifier, e]));
         const seenCodes = new Set<string>();
         const toRefreshEmbeddings = new Set<string>();
 
@@ -127,8 +129,8 @@ export class DictionaryManager {
         // now handle embeddings refresh
         const embeddingsToDelete: string[] = [];
         for (const embeddingEntry of embeddings) {
-            if (!seenCodes.has(embeddingEntry.id)) {
-                embeddingsToDelete.push(embeddingEntry.id);
+            if (!seenCodes.has(embeddingEntry.identifier)) {
+                embeddingsToDelete.push(embeddingEntry.identifier);
             }
         }
 
@@ -162,7 +164,7 @@ export class DictionaryManager {
                 const entryData = entries[i];
                 const embedding = result.embeddings[i];
                 embeddingsMap.set(entryData.id, {
-                    id: entryData.id,
+                    identifier: entryData.id,
                     updated_at: entryData.updatedAt,
                     embedding: embedding
                 });
@@ -173,14 +175,56 @@ export class DictionaryManager {
             const newEmbeddings = Array.from(embeddingsMap.values());
             await fs.writeFile(this.getDictionaryEmbeddingPath(), JSON.stringify(newEmbeddings, null, 2), 'utf-8');
             await this.repositoryManager.add(this.getDictionaryEmbeddingPath());
+            await makeHNSWIndex(newEmbeddings.map(e => base64ToInt8Array(e.embedding)), this.getHNSWIndexPath());
+            await this.repositoryManager.add(this.getHNSWIndexPath());
         }
     }
 
-    public async getEmbeddings(): Promise<DictionaryEmbeddingsEntry[]> {
+    public async getEmbeddings(): Promise<EmbeddingsEntry[]> {
         const embeddingPath = this.getDictionaryEmbeddingPath();
         return fs.readFile(embeddingPath, 'utf-8')
-            .then(data => JSON.parse(data) as DictionaryEmbeddingsEntry[])
+            .then(data => JSON.parse(data) as EmbeddingsEntry[])
             .catch(() => []);
+    }
+
+    public async getEmbeddingsIndex(): Promise<HierarchicalNSW | null> {
+        const indexPath = this.getHNSWIndexPath();
+        const index = await loadHNSWIndex(indexPath).catch(() => null);
+        return index;
+    }
+
+    public async getClosest(embedding: Int8Array, numNeighbors: number): Promise<EmbeddingsSearchResult[]> {
+        const [embeddings, index] = await Promise.all([
+            this.getEmbeddings(),
+            this.getEmbeddingsIndex()
+        ]);
+
+        if (!index || embeddings.length === 0) {
+            return [];
+        }
+        
+        return getClosestWithIndex(index, embeddings, embedding, numNeighbors);
+    }
+
+    public requestIndexRebuild(): void {
+        this.indexRebuildRequested = true;
+        if (this.indexRebuildTimeoutHandle) {
+            clearTimeout(this.indexRebuildTimeoutHandle);
+        }
+        this.indexRebuildTimeoutHandle = setTimeout(async () => {
+            await this.getLock().acquire();
+            if (this.indexRebuildRequested) {
+                this.indexRebuildRequested = false;
+                await this.rebuildIndexAndEmbeddings().catch((e) => {
+                    console.error("Error rebuilding dictionary index and embeddings:", e);
+                });
+
+                await this.repositoryManager.commit('Rebuilt dictionary index').catch(() => { });
+                await this.repositoryManager.push().catch(() => { });
+            }
+            this.getLock().release();
+        }, 30000);
+
     }
 
     getLock(): Lock {
@@ -194,10 +238,8 @@ export class DictionaryManager {
         await fs.writeFile(entryPath, JSON.stringify(entry, null, 2), 'utf-8');
         await this.repositoryManager.add(entryPath).catch(() => { });
         const rebuildNeeded = !oldEntry || oldEntry.status !== entry.status || this.haveTermsChanged(oldEntry.terms, entry.terms);
-        await this.rebuildIndexAndEmbeddings().catch((e) => {
-            console.error("Error rebuilding dictionary config index:", e);
-        });
         this.invalidateDictionaryTermIndex();
+        this.requestIndexRebuild();
         if (rebuildNeeded) {
             this.repositoryManager.getGuildHolder().requestRetagging();
         }

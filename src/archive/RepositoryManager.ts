@@ -24,13 +24,8 @@ import { DiscordServersDictionary } from "./DiscordServersDictionary.js";
 import { getDiscordServersFromReferences, ReferenceType, tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords, transformOutputWithReferencesForEmbeddings, transformOutputWithReferencesForGithub } from "../utils/ReferenceUtils.js";
 import { PersistentIndex, PersistentIndexChannel, PersistentIndexEntry, serializePersistentIndex } from "../utils/PersistentIndexUtils.js";
 import { postToMarkdown } from "../utils/MarkdownUtils.js";
-import { generateDocumentEmbeddings } from "../llm/EmbeddingUtils.js";
-
-export type EmbeddingsEntry = {
-    code: string;
-    updated_at: number;
-    embedding: string; // base64 encoded string
-}
+import { base64ToInt8Array, EmbeddingsEntry, EmbeddingsSearchResult as EmbeddingsSearchResult, generateDocumentEmbeddings, getClosestWithIndex, loadHNSWIndex, makeHNSWIndex } from "../llm/EmbeddingUtils.js";
+import { HierarchicalNSW } from "hnswlib-node";
 
 export class RepositoryManager {
     public folderPath: string;
@@ -139,6 +134,24 @@ export class RepositoryManager {
             .catch(() => []);
     }
 
+    public getHNSWIndexPath(): string {
+        return Path.join(this.folderPath, 'hnsw.idx');
+    }
+
+    public async getEmbeddingsIndex(): Promise<HierarchicalNSW | null> {
+        const indexPath = this.getHNSWIndexPath();
+        const index = await loadHNSWIndex(indexPath).catch(() => null);
+        return index;
+    }
+
+    public async getClosest(embedding: Int8Array, numNeighbors: number): Promise<EmbeddingsSearchResult[]> {
+        const [index, embeddings] = await Promise.all([this.getEmbeddingsIndex(), this.getEmbeddings()]);
+        if (!index || embeddings.length === 0) {
+            return [];
+        }
+        return getClosestWithIndex(index, embeddings, embedding, numNeighbors);
+    }
+
     public async buildPersistentIndexAndEmbeddings() {
         const authors = new Map<string, number>();
         const tags = new Map<string, number>();
@@ -151,7 +164,7 @@ export class RepositoryManager {
         const channels: PersistentIndexChannel[] = [];
 
         const embeddings = await this.getEmbeddings();
-        const embeddingsMap = new Map<string, EmbeddingsEntry>(embeddings.map(e => [e.code, e]));
+        const embeddingsMap = new Map<string, EmbeddingsEntry>(embeddings.map(e => [e.identifier, e]));
         const seenCodes = new Set<string>();
         const toRefreshEmbeddings = new Set<string>();
 
@@ -251,8 +264,8 @@ export class RepositoryManager {
         // now handle embeddings refresh
         const embeddingsToDelete: string[] = [];
         for (const embeddingEntry of embeddings) {
-            if (!seenCodes.has(embeddingEntry.code)) {
-                embeddingsToDelete.push(embeddingEntry.code);
+            if (!seenCodes.has(embeddingEntry.identifier)) {
+                embeddingsToDelete.push(embeddingEntry.identifier);
             }
         }
 
@@ -274,7 +287,7 @@ export class RepositoryManager {
 
             // get text
             const texts = entries.map(entryData => {
-                return 'Name: ' +entryData.name + '\n\n' + transformOutputWithReferencesForEmbeddings(postToMarkdown(entryData.records, entryData.styles, persistentIndex.schemaStyles), entryData.references);
+                return 'Name: ' + entryData.name + '\n\n' + transformOutputWithReferencesForEmbeddings(postToMarkdown(entryData.records, entryData.styles, persistentIndex.schemaStyles), entryData.references);
             });
 
             const result = await generateDocumentEmbeddings(texts).catch((e) => {
@@ -290,7 +303,7 @@ export class RepositoryManager {
                 const entryData = entries[i];
                 const embedding = result.embeddings[i];
                 embeddingsMap.set(entryData.code, {
-                    code: entryData.code,
+                    identifier: entryData.code,
                     updated_at: entryData.updatedAt,
                     embedding: embedding
                 });
@@ -301,6 +314,9 @@ export class RepositoryManager {
             const newEmbeddings = Array.from(embeddingsMap.values());
             await fs.writeFile(this.getEmbeddingPath(), JSON.stringify(newEmbeddings, null, 2), 'utf-8');
             await this.git?.add(this.getEmbeddingPath());
+
+            await makeHNSWIndex(newEmbeddings.map(e => base64ToInt8Array(e.embedding)), this.getHNSWIndexPath());
+            await this.git?.add(this.getHNSWIndexPath());
         }
     }
 

@@ -63,55 +63,51 @@ export class AskCommand implements Command {
 
         const queryEmbedding = base64ToInt8Array(embedding.embeddings[0]);
 
-        // get indexes
-        const dictionaryEmbeddings = await guildHolder.getDictionaryManager().getEmbeddings();
-        const repositoryEmbeddings = await guildHolder.getRepositoryManager().getEmbeddings();
+        // get indexess
         const channels = guildHolder.getRepositoryManager().getConfigManager().getConfig(RepositoryConfigs.ARCHIVE_CHANNELS).filter(c => c.embedding);
-
-        const dictionaryEmbeddingVectors = dictionaryEmbeddings.map(e => base64ToInt8Array(e.embedding));
-        const repositoryEmbeddingVectors = repositoryEmbeddings.map(e => base64ToInt8Array(e.embedding));
         const channelEmbeddingVectors = channels.map(c => base64ToInt8Array(c.embedding!));
 
-        const dictionaryScores = computeSimilarities(queryEmbedding, dictionaryEmbeddingVectors);
-        const repositoryScores = computeSimilarities(queryEmbedding, repositoryEmbeddingVectors);
-        const channelScores = computeSimilarities(queryEmbedding, channelEmbeddingVectors);
+        const dictionaryResults = await guildHolder.getDictionaryManager().getClosest(queryEmbedding, 1);
+        const repositoryResults = await guildHolder.getRepositoryManager().getClosest(queryEmbedding, 1);
+        const channelDistances = computeSimilarities(queryEmbedding, channelEmbeddingVectors);
 
         // combine and sort
         type ScoredEntry = {
-            score: number;
+            distance: number;
             source: "dictionary" | "repository" | "channel";
-            codeOrId: string;
+            identifier: string;
         };
+
         const dictionaryScored: ScoredEntry[] = [];
         const repositoryScored: ScoredEntry[] = [];
         const channelScored: ScoredEntry[] = [];
-        for (let i = 0; i < dictionaryScores.length; i++) {
+        for (let i = 0; i < dictionaryResults.length; i++) {
             dictionaryScored.push({
-                score: dictionaryScores[i],
+                distance: dictionaryResults[i].distance,
                 source: "dictionary",
-                codeOrId: dictionaryEmbeddings[i].id
+                identifier: dictionaryResults[i].identifier
             });
         }
-        for (let i = 0; i < repositoryScores.length; i++) {
+        for (let i = 0; i < repositoryResults.length; i++) {
             repositoryScored.push({
-                score: repositoryScores[i],
+                distance: repositoryResults[i].distance,
                 source: "repository",
-                codeOrId: repositoryEmbeddings[i].code
+                identifier: repositoryResults[i].identifier
             });
         }
 
-        for (let i = 0; i < channelScores.length; i++) {
+        for (let i = 0; i < channelDistances.length; i++) {
             channelScored.push({
-                score: channelScores[i],
+                distance: channelDistances[i],
                 source: "channel",
-                codeOrId: channels[i].id
+                identifier: channels[i].id
             });
         }
 
         //combinedScores.sort((a, b) => b.score - a.score);
 
         const getHighestScoredItem = (list: ScoredEntry[]) => {
-            return list.reduce((prev, current) => (prev && prev.score > current.score) ? prev : current, null as ScoredEntry | null);
+            return list.reduce((prev, current) => (prev && prev.distance > current.distance) ? prev : current, null as ScoredEntry | null);
         }
 
 
@@ -136,7 +132,7 @@ export class AskCommand implements Command {
 
         for (const entry of topEntries) {
             if (entry.source === "dictionary") {
-                const dictEntry = await guildHolder.getDictionaryManager().getEntry(entry.codeOrId);
+                const dictEntry = await guildHolder.getDictionaryManager().getEntry(entry.identifier);
                 if (!dictEntry) continue;
 
                 const definitionSplit = splitIntoChunks(transformOutputWithReferencesForDiscord(dictEntry.definition, dictEntry.references), 4000);
@@ -161,7 +157,7 @@ export class AskCommand implements Command {
                 }
 
             } else if (entry.source === "repository") {
-                const repoEntry = await guildHolder.getRepositoryManager().getEntryByPostCode(entry.codeOrId);
+                const repoEntry = await guildHolder.getRepositoryManager().getEntryByPostCode(entry.identifier);
                 if (!repoEntry) continue;
 
                 const entryData = repoEntry.entry.getData();
@@ -191,7 +187,7 @@ export class AskCommand implements Command {
 
                 embeds.push(embed);
             } else if (entry.source === "channel") {
-                const channel = channels.find(c => c.id === entry.codeOrId);
+                const channel = channels.find(c => c.id === entry.identifier);
                 if (!channel) continue;
 
                 const embed = new EmbedBuilder()
