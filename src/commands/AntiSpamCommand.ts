@@ -51,6 +51,17 @@ export class AntiSpamCommand implements Command {
                             .setDescription('Optionally auto delete the message when this user verifies')
                             .setRequired(false)
                     )
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('clearwarnings')
+                    .setDescription('Clear Llamabot warnings for a user')
+                    .addUserOption(option =>
+                        option
+                            .setName('user')
+                            .setDescription('Clear warnings for a specific user')
+                            .setRequired(true)
+                    )
             );
         return data;
     }
@@ -62,6 +73,22 @@ export class AntiSpamCommand implements Command {
             await this.setHoneypot(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'sendbotcheck') {
             await this.sendBotCheck(interaction);
+        } else if (interaction.options.getSubcommand() === 'clearwarnings') {
+            const user = interaction.options.getUser('user');
+            if (!user) {
+                await replyEphemeral(interaction, 'Invalid user');
+                return;
+            }
+
+            const data = await guildHolder.getUserManager().getUserData(user.id);
+            if (!data || !data.llmWarnings || data.llmWarnings.length === 0) {
+                await replyEphemeral(interaction, 'User has no warnings.');
+                return;
+            }
+
+            data.llmWarnings = [];
+            await guildHolder.getUserManager().saveUserData(data);
+            await interaction.reply(`Cleared all Llamabot warnings for ${user.tag}.`);
         } else {
             await replyEphemeral(interaction, 'Invalid subcommand. Use `/antispam sethoneypot`, `/antispam setmodlog`, or `/antispam sendbotcheck`.');
             return;
