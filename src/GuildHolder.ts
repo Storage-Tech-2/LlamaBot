@@ -1752,6 +1752,7 @@ export class GuildHolder {
                         })
                     ),
                     func: async (input: { query: string }) => {
+                        console.log(`LLM Search Tool invoked with query: ${input.query}`);
                         const queryEmbeddings = await generateQueryEmbeddings([input.query.trim()]).catch(e => {
                             console.error('Error generating query embeddings:', e);
                             return null;
@@ -1807,6 +1808,7 @@ export class GuildHolder {
                         })
                     ),
                     func: async (input: { query: string }) => {
+                        console.log(`LLM Define Tool invoked with query: ${input.query}`);
                         const queryEmbeddings = await generateQueryEmbeddings([input.query.trim()]).catch(e => {
                             console.error('Error generating query embeddings:', e);
                             return null;
@@ -1856,6 +1858,7 @@ export class GuildHolder {
                         })
                     ),
                     func: async (_input: {}) => {
+                        console.log(`LLM Channels Tool invoked`);
                         const channels: { name: string; topic: string; id: string, isArchiveChannel: boolean }[] = [];
                         const archiveCategories = this.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS) || [];
                         this.guild.channels.cache.forEach(channel => {
@@ -1879,7 +1882,7 @@ export class GuildHolder {
         }
 
         if (!response.text) {
-            console.error('No response from LLM:', response);
+            console.error('No response from LLM:', response.steps);
             throw new Error('No response from LLM');
         }
 
