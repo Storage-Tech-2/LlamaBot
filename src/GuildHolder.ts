@@ -1927,19 +1927,14 @@ export class GuildHolder {
         const citationRegex = /Citations?:\s*(\d+,?\S*)*/gi;
         responseText = responseText.replace(citationRegex, '');
 
+        responseText.replace(/\[\d{17,19}\]/g, ''); // remove reference numbers
+
         responseText = responseText.trim();
 
         const citations = response.output.citations || [];
 
-        const whitelistedPostCodes = new Set<string>();
         const whitelistedDefinitionIDs = new Set<string>();
         for (const identifier of citations) {
-            // find code in responseText and replace with mention of the post
-            if (PostCodePattern.test(identifier)) {
-                whitelistedPostCodes.add(identifier);
-                continue;
-            }
-
             // test snowflake
             if (/^\d{17,19}$/.test(identifier)) {
                 whitelistedDefinitionIDs.add(identifier);
@@ -1950,7 +1945,7 @@ export class GuildHolder {
         const inTextReferences: Reference[] = await tagReferences(responseText, [], this, '', false);
         const filteredReferences = inTextReferences.filter(ref => {
             if (ref.type === ReferenceType.ARCHIVED_POST) {
-                return whitelistedPostCodes.has(ref.id);
+                return false;
             }
             if (ref.type === ReferenceType.DICTIONARY_TERM) {
                 return whitelistedDefinitionIDs.has(ref.id);
