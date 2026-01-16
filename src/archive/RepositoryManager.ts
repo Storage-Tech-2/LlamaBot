@@ -663,6 +663,15 @@ export class RepositoryManager {
         await this.lock.release();
     }
 
+    public async rebuildIndexesAndEmbeddings() {
+        await this.lock.acquire();
+        await this.buildPersistentIndexAndEmbeddings().catch(() => { });
+        await this.dictionaryManager.rebuildIndexAndEmbeddings().catch(() => { });
+        await this.commit('Rebuilt persistent index and embeddings').catch(() => { });
+        await this.push().catch(() => { });
+        await this.lock.release();
+    }
+
     async findEntryBySubmissionId(submissionId: string): Promise<null | {
         channelRef: ArchiveChannelReference,
         channel: ArchiveChannel,

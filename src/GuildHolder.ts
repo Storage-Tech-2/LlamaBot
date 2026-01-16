@@ -105,8 +105,8 @@ export class GuildHolder {
                 console.error('Error initializing repository manager:', e);
             }
 
+            await this.repositoryManager.rebuildIndexesAndEmbeddings();
             await this.updatePostChannelsCache();
-
             await this.checkAllUsersForHelperRole();
 
 
