@@ -1914,7 +1914,7 @@ export class GuildHolder {
         let match;
         while ((match = channelMentionRegex.exec(responseText)) !== null) {
             const channelName = match[1];
-            const foundChannel = channel.guild.channels.cache.find(c => c.name === channelName && (c.isTextBased() || c.type === ChannelType.GuildForum) && !c.isThread());
+            const foundChannel = this.guild.channels.cache.find(c => c.name.replace(/[^a-zA-Z0-9-_]/g, '') === channelName.replace(/[^a-zA-Z0-9-_]/g, '') && (c.isTextBased() || c.type === ChannelType.GuildForum) && !c.isThread() && !c.isVoiceBased());
             if (foundChannel) {
                 responseText = responseText.replace(`#${channelName}`, `<#${foundChannel.id}>`);
             }
