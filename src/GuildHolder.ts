@@ -15,7 +15,7 @@ import fs from "fs/promises";
 import { countCharactersInRecord, postToMarkdown, StyleInfo } from "./utils/MarkdownUtils.js";
 import { Author, AuthorType, DiscordAuthor } from "./submissions/Author.js";
 import { NotABotButton } from "./components/buttons/NotABotButton.js";
-import { generateText, JSONSchema7, ModelMessage, Output, stepCountIs, zodSchema } from "ai";
+import { generateText, JSONSchema7, ModelMessage, Output, stepCountIs, Tool, zodSchema } from "ai";
 import { UserSubscriptionManager } from "./config/UserSubscriptionManager.js";
 import { ChannelSubscriptionManager } from "./config/ChannelSubscriptionManager.js";
 import { AntiNukeManager } from "./support/AntiNukeManager.js";
@@ -26,6 +26,7 @@ import { retagEverythingTask, updateMetadataTask } from "./archive/Tasks.js";
 import { RepositoryConfigs } from "./archive/RepositoryConfigs.js";
 import z from "zod";
 import { base64ToInt8Array, cosineSimilarity, generateQueryEmbeddings } from "./llm/EmbeddingUtils.js";
+import { PrivateFactBase } from "./archive/PrivateFactBase.js";
 /**
  * GuildHolder is a class that manages guild-related data.
  */
@@ -76,6 +77,8 @@ export class GuildHolder {
 
     private llmResponseLock: boolean = false;
 
+    private privateFactBase: PrivateFactBase;
+
     /**
      * Creates a new GuildHolder instance.
      * @param bot The bot instance associated with this guild holder.
@@ -94,6 +97,7 @@ export class GuildHolder {
         this.userManager = new UserManager(Path.join(this.getGuildFolder(), 'users'));
         this.userSubscriptionManager = new UserSubscriptionManager(Path.join(this.getGuildFolder(), 'subscriptions.json'));
         this.channelSubscriptionManager = new ChannelSubscriptionManager(Path.join(this.getGuildFolder(), 'channel_subscriptions.json'));
+        this.privateFactBase = new PrivateFactBase(Path.join(this.getGuildFolder(), 'facts'));
         this.config.loadConfig().then(async () => {
             // Set guild name and ID in the config
             this.config.setConfig(GuildConfigs.GUILD_NAME, guild.name);
@@ -1745,6 +1749,220 @@ export class GuildHolder {
             messagesIn.push({ mid: msg.id, id: messagesIn.length, obj: { role, content: `[${messagesIn.length}] <@${msg.author.id}> ${replyTo === null ? "said" : ` replied to [${replyTo}]`}: ${truncatedContent}` } });
         });
 
+        const tools: Record<string, Tool> = {
+            search: {
+                description: 'Lookup designs made by expert Minecraft redstone engineers using semantic search.',
+                inputSchema: z.object({
+                    query: z.string().min(1).max(256).describe('The search query to find relevant Minecraft redstone designs.'),
+                }),
+                outputSchema: zodSchema(
+                    z.object({
+                        results: z.array(z.object({
+                            title: z.string().describe('The title of the design.'),
+                            code: z.string().describe('The identifier code for the design.'),
+                            authors: z.string().describe('The authors of the design.'),
+                            tags: z.array(z.string()).describe('List of tags associated with the design.'),
+                            description: z.string().describe('A description of the design.'),
+                        })).describe('Top 5 list of Minecraft redstone designs matching the search query.'),
+                        error: z.string().optional().describe('An error message, if an error occurred during the search.'),
+                    })
+                ),
+                execute: async (input: { query: string }) => {
+                    const queryEmbeddings = await generateQueryEmbeddings([input.query.trim()]).catch(e => {
+                        console.error('Error generating query embeddings:', e);
+                        return null;
+                    });
+                    if (!queryEmbeddings) {
+                        return { results: [], error: 'Error generating query embeddings' };
+                    }
+
+                    try {
+                        const queryEmbeddingVector = base64ToInt8Array(queryEmbeddings.embeddings[0]);
+                        const closest = await this.repositoryManager.getClosest(queryEmbeddingVector, 5);
+                        const results = [];
+                        for (const result of closest) {
+                            const entry = await this.repositoryManager.getEntryByPostCode(result.identifier);
+                            if (entry) {
+                                const data = entry.entry.getData();
+                                // first entry
+                                const text = transformOutputWithReferencesForEmbeddings(postToMarkdown(data.records, data.styles, this.getSchemaStyles()), data.references);
+                                results.push({
+                                    title: data.name,
+                                    code: data.code,
+                                    tags: data.tags.map(t => t.name),
+                                    authors: data.authors.map(a => getAuthorName(a)),
+                                    description: truncateStringWithEllipsis(text, 2000)
+                                });
+                            }
+                        }
+                        return { results };
+                    } catch (e) {
+                        console.error('Error during search execution:', e);
+                        return { results: [], error: 'Error during search execution' };
+                    }
+                }
+            },
+            define: {
+                description: 'Lookup Minecraft and redstone related terms from a custom dictionary of definitions.',
+                inputSchema: z.object({
+                    query: z.string().min(1).max(256).describe('The search query to find relevant Minecraft and redstone definitions.'),
+                }),
+                outputSchema: zodSchema(
+                    z.object({
+                        results: z.array(z.object({
+                            terms: z.string().describe('The terms defined.'),
+                            definition: z.string().describe('The definition.'),
+                            id: z.string().describe('The unique identifier of the definition.'),
+                        })).describe('Top 5 list of definitions matching the search query.'),
+                        error: z.string().optional().describe('An error message, if an error occurred during the search.'),
+                    })
+                ),
+                execute: async (input: { query: string }) => {
+                    const queryEmbeddings = await generateQueryEmbeddings([input.query.trim()]).catch(e => {
+                        console.error('Error generating query embeddings:', e);
+                        return null;
+                    });
+                    if (!queryEmbeddings) {
+                        return { results: [], error: 'Error generating query embeddings' };
+                    }
+
+                    try {
+                        const queryEmbeddingVector = base64ToInt8Array(queryEmbeddings.embeddings[0]);
+                        const topResults = await this.getDictionaryManager().getClosest(queryEmbeddingVector, 5);
+                        const results = [];
+                        for (const result of topResults) {
+                            const entry = await this.getDictionaryManager().getEntry(result.identifier);
+                            if (entry) {
+                                // first entry
+                                const text = transformOutputWithReferencesForEmbeddings(entry.definition, entry.references);
+                                results.push({
+                                    terms: entry.terms.join(', '),
+                                    definition: truncateStringWithEllipsis(text, 2000),
+                                    id: entry.id,
+                                });
+                            }
+                        }
+
+                        return { results };
+                    } catch (e) {
+                        console.error('Error during define execution:', e);
+                        return { results: [], error: 'Error during define execution' };
+                    }
+                }
+            },
+            channels: {
+                description: 'Get a list of channels in the server to help direct users where they can find certain topics and designs. Use this if people ask where to find something.',
+                inputSchema: z.object({}),
+                outputSchema: zodSchema(
+                    z.object({
+                        channels: z.array(z.object({
+                            name: z.string().describe('The name of the channel.'),
+                            topic: z.string().describe('The topic of the channel.'),
+                            isArchiveChannel: z.boolean().describe('Whether the channel is an archive channel containing redstone designs.'),
+                        })).describe('List of channels in the server.'),
+                    })
+                ),
+                execute: async (_input: {}) => {
+                    const channels: { name: string; topic: string; isArchiveChannel: boolean }[] = [];
+                    const archiveCategories = this.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS) || [];
+                    const allchannels = await this.guild.channels.fetch();
+                    allchannels.forEach(channel => {
+                        if (channel && (channel.isTextBased() || channel.type === ChannelType.GuildForum) && !channel.isThread() && !channel.isVoiceBased()) {
+                            channels.push({
+                                name: channel.name,
+                                topic: getCodeAndDescriptionFromTopic(channel.topic || '').description,
+                                isArchiveChannel: archiveCategories.includes(channel.parentId || ''),
+                            });
+                        }
+                    });
+                    return { channels };
+                }
+            },
+            warn_user: {
+                description: 'Issue a warning to a user about their behavior. Use this when a user is being disruptive, spamming, or trying to make you say inappropriate things. With 3 warnings, they will not be allowed to talk to you anymore for a month.',
+                inputSchema: z.object({
+                    user_id: z.string().describe('The Discord user ID of the user to warn.'),
+                    reason: z.string().describe('The reason for the warning.'),
+                }),
+                outputSchema: zodSchema(
+                    z.object({
+                        success: z.boolean().describe('Whether the warning was successfully issued.'),
+                        numWarnings: z.number().describe('The number of warnings the user has received. Mention this in your response to help the moderators decide on further action.'),
+                        error: z.string().optional().describe('An error message, if an error occurred while issuing the warning.'),
+                    })
+                ),
+                execute: async (input: { user_id: string; reason: string }) => {
+                    try {
+                        const member = await this.guild.members.fetch(input.user_id).catch(() => undefined);
+                        if (!member) {
+                            return { success: false, numWarnings: 0, error: 'User not found in guild' };
+                        }
+
+                        const userData = await this.userManager.getOrCreateUserData(input.user_id, 'Unknown');
+                        if (!userData.llmWarnings) {
+                            userData.llmWarnings = [];
+                        }
+
+                        userData.llmWarnings.push({
+                            messageId: message.id,
+                            timestamp: Date.now(),
+                            reason: input.reason,
+                        });
+
+                        await this.userManager.saveUserData(userData);
+
+                        return { success: true, numWarnings: userData.llmWarnings.filter(w => (Date.now() - w.timestamp) < (30 * 24 * 60 * 60 * 1000)).length };
+                    } catch (e) {
+                        console.error('Error issuing warning to user:', e);
+                        return { success: false, numWarnings: 0, error: 'Error issuing warning to user' };
+                    }
+                }
+            }
+        };
+
+        if (this.privateFactBase.isFactBaseEnabled()) {
+            tools.factsheets = {
+                description: 'Lookup information from the factsheet database. This is the largest resource. Use this resource to understand general knowledge about Minecraft, redstone, and common community practices.',
+                inputSchema: z.object({
+                    query: z.string().min(1).max(256).describe('The search query to find relevant factsheet information.'),
+                }),
+                outputSchema: zodSchema(
+                    z.object({
+                        results: z.array(z.object({
+                            content: z.string().describe('The content of the factsheet.'),
+                        })).describe('Top 3 list of factsheet entries matching the search query.'),
+                        error: z.string().optional().describe('An error message, if an error occurred during the search.'),
+                    })
+                ),
+                execute: async (input: { query: string }) => {
+                    const queryEmbeddings = await generateQueryEmbeddings([input.query.trim()]).catch(e => {
+                        console.error('Error generating query embeddings:', e);
+                        return null;
+                    });
+                    if (!queryEmbeddings) {
+                        return { results: [], error: 'Error generating query embeddings' };
+                    }
+                    try {
+                        const queryEmbeddingVector = base64ToInt8Array(queryEmbeddings.embeddings[0]);
+                        const results = await this.privateFactBase.getClosest(queryEmbeddingVector, 3);
+                        const data = [];
+                        for (const result of results) {
+                            const sheet = await this.privateFactBase.getFact(result.identifier);
+                            if (sheet) {
+                                data.push({
+                                    content: sheet.text.replace(/\[QA\d+\]/g, '').trim(),
+                                });
+                            }
+                        }
+                        return { results: data };
+                    } catch (e) {
+                        console.error('Error during factsheet query execution:', e);
+                        return { results: [], error: 'Error during factsheet query execution' };
+                    }
+                }
+            }
+        }
+
         const response = await generateText({
             model: model,
             system: systemPrompt,
@@ -1760,182 +1978,7 @@ export class GuildHolder {
                     ),
                 }
             ),
-            tools: {
-                search: {
-                    description: 'Lookup designs made by expert Minecraft redstone engineers using semantic search.',
-                    inputSchema: z.object({
-                        query: z.string().min(1).max(256).describe('The search query to find relevant Minecraft redstone designs.'),
-                    }),
-                    inputExample: {
-                        query: '2x hopperspeed box loader'
-                    },
-                    outputSchema: zodSchema(
-                        z.object({
-                            results: z.array(z.object({
-                                title: z.string().describe('The title of the design.'),
-                                code: z.string().describe('The identifier code for the design.'),
-                                authors: z.string().describe('The authors of the design.'),
-                                tags: z.array(z.string()).describe('List of tags associated with the design.'),
-                                description: z.string().describe('A description of the design.'),
-                            })).describe('Top 5 list of Minecraft redstone designs matching the search query.'),
-                            error: z.string().optional().describe('An error message, if an error occurred during the search.'),
-                        })
-                    ),
-                    execute: async (input: { query: string }) => {
-                        const queryEmbeddings = await generateQueryEmbeddings([input.query.trim()]).catch(e => {
-                            console.error('Error generating query embeddings:', e);
-                            return null;
-                        });
-                        if (!queryEmbeddings) {
-                            return { results: [], error: 'Error generating query embeddings' };
-                        }
-
-                        try {
-                            const queryEmbeddingVector = base64ToInt8Array(queryEmbeddings.embeddings[0]);
-                            const closest = await this.repositoryManager.getClosest(queryEmbeddingVector, 5);
-                            const results = [];
-                            for (const result of closest) {
-                                const entry = await this.repositoryManager.getEntryByPostCode(result.identifier);
-                                if (entry) {
-                                    const data = entry.entry.getData();
-                                    // first entry
-                                    const text = transformOutputWithReferencesForEmbeddings(postToMarkdown(data.records, data.styles, this.getSchemaStyles()), data.references);
-                                    results.push({
-                                        title: data.name,
-                                        code: data.code,
-                                        tags: data.tags.map(t => t.name),
-                                        authors: data.authors.map(a => getAuthorName(a)),
-                                        description: truncateStringWithEllipsis(text, 2000)
-                                    });
-                                }
-                            }
-                            return { results };
-                        } catch (e) {
-                            console.error('Error during search execution:', e);
-                            return { results: [], error: 'Error during search execution' };
-                        }
-                    }
-                },
-                define: {
-                    description: 'Lookup Minecraft and redstone related terms from a custom dictionary of definitions.',
-                    inputSchema: z.object({
-                        query: z.string().min(1).max(256).describe('The search query to find relevant Minecraft and redstone definitions.'),
-                    }),
-                    inputExample: {
-                        query: 'What is a comparator update detector?'
-                    },
-                    outputSchema: zodSchema(
-                        z.object({
-                            results: z.array(z.object({
-                                terms: z.string().describe('The terms defined.'),
-                                definition: z.string().describe('The definition.'),
-                                id: z.string().describe('The unique identifier of the definition.'),
-                            })).describe('Top 5 list of definitions matching the search query.'),
-                            error: z.string().optional().describe('An error message, if an error occurred during the search.'),
-                        })
-                    ),
-                    execute: async (input: { query: string }) => {
-                        const queryEmbeddings = await generateQueryEmbeddings([input.query.trim()]).catch(e => {
-                            console.error('Error generating query embeddings:', e);
-                            return null;
-                        });
-                        if (!queryEmbeddings) {
-                            return { results: [], error: 'Error generating query embeddings' };
-                        }
-
-                        try {
-                            const queryEmbeddingVector = base64ToInt8Array(queryEmbeddings.embeddings[0]);
-                            const topResults = await this.getDictionaryManager().getClosest(queryEmbeddingVector, 5);
-                            const results = [];
-                            for (const result of topResults) {
-                                const entry = await this.getDictionaryManager().getEntry(result.identifier);
-                                if (entry) {
-                                    // first entry
-                                    const text = transformOutputWithReferencesForEmbeddings(entry.definition, entry.references);
-                                    results.push({
-                                        terms: entry.terms.join(', '),
-                                        definition: truncateStringWithEllipsis(text, 2000),
-                                        id: entry.id,
-                                    });
-                                }
-                            }
-
-                            return { results };
-                        } catch (e) {
-                            console.error('Error during define execution:', e);
-                            return { results: [], error: 'Error during define execution' };
-                        }
-                    }
-                },
-                channels: {
-                    description: 'Get a list of channels in the server to help direct users where they can find certain topics and designs. Use this if people ask where to find something.',
-                    inputSchema: z.object({}),
-                    outputSchema: zodSchema(
-                        z.object({
-                            channels: z.array(z.object({
-                                name: z.string().describe('The name of the channel.'),
-                                topic: z.string().describe('The topic of the channel.'),
-                                isArchiveChannel: z.boolean().describe('Whether the channel is an archive channel containing redstone designs.'),
-                            })).describe('List of channels in the server.'),
-                        })
-                    ),
-                    execute: async (_input: {}) => {
-                        const channels: { name: string; topic: string; isArchiveChannel: boolean }[] = [];
-                        const archiveCategories = this.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS) || [];
-                        const allchannels = await this.guild.channels.fetch();
-                        allchannels.forEach(channel => {
-                            if (channel && (channel.isTextBased() || channel.type === ChannelType.GuildForum) && !channel.isThread() && !channel.isVoiceBased()) {
-                                channels.push({
-                                    name: channel.name,
-                                    topic: getCodeAndDescriptionFromTopic(channel.topic || '').description,
-                                    isArchiveChannel: archiveCategories.includes(channel.parentId || ''),
-                                });
-                            }
-                        });
-                        return { channels };
-                    }
-                },
-                warn_user: {
-                    description: 'Issue a warning to a user about their behavior. Use this when a user is being disruptive, spamming, or trying to make you say inappropriate things. With 3 warnings, they will not be allowed to talk to you anymore for a month.',
-                    inputSchema: z.object({
-                        user_id: z.string().describe('The Discord user ID of the user to warn.'),
-                        reason: z.string().describe('The reason for the warning.'),
-                    }),
-                    outputSchema: zodSchema(
-                        z.object({
-                            success: z.boolean().describe('Whether the warning was successfully issued.'),
-                            numWarnings: z.number().describe('The number of warnings the user has received. Mention this in your response to help the moderators decide on further action.'),
-                            error: z.string().optional().describe('An error message, if an error occurred while issuing the warning.'),
-                        })
-                    ),
-                    execute: async (input: { user_id: string; reason: string }) => {
-                        try {
-                            const member = await this.guild.members.fetch(input.user_id).catch(() => undefined);
-                            if (!member) {
-                                return { success: false, numWarnings: 0, error: 'User not found in guild' };
-                            }
-
-                            const userData = await this.userManager.getOrCreateUserData(input.user_id, 'Unknown');
-                            if (!userData.llmWarnings) {
-                                userData.llmWarnings = [];
-                            }
-
-                            userData.llmWarnings.push({
-                                messageId: message.id,
-                                timestamp: Date.now(),
-                                reason: input.reason,
-                            });
-
-                            await this.userManager.saveUserData(userData);
-
-                            return { success: true, numWarnings: userData.llmWarnings.filter(w => (Date.now() - w.timestamp) < (30 * 24 * 60 * 60 * 1000)).length };
-                        } catch (e) {
-                            console.error('Error issuing warning to user:', e);
-                            return { success: false, numWarnings: 0, error: 'Error issuing warning to user' };
-                        }
-                    }
-                }
-            }
+            tools: tools
         })
 
         if (response.warnings?.length) {
