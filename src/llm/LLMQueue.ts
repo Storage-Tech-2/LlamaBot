@@ -148,7 +148,7 @@ export class LLMQueue {
         }
 
         const result = await generateText({
-            model: paidLLMClient("grok-4"),
+            model: paidLLMClient("grok-4-1-fast-non-reasoning"),
             output: Output.object({
                 schema: jsonSchema(request.schema)
             }),
