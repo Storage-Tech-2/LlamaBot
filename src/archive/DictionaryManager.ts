@@ -11,7 +11,7 @@ import { chunkArray, truncateStringWithEllipsis } from "../utils/Util.js";
 import { EditDictionaryEntryButton } from "../components/buttons/EditDictionaryEntryButton.js";
 import { buildDictionarySlug } from "../utils/SlugUtils.js";
 import { base64ToInt8Array, EmbeddingsEntry, EmbeddingsSearchResult, generateDocumentEmbeddings, getClosestWithIndex, loadHNSWIndex, makeHNSWIndex } from "../llm/EmbeddingUtils.js";
-import { HierarchicalNSW } from "hnswlib-node";
+import { type HierarchicalNSW } from 'hnswlib-node';
 
 export enum DictionaryEntryStatus {
     PENDING = "PENDING",

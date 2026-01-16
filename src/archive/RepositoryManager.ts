@@ -25,7 +25,7 @@ import { getDiscordServersFromReferences, ReferenceType, tagReferencesInAcknowle
 import { PersistentIndex, PersistentIndexChannel, PersistentIndexEntry, serializePersistentIndex } from "../utils/PersistentIndexUtils.js";
 import { postToMarkdown } from "../utils/MarkdownUtils.js";
 import { base64ToInt8Array, EmbeddingsEntry, EmbeddingsSearchResult as EmbeddingsSearchResult, generateDocumentEmbeddings, getClosestWithIndex, loadHNSWIndex, makeHNSWIndex } from "../llm/EmbeddingUtils.js";
-import { HierarchicalNSW } from "hnswlib-node";
+import { type HierarchicalNSW } from "hnswlib-node";
 
 export class RepositoryManager {
     public folderPath: string;

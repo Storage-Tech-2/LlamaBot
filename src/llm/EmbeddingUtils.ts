@@ -1,5 +1,5 @@
 import got from "got";
-import { HierarchicalNSW } from "hnswlib-node";
+import HNSW from "hnswlib-node";
 
 const URL = 'http://localhost:8000/embed'
 const NUM_DIMENSIONS = 256;
@@ -28,7 +28,7 @@ export function generateDocumentEmbeddings(texts: string[]): Promise<{ embedding
 }
 
 
-export async function getClosestWithIndex(index: HierarchicalNSW, embeddings: EmbeddingsEntry[], embedding: Int8Array, numNeighbors: number): Promise<EmbeddingsSearchResult[]> {
+export async function getClosestWithIndex(index: HNSW.HierarchicalNSW, embeddings: EmbeddingsEntry[], embedding: Int8Array, numNeighbors: number): Promise<EmbeddingsSearchResult[]> {
     const result = index.searchKnn(Array.from(embedding), numNeighbors);
     const results: { identifier: string; distance: number }[] = [];
     for (let i = 0; i < result.neighbors.length; i++) {
@@ -66,8 +66,8 @@ export function base64ToInt8Array(base64: string): Int8Array {
     return new Int8Array(binaryString);
 }
 
-export async function makeHNSWIndex(embeddings: Int8Array[], savePath: string): Promise<HierarchicalNSW> {
-    const index = new HierarchicalNSW('cosine', NUM_DIMENSIONS);
+export async function makeHNSWIndex(embeddings: Int8Array[], savePath: string): Promise<HNSW.HierarchicalNSW> {
+    const index = new HNSW.HierarchicalNSW('cosine', NUM_DIMENSIONS);
     index.initIndex(embeddings.length);
     embeddings.forEach((embedding, idx) => {
         index.addPoint(Array.from(embedding), idx);
@@ -77,8 +77,8 @@ export async function makeHNSWIndex(embeddings: Int8Array[], savePath: string): 
     return index;
 }
 
-export async function loadHNSWIndex(loadPath: string): Promise<HierarchicalNSW> {
-    const index = new HierarchicalNSW('cosine', NUM_DIMENSIONS);
+export async function loadHNSWIndex(loadPath: string): Promise<HNSW.HierarchicalNSW> {
+    const index = new HNSW.HierarchicalNSW('cosine', NUM_DIMENSIONS);
     await index.readIndex(loadPath);
     return index;
 }
