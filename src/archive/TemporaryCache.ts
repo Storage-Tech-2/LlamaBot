@@ -37,8 +37,10 @@ export class TemporaryCache<T> {
             this.loadingPromise = null;
             this.cache = result;
             this.resetTimeout();
+            return result;
+        } else {
+            return this.get(); // Retry getting the cache
         }
-        return result;
     }
 
     public set(value: T): void {
