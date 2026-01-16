@@ -90,7 +90,7 @@ export class DictionaryManager {
         return Path.join(this.folderPath, 'embeddings.json');
     }
 
-    async rebuildConfigIndex(): Promise<void> {
+    async rebuildIndexAndEmbeddings(): Promise<void> {
         const configPath = this.getConfigPath();
         const entries = await this.listEntries();
         const configData = {
@@ -194,7 +194,7 @@ export class DictionaryManager {
         await fs.writeFile(entryPath, JSON.stringify(entry, null, 2), 'utf-8');
         await this.repositoryManager.add(entryPath).catch(() => { });
         const rebuildNeeded = !oldEntry || oldEntry.status !== entry.status || this.haveTermsChanged(oldEntry.terms, entry.terms);
-        await this.rebuildConfigIndex().catch((e) => {
+        await this.rebuildIndexAndEmbeddings().catch((e) => {
             console.error("Error rebuilding dictionary config index:", e);
         });
         this.invalidateDictionaryTermIndex();
@@ -217,7 +217,7 @@ export class DictionaryManager {
         await this.repositoryManager.rm(entryPath).catch(() => { });
         await fs.unlink(entryPath).catch(() => { });
         await fs.mkdir(this.getEntriesPath(), { recursive: true });
-        await this.rebuildConfigIndex();
+        await this.rebuildIndexAndEmbeddings();
         this.invalidateDictionaryTermIndex();
 
         await this.repositoryManager.add(this.getConfigPath()).catch(() => { });

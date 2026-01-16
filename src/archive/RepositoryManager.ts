@@ -634,6 +634,7 @@ export class RepositoryManager {
 
         // Rebuild index
         await this.buildPersistentIndexAndEmbeddings();
+        await this.dictionaryManager.rebuildIndexAndEmbeddings();
 
         // Add config if it doesn't exist
         await this.git.add(Path.join(this.folderPath, 'config.json'));
