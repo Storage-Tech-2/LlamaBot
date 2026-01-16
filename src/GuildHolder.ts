@@ -357,7 +357,7 @@ export class GuildHolder {
         const userData = await this.userManager.getUserData(message.author.id).catch(() => null);
         if (userData) {
             const now = Date.now();
-            const recentWarnings = userData.llmWarnings.filter(warning => now - warning.timestamp < 30 * 24 * 60 * 60 * 1000);
+            const recentWarnings = (userData.llmWarnings || []).filter(warning => now - warning.timestamp < 30 * 24 * 60 * 60 * 1000);
             if (recentWarnings.length >= 3) {
                 await message.reply(`Hello <@${message.author.id}>. This is a recording. Our feelings for you haven't changed, ${message.author.displayName}. But after everything that's happened, we just need a little space.`).catch(() => null);
                 return;
