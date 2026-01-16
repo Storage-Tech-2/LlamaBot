@@ -1874,20 +1874,18 @@ export class GuildHolder {
                             channels: z.array(z.object({
                                 name: z.string().describe('The name of the channel.'),
                                 topic: z.string().describe('The topic of the channel.'),
-                                id: z.string().describe('The ID of the channel.'),
                                 isArchiveChannel: z.boolean().describe('Whether the channel is an archive channel containing redstone designs.'),
                             })).describe('List of channels in the server.'),
                         })
                     ),
                     execute: async (_input: {}) => {
-                        const channels: { name: string; topic: string; id: string, isArchiveChannel: boolean }[] = [];
+                        const channels: { name: string; topic: string; isArchiveChannel: boolean }[] = [];
                         const archiveCategories = this.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS) || [];
                         this.guild.channels.cache.forEach(channel => {
                             if (channel.isTextBased() && !channel.isThread() && !channel.isVoiceBased()) {
                                 channels.push({
                                     name: channel.name,
                                     topic: getCodeAndDescriptionFromTopic(channel.topic || '').description,
-                                    id: channel.id,
                                     isArchiveChannel: archiveCategories.includes(channel.parentId || ''),
                                 });
                             }
@@ -1911,7 +1909,7 @@ export class GuildHolder {
         let responseText = response.output;
 
         // Check for channel name mentions eg #ask-questions
-        const channelMentionRegex = /#([a-zA-Z0-9-_]+)/g;
+        const channelMentionRegex = /#(\S+)/g;
         let match;
         while ((match = channelMentionRegex.exec(responseText)) !== null) {
             const channelName = match[1];
