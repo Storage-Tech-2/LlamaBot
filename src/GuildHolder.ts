@@ -15,7 +15,7 @@ import fs from "fs/promises";
 import { countCharactersInRecord, postToMarkdown, StyleInfo } from "./utils/MarkdownUtils.js";
 import { Author, AuthorType, DiscordAuthor } from "./submissions/Author.js";
 import { NotABotButton } from "./components/buttons/NotABotButton.js";
-import { generateText, JSONSchema7, ModelMessage, stepCountIs, zodSchema } from "ai";
+import { generateText, JSONSchema7, ModelMessage, Output, stepCountIs, zodSchema } from "ai";
 import { UserSubscriptionManager } from "./config/UserSubscriptionManager.js";
 import { ChannelSubscriptionManager } from "./config/ChannelSubscriptionManager.js";
 import { AntiNukeManager } from "./support/AntiNukeManager.js";
@@ -1678,18 +1678,15 @@ export class GuildHolder {
         let contextLength;
         let model;
         let systemPrompt;
-        let maxOutputLength;
         const specialQuestions = ['who is right', 'is this true', 'translate'];
         if (specialQuestions.some(q => message.content.toLowerCase().includes(q))) {
             contextLength = 50; // more context for "who is right" questions
             model = this.bot.openAIClient("gpt-5"); // use better model for complex questions
-            systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration. You are friendly and talk casually. You are logical and do not flatter. Use the tools available to you to answer user's questions. NEVER use emojis or em-dashes. User mentions are in the format <@UserID> and will be prepended to messages they send. Mention the correct user to keep the conversation clear. EG: If a message says "<@123456789012345678> tell them" and a previous message from user 4987654321012345678 said "I love Minecraft", you should respond with "<@4987654321012345678> Minecraft is great!"`;
-            maxOutputLength = 20000;
+            systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration. You are friendly and talk casually. You are logical and do not flatter. Use the tools available to you to answer user's questions, especially if they want recommendations for designs. NEVER use emojis or em-dashes. User mentions are in the format <@UserID> and will be prepended to messages they send. Mention the correct user to keep the conversation clear. EG: If a message says "<@123456789012345678> tell them" and a previous message from user 4987654321012345678 said "I love Minecraft", you should respond with "<@4987654321012345678> Minecraft is great!"`;
         } else {
             contextLength = 10;
             model = this.bot.openAIClient("gpt-5-mini");
-            systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration and development. You are friendly, concise, and talk casually. Use the tools available to you to answer user's questions. You are talking in a channel called #${channelName}.${channelTopic ? ` The channel topic is: ${channelTopic}.` : ''} Direct users to the appropriate channel if they ask where they can find something. User mentions are in the format <@UserID> and will be prepended to messages they send. NEVER use emojis or em-dashes. Mention the correct user to keep the conversation clear. EG: If a message says "<@123456789012345678> tell them" and a previous message from user 4987654321012345678 said "I love Minecraft", you should respond with "<@4987654321012345678> Minecraft is great!"`;
-            maxOutputLength = 20000;
+            systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration and development. You are friendly, concise, and talk casually. Use the tools available to you to answer user's questions, especially if they want recommendations for designs. You are talking in a channel called #${channelName}.${channelTopic ? ` The channel topic is: ${channelTopic}.` : ''} Direct users to the appropriate channel if they ask where they can find something. User mentions are in the format <@UserID> and will be prepended to messages they send. NEVER use emojis or em-dashes. Mention the correct user to keep the conversation clear. EG: If a message says "<@123456789012345678> tell them" and a previous message from user 4987654321012345678 said "I love Minecraft", you should respond with "<@4987654321012345678> Minecraft is great!"`;
         }
         const messages = await channel.messages.fetch({ limit: contextLength });
 
@@ -1702,7 +1699,7 @@ export class GuildHolder {
 
         const messagesIn: { mid: Snowflake, id: number, obj: ModelMessage }[] = [];
 
-        messagesIn.push({ mid: '0', id: 0, obj: { role: 'system', content: systemPrompt } });
+        //messagesIn.push({ mid: '0', id: 0, obj: { role: 'system', content: systemPrompt } });
         sortedMessages.forEach(msg => {
             const isBot = msg.author.id === this.getBot().client.user?.id;
             const role = isBot ? 'assistant' : 'user';
@@ -1728,12 +1725,10 @@ export class GuildHolder {
 
         const response = await generateText({
             model: model,
+            system: systemPrompt,
             messages: messagesIn.map(m => m.obj),
-            maxOutputTokens: maxOutputLength,
-            providerOptions: {
-
-            },
             stopWhen: stepCountIs(10),
+            output: Output.text(),
             tools: {
                 search: {
                     description: 'Lookup designs made by expert Minecraft redstone engineers using semantic search.',
@@ -1755,7 +1750,7 @@ export class GuildHolder {
                             error: z.string().optional().describe('An error message, if an error occurred during the search.'),
                         })
                     ),
-                    func: async (input: { query: string }) => {
+                    execute: async (input: { query: string }) => {
                         console.log(`LLM Search Tool invoked with query: ${input.query}`);
                         const queryEmbeddings = await generateQueryEmbeddings([input.query.trim()]).catch(e => {
                             console.error('Error generating query embeddings:', e);
@@ -1765,31 +1760,36 @@ export class GuildHolder {
                             return { results: [], error: 'Error generating query embeddings' };
                         }
 
-                        const queryEmbeddingVector = base64ToInt8Array(queryEmbeddings.embeddings[0]);
-                        const embeddings = await this.repositoryManager.getEmbeddings();
-                        const scores = embeddings.map(embedding => {
-                            return {
-                                code: embedding.code,
-                                score: cosineSimilarity(queryEmbeddingVector, base64ToInt8Array(embedding.embedding)),
-                            };
-                        });
-                        scores.sort((a, b) => b.score - a.score);
-                        const topResults = scores.slice(0, 5);
-                        const results = [];
-                        for (const result of topResults) {
-                            const entry = await this.repositoryManager.getEntryByPostCode(result.code);
-                            if (entry) {
-                                const data = entry.entry.getData();
-                                // first entry
-                                const text = transformOutputWithReferencesForEmbeddings(postToMarkdown(data.records, data.styles, this.getSchemaStyles()), data.references);
-                                results.push({
-                                    title: data.name,
-                                    code: data.code,
-                                    authors: data.authors.map(a => getAuthorName(a)),
-                                    snippet: truncateStringWithEllipsis(text, 2000),
-                                    url: data.post?.threadURL || '',
-                                });
+                        try {
+                            const queryEmbeddingVector = base64ToInt8Array(queryEmbeddings.embeddings[0]);
+                            const embeddings = await this.repositoryManager.getEmbeddings();
+                            const scores = embeddings.map(embedding => {
+                                return {
+                                    code: embedding.code,
+                                    score: cosineSimilarity(queryEmbeddingVector, base64ToInt8Array(embedding.embedding)),
+                                };
+                            });
+                            scores.sort((a, b) => b.score - a.score);
+                            const topResults = scores.slice(0, 5);
+                            const results = [];
+                            for (const result of topResults) {
+                                const entry = await this.repositoryManager.getEntryByPostCode(result.code);
+                                if (entry) {
+                                    const data = entry.entry.getData();
+                                    // first entry
+                                    const text = transformOutputWithReferencesForEmbeddings(postToMarkdown(data.records, data.styles, this.getSchemaStyles()), data.references);
+                                    results.push({
+                                        title: data.name,
+                                        code: data.code,
+                                        authors: data.authors.map(a => getAuthorName(a)),
+                                        snippet: truncateStringWithEllipsis(text, 2000),
+                                        url: data.post?.threadURL || '',
+                                    });
+                                }
                             }
+                        } catch (e) {
+                            console.error('Error during search execution:', e);
+                            return { results: [], error: 'Error during search execution' };
                         }
                     }
                 },
@@ -1811,7 +1811,7 @@ export class GuildHolder {
                             error: z.string().optional().describe('An error message, if an error occurred during the search.'),
                         })
                     ),
-                    func: async (input: { query: string }) => {
+                    execute: async (input: { query: string }) => {
                         console.log(`LLM Define Tool invoked with query: ${input.query}`);
                         const queryEmbeddings = await generateQueryEmbeddings([input.query.trim()]).catch(e => {
                             console.error('Error generating query embeddings:', e);
@@ -1821,31 +1821,36 @@ export class GuildHolder {
                             return { results: [], error: 'Error generating query embeddings' };
                         }
 
-                        const queryEmbeddingVector = base64ToInt8Array(queryEmbeddings.embeddings[0]);
-                        const embeddings = await this.getDictionaryManager().getEmbeddings();
-                        const scores = embeddings.map(embedding => {
-                            return {
-                                id: embedding.id,
-                                score: cosineSimilarity(queryEmbeddingVector, base64ToInt8Array(embedding.embedding)),
-                            };
-                        });
-                        scores.sort((a, b) => b.score - a.score);
-                        const topResults = scores.slice(0, 5);
-                        const results = [];
-                        for (const result of topResults) {
-                            const entry = await this.getDictionaryManager().getEntry(result.id);
-                            if (entry) {
-                                // first entry
-                                const text = transformOutputWithReferencesForEmbeddings(entry.definition, entry.references);
-                                results.push({
-                                    terms: entry.terms.join(', '),
-                                    definition: truncateStringWithEllipsis(text, 2000),
-                                    url: entry.statusURL
-                                });
+                        try {
+                            const queryEmbeddingVector = base64ToInt8Array(queryEmbeddings.embeddings[0]);
+                            const embeddings = await this.getDictionaryManager().getEmbeddings();
+                            const scores = embeddings.map(embedding => {
+                                return {
+                                    id: embedding.id,
+                                    score: cosineSimilarity(queryEmbeddingVector, base64ToInt8Array(embedding.embedding)),
+                                };
+                            });
+                            scores.sort((a, b) => b.score - a.score);
+                            const topResults = scores.slice(0, 5);
+                            const results = [];
+                            for (const result of topResults) {
+                                const entry = await this.getDictionaryManager().getEntry(result.id);
+                                if (entry) {
+                                    // first entry
+                                    const text = transformOutputWithReferencesForEmbeddings(entry.definition, entry.references);
+                                    results.push({
+                                        terms: entry.terms.join(', '),
+                                        definition: truncateStringWithEllipsis(text, 2000),
+                                        url: entry.statusURL
+                                    });
+                                }
                             }
-                        }
 
-                        return { results };
+                            return { results };
+                        } catch (e) {
+                            console.error('Error during define execution:', e);
+                            return { results: [], error: 'Error during define execution' };
+                        }
                     }
                 },
                 channels: {
@@ -1861,7 +1866,7 @@ export class GuildHolder {
                             })).describe('List of channels in the server.'),
                         })
                     ),
-                    func: async (_input: {}) => {
+                    execute: async (_input: {}) => {
                         console.log(`LLM Channels Tool invoked`);
                         const channels: { name: string; topic: string; id: string, isArchiveChannel: boolean }[] = [];
                         const archiveCategories = this.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS) || [];
