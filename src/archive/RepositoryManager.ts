@@ -26,6 +26,7 @@ import { PersistentIndex, PersistentIndexChannel, PersistentIndexEntry, serializ
 import { postToMarkdown } from "../utils/MarkdownUtils.js";
 import { base64ToInt8Array, EmbeddingsEntry, EmbeddingsSearchResult as EmbeddingsSearchResult, generateDocumentEmbeddings, getClosestWithIndex, loadHNSWIndex, makeHNSWIndex } from "../llm/EmbeddingUtils.js";
 import { type HierarchicalNSW } from "hnswlib-node";
+import { TemporaryCache } from "./TemporaryCache.js";
 
 export class RepositoryManager {
     public folderPath: string;
@@ -37,6 +38,7 @@ export class RepositoryManager {
     private dictionaryManager: DictionaryManager;
     private indexManager: IndexManager;
     private discordServersDictionary: DiscordServersDictionary;
+    private hnswIndexCache: TemporaryCache<HierarchicalNSW | null>;
     constructor(guildHolder: GuildHolder, folderPath: string, globalDiscordServersDictionary?: DiscordServersDictionary) {
         this.guildHolder = guildHolder;
         this.folderPath = folderPath;
@@ -45,6 +47,9 @@ export class RepositoryManager {
         this.indexManager = new IndexManager(this.dictionaryManager, this, this.folderPath);
         this.dictionaryManager.setIndexManager(this.indexManager);
         this.discordServersDictionary = new DiscordServersDictionary(this.folderPath, this, globalDiscordServersDictionary);
+        this.hnswIndexCache = new TemporaryCache<HierarchicalNSW | null>(5 * 60 * 1000, async () => {
+            return await loadHNSWIndex(this.getHNSWIndexPath()).catch(() => null);
+        });
 
         this.configManager.setChangeListener(async () => {
             if (this.git) {
@@ -139,9 +144,7 @@ export class RepositoryManager {
     }
 
     public async getEmbeddingsIndex(): Promise<HierarchicalNSW | null> {
-        const indexPath = this.getHNSWIndexPath();
-        const index = await loadHNSWIndex(indexPath).catch(() => null);
-        return index;
+        return this.hnswIndexCache.get();
     }
 
     public async getClosest(embedding: Int8Array, numNeighbors: number): Promise<EmbeddingsSearchResult[]> {
@@ -316,6 +319,7 @@ export class RepositoryManager {
             await this.git?.add(this.getEmbeddingPath());
 
             await makeHNSWIndex(newEmbeddings.map(e => base64ToInt8Array(e.embedding)), this.getHNSWIndexPath());
+            this.hnswIndexCache.clear();
             await this.git?.add(this.getHNSWIndexPath());
         }
     }

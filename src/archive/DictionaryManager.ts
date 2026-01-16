@@ -12,6 +12,7 @@ import { EditDictionaryEntryButton } from "../components/buttons/EditDictionaryE
 import { buildDictionarySlug } from "../utils/SlugUtils.js";
 import { base64ToInt8Array, EmbeddingsEntry, EmbeddingsSearchResult, generateDocumentEmbeddings, getClosestWithIndex, loadHNSWIndex, makeHNSWIndex } from "../llm/EmbeddingUtils.js";
 import { type HierarchicalNSW } from 'hnswlib-node';
+import { TemporaryCache } from "./TemporaryCache.js";
 
 export enum DictionaryEntryStatus {
     PENDING = "PENDING",
@@ -39,13 +40,16 @@ export class DictionaryManager {
 
     private indexRebuildRequested: boolean = false;
     private indexRebuildTimeoutHandle: NodeJS.Timeout | null = null;
+    private hnswIndexCache: TemporaryCache<HierarchicalNSW | null>;
 
     constructor(
         private guildHolder: GuildHolder,
         private folderPath: string,
         private repositoryManager: RepositoryManager,
     ) {
-
+        this.hnswIndexCache = new TemporaryCache<HierarchicalNSW | null>(5 * 60 * 1000, async () => {
+            return await loadHNSWIndex(this.getHNSWIndexPath()).catch(() => null);
+        });
     }
 
     async init() {
@@ -176,6 +180,7 @@ export class DictionaryManager {
             await fs.writeFile(this.getDictionaryEmbeddingPath(), JSON.stringify(newEmbeddings, null, 2), 'utf-8');
             await this.repositoryManager.add(this.getDictionaryEmbeddingPath());
             await makeHNSWIndex(newEmbeddings.map(e => base64ToInt8Array(e.embedding)), this.getHNSWIndexPath());
+            this.hnswIndexCache.clear();
             await this.repositoryManager.add(this.getHNSWIndexPath());
         }
     }
@@ -188,9 +193,7 @@ export class DictionaryManager {
     }
 
     public async getEmbeddingsIndex(): Promise<HierarchicalNSW | null> {
-        const indexPath = this.getHNSWIndexPath();
-        const index = await loadHNSWIndex(indexPath).catch(() => null);
-        return index;
+        return this.hnswIndexCache.get();
     }
 
     public async getClosest(embedding: Int8Array, numNeighbors: number): Promise<EmbeddingsSearchResult[]> {

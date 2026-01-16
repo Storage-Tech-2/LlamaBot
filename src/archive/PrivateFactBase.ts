@@ -1,6 +1,8 @@
 import Path from "path";
 import fs from "fs/promises";
 import { EmbeddingsEntry, base64ToInt8Array, makeHNSWIndex, EmbeddingsSearchResult, loadHNSWIndex } from "../llm/EmbeddingUtils.js";
+import { TemporaryCache } from "./TemporaryCache.js";
+import { HierarchicalNSW } from "hnswlib-node";
 
 export type Citation = {
     number: number;
@@ -19,8 +21,13 @@ export type FactSheet = {
 
 export class PrivateFactBase {
     private isEnabled: boolean = false;
+    private hnswIndexCache: TemporaryCache<HierarchicalNSW | null>;
 
     constructor(private folderPath: string) {
+        this.hnswIndexCache = new TemporaryCache<HierarchicalNSW | null>(5 * 60 * 1000, async () => {
+            return await loadHNSWIndex(this.getEmbeddingsIndexPath()).catch(() => null);
+        });
+
         this.init();
     }
 
@@ -69,6 +76,7 @@ export class PrivateFactBase {
         const lookupFile = embeddings.map(entry => entry.identifier);
         await fs.writeFile(Path.join(this.folderPath, 'embeddings_lookup.json'), JSON.stringify(lookupFile, null, 2), 'utf-8');
         await makeHNSWIndex(embeddingVectors, this.getEmbeddingsIndexPath());
+        this.hnswIndexCache.clear();
     }
 
     async getLookupList(): Promise<string[]> {
@@ -88,9 +96,12 @@ export class PrivateFactBase {
         }
 
         const [index, lookupList] = await Promise.all([
-            loadHNSWIndex(this.getEmbeddingsIndexPath()),
+            this.hnswIndexCache.get(),
             this.getLookupList()
         ]);
+        if (!index) {
+            return [];
+        }
         const results = index.searchKnn(Array.from(embedding), numNeighbors);
         const closestEntries: EmbeddingsSearchResult[] = [];
         for (let i = 0; i < results.neighbors.length; i++) {
