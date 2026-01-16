@@ -1034,7 +1034,7 @@ export class GuildHolder {
     }
 
     private async inferThanksRecipient(message: Message): Promise<{ userId: Snowflake | null, usernameHint?: string }> {
-        const client = this.getBot().openAIClient;
+        const client = this.getBot().xaiClient;
         if (!client) {
             return { userId: null };
         }
@@ -1075,7 +1075,7 @@ export class GuildHolder {
         const userPrompt = `Recent messages in the channel from oldest to newest:\n${history}\n\nFigure out who <@${message.author.id}> is thanking in the message marked "(thanks message)".`;
 
         const response = await generateText({
-            model: client("gpt-5-mini"),
+            model: client("grok-4-1-fast-non-reasoning"),
             messages: [
                 { role: 'system', content: systemPrompt } as ModelMessage,
                 { role: 'user', content: userPrompt } as ModelMessage
@@ -1665,11 +1665,11 @@ export class GuildHolder {
 
 
     public async canConverse() {
-        return this.bot.openAIClient !== undefined;
+        return this.bot.xaiClient !== undefined;
     }
 
     public async respondToConversation(channel: TextChannel | TextThreadChannel, message: Message): Promise<string> {
-        if (!this.bot.openAIClient) {
+        if (!this.bot.xaiClient) {
             throw new Error('LLM client not configured');
         }
 
@@ -1681,11 +1681,11 @@ export class GuildHolder {
         const specialQuestions = ['who is right', 'is this true', 'translate'];
         if (specialQuestions.some(q => message.content.toLowerCase().includes(q))) {
             contextLength = 50; // more context for "who is right" questions
-            model = this.bot.openAIClient("gpt-5"); // use better model for complex questions
+            model = this.bot.xaiClient("grok-4-1-fast-reasoning"); // use better model for complex questions
             systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration. You are friendly and talk casually. You are logical and do not flatter. Use the tools available to you to answer user's questions, especially if they want recommendations for designs. NEVER use emojis or em-dashes. User mentions are in the format <@UserID> and will be prepended to messages they send. Mention the correct user to keep the conversation clear. EG: If a message says "<@123456789012345678> tell them" and a previous message from user 4987654321012345678 said "I love Minecraft", you should respond with "<@4987654321012345678> Minecraft is great!"`;
         } else {
             contextLength = 10;
-            model = this.bot.openAIClient("gpt-5-mini");
+            model = this.bot.xaiClient("grok-4-1-fast-non-reasoning"); // use faster model for normal questions
             systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration and development. You are friendly, concise, and talk casually. Use the tools available to you to answer user's questions, especially if they want recommendations for designs. You are talking in a channel called #${channelName}.${channelTopic ? ` The channel topic is: ${channelTopic}.` : ''} Direct users to the appropriate channel if they ask where they can find something. User mentions are in the format <@UserID> and will be prepended to messages they send. NEVER use emojis or em-dashes. Mention the correct user to keep the conversation clear. EG: If a message says "<@123456789012345678> tell them" and a previous message from user 4987654321012345678 said "I love Minecraft", you should respond with "<@4987654321012345678> Minecraft is great!"`;
         }
         const messages = await channel.messages.fetch({ limit: contextLength });
@@ -1807,12 +1807,10 @@ export class GuildHolder {
                             tags: z.array(z.string()).describe('List of tags associated with the design.'),
                             authors: z.array(z.string()).describe('List of authors who created the design.'),
                             description: z.string().describe('A brief description of the design.'),
-                            citation_url: z.string().describe('Cite this URL in your response if relevant.'),
                             error: z.string().optional().describe('An error message, if an error occurred while fetching the post.'),
                         })
                     ),
                     execute: async (input: { code: string }) => {
-                        console.log(`LLM Get_Post Tool invoked with code: ${input.code}`);
                         try {
                             const entry = await this.repositoryManager.getEntryByPostCode(input.code.trim());
                             if (!entry) {
@@ -1825,7 +1823,6 @@ export class GuildHolder {
                                 tags: data.tags.map(t => t.name),
                                 authors: data.authors.map(a => getAuthorName(a)),
                                 description: postToMarkdown(data.records, data.styles, this.getSchemaStyles()),
-                                citation_url: data.post?.threadURL || '',
                             };
                         } catch (e) {
                             console.error('Error during get_post execution:', e);
@@ -1846,13 +1843,11 @@ export class GuildHolder {
                             results: z.array(z.object({
                                 terms: z.string().describe('The terms defined.'),
                                 definition: z.string().describe('The definition.'),
-                                citation_url: z.string().describe('Cite this URL in your response if relevant.'),
                             })).describe('Top 5 list of definitions matching the search query.'),
                             error: z.string().optional().describe('An error message, if an error occurred during the search.'),
                         })
                     ),
                     execute: async (input: { query: string }) => {
-                        console.log(`LLM Define Tool invoked with query: ${input.query}`);
                         const queryEmbeddings = await generateQueryEmbeddings([input.query.trim()]).catch(e => {
                             console.error('Error generating query embeddings:', e);
                             return null;
@@ -1881,7 +1876,6 @@ export class GuildHolder {
                                     results.push({
                                         terms: entry.terms.join(', '),
                                         definition: truncateStringWithEllipsis(text, 2000),
-                                        citation_url: entry.statusURL
                                     });
                                 }
                             }
@@ -1907,7 +1901,6 @@ export class GuildHolder {
                         })
                     ),
                     execute: async (_input: {}) => {
-                        console.log(`LLM Channels Tool invoked`);
                         const channels: { name: string; topic: string; id: string, isArchiveChannel: boolean }[] = [];
                         const archiveCategories = this.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS) || [];
                         this.guild.channels.cache.forEach(channel => {
