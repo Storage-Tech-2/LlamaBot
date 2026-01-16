@@ -1924,7 +1924,7 @@ export class GuildHolder {
         const botMentionRegex = /(\[\d+\])*\s*<@!?(\d+)>\s+(said|replied to \[\d+\]):\s+/g;
         responseText = responseText.replace(botMentionRegex, '');
 
-        const citationRegex = /Citation:\s*(\d+,?\S*)*/gi;
+        const citationRegex = /Citations?:\s*(\d+,?\S*)*/gi;
         responseText = responseText.replace(citationRegex, '');
 
         responseText = responseText.trim();
