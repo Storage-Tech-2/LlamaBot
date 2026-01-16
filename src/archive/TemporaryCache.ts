@@ -10,29 +10,35 @@ export class TemporaryCache<T> {
     }
 
     public async get(): Promise<T> {
+        this.resetTimeout();
         if (this.cache !== null) {
             return this.cache;
         }
-
         this.cache = await this.loadFunction();
-
-        if (this.timeoutHandle) {
-            clearTimeout(this.timeoutHandle);
-        }
-
-        this.timeoutHandle = setTimeout(() => {
-            this.cache = null;
-            this.timeoutHandle = null;
-        }, this.durationMs);
-
+        this.resetTimeout();
         return this.cache;
     }
-
+    
+    public set(value: T): void {
+        this.cache = value;
+        this.resetTimeout();
+    }
+    
     public clear(): void {
         this.cache = null;
         if (this.timeoutHandle) {
             clearTimeout(this.timeoutHandle);
             this.timeoutHandle = null;
         }
+    }
+
+    private resetTimeout(): void {
+        if (this.timeoutHandle) {
+            clearTimeout(this.timeoutHandle);
+        }
+        this.timeoutHandle = setTimeout(() => {
+            this.cache = null;
+            this.timeoutHandle = null;
+        }, this.durationMs);
     }
 }
