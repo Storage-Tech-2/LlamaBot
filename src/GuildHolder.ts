@@ -1921,8 +1921,8 @@ export class GuildHolder {
         };
 
         if (this.privateFactBase.isFactBaseEnabled()) {
-            tools.factsheets = {
-                description: 'Lookup information from the private factsheet database. This is the largest resource. Use this resource frequently to understand comprehensive knowledge about Minecraft, redstone, and common community practices.',
+            tools.facts = {
+                description: 'Lookup information from the private fact database. This is the largest resource. Use this resource frequently to understand comprehensive knowledge about Minecraft, redstone, and common community practices.',
                 inputSchema: z.object({
                     query: z.string().min(1).max(256).describe('The search query to find relevant factsheet information.'),
                 }),
@@ -1935,6 +1935,7 @@ export class GuildHolder {
                     })
                 ),
                 execute: async (input: { query: string }) => {
+                    console.log('Executing factsheet tool with query:', input.query);
                     const queryEmbeddings = await generateQueryEmbeddings([input.query.trim()]).catch(e => {
                         console.error('Error generating query embeddings:', e);
                         return null;
