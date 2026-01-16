@@ -383,7 +383,7 @@ export class GuildHolder {
                     if (i === 0) {
                         await message.reply({ content: split[i], flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
                     } else {
-                        await channel.send({ content: reply, flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
+                        await channel.send({ content: split[i], flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
                     }
                 }
             }
@@ -1743,9 +1743,8 @@ export class GuildHolder {
                             results: z.array(z.object({
                                 title: z.string().describe('The title of the design.'),
                                 code: z.string().describe('The identifier code for the design.'),
-                                authors: z.array(z.string()).describe('List of authors who created the design.'),
+                                tags: z.array(z.string()).describe('List of tags associated with the design.'),
                                 snippet: z.string().describe('A brief snippet describing the design.'),
-                                url: z.string().describe('A URL to view the design in the archive. Cite this URL in your response if relevant.'),
                             })).describe('Top 5 list of Minecraft redstone designs matching the search query.'),
                             error: z.string().optional().describe('An error message, if an error occurred during the search.'),
                         })
@@ -1781,15 +1780,55 @@ export class GuildHolder {
                                     results.push({
                                         title: data.name,
                                         code: data.code,
-                                        authors: data.authors.map(a => getAuthorName(a)),
-                                        snippet: truncateStringWithEllipsis(text, 2000),
-                                        url: data.post?.threadURL || '',
+                                        tags: data.tags.map(t => t.name),
+                                        snippet: truncateStringWithEllipsis(text, 256)
                                     });
                                 }
                             }
                         } catch (e) {
                             console.error('Error during search execution:', e);
                             return { results: [], error: 'Error during search execution' };
+                        }
+                    }
+                },
+                get_post: {
+                    description: 'Get details about a specific post in the archive by its code.',
+                    inputSchema: z.object({
+                        code: z.string().min(1).max(64).describe('The unique code identifier for the archived post.'),
+                    }),
+                    inputExample: {
+                        code: 'CH001'
+                    },
+                    outputSchema: zodSchema(
+                        z.object({
+                            title: z.string().describe('The title of the design.'),
+                            code: z.string().describe('The identifier code for the design.'),
+                            tags: z.array(z.string()).describe('List of tags associated with the design.'),
+                            authors: z.array(z.string()).describe('List of authors who created the design.'),
+                            description: z.string().describe('A brief description of the design.'),
+                            citation_url: z.string().describe('Cite this URL in your response if relevant.'),
+                            error: z.string().optional().describe('An error message, if an error occurred while fetching the post.'),
+                        })
+                    ),
+                    execute: async (input: { code: string }) => {
+                        console.log(`LLM Get_Post Tool invoked with code: ${input.code}`);
+                        try {
+                            const entry = await this.repositoryManager.getEntryByPostCode(input.code.trim());
+                            if (!entry) {
+                                return { error: `No archived post found with code ${input.code}` };
+                            }
+                            const data = entry.entry.getData();
+                            return {
+                                title: data.name,
+                                code: data.code,
+                                tags: data.tags.map(t => t.name),
+                                authors: data.authors.map(a => getAuthorName(a)),
+                                description: postToMarkdown(data.records, data.styles, this.getSchemaStyles()),
+                                citation_url: data.post?.threadURL || '',
+                            };
+                        } catch (e) {
+                            console.error('Error during get_post execution:', e);
+                            return { error: 'Error during get_post execution' };
                         }
                     }
                 },
@@ -1805,8 +1844,8 @@ export class GuildHolder {
                         z.object({
                             results: z.array(z.object({
                                 terms: z.string().describe('The terms defined.'),
-                                definition: z.string().describe('A brief snippet of the definition.'),
-                                url: z.string().describe('A URL to view the full definition in the dictionary. Cite this URL in your response if relevant.'),
+                                definition: z.string().describe('The definition.'),
+                                citation_url: z.string().describe('Cite this URL in your response if relevant.'),
                             })).describe('Top 5 list of definitions matching the search query.'),
                             error: z.string().optional().describe('An error message, if an error occurred during the search.'),
                         })
@@ -1841,7 +1880,7 @@ export class GuildHolder {
                                     results.push({
                                         terms: entry.terms.join(', '),
                                         definition: truncateStringWithEllipsis(text, 2000),
-                                        url: entry.statusURL
+                                        citation_url: entry.statusURL
                                     });
                                 }
                             }
