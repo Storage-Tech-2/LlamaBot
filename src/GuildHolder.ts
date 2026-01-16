@@ -1986,7 +1986,7 @@ export class GuildHolder {
                 {
                     schema: zodSchema(
                         z.object({
-                            response_text: z.string().optional().describe('The raw text of the response to be sent in the Discord channel. Optional, may be empty if no response is needed. You can use markdown formatting here, but tables are not supported.'),
+                            response_text: z.string().optional().describe('The raw text of the response to be sent in the Discord channel. Optional, may be empty if no response is needed. You can use markdown formatting here, but tables are not supported. Do not cite sources in the response text; instead, use the citations field. Do include post codes for designs when referencing them.'),
                             citations: z.array(z.string()).describe('A list of citations. Put the code of designs, id of definitions, or URL of resources used.').optional(),
                         })
                     ),
