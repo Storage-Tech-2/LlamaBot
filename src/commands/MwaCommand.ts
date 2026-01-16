@@ -321,7 +321,7 @@ export class Mwa implements Command {
             this.setConfig(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'forceretag') {
             this.forceRetag(guildHolder, interaction);
-        } else if (interaction.options.getSubcommand() === 'setalias') {
+        } else if (interaction.options.getSubcommand() === 'alias') {
             this.setAlias(guildHolder, interaction);
         } else {
             await replyEphemeral(interaction, 'Invalid subcommand. Use `/mwa setsubmissions`, `/mwa setlogs`, `/mwa setarchives`, `/mwa setuparchives`, `/mwa setendorseroles`, `/mwa seteditorroles`, `/mwa sethelperrole` or `/mwa setrepo`.');
