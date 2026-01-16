@@ -1726,6 +1726,9 @@ export class GuildHolder {
             model: model,
             messages: messagesIn.map(m => m.obj),
             maxOutputTokens: maxOutputLength,
+            providerOptions: {
+
+            },
             tools: {
                 search: {
                     description: 'Lookup designs made by expert Minecraft redstone engineers using semantic search.',
@@ -1875,7 +1878,7 @@ export class GuildHolder {
         }
 
         if (!response.text) {
-            //console.error('No response from LLM:', response);
+            console.error('No response from LLM:', response);
             throw new Error('No response from LLM');
         }
 
