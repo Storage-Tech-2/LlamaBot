@@ -78,11 +78,6 @@ export class Mwa implements Command {
             )
             .addSubcommand(subcommand =>
                 subcommand
-                    .setName('makeindex')
-                    .setDescription('Make an index of all archive channels')
-            )
-            .addSubcommand(subcommand =>
-                subcommand
                     .setName('blacklistadd')
                     .setDescription('Add a user to the thank you blacklist')
                     .addStringOption(option =>
@@ -113,6 +108,23 @@ export class Mwa implements Command {
                 subcommand
                     .setName('blacklistlist')
                     .setDescription('List all users in the thank you blacklist')
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('alias')
+                    .setDescription('Add an alias for a url')
+                    .addStringOption(option =>
+                        option
+                            .setName('url')
+                            .setDescription('The URL to alias')
+                            .setRequired(true)   
+                    )
+                    .addStringOption(option =>
+                        option
+                            .setName('alias')
+                            .setDescription('The post code to use as an alias (leave empty to remove alias)')
+                            .setRequired(false)
+                    )
             )
             .addSubcommand(subcommand =>
                 subcommand
@@ -279,8 +291,6 @@ export class Mwa implements Command {
             this.setHelperRole(guildHolder, interaction)
         } else if (interaction.options.getSubcommand() === 'setrepo') {
             this.setRepo(guildHolder, interaction)
-        } else if (interaction.options.getSubcommand() === 'makeindex') {
-            this.makeIndex(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'setdictionary') {
             this.setDictionary(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'importdictionary') {
@@ -828,74 +838,6 @@ export class Mwa implements Command {
         await interaction.reply(`Llamabot will now send updates to ${channel.name}!`);
     }
 
-    async makeIndex(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
-        if (!interaction.channel || !interaction.channel.isTextBased() || !interaction.inGuild()) {
-            await replyEphemeral(interaction, 'This command can only be used in a text channel.')
-            return;
-        }
-
-        const currentCategories = guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
-
-        interaction.deferReply();
-
-        const allChannels = await guildHolder.getGuild().channels.fetch();
-        // get all categories in the guild
-
-        let indexText = ['# Archive Index:'];
-        const categories = Array.from(allChannels.filter(channel => {
-            return channel && channel.type === ChannelType.GuildCategory && currentCategories.includes(channel.id)
-        }).values()) as unknown as CategoryChannel[];
-
-        for (const category of categories) {
-            await category.fetch(); // Ensure the category is fully fetched
-        }
-        // sort by position
-        categories.sort((a, b) => {
-            return a.position - b.position;
-        });
-        for (const category of categories) {
-            indexText.push(`## ${category.name}`);
-            const channels = Array.from(allChannels.filter(channel => {
-                return channel && channel.type === ChannelType.GuildForum && channel.parentId === category.id
-            }).values()) as unknown as ForumChannel[];
-
-            // Ensure channels are fully fetched
-            for (const channel of channels) {
-                await channel.fetch();
-            }
-            // sort by position
-            channels.sort((a, b) => {
-                return a.position - b.position;
-            });
-
-            for (const channel of channels) {
-                const { code, description } = getCodeAndDescriptionFromTopic(channel.topic || '');
-                indexText.push(`- [${code} ${channel.name}](${channel.url}): ${description || 'No description'}`);
-            }
-        }
-
-        // send text in chunks of 2000 characters
-        const chunks = [];
-        let currentChunk = '';
-        for (const line of indexText) {
-            if ((currentChunk + line + '\n').length > 2000) {
-                chunks.push(currentChunk);
-                currentChunk = '';
-            }
-            currentChunk += line + '\n';
-        }
-        if (currentChunk) {
-            chunks.push(currentChunk);
-        }
-
-
-        await interaction.editReply({ content: 'Index created! Please check the channel for the index.' });
-        // send chunks
-        for (const chunk of chunks) {
-            await interaction.channel.send(chunk);
-        }
-    }
-
     async setupArchives(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         if (!interaction.channel || !interaction.channel.isTextBased() || !interaction.inGuild()) {
             await replyEphemeral(interaction, 'This command can only be used in a text channel.')
@@ -1201,5 +1143,28 @@ export class Mwa implements Command {
 
         await interaction.followUp(`<@${interaction.user.id}> Updating status of all submissions complete!`);
 
+    }
+
+    async setAlias(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const url = interaction.options.getString('url', true);
+        const alias = interaction.options.getString('alias', false) || "";
+
+        const aliasManager = guildHolder.getAliasManager();
+
+        // try to find post
+        const repositoryManager = guildHolder.getRepositoryManager();
+        const entry = await repositoryManager.getEntryByPostCode(alias);
+        if (!entry) {
+            await replyEphemeral(interaction, `No post found with code "${alias}". Please ensure the code is correct.`);
+            return;
+        }
+        try {
+            await aliasManager.setAlias(url, alias);
+        } catch (error: any) {
+            console.error('Error setting alias:', error);
+            await replyEphemeral(interaction, `Error setting alias: ${error.message || error}`);
+            return;
+        }
+        replyEphemeral(interaction, `Successfully set alias for URL ${url} to code "${alias}".`);
     }
 }

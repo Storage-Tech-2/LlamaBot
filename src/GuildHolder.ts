@@ -27,6 +27,7 @@ import { RepositoryConfigs } from "./archive/RepositoryConfigs.js";
 import z from "zod";
 import { base64ToInt8Array, generateQueryEmbeddings } from "./llm/EmbeddingUtils.js";
 import { PrivateFactBase } from "./archive/PrivateFactBase.js";
+import { AliasManager } from "./support/AliasManager.js";
 /**
  * GuildHolder is a class that manages guild-related data.
  */
@@ -78,6 +79,7 @@ export class GuildHolder {
     private llmResponseLock: boolean = false;
 
     private privateFactBase: PrivateFactBase;
+    private aliasManager: AliasManager;
 
     /**
      * Creates a new GuildHolder instance.
@@ -98,6 +100,7 @@ export class GuildHolder {
         this.userSubscriptionManager = new UserSubscriptionManager(Path.join(this.getGuildFolder(), 'subscriptions.json'));
         this.channelSubscriptionManager = new ChannelSubscriptionManager(Path.join(this.getGuildFolder(), 'channel_subscriptions.json'));
         this.privateFactBase = new PrivateFactBase(Path.join(this.getGuildFolder(), 'facts'));
+        this.aliasManager = new AliasManager(Path.join(this.getGuildFolder(), 'aliases.json'));
         this.config.loadConfig().then(async () => {
             // Set guild name and ID in the config
             this.config.setConfig(GuildConfigs.GUILD_NAME, guild.name);
@@ -440,8 +443,21 @@ export class GuildHolder {
     }
 
     public async getReferenceEmbedsFromMessage(content: string, autoLookupEnabled: boolean, autoJoinEnabled: boolean, maxEmbeds: number = 3) {
-
-        const discordServerMatches = getDiscordLinksInText(content);
+      
+        let discordServerMatches = getDiscordLinksInText(content);
+        const aliasCodes = new Set<string>();
+        if (discordServerMatches.length > 0) {
+            // apply aliases
+            const aliases = await this.aliasManager.getAliases();
+            discordServerMatches = discordServerMatches.filter(ref => {
+                const alias = aliases.get(ref.url);
+                if (alias) {
+                    aliasCodes.add(alias);
+                    return false;
+                }
+                return true;
+            });
+        }
 
         const repositoryManager = this.getRepositoryManager();
 
@@ -451,7 +467,13 @@ export class GuildHolder {
             const internalDiscordLinks = discordServerMatches.filter(ref => ref.server === this.guild.id).slice(0, 3);
 
             const postCodeMatches = getPostCodesInText(content);
-
+            if (aliasCodes.size > 0) {
+                for (const code of aliasCodes) {
+                    if (!postCodeMatches.includes(code)) {
+                        postCodeMatches.push(code);
+                    }
+                }
+            }
 
             if (internalDiscordLinks.length > 0 || postCodeMatches.length > 0) {
 
@@ -2081,5 +2103,9 @@ export class GuildHolder {
                 }).catch(console.error);
             }
         }
+    }
+
+    public getAliasManager() {
+        return this.aliasManager;
     }
 }

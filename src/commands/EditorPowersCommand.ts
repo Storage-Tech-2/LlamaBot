@@ -1,7 +1,7 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType, ChannelType, ForumChannel } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType, ChannelType, ForumChannel, CategoryChannel } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
-import { isEditor, isEndorser, isModerator, replyEphemeral } from "../utils/Util.js";
+import { getCodeAndDescriptionFromTopic, isEditor, isEndorser, isModerator, replyEphemeral } from "../utils/Util.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
@@ -94,6 +94,11 @@ export class EditorPowersCommand implements Command {
                 subcommand
                     .setName('closesubmissions')
                     .setDescription('Close all open threads in submissions')
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('makeindex')
+                    .setDescription('Make an index of all archive channels')
             );
 
         return data;
@@ -134,6 +139,9 @@ export class EditorPowersCommand implements Command {
         }
 
         switch (subcommand) {
+            case 'makeindex':
+                await this.makeIndex(guildHolder, interaction);
+                return;
             case 'clearendorsements':
                 const endorsements = submission.getConfigManager().getConfig(SubmissionConfigs.ENDORSERS);
                 if (endorsements.length === 0) {
@@ -248,7 +256,7 @@ export class EditorPowersCommand implements Command {
                 await interaction.deferReply();
                 try {
                     await submission.publish(true, refresh, async (status: string) => {
-                        await interaction.editReply(status).catch(() => {});
+                        await interaction.editReply(status).catch(() => { });
                     });
                 } catch (e: any) {
                     console.error(e);
@@ -330,5 +338,73 @@ export class EditorPowersCommand implements Command {
             }
         }
         await interaction.followUp(`<@${interaction.user.id}> Closing all submissions complete!`);
+    }
+
+    async makeIndex(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        if (!interaction.channel || !interaction.channel.isTextBased() || !interaction.inGuild()) {
+            await replyEphemeral(interaction, 'This command can only be used in a text channel.')
+            return;
+        }
+
+        const currentCategories = guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
+
+        interaction.deferReply();
+
+        const allChannels = await guildHolder.getGuild().channels.fetch();
+        // get all categories in the guild
+
+        let indexText = ['# Archive Index:'];
+        const categories = Array.from(allChannels.filter(channel => {
+            return channel && channel.type === ChannelType.GuildCategory && currentCategories.includes(channel.id)
+        }).values()) as unknown as CategoryChannel[];
+
+        for (const category of categories) {
+            await category.fetch(); // Ensure the category is fully fetched
+        }
+        // sort by position
+        categories.sort((a, b) => {
+            return a.position - b.position;
+        });
+        for (const category of categories) {
+            indexText.push(`## ${category.name}`);
+            const channels = Array.from(allChannels.filter(channel => {
+                return channel && channel.type === ChannelType.GuildForum && channel.parentId === category.id
+            }).values()) as unknown as ForumChannel[];
+
+            // Ensure channels are fully fetched
+            for (const channel of channels) {
+                await channel.fetch();
+            }
+            // sort by position
+            channels.sort((a, b) => {
+                return a.position - b.position;
+            });
+
+            for (const channel of channels) {
+                const { code, description } = getCodeAndDescriptionFromTopic(channel.topic || '');
+                indexText.push(`- [${code} ${channel.name}](${channel.url}): ${description || 'No description'}`);
+            }
+        }
+
+        // send text in chunks of 2000 characters
+        const chunks = [];
+        let currentChunk = '';
+        for (const line of indexText) {
+            if ((currentChunk + line + '\n').length > 2000) {
+                chunks.push(currentChunk);
+                currentChunk = '';
+            }
+            currentChunk += line + '\n';
+        }
+        if (currentChunk) {
+            chunks.push(currentChunk);
+        }
+
+
+        await interaction.editReply({ content: 'Index created! Please check the channel for the index.' });
+        // send chunks
+        for (const chunk of chunks) {
+            await interaction.channel.send(chunk);
+        }
     }
 }
