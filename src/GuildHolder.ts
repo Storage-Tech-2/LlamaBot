@@ -1767,7 +1767,6 @@ export class GuildHolder {
                         })
                     ),
                     execute: async (input: { query: string }) => {
-                        console.log(`LLM Search Tool invoked with query: ${input.query}`);
                         const queryEmbeddings = await generateQueryEmbeddings([input.query.trim()]).catch(e => {
                             console.error('Error generating query embeddings:', e);
                             return null;
@@ -1868,7 +1867,7 @@ export class GuildHolder {
                     }
                 },
                 channels: {
-                    description: 'Get a list of channels in the server.',
+                    description: 'Get a list of channels in the server to help direct users where they can find certain topics and designs. Use this if people ask where to find something.',
                     inputSchema: z.object({}),
                     outputSchema: zodSchema(
                         z.object({
