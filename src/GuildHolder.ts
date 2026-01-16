@@ -1885,13 +1885,13 @@ export class GuildHolder {
             console.warn('LLM Warnings:', response.warnings);
         }
 
-        if (!response.text) {
-            console.error('No response from LLM:', response.steps);
+        if (!response.output) {
+            console.error('No response from LLM:', response.output);
             throw new Error('No response from LLM');
         }
 
         // replace @username with actual mentions if possible
-        let responseText = response.text;
+        let responseText = response.output;
 
         // Check for channel name mentions eg #ask-questions
         const channelMentionRegex = /#([a-zA-Z0-9-_]+)/g;
