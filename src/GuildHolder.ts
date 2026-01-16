@@ -1785,6 +1785,7 @@ export class GuildHolder {
                                     });
                                 }
                             }
+                            return { results };
                         } catch (e) {
                             console.error('Error during search execution:', e);
                             return { results: [], error: 'Error during search execution' };
