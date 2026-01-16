@@ -1728,8 +1728,8 @@ export class GuildHolder {
                 {
                     schema: zodSchema(
                         z.object({
-                            response_text: z.string().optional().describe('The response from the assistant to be sent in the Discord channel. Optional, may be empty if no response is needed. You can and should mention post codes when relevant, but do not cite Snowflake IDs for definitions here, just provide the answer. '),
-                            citations: z.array(z.string()).describe('A list of citations used in the response. Put the code of designs, id of definitions, or URL of the resource being cited.').optional(),
+                            response_text: z.string().optional().describe('The raw text of the response to be sent in the Discord channel. Optional, may be empty if no response is needed. You can use markdown formatting here, but tables are not supported.'),
+                            citations: z.array(z.string()).describe('A list of citations. Put the code of designs, id of definitions, or URL of resources used.').optional(),
                         })
                     ),
                 }
