@@ -1714,6 +1714,19 @@ export class GuildHolder {
             model = this.bot.xaiClient("grok-4-1-fast-non-reasoning"); // use faster model for normal questions
             systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration. The discord collects designs submitted by the community, and is open to the public. You are friendly, concise, and talk casually. Use the tools available to you to answer user's questions, especially if they want recommendations for designs. You are talking in a channel called #${channelName}.${channelTopic ? ` The channel topic is: ${channelTopic}.` : ''} Direct users to the appropriate channel if they ask where they can find something. User mentions are in the format <@UserID> and will be prepended to messages they send. NEVER use emojis or em-dashes. Mention the correct user to keep the conversation clear. EG: If a message says "<@123456789012345678> tell them" and a previous message from user 4987654321012345678 said "I love Minecraft", you should respond with "<@4987654321012345678> Minecraft is great!"`;
         }
+
+        const allchannels = this.guild.channels.cache;
+        const channelText: string[] = [];
+        allchannels.forEach(channel => {
+            if (channel && (channel.isTextBased() || channel.type === ChannelType.GuildForum) && !channel.isThread() && !channel.isVoiceBased()) {
+                channelText.push(`#${channel.name}`);
+            }
+        });
+
+        if (channelText.length > 0) {
+            systemPrompt += `\nThe server has the following channels: ${channelText.join(', ')}.`;
+        }
+
         const messages = await channel.messages.fetch({ limit: contextLength });
 
         // Remove messages that are not in the last 24 hours
@@ -1851,7 +1864,7 @@ export class GuildHolder {
                 }
             },
             channels: {
-                description: 'Get a list of channels in the server to help direct users where they can find certain topics and designs. Use this if people ask where to find something.',
+                description: 'Get more info about the server\'s channels to help direct users where they can find certain topics and designs. Use this if people ask where to find something.',
                 inputSchema: z.object({}),
                 outputSchema: zodSchema(
                     z.object({
@@ -1865,7 +1878,7 @@ export class GuildHolder {
                 execute: async (_input: {}) => {
                     const channels: { name: string; topic: string; isArchiveChannel: boolean }[] = [];
                     const archiveCategories = this.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS) || [];
-                    const allchannels = await this.guild.channels.fetch();
+                    const allchannels = this.guild.channels.cache;
                     allchannels.forEach(channel => {
                         if (channel && (channel.isTextBased() || channel.type === ChannelType.GuildForum) && !channel.isThread() && !channel.isVoiceBased()) {
                             channels.push({
