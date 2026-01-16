@@ -26,7 +26,6 @@ import { retagEverythingTask, updateMetadataTask } from "./archive/Tasks.js";
 import { RepositoryConfigs } from "./archive/RepositoryConfigs.js";
 import z from "zod";
 import { base64ToInt8Array, cosineSimilarity, generateQueryEmbeddings } from "./llm/EmbeddingUtils.js";
-import { da } from "zod/locales";
 /**
  * GuildHolder is a class that manages guild-related data.
  */
@@ -1683,7 +1682,7 @@ export class GuildHolder {
             maxOutputLength = 20000;
         } else {
             contextLength = 10;
-            model = this.bot.paidLlmClient("grok-4-1-fast-non-reasoning");
+            model = this.bot.paidLlmClient("grok-4-1-fast-reasoning");
             systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration and development. You are friendly, concise, and talk casually. Use the tools available to you to answer user's questions. You are talking in a channel called #${channelName}.${channelTopic ? ` The channel topic is: ${channelTopic}.` : ''} Direct users to the appropriate channel if they ask where they can find something. User mentions are in the format <@UserID> and will be prepended to messages they send. NEVER use emojis or em-dashes. Mention the correct user to keep the conversation clear. EG: If a message says "<@123456789012345678> tell them" and a previous message from user 4987654321012345678 said "I love Minecraft", you should respond with "<@4987654321012345678> Minecraft is great!"`;
             maxOutputLength = 20000;
         }
