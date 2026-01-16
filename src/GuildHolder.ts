@@ -378,12 +378,23 @@ export class GuildHolder {
             });
             clearInterval(typingInterval);
             if (reply) {
+
+                const references = await this.getReferenceEmbedsFromMessage(reply, true, true, 10);
                 const split = splitIntoChunks(reply, 2000);
                 for (let i = 0; i < split.length; i++) {
                     if (i === 0) {
-                        await message.reply({ content: split[i], flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
+                        await message.reply({ content: split[i], allowedMentions: { parse: [] }, flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
                     } else {
-                        await channel.send({ content: split[i], flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
+                        await channel.send({ content: split[i], allowedMentions: { parse: [] }, flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
+                    }
+                }
+                if (references.length > 0) {
+                    for (const embed of references) {
+                        await channel.send({
+                            embeds: [embed],
+                            flags: [MessageFlags.SuppressNotifications],
+                            allowedMentions: { parse: [] },
+                        }).catch(console.error);
                     }
                 }
             }
@@ -418,15 +429,9 @@ export class GuildHolder {
         }
     }
 
-    public async handleMessageReferences(message: Message) {
-        const autoLookupEnabled = this.getConfigManager().getConfig(GuildConfigs.AUTOLOOKUP_ENABLED);
-        const autoJoinEnabled = this.getConfigManager().getConfig(GuildConfigs.AUTOJOIN_ENABLED);
-        if (!autoLookupEnabled && !autoJoinEnabled) {
-            return;
-        }
+    public async getReferenceEmbedsFromMessage(content: string, autoLookupEnabled: boolean, autoJoinEnabled: boolean, maxEmbeds: number = 3) {
 
-
-        const discordServerMatches = getDiscordLinksInText(message.content);
+        const discordServerMatches = getDiscordLinksInText(content);
 
         const repositoryManager = this.getRepositoryManager();
 
@@ -435,7 +440,7 @@ export class GuildHolder {
 
             const internalDiscordLinks = discordServerMatches.filter(ref => ref.server === this.guild.id).slice(0, 3);
 
-            const postCodeMatches = getPostCodesInText(message.content);
+            const postCodeMatches = getPostCodesInText(content);
 
 
             if (internalDiscordLinks.length > 0 || postCodeMatches.length > 0) {
@@ -506,8 +511,8 @@ export class GuildHolder {
 
                 }
 
-                if (toSend.length > 3) {
-                    toSend.splice(3);
+                if (toSend.length > maxEmbeds) {
+                    toSend.splice(maxEmbeds);
                 }
 
 
@@ -576,6 +581,17 @@ export class GuildHolder {
             }
         }
 
+        return embeds;
+    }
+
+    public async handleMessageReferences(message: Message) {
+        const autoLookupEnabled = this.getConfigManager().getConfig(GuildConfigs.AUTOLOOKUP_ENABLED);
+        const autoJoinEnabled = this.getConfigManager().getConfig(GuildConfigs.AUTOJOIN_ENABLED);
+        if (!autoLookupEnabled && !autoJoinEnabled) {
+            return;
+        }
+
+        const embeds = await this.getReferenceEmbedsFromMessage(message.content, autoLookupEnabled, autoJoinEnabled);
 
         if (embeds.length > 0) {
             await message.reply({
