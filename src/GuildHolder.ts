@@ -1727,7 +1727,7 @@ export class GuildHolder {
             model: model,
             system: systemPrompt,
             messages: messagesIn.map(m => m.obj),
-            stopWhen: stepCountIs(10),
+            stopWhen: stepCountIs(20),
             output: Output.text(),
             tools: {
                 search: {
@@ -1743,8 +1743,9 @@ export class GuildHolder {
                             results: z.array(z.object({
                                 title: z.string().describe('The title of the design.'),
                                 code: z.string().describe('The identifier code for the design.'),
+                                authors: z.string().describe('The authors of the design.'),
                                 tags: z.array(z.string()).describe('List of tags associated with the design.'),
-                                snippet: z.string().describe('A brief snippet describing the design.'),
+                                description: z.string().describe('A description of the design.'),
                             })).describe('Top 5 list of Minecraft redstone designs matching the search query.'),
                             error: z.string().optional().describe('An error message, if an error occurred during the search.'),
                         })
@@ -1781,7 +1782,8 @@ export class GuildHolder {
                                         title: data.name,
                                         code: data.code,
                                         tags: data.tags.map(t => t.name),
-                                        snippet: truncateStringWithEllipsis(text, 256)
+                                        authors: data.authors.map(a => getAuthorName(a)),
+                                        description: truncateStringWithEllipsis(text, 2000)
                                     });
                                 }
                             }
@@ -1789,44 +1791,6 @@ export class GuildHolder {
                         } catch (e) {
                             console.error('Error during search execution:', e);
                             return { results: [], error: 'Error during search execution' };
-                        }
-                    }
-                },
-                get_post: {
-                    description: 'Get details about a specific post in the archive by its code.',
-                    inputSchema: z.object({
-                        code: z.string().min(1).max(64).describe('The unique code identifier for the archived post.'),
-                    }),
-                    inputExample: {
-                        code: 'CH001'
-                    },
-                    outputSchema: zodSchema(
-                        z.object({
-                            title: z.string().describe('The title of the design.'),
-                            code: z.string().describe('The identifier code for the design.'),
-                            tags: z.array(z.string()).describe('List of tags associated with the design.'),
-                            authors: z.array(z.string()).describe('List of authors who created the design.'),
-                            description: z.string().describe('A brief description of the design.'),
-                            error: z.string().optional().describe('An error message, if an error occurred while fetching the post.'),
-                        })
-                    ),
-                    execute: async (input: { code: string }) => {
-                        try {
-                            const entry = await this.repositoryManager.getEntryByPostCode(input.code.trim());
-                            if (!entry) {
-                                return { error: `No archived post found with code ${input.code}` };
-                            }
-                            const data = entry.entry.getData();
-                            return {
-                                title: data.name,
-                                code: data.code,
-                                tags: data.tags.map(t => t.name),
-                                authors: data.authors.map(a => getAuthorName(a)),
-                                description: postToMarkdown(data.records, data.styles, this.getSchemaStyles()),
-                            };
-                        } catch (e) {
-                            console.error('Error during get_post execution:', e);
-                            return { error: 'Error during get_post execution' };
                         }
                     }
                 },
