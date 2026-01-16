@@ -21,7 +21,7 @@ import { ChannelSubscriptionManager } from "./config/ChannelSubscriptionManager.
 import { AntiNukeManager } from "./support/AntiNukeManager.js";
 import { DictionaryManager } from "./archive/DictionaryManager.js";
 import { DiscordServersDictionary } from "./archive/DiscordServersDictionary.js";
-import { getDiscordLinksInText, getDiscordServersFromReferences, getPostCodesInText, populateDiscordServerInfoInReferences, ReferenceType, transformOutputWithReferencesForDiscord, transformOutputWithReferencesForEmbeddings } from "./utils/ReferenceUtils.js";
+import { getDiscordLinksInText, getDiscordServersFromReferences, getPostCodesInText, populateDiscordServerInfoInReferences, PostCodePattern, Reference, ReferenceType, tagReferences, transformOutputWithReferencesForDiscord, transformOutputWithReferencesForEmbeddings } from "./utils/ReferenceUtils.js";
 import { retagEverythingTask, updateMetadataTask } from "./archive/Tasks.js";
 import { RepositoryConfigs } from "./archive/RepositoryConfigs.js";
 import z from "zod";
@@ -372,32 +372,12 @@ export class GuildHolder {
             const typingInterval = setInterval(() => {
                 channel.sendTyping().catch(() => null);
             }, 9000);
-            const reply = await this.respondToConversation(channel, message).catch(e => {
+            await this.respondToConversation(channel, message).catch(e => {
                 console.error('Error responding to conversation:', e);
                 return 'Sorry, I had an error trying to respond to that message.';
             });
             clearInterval(typingInterval);
-            if (reply) {
 
-                const references = await this.getReferenceEmbedsFromMessage(reply, true, true, 10);
-                const split = splitIntoChunks(reply, 2000);
-                for (let i = 0; i < split.length; i++) {
-                    if (i === 0) {
-                        await message.reply({ content: split[i], allowedMentions: { parse: [] }, flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
-                    } else {
-                        await channel.send({ content: split[i], allowedMentions: { parse: [] }, flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
-                    }
-                }
-                if (references.length > 0) {
-                    for (const embed of references) {
-                        await channel.send({
-                            embeds: [embed],
-                            flags: [MessageFlags.SuppressNotifications],
-                            allowedMentions: { parse: [] },
-                        }).catch(console.error);
-                    }
-                }
-            }
         }
     }
 
@@ -1684,7 +1664,7 @@ export class GuildHolder {
         return this.bot.xaiClient !== undefined;
     }
 
-    public async respondToConversation(channel: TextChannel | TextThreadChannel, message: Message): Promise<string> {
+    public async respondToConversation(channel: TextChannel | TextThreadChannel, message: Message) {
         if (!this.bot.xaiClient) {
             throw new Error('LLM client not configured');
         }
@@ -1744,7 +1724,16 @@ export class GuildHolder {
             system: systemPrompt,
             messages: messagesIn.map(m => m.obj),
             stopWhen: stepCountIs(20),
-            output: Output.text(),
+            output: Output.object(
+                {
+                    schema: zodSchema(
+                        z.object({
+                            response: z.string().optional().describe('The response from the assistant to be sent in the Discord channel. Optional, may be empty if no response is needed.'),
+                            citations: z.array(z.string()).describe('A list of citations used in the response. Put the code of designs, id of definitions, or URL of the resource being cited.').optional(),
+                        })
+                    ),
+                }
+            ),
             tools: {
                 search: {
                     description: 'Lookup designs made by expert Minecraft redstone engineers using semantic search.',
@@ -1822,6 +1811,7 @@ export class GuildHolder {
                             results: z.array(z.object({
                                 terms: z.string().describe('The terms defined.'),
                                 definition: z.string().describe('The definition.'),
+                                id: z.string().describe('The unique identifier of the definition.'),
                             })).describe('Top 5 list of definitions matching the search query.'),
                             error: z.string().optional().describe('An error message, if an error occurred during the search.'),
                         })
@@ -1855,6 +1845,7 @@ export class GuildHolder {
                                     results.push({
                                         terms: entry.terms.join(', '),
                                         definition: truncateStringWithEllipsis(text, 2000),
+                                        id: entry.id,
                                     });
                                 }
                             }
@@ -1907,7 +1898,11 @@ export class GuildHolder {
         }
 
         // replace @username with actual mentions if possible
-        let responseText = response.output;
+        let responseText = response.output.response;
+
+        if (!responseText) {
+            return '';
+        }
 
         // Check for channel name mentions eg #ask-questions
         const channelMentionRegex = /#(\S+)/g;
@@ -1920,6 +1915,7 @@ export class GuildHolder {
             }
         }
 
+
         // remove everyone mentions
         responseText = responseText.replace(/@everyone/g, 'everyone');
         responseText = responseText.replace(/@here/g, 'here');
@@ -1928,6 +1924,55 @@ export class GuildHolder {
         const botMentionRegex = /\[\d+\]\s+<@!?(\d+)>\s+(said|replied to \[\d+\]):\s+/g;
         responseText = responseText.replace(botMentionRegex, '');
 
-        return responseText;
+        const citations = response.output.citations || [];
+
+        const whitelistedPostCodes = new Set<string>();
+        const whitelistedDefinitionIDs = new Set<string>();
+        for (const identifier of citations) {
+            // find code in responseText and replace with mention of the post
+            if (PostCodePattern.test(identifier)) {
+                whitelistedPostCodes.add(identifier);
+                continue;
+            }
+
+            // test snowflake
+            if (/^\d{17,19}$/.test(identifier)) {
+                whitelistedDefinitionIDs.add(identifier);
+                continue;
+            }
+        }
+
+        const inTextReferences: Reference[] = await tagReferences(responseText, [], this, '', false);
+        const filteredReferences = inTextReferences.filter(ref => {
+            if (ref.type === ReferenceType.ARCHIVED_POST) {
+                return whitelistedPostCodes.has(ref.id);
+            }
+            if (ref.type === ReferenceType.DICTIONARY_TERM) {
+                return whitelistedDefinitionIDs.has(ref.id);
+            }
+            return true;
+        });
+
+        responseText = transformOutputWithReferencesForDiscord(responseText, filteredReferences);
+
+        const references = await this.getReferenceEmbedsFromMessage(responseText, true, true, 10);
+        const split = splitIntoChunks(responseText, 2000);
+
+        for (let i = 0; i < split.length; i++) {
+            if (i === 0) {
+                await message.reply({ content: split[i], allowedMentions: { parse: [] }, flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
+            } else {
+                await channel.send({ content: split[i], allowedMentions: { parse: [] }, flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
+            }
+        }
+        if (references.length > 0) {
+            for (const embed of references) {
+                await channel.send({
+                    embeds: [embed],
+                    flags: [MessageFlags.SuppressNotifications],
+                    allowedMentions: { parse: [] },
+                }).catch(console.error);
+            }
+        }
     }
 }
