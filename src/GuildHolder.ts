@@ -346,7 +346,7 @@ export class GuildHolder {
 
         // Finally, check if llm is available;
         const isAdmin = message.member?.permissions.has('Administrator') || false;
-        if (!this.bot.canConverse() || (!this.getConfigManager().getConfig(GuildConfigs.CONVERSATIONAL_LLM_ENABLED) && !isAdmin)) {
+        if (!this.canConverse() || (!this.getConfigManager().getConfig(GuildConfigs.CONVERSATIONAL_LLM_ENABLED) && !isAdmin)) {
             return;
         }
 
@@ -1034,8 +1034,8 @@ export class GuildHolder {
     }
 
     private async inferThanksRecipient(message: Message): Promise<{ userId: Snowflake | null, usernameHint?: string }> {
-        const model = this.getBot().paidLlmClient;
-        if (!model) {
+        const client = this.getBot().openAIClient;
+        if (!client) {
             return { userId: null };
         }
 
@@ -1075,7 +1075,7 @@ export class GuildHolder {
         const userPrompt = `Recent messages in the channel from oldest to newest:\n${history}\n\nFigure out who <@${message.author.id}> is thanking in the message marked "(thanks message)".`;
 
         const response = await generateText({
-            model: model("grok-4-1-fast-reasoning"),
+            model: client("gpt-5-mini"),
             messages: [
                 { role: 'system', content: systemPrompt } as ModelMessage,
                 { role: 'user', content: userPrompt } as ModelMessage
@@ -1663,8 +1663,13 @@ export class GuildHolder {
         return this.channelSubscriptionManager;
     }
 
+
+    public async canConverse() {
+        return this.bot.openAIClient !== undefined;
+    }
+
     public async respondToConversation(channel: TextChannel | TextThreadChannel, message: Message): Promise<string> {
-        if (!this.bot.paidLlmClient) {
+        if (!this.bot.openAIClient) {
             throw new Error('LLM client not configured');
         }
 
@@ -1677,12 +1682,12 @@ export class GuildHolder {
         const specialQuestions = ['who is right', 'is this true', 'translate'];
         if (specialQuestions.some(q => message.content.toLowerCase().includes(q))) {
             contextLength = 50; // more context for "who is right" questions
-            model = this.bot.paidLlmClient("grok-4-1-fast-reasoning"); // use better model for complex questions
+            model = this.bot.openAIClient("gpt-5"); // use better model for complex questions
             systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration. You are friendly and talk casually. You are logical and do not flatter. Use the tools available to you to answer user's questions. NEVER use emojis or em-dashes. User mentions are in the format <@UserID> and will be prepended to messages they send. Mention the correct user to keep the conversation clear. EG: If a message says "<@123456789012345678> tell them" and a previous message from user 4987654321012345678 said "I love Minecraft", you should respond with "<@4987654321012345678> Minecraft is great!"`;
             maxOutputLength = 20000;
         } else {
             contextLength = 10;
-            model = this.bot.paidLlmClient("grok-4-1-fast-reasoning");
+            model = this.bot.openAIClient("gpt-5-mini");
             systemPrompt = `You are LlamaBot, a helpful assistant that helps with Minecraft Discord server administration and development. You are friendly, concise, and talk casually. Use the tools available to you to answer user's questions. You are talking in a channel called #${channelName}.${channelTopic ? ` The channel topic is: ${channelTopic}.` : ''} Direct users to the appropriate channel if they ask where they can find something. User mentions are in the format <@UserID> and will be prepended to messages they send. NEVER use emojis or em-dashes. Mention the correct user to keep the conversation clear. EG: If a message says "<@123456789012345678> tell them" and a previous message from user 4987654321012345678 said "I love Minecraft", you should respond with "<@4987654321012345678> Minecraft is great!"`;
             maxOutputLength = 20000;
         }

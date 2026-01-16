@@ -4,7 +4,7 @@ import { LLMResponseFuture as LLMResponseFuture } from "./LLMResponseFuture.js";
 import { LLMRequestAndPromise } from "./LLMRequestAndPromise.js";
 import { LLMResponse } from "./LLMResponse.js";
 import { Bot } from "../Bot.js";
-import { generateObject, jsonSchema } from "ai";
+import { generateText, jsonSchema, Output } from "ai";
 import { SubmissionRecords } from "../utils/MarkdownUtils.js";
 
 
@@ -142,30 +142,32 @@ export class LLMQueue {
     }
 
     private async paidModelProcess(request: LLMRequest): Promise<LLMResponse> {
-        const paidLLMClient = this.bot.paidLlmClient;
+        const paidLLMClient = this.bot.xaiClient;
         if (!paidLLMClient) {
             throw new Error('Paid LLM client is not configured');
         }
 
-        const result = await generateObject({
+        const result = await generateText({
             model: paidLLMClient("grok-4"),
-            schema: jsonSchema(request.schema),
+            output: Output.object({
+                schema: jsonSchema(request.schema)
+            }),
             prompt: request.prompt.generatePrompt(),
         })
 
-        if (!result.object) {
+        if (!result.output) {
             throw new Error('LLM did not return a valid object');
         }
 
         return {
-            result: result.object as SubmissionRecords,
+            result: result.output as SubmissionRecords,
             error: undefined
         }
     }
 
     private async processRequest(request: LLMRequest): Promise<LLMResponse> {
         try {
-            const paidLLMClient = this.bot.paidLlmClient;
+            const paidLLMClient = this.bot.xaiClient;
             if (!paidLLMClient) {
                 return await this.localModelProcess(request);
             }

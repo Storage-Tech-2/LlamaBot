@@ -1,4 +1,4 @@
-import { AutocompleteInteraction, ChannelType, ChatInputCommandInteraction, Client, ContextMenuCommandInteraction, Events, GatewayIntentBits, Message, Partials, SelectMenuInteraction, Snowflake, TextChannel, TextThreadChannel } from "discord.js";
+import { AutocompleteInteraction, ChatInputCommandInteraction, Client, ContextMenuCommandInteraction, Events, GatewayIntentBits, Message, Partials, SelectMenuInteraction, Snowflake, TextChannel, TextThreadChannel } from "discord.js";
 import { GuildHolder } from "./GuildHolder.js";
 import { LLMQueue } from "./llm/LLMQueue.js";
 import path from "path";
@@ -7,7 +7,7 @@ import { Command } from "./interface/Command.js";
 import { Button } from "./interface/Button.js";
 import { Menu } from "./interface/Menu.js";
 import { Modal } from "./interface/Modal.js";
-import { deployCommands, getCodeAndDescriptionFromTopic, getItemsFromArray, replyEphemeral } from "./utils/Util.js";
+import { deployCommands, getItemsFromArray, replyEphemeral } from "./utils/Util.js";
 import { getButtons } from "./components/buttons/index.js";
 import { getCommands } from "./commands/index.js";
 import { getMenus } from "./components/menus/index.js";
@@ -15,10 +15,9 @@ import { getModals } from "./components/modals/index.js";
 import { TempDataStore } from "./utils/TempDataStore.js";
 import { App } from "octokit";
 import { createXai, XaiProvider } from "@ai-sdk/xai";
-import { generateText, ModelMessage, zodSchema } from "ai";
 import { ContextMenuCommand } from "./interface/ContextMenuCommand.js";
 import { DiscordServersDictionary } from "./archive/DiscordServersDictionary.js";
-import z from "zod";
+import { createOpenAI, OpenAIProvider } from "@ai-sdk/openai";
 
 export const SysAdmin = '239078039831445504';
 
@@ -30,6 +29,7 @@ export type Secrets = {
     clientId: string;
     githubAppId: string;
     xaiApiKey?: string;
+    openaiApiKey?: string;
 }
 
 /**
@@ -89,7 +89,9 @@ export class Bot {
     /**
      * Xai bot client
      */
-    paidLlmClient?: XaiProvider;
+    xaiClient?: XaiProvider;
+
+    openAIClient?: OpenAIProvider;
 
     /**
      * Global Discord servers dictionary, shared across guilds.
@@ -156,7 +158,14 @@ export class Bot {
                 apiKey: secrets.xaiApiKey
             });
             // const model = xaiClient("grok-3-mini");
-            this.paidLlmClient = xaiClient;
+            this.xaiClient = xaiClient;
+        }
+
+        if (secrets.openaiApiKey) {
+            const openAIClient = createOpenAI({
+                apiKey: secrets.openaiApiKey
+            });
+            this.openAIClient = openAIClient;
         }
 
         return new Promise((resolve, reject) => {
@@ -559,10 +568,6 @@ export class Bot {
         } else {
             return message.reply(`Unknown command: ${commandName}`);
         }
-    }
-
-    public async canConverse() {
-        return this.paidLlmClient !== undefined;
     }
 
 }
