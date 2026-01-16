@@ -250,7 +250,7 @@ export class RepositoryManager {
 
         const persistentIndex: PersistentIndex = {
             schemaStyles: this.configManager.getConfig(RepositoryConfigs.POST_STYLE),
-            updated_at: Date.now(),
+            updated_at: 0, // unused
             all_authors: Array.from(authors.keys()),
             all_tags: Array.from(tags.keys()),
             all_categories: Array.from(categories.keys()),
