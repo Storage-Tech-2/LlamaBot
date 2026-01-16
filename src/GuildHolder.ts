@@ -1881,8 +1881,9 @@ export class GuildHolder {
                     execute: async (_input: {}) => {
                         const channels: { name: string; topic: string; isArchiveChannel: boolean }[] = [];
                         const archiveCategories = this.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS) || [];
-                        this.guild.channels.cache.forEach(channel => {
-                            if (channel.isTextBased() && !channel.isThread() && !channel.isVoiceBased()) {
+                        const allchannels = await this.guild.channels.fetch();
+                        allchannels.forEach(channel => {
+                            if (channel && (channel.isTextBased() || channel.type === ChannelType.GuildForum) && !channel.isThread() && !channel.isVoiceBased()) {
                                 channels.push({
                                     name: channel.name,
                                     topic: getCodeAndDescriptionFromTopic(channel.topic || '').description,
