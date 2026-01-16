@@ -74,6 +74,8 @@ export class GuildHolder {
 
     private retaggingRequested: boolean = true;
 
+    private llmResponseLock: boolean = false;
+
     /**
      * Creates a new GuildHolder instance.
      * @param bot The bot instance associated with this guild holder.
@@ -366,16 +368,26 @@ export class GuildHolder {
 
         if (shouldReply && (message.channel.type === ChannelType.GuildText || message.channel.type === ChannelType.PublicThread)) {
             const channel = message.channel;
+
+            // prevent multiple responses at once
+            if (this.llmResponseLock) {
+                await message.reply('I am currently processing another request. Please wait a moment before trying again.').catch(() => null);
+                return;
+            }
+
+            this.llmResponseLock = true;
             // send typing
             await channel.sendTyping().catch(() => null);
             // typing interval
             const typingInterval = setInterval(() => {
                 channel.sendTyping().catch(() => null);
             }, 9000);
+
             await this.respondToConversation(channel, message).catch(e => {
                 console.error('Error responding to conversation:', e);
                 return 'Sorry, I had an error trying to respond to that message.';
             });
+            this.llmResponseLock = false;
             clearInterval(typingInterval);
 
         }
