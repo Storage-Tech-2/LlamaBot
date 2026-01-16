@@ -353,9 +353,9 @@ export class GuildHolder {
             return;
         }
 
-        let shouldReply = false;
+        let shouldReply = llmChannel && llmChannel === message.channel.id;
         // check if message is a reply to the bot
-        if (message.reference && message.reference.messageId) {
+        if (!shouldReply && message.reference && message.reference.messageId) {
             const referencedMessage = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
             if (referencedMessage && referencedMessage.author.id === this.getBot().client.user?.id) {
                 shouldReply = true;
@@ -363,7 +363,7 @@ export class GuildHolder {
         }
 
         // check if message mentions the bot
-        if (message.mentions.has(this.getBot().client.user?.id || '')) {
+        if (!shouldReply && message.mentions.has(this.getBot().client.user?.id || '')) {
             shouldReply = true;
         }
 
