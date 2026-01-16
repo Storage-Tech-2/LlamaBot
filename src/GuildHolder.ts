@@ -1921,8 +1921,13 @@ export class GuildHolder {
         responseText = responseText.replace(/@here/g, 'here');
 
         // Sometimes, the llm will respond with "[n] @LlamaBot said: blabla" or "[n] @LlamaBot replied to [m]: blabla" so we remove that
-        const botMentionRegex = /\[\d+\]\s+<@!?(\d+)>\s+(said|replied to \[\d+\]):\s+/g;
+        const botMentionRegex = /(\[\d+\])*\s*<@!?(\d+)>\s+(said|replied to \[\d+\]):\s+/g;
         responseText = responseText.replace(botMentionRegex, '');
+
+        const citationRegex = /Citation:\s*(\d+,?\S*)*/gi;
+        responseText = responseText.replace(citationRegex, '');
+
+        responseText = responseText.trim();
 
         const citations = response.output.citations || [];
 
