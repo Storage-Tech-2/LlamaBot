@@ -1849,7 +1849,6 @@ export class GuildHolder {
                         results: z.array(z.object({
                             terms: z.string().describe('The terms defined.'),
                             definition: z.string().describe('The definition.'),
-                            id: z.string().describe('The unique identifier of the definition.'),
                         })).describe('Top 5 list of definitions matching the search query.'),
                         error: z.string().optional().describe('An error message, if an error occurred during the search.'),
                     })
@@ -1875,7 +1874,6 @@ export class GuildHolder {
                                 results.push({
                                     terms: entry.terms.join(', '),
                                     definition: truncateStringWithEllipsis(text, 2000),
-                                    id: entry.id,
                                 });
                                 dictionaryEntriesRetrieved.add(entry.id);
                             }
