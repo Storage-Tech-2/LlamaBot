@@ -1755,9 +1755,10 @@ export class GuildHolder {
         // const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
         //const recentMessages = messages.filter(msg => msg.createdTimestamp > oneDayAgo);
 
-        // remove messages not by the bot or the user
-        const relevantMessages = messages.filter(msg => msg.author.id === message.author.id || msg.author.id === this.getBot().client.user?.id);
-
+        // remove messages older than 10 minutes from the most recent message
+        const mostRecentTimestamp = messages.reduce((max, msg) => Math.max(max, msg.createdTimestamp), 0);
+        const tenMinutesAgo = mostRecentTimestamp - (10 * 60 * 1000);
+        const relevantMessages = messages.filter(msg => msg.createdTimestamp >= tenMinutesAgo);
         // Sort messages so that newest is last
         const sortedMessages = relevantMessages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
         
