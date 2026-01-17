@@ -1784,6 +1784,8 @@ export class GuildHolder {
             messagesIn.push({ mid: msg.id, id: messagesIn.length, obj: { role, content: `[${messagesIn.length}] <@${msg.author.id}> ${replyTo === null ? "said" : ` replied to [${replyTo}]`}: ${truncatedContent}` } });
         });
 
+        const dictionaryEntriesRetrieved = new Set<Snowflake>();
+
         const tools: Record<string, Tool> = {
             search: {
                 description: 'Lookup designs made by expert Minecraft redstone engineers using semantic search.',
@@ -1875,6 +1877,7 @@ export class GuildHolder {
                                     definition: truncateStringWithEllipsis(text, 2000),
                                     id: entry.id,
                                 });
+                                dictionaryEntriesRetrieved.add(entry.id);
                             }
                         }
 
@@ -2008,8 +2011,7 @@ export class GuildHolder {
                 {
                     schema: zodSchema(
                         z.object({
-                            response_text: z.string().optional().describe('The raw text of the response to be sent in the Discord channel. Optional, may be empty if no response is needed. You can use markdown formatting here, but tables are not supported. Do not cite sources in the response text; instead, use the citations field. Do include post codes for designs when referencing them.'),
-                            citations: z.array(z.string()).describe('A list of citations. Put the code of designs, id of definitions, or URL of resources used.').optional(),
+                            response_text: z.string().optional().describe('The raw text of the response to be sent in the Discord channel. Optional, may be empty if no response is needed. You can use markdown formatting here, but tables are not supported.'),
                         })
                     ),
                 }
@@ -2060,16 +2062,7 @@ export class GuildHolder {
 
         responseText = responseText.trim();
 
-        const citations = response.output.citations || [];
-
-        const whitelistedDefinitionIDs = new Set<string>();
-        for (const identifier of citations) {
-            // test snowflake
-            if (/^\d{17,19}$/.test(identifier)) {
-                whitelistedDefinitionIDs.add(identifier);
-                continue;
-            }
-        }
+    
 
         const inTextReferences: Reference[] = await tagReferences(responseText, [], this, '', false);
         const filteredReferences = inTextReferences.filter(ref => {
@@ -2077,7 +2070,7 @@ export class GuildHolder {
                 return false;
             }
             if (ref.type === ReferenceType.DICTIONARY_TERM) {
-                return whitelistedDefinitionIDs.has(ref.id);
+                return dictionaryEntriesRetrieved.has(ref.id);
             }
             return true;
         });
