@@ -978,7 +978,7 @@ export function hasReferencesChanged(oldRefs: Reference[], newRefs: Reference[])
 }
 
 export function getPostCodesInText(text: string): string[] {
-    const matches = findRegexMatches(text, [PostCodePattern]);
+    const matches = findRegexMatches(text.replace(/[-_]/g, ' '), [PostCodePattern]);
     const codes: Set<string> = new Set();
     for (const match of matches) {
         codes.add(match.match.toUpperCase());
