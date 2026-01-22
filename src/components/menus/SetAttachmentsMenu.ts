@@ -116,7 +116,7 @@ export class SetAttachmentsMenu implements Menu {
         if (litematics.length) {
             description += '**Litematics:**\n'
             litematics.forEach(attachment => {
-                description += `- [${escapeDiscordString(escapeString(attachment.name))}](${attachment.url}): ${attachment.litematic?.error || `MC ${attachment.litematic?.version}, ${attachment.litematic?.size}`}\n`
+                description += `- ${attachment.canDownload ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${attachment.litematic?.error || `MC ${attachment.litematic?.version}, ${attachment.litematic?.size}`}\n`
                 if (attachment.description) description += `  - ${attachment.description}\n`
             })
         }
