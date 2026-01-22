@@ -124,7 +124,7 @@ export class SetAttachmentsMenu implements Menu {
         if (wdls.length) {
             description += '**WDLs:**\n'
             wdls.forEach(attachment => {
-                description += `- [${escapeDiscordString(escapeString(attachment.name))}](${attachment.url}): ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}\n`
+                description += `- ${attachment.canDownload ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}\n`
                 if (attachment.description) description += `  - ${attachment.description}\n`
             })
         }
@@ -159,7 +159,7 @@ export class SetAttachmentsMenu implements Menu {
                         type = 'Discord link';
                         break;
                 }
-                description += `- [${escapeDiscordString(escapeString(attachment.name))}](${attachment.url}): ${type}\n`
+                description += `- ${attachment.contentType == 'discord' ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${type}\n`
                 if (attachment.description) description += `  - ${attachment.description}\n`
             })
         }
