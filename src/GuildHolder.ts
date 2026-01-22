@@ -1991,8 +1991,9 @@ export class GuildHolder {
                         for (const result of results) {
                             const sheet = await this.privateFactBase.getFact(result.identifier);
                             if (sheet) {
+                                const text = sheet.text.replace(/\[QA\d+\]/g, '').trim();
                                 data.push({
-                                    content: sheet.text.replace(/\[QA\d+\]/g, '').trim(),
+                                    content: sheet.page_title ? `# ${sheet.page_title}\n\n${text}` : text,
                                 });
                             }
                         }

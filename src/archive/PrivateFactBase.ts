@@ -15,6 +15,7 @@ export type Citation = {
 export type FactSheet = {
     index: number;
     cluster_id: number;
+    page_title?: string;
     text: string;
     cited: Array<Citation>;
 }
