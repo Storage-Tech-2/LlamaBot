@@ -53,17 +53,17 @@ export class FactEditModal implements Modal {
             return;
         }
 
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply();
 
         const newTitle = interaction.fields.getTextInputValue('title').trim();
         const newText = interaction.fields.getTextInputValue('text').trim();
-        
+        const oldTitle = entry.page_title || '';
         entry.page_title = newTitle;
         entry.text = newText;
 
         await factManager.updateFact(entryId, entry);
 
-        await interaction.editReply('Fact entry updated successfully.');
+        await interaction.editReply(`<@${interaction.user.id}> updated fact entry ${oldTitle !== newTitle ? ` ${oldTitle} -> ${newTitle}` : newTitle}.`);
 
     }
 }
