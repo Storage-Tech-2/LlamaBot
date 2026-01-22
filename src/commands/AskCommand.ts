@@ -6,6 +6,8 @@ import { transformOutputWithReferencesForDiscord } from "../utils/ReferenceUtils
 import { base64ToInt8Array, computeSimilarities, generateQueryEmbeddings } from "../llm/EmbeddingUtils.js";
 import { RepositoryConfigs } from "../archive/RepositoryConfigs.js";
 
+type DatabaseChoice = "all" | "dictionary" | "repository" | "channel" | "factbase";
+
 export class AskCommand implements Command {
     getID(): string {
         return "ask";
@@ -23,6 +25,25 @@ export class AskCommand implements Command {
                 .setName("question")
                 .setDescription("Your question")
                 .setRequired(true)
+        );
+        data.addStringOption(opt =>
+            opt
+                .setName("database")
+                .setDescription("Which database to search")
+                .addChoices(
+                    { name: "All", value: "all" },
+                    { name: "Dictionary", value: "dictionary" },
+                    { name: "Repository", value: "repository" },
+                    { name: "Channels", value: "channel" },
+                    { name: "Fact base (admins only)", value: "factbase" },
+                )
+        );
+        data.addIntegerOption(opt =>
+            opt
+                .setName("limit")
+                .setDescription("How many results to return (max 5)")
+                .setMinValue(1)
+                .setMaxValue(5)
         );
 
         return data;
@@ -45,6 +66,18 @@ export class AskCommand implements Command {
             return;
         }
 
+        const databaseChoice = (interaction.options.getString("database") as DatabaseChoice | null) ?? "all";
+        const requestedLimit = interaction.options.getInteger("limit");
+        const isCalledByAdmin = isAdmin(interaction);
+
+        if (databaseChoice === "factbase" && !isCalledByAdmin) {
+            await replyEphemeral(interaction, "You must be an admin to search the fact base.");
+            return;
+        }
+
+        const defaultLimit = databaseChoice === "all" ? 4 : 1;
+        const maxResults = Math.min(Math.max(requestedLimit ?? defaultLimit, 1), 5);
+
         // defer reply
         await interaction.deferReply();
 
@@ -63,84 +96,95 @@ export class AskCommand implements Command {
 
         const queryEmbedding = base64ToInt8Array(embedding.embeddings[0]);
 
-        const isCalledByAdmin = isAdmin(interaction);
-
         // get indexess
         const channels = guildHolder.getRepositoryManager().getConfigManager().getConfig(RepositoryConfigs.ARCHIVE_CHANNELS).filter(c => c.embedding);
         const channelEmbeddingVectors = channels.map(c => base64ToInt8Array(c.embedding!));
 
-        const dictionaryResults = await guildHolder.getDictionaryManager().getClosest(queryEmbedding, 1);
-        const repositoryResults = await guildHolder.getRepositoryManager().getClosest(queryEmbedding, 1);
-        const factBaseResults = isCalledByAdmin ? await guildHolder.getFactManager().getClosest(queryEmbedding, 1) : [];
-        const channelDistances = computeSimilarities(queryEmbedding, channelEmbeddingVectors);
-
-        // combine and sort
         type ScoredEntry = {
             distance: number;
+            score: number;
             source: "dictionary" | "repository" | "channel" | "factbase";
             identifier: string;
         };
 
-        const dictionaryScored: ScoredEntry[] = [];
-        const repositoryScored: ScoredEntry[] = [];
-        const channelScored: ScoredEntry[] = [];
-        const factBaseScored: ScoredEntry[] = [];
-        for (let i = 0; i < dictionaryResults.length; i++) {
-            dictionaryScored.push({
-                distance: dictionaryResults[i].distance,
-                source: "dictionary",
-                identifier: dictionaryResults[i].identifier
-            });
-        }
-        for (let i = 0; i < repositoryResults.length; i++) {
-            repositoryScored.push({
-                distance: repositoryResults[i].distance,
-                source: "repository",
-                identifier: repositoryResults[i].identifier
-            });
-        }
+        const sourcesToSearch: DatabaseChoice[] = databaseChoice === "all"
+            ? ["dictionary", "repository", "channel", ...(isCalledByAdmin ? ["factbase"] as const : [])]
+            : [databaseChoice];
 
-        for (let i = 0; i < channelDistances.length; i++) {
-            channelScored.push({
-                distance: channelDistances[i],
-                source: "channel",
-                identifier: channels[i].id
+        const scoredEntries: ScoredEntry[] = [];
+
+        if (sourcesToSearch.includes("dictionary")) {
+            const dictionaryResults = await guildHolder.getDictionaryManager().getClosest(queryEmbedding, maxResults);
+            dictionaryResults.forEach(result => {
+                scoredEntries.push({
+                    distance: result.distance,
+                    score: 1 - result.distance,
+                    source: "dictionary",
+                    identifier: result.identifier
+                });
             });
         }
 
-        for (let i = 0; i < factBaseResults.length; i++) {
-            factBaseScored.push({
-                distance: factBaseResults[i].distance,
-                source: "factbase",
-                identifier: factBaseResults[i].identifier
+        if (sourcesToSearch.includes("repository")) {
+            const repositoryResults = await guildHolder.getRepositoryManager().getClosest(queryEmbedding, maxResults);
+            repositoryResults.forEach(result => {
+                scoredEntries.push({
+                    distance: result.distance,
+                    score: 1 - result.distance,
+                    source: "repository",
+                    identifier: result.identifier
+                });
             });
         }
 
-        //combinedScores.sort((a, b) => b.score - a.score);
-
-        const getHighestScoredItem = (list: ScoredEntry[]) => {
-            return list.reduce((prev, current) => (prev && prev.distance > current.distance) ? prev : current, null as ScoredEntry | null);
+        if (sourcesToSearch.includes("factbase") && isCalledByAdmin) {
+            const factBaseResults = await guildHolder.getFactManager().getClosest(queryEmbedding, maxResults);
+            factBaseResults.forEach(result => {
+                scoredEntries.push({
+                    distance: result.distance,
+                    score: 1 - result.distance,
+                    source: "factbase",
+                    identifier: result.identifier
+                });
+            });
         }
 
+        if (sourcesToSearch.includes("channel") && channelEmbeddingVectors.length > 0) {
+            const channelSimilarities = computeSimilarities(queryEmbedding, channelEmbeddingVectors)
+                .map((similarity, idx) => ({
+                    similarity,
+                    channelId: channels[idx].id
+                }))
+                .sort((a, b) => b.similarity - a.similarity)
+                .slice(0, maxResults);
 
+            channelSimilarities.forEach(({ similarity, channelId }) => {
+                scoredEntries.push({
+                    distance: similarity,
+                    score: similarity,
+                    source: "channel",
+                    identifier: channelId
+                });
+            });
+        }
 
-        // dictionaryScored.sort((a, b) => b.score - a.score);
-        // repositoryScored.sort((a, b) => b.score - a.score);
-        // channelScored.sort((a, b) => b.score - a.score);
+        scoredEntries.sort((a, b) => b.score - a.score);
+        const topEntries = scoredEntries.slice(0, maxResults);
 
-        const topDictionary = getHighestScoredItem(dictionaryScored);
-        const topRepository = getHighestScoredItem(repositoryScored);
-        const topChannel = getHighestScoredItem(channelScored);
-        const topFactBase = getHighestScoredItem(factBaseScored);
-
-        // take top 3
-        // const topEntries = combinedScores.slice(0, 1);
-
-        const topEntries: ScoredEntry[] = [];
-        if (topChannel) topEntries.push(topChannel);
-        if (topDictionary) topEntries.push(topDictionary);
-        if (topRepository) topEntries.push(topRepository);
-        if (topFactBase) topEntries.push(topFactBase);
+        const searchLabel = (() => {
+            switch (databaseChoice) {
+                case "channel":
+                    return "channels";
+                case "dictionary":
+                    return "the dictionary";
+                case "repository":
+                    return "the repository";
+                case "factbase":
+                    return "the fact base";
+                default:
+                    return isCalledByAdmin ? "all sources" : "the dictionary, repository, and channels";
+            }
+        })();
 
         const embeds = [];
 
@@ -241,13 +285,13 @@ export class AskCommand implements Command {
 
         if (embeds.length === 0) {
             await interaction.editReply({
-                content: "No relevant entries found in the archive."
+                content: `No relevant entries found in ${searchLabel}.`
             });
             return;
         }
 
         await interaction.editReply({
-            content: truncateStringWithEllipsis(`You asked: \`${question}\`\nHere are the most relevant entries I found:`, 2000),
+            content: truncateStringWithEllipsis(`You asked: \`${question}\`\nSearching ${searchLabel} (up to ${maxResults} results).\nHere are the most relevant entries I found:`, 2000),
             allowedMentions: { parse: [] }
         });
 
