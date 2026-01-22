@@ -221,7 +221,7 @@ export class AskCommand implements Command {
                 let text = factEntry.text;
                 factEntry.cited.forEach(citation => {
                     const url = `https://discord.com/channels/748542142347083868/748549293433946133/${citation.message_ids[0]}`;
-                    text = text.replace(`[QA${citation.number}]`, `[[QA${citation.number}]](${url})`);
+                    text = text.replaceAll(`[QA${citation.number}]`, `[[QA${citation.number}]](${url})`);
                 });
 
                 const textSplit = splitIntoChunks(text, 4000);
