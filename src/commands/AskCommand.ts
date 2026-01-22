@@ -140,6 +140,7 @@ export class AskCommand implements Command {
         if (topChannel) topEntries.push(topChannel);
         if (topDictionary) topEntries.push(topDictionary);
         if (topRepository) topEntries.push(topRepository);
+        if (topFactBase) topEntries.push(topFactBase);
 
         const embeds = [];
 
