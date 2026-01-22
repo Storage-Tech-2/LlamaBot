@@ -17,6 +17,7 @@ import { SetAuthorsButton } from "./SetAuthorsButton.js";
 import { SetTagsButton } from "./SetTagsButton.js";
 import { SkipAttachmentsButton } from "./SkipAttachmentsButton.js";
 import { SkipImagesButton } from "./SkipImagesButton.js";
+import { EditFactButton } from "./EditFactButton.js";
 
 export function getButtons() {
     const Buttons = [
@@ -38,7 +39,8 @@ export function getButtons() {
         new AddImageButton(),
         new AddAttachmentButton(),
         new RefreshListButton(),
-        new EditDictionaryEntryButton()
+        new EditDictionaryEntryButton(),
+        new EditFactButton()
     ];
     return Buttons;
 }

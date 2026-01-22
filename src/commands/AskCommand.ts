@@ -1,10 +1,11 @@
-import { ChatInputCommandInteraction, EmbedBuilder, InteractionContextType, MessageFlags, SlashCommandBuilder } from "discord.js";
+import { ActionRowBuilder, ChatInputCommandInteraction, EmbedBuilder, InteractionContextType, MessageFlags, SlashCommandBuilder } from "discord.js";
 import { Command } from "../interface/Command.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { getAuthorsString, isAdmin, replyEphemeral, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
 import { transformOutputWithReferencesForDiscord } from "../utils/ReferenceUtils.js";
 import { base64ToInt8Array, computeSimilarities, generateQueryEmbeddings } from "../llm/EmbeddingUtils.js";
 import { RepositoryConfigs } from "../archive/RepositoryConfigs.js";
+import { EditFactButton } from "../components/buttons/EditFactButton.js";
 
 type DatabaseChoice = "all" | "dictionary" | "repository" | "channel" | "factbase";
 
@@ -186,7 +187,7 @@ export class AskCommand implements Command {
             }
         })();
 
-        const embeds = [];
+        const embedsAndComponents: { embed: EmbedBuilder, components: any[] }[] = [];
 
         for (const entry of topEntries) {
             if (entry.source === "dictionary") {
@@ -211,7 +212,7 @@ export class AskCommand implements Command {
                         embed.setURL(url);
                     }
 
-                    embeds.push(embed);
+                    embedsAndComponents.push({ embed, components: [] });
                 }
 
             } else if (entry.source === "repository") {
@@ -243,7 +244,7 @@ export class AskCommand implements Command {
                     embed.setThumbnail(image);
                 }
 
-                embeds.push(embed);
+                embedsAndComponents.push({ embed, components: [] });
             } else if (entry.source === "channel") {
                 const channel = channels.find(c => c.id === entry.identifier);
                 if (!channel) continue;
@@ -256,7 +257,7 @@ export class AskCommand implements Command {
                 const url = `https://discord.com/channels/${guildHolder.getGuildId()}/${channel.id}`;
                 embed.setURL(url);
 
-                embeds.push(embed);
+                embedsAndComponents.push({ embed, components: [] });
             } else if (entry.source === "factbase") {
                 const factEntry = await guildHolder.getFactManager().getFact(entry.identifier);
                 if (!factEntry) continue;
@@ -278,12 +279,19 @@ export class AskCommand implements Command {
                     if (textSplit.length > 1) {
                         embed.setFooter({ text: `Part ${i + 1} of ${textSplit.length}` });
                     }
-                    embeds.push(embed);
+
+                    const components = [];
+                    if (i === textSplit.length - 1) {
+                        const button = new EditFactButton().getBuilder(entry.identifier);
+                        const row = new ActionRowBuilder().addComponents(button);
+                        components.push(row);
+                    }
+                    embedsAndComponents.push({ embed, components });
                 }
             }
         }
 
-        if (embeds.length === 0) {
+        if (embedsAndComponents.length === 0) {
             await interaction.editReply({
                 content: `No relevant entries found in ${searchLabel}.`
             });
@@ -296,9 +304,11 @@ export class AskCommand implements Command {
         });
 
         // each embed gets its own message if more than 1
-        for (let i = 0; i < embeds.length; i++) {
+        for (let i = 0; i < embedsAndComponents.length; i++) {
+            const { embed, components } = embedsAndComponents[i];
             await interaction.channel.send({
-                embeds: [embeds[i]],
+                embeds: [embed],
+                components: components,
                 flags: [MessageFlags.SuppressNotifications],
                 allowedMentions: { parse: [] }
             });

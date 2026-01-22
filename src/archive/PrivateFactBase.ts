@@ -1,6 +1,6 @@
 import Path from "path";
 import fs from "fs/promises";
-import { EmbeddingsEntry, base64ToInt8Array, makeHNSWIndex, EmbeddingsSearchResult, loadHNSWIndex } from "../llm/EmbeddingUtils.js";
+import { EmbeddingsEntry, base64ToInt8Array, makeHNSWIndex, EmbeddingsSearchResult, loadHNSWIndex, generateDocumentEmbeddings } from "../llm/EmbeddingUtils.js";
 import { TemporaryCache } from "./TemporaryCache.js";
 import { HierarchicalNSW } from "hnswlib-node";
 
@@ -133,6 +133,46 @@ export class PrivateFactBase {
         } catch (e) {
             return null;
         }
+    }
+
+
+    async updateFact(identifier: string, entry: FactSheet): Promise<void> {
+        if (!this.isEnabled) {
+            return;
+        }
+
+        const path = Path.join(this.folderPath, 'facts', `${identifier}.json`);
+        // check if exists
+        try {
+            await fs.access(path);
+        } catch (e) {
+            return;
+        }
+
+        // write updated entry
+        await fs.writeFile(path, JSON.stringify(entry, null, 2), 'utf-8');
+
+        // update embeddings
+        const embeddings = await this.getEmbeddings();
+        const embeddingEntry = embeddings.find(e => e.identifier === identifier);
+        if (!embeddingEntry) {
+            return;
+        }
+
+        // re-embed text
+        const text = `# ${entry.page_title || ''}\n${entry.text}`;
+        const newEmbedding = await generateDocumentEmbeddings([text]).catch(() => null);
+        if (!newEmbedding || newEmbedding.embeddings.length === 0) {
+            return;
+        }
+        embeddingEntry.embedding = newEmbedding.embeddings[0];
+
+        // save embeddings
+        const embeddingsPath = this.getEmbeddingsPath();
+        await fs.writeFile(embeddingsPath, JSON.stringify(embeddings, null, 2), 'utf-8');
+        
+        // rebuild index
+        await this.buildEmbeddingsIndex();
     }
 
     isFactBaseEnabled(): boolean {
