@@ -1,7 +1,7 @@
 import { ChatInputCommandInteraction, EmbedBuilder, InteractionContextType, MessageFlags, SlashCommandBuilder } from "discord.js";
 import { Command } from "../interface/Command.js";
 import { GuildHolder } from "../GuildHolder.js";
-import { getAuthorsString, replyEphemeral, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
+import { getAuthorsString, isAdmin, replyEphemeral, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
 import { transformOutputWithReferencesForDiscord } from "../utils/ReferenceUtils.js";
 import { base64ToInt8Array, computeSimilarities, generateQueryEmbeddings } from "../llm/EmbeddingUtils.js";
 import { RepositoryConfigs } from "../archive/RepositoryConfigs.js";
@@ -63,24 +63,28 @@ export class AskCommand implements Command {
 
         const queryEmbedding = base64ToInt8Array(embedding.embeddings[0]);
 
+        const isCalledByAdmin = isAdmin(interaction);
+
         // get indexess
         const channels = guildHolder.getRepositoryManager().getConfigManager().getConfig(RepositoryConfigs.ARCHIVE_CHANNELS).filter(c => c.embedding);
         const channelEmbeddingVectors = channels.map(c => base64ToInt8Array(c.embedding!));
 
         const dictionaryResults = await guildHolder.getDictionaryManager().getClosest(queryEmbedding, 1);
         const repositoryResults = await guildHolder.getRepositoryManager().getClosest(queryEmbedding, 1);
+        const factBaseResults = isCalledByAdmin ? await guildHolder.getFactManager().getClosest(queryEmbedding, 1) : [];
         const channelDistances = computeSimilarities(queryEmbedding, channelEmbeddingVectors);
 
         // combine and sort
         type ScoredEntry = {
             distance: number;
-            source: "dictionary" | "repository" | "channel";
+            source: "dictionary" | "repository" | "channel" | "factbase";
             identifier: string;
         };
 
         const dictionaryScored: ScoredEntry[] = [];
         const repositoryScored: ScoredEntry[] = [];
         const channelScored: ScoredEntry[] = [];
+        const factBaseScored: ScoredEntry[] = [];
         for (let i = 0; i < dictionaryResults.length; i++) {
             dictionaryScored.push({
                 distance: dictionaryResults[i].distance,
@@ -104,6 +108,14 @@ export class AskCommand implements Command {
             });
         }
 
+        for (let i = 0; i < factBaseResults.length; i++) {
+            factBaseScored.push({
+                distance: factBaseResults[i].distance,
+                source: "factbase",
+                identifier: factBaseResults[i].identifier
+            });
+        }
+
         //combinedScores.sort((a, b) => b.score - a.score);
 
         const getHighestScoredItem = (list: ScoredEntry[]) => {
@@ -119,6 +131,7 @@ export class AskCommand implements Command {
         const topDictionary = getHighestScoredItem(dictionaryScored);
         const topRepository = getHighestScoredItem(repositoryScored);
         const topChannel = getHighestScoredItem(channelScored);
+        const topFactBase = getHighestScoredItem(factBaseScored);
 
         // take top 3
         // const topEntries = combinedScores.slice(0, 1);
@@ -199,6 +212,29 @@ export class AskCommand implements Command {
                 embed.setURL(url);
 
                 embeds.push(embed);
+            } else if (entry.source === "factbase") {
+                const factEntry = await guildHolder.getFactManager().getFact(entry.identifier);
+                if (!factEntry) continue;
+
+                // first parse citations [QAxx]
+                let text = factEntry.text;
+                factEntry.cited.forEach(citation => {
+                    const url = `https://discord.com/channels/748542142347083868/748549293433946133/${citation.message_ids[0]}`;
+                    text = text.replace(`[QA${citation.number}]`, `[[QA${citation.number}]](${url})`);
+                });
+
+                const textSplit = splitIntoChunks(text, 4000);
+                for (let i = 0; i < textSplit.length; i++) {
+                    const embed = new EmbedBuilder()
+                        .setTitle(truncateStringWithEllipsis(`Fact: ` + factEntry.page_title, 256))
+                        .setDescription(textSplit[i])
+                        .setColor(0x8B4513);
+
+                    if (textSplit.length > 1) {
+                        embed.setFooter({ text: `Part ${i + 1} of ${textSplit.length}` });
+                    }
+                    embeds.push(embed);
+                }
             }
         }
 

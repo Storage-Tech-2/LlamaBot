@@ -2105,4 +2105,8 @@ export class GuildHolder {
     public getAliasManager() {
         return this.aliasManager;
     }
+
+    public getFactManager() {
+        return this.privateFactBase;
+    }
 }
