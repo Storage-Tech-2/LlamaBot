@@ -6,25 +6,35 @@ import { ArchiveComment } from "./ArchiveComments.js";
 import { ArchiveEntryData } from "./ArchiveEntry.js";
 
 function formatAttachment(attachment: Attachment): string {
-    if (attachment.litematic) {
-        return `- [${attachment.name}](${encodeURI(attachment.path || '')}): ` + (attachment.litematic.error || `MC ${attachment.litematic.version}, Size ${attachment.litematic.size} blocks`);
-    } else if (attachment.wdl) {
-        return `- [${attachment.name}](${encodeURI(attachment.path || '')}): ${attachment.wdl.error || `MC ${attachment.wdl.version}`}`;
-    } else if (attachment.contentType === 'mediafire') {
-        return `- [${attachment.name}](${attachment.url}): Mediafire link`;
-    } else if (attachment.youtube) {
-        return `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})`;
-    } else if (attachment.contentType === 'youtube') {
-        return `- ${attachment.url}: YouTube video`;
-    } else if (attachment.contentType === 'bilibili') {
-        return `- [${attachment.name}](${attachment.url}): Bilibili video`;
+    const firstLine = (() => {
+        if (attachment.litematic) {
+            return `- [${attachment.name}](${encodeURI(attachment.path || '')}): ` + (attachment.litematic.error || `MC ${attachment.litematic.version}, Size ${attachment.litematic.size} blocks`);
+        } else if (attachment.wdl) {
+            return `- [${attachment.name}](${encodeURI(attachment.path || '')}): ${attachment.wdl.error || `MC ${attachment.wdl.version}`}`;
+        } else if (attachment.contentType === 'mediafire') {
+            return `- [${attachment.name}](${attachment.url}): Mediafire link`;
+        } else if (attachment.youtube) {
+            return `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})`;
+        } else if (attachment.contentType === 'youtube') {
+            return `- ${attachment.url}: YouTube video`;
+        } else if (attachment.contentType === 'bilibili') {
+            return `- [${attachment.name}](${attachment.url}): Bilibili video`;
+        }
+
+        if (attachment.canDownload && attachment.path) {
+            return `- [${attachment.name}](${encodeURI(attachment.path || '')}): ${attachment.contentType}`;
+        }
+
+        return `- [${attachment.name}](${attachment.url}): ${attachment.contentType}`;
+    })();
+
+    // check if it has description
+    if (attachment.description && attachment.description.trim().length > 0) {
+        return `${firstLine}\n  - ${attachment.description.trim()}`;
+    } else {
+        return firstLine;
     }
 
-    if (attachment.canDownload && attachment.path) {
-        return `- [${attachment.name}](${encodeURI(attachment.path || '')}): ${attachment.contentType}`;
-    }
-
-    return `- [${attachment.name}](${attachment.url}): ${attachment.contentType}`;
 }
 
 export function makeEntryReadMe(
@@ -40,7 +50,7 @@ export function makeEntryReadMe(
         text.push(`<img alt="${escapeString(image.name)}" src="${encodeURI(image.path || '')}?raw=1"${(image.height || 200) > 300 ? " height=\"300px\"" : ""}>\n\n`)
     }
     if (entryData.authors.length > 0) {
-        text.push(`**Authors:** *${entryData.authors.filter(a=> !a.dontDisplay).map(o => getAuthorName(o)).join(", ")}*\n\n`);
+        text.push(`**Authors:** *${entryData.authors.filter(a => !a.dontDisplay).map(o => getAuthorName(o)).join(", ")}*\n\n`);
     }
     if (entryData.endorsers.length > 0) {
         text.push(`**Endorsed by:** *${entryData.endorsers.map(o => getAuthorName(o)).join(", ")}*\n\n`);
