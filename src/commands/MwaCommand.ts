@@ -14,6 +14,7 @@ import { SetScriptModal } from "../components/modals/SetScriptModal.js";
 import { republishAllEntries, retagEverythingTask } from "../archive/Tasks.js";
 import got from "got";
 import { DictionaryEntryStatus } from "../archive/DictionaryManager.js";
+import { RepositoryConfigs } from "../archive/RepositoryConfigs.js";
 
 export class Mwa implements Command {
     getID(): string {
@@ -978,25 +979,7 @@ export class Mwa implements Command {
                 return channel && channel.type === ChannelType.GuildForum && channel.parentId && currentCategories.includes(channel.parentId)
             }) as unknown as ForumChannel[];
 
-            const basicTags: GuildForumTag[] = [
-                {
-                    name: 'Untested',
-                    emoji: { name: '⁉️' }
-                },
-                {
-                    name: 'Broken',
-                    emoji: { name: '💔' }
-                },
-                {
-                    name: 'Tested & Functional',
-                    emoji: { name: '✅' }
-                },
-                {
-                    name: 'Recommended',
-                    emoji: { name: '⭐' },
-                    moderated: true
-                }
-            ] as GuildForumTag[];
+            const basicTags: GuildForumTag[] = guildHolder.getRepositoryManager().getConfigManager().getConfig(RepositoryConfigs.GLOBAL_TAGS);
             // check each channel
 
             const codeMap = new Map<Snowflake, string>();

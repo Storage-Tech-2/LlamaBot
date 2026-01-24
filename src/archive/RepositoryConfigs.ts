@@ -1,6 +1,7 @@
 import { JSONSchema7 } from "json-schema";
 import { Config } from "../config/ConfigManager.js";
 import { StyleInfo } from "../utils/MarkdownUtils.js";
+import { Emoji, GuildForumTag } from "discord.js";
 
 export type ArchiveChannelReference = {
     id: string;
@@ -58,5 +59,29 @@ export const RepositoryConfigs = {
     }),
 
     POST_STYLE: new Config<Record<string, StyleInfo>>("postStyle", {}),
+
+    GLOBAL_TAGS: new Config<GuildForumTag[]>("globalTags", [
+        {
+            name: 'Untested',
+            emoji: { name: '⁉️' }
+        },
+        {
+            name: 'Broken',
+            emoji: { name: '💔' }
+        },
+        {
+            name: 'Tested & Functional',
+            emoji: { name: '✅' }
+        },
+        {
+            name: 'Recommended',
+            emoji: { name: '⭐' },
+            moderated: true
+        }
+    ] as GuildForumTag[]),
+
+    DEFAULT_REACTION: new Config<Emoji>("defaultReaction", {
+        name: '👍'
+    } as Emoji),
 
 }
