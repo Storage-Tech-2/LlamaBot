@@ -1,7 +1,7 @@
 import { Prompt } from "./Prompt.js";
 
 const prompt_template = `
-Create a structured JSON object with information from the text below:
+Create a structured JSON object with information from the text below. Do not add any information that is not explicitly stated in the text, if you do not know the answer, say you don't know.
 {{input}}`;
 
 export class ExtractionPrompt implements Prompt {
