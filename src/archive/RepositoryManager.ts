@@ -863,6 +863,7 @@ export class RepositoryManager {
                 author_references: await tagReferencesInAcknowledgements(authors, oldRef, this.guildHolder, submission.getId()),
                 updatedAt: now,
                 archivedAt: now,
+                num_comments: 0,
                 post: undefined
             });
 
@@ -1193,6 +1194,7 @@ export class RepositoryManager {
             }
         }
 
+        newEntryData.num_comments = comments.length;
 
         const branchName = await this.git.branchLocal().then(branch => branch.current);
 
@@ -1797,6 +1799,11 @@ export class RepositoryManager {
                 // Add new comment
                 comments.push(newComment);
             }
+
+            found.entry.getData().num_comments = comments.length;
+            await found.entry.savePrivate();
+            await this.git.add(found.entry.getDataPath());
+
             await fs.writeFile(commentsFile, JSON.stringify(comments, null, 2), 'utf-8');
             await this.git.add(commentsFile);
             await this.git.add(await this.updateEntryReadme(found.entry));
@@ -1935,6 +1942,10 @@ export class RepositoryManager {
                 await fs.writeFile(commentsFile, JSON.stringify(comments, null, 2), 'utf-8');
                 await this.git.add(commentsFile);
             }
+
+            found.entry.getData().num_comments = comments.length;
+            await found.entry.savePrivate();
+            await this.git.add(found.entry.getDataPath());
 
             await this.git.add(await this.updateEntryReadme(found.entry));
             await this.commit(`Deleted ${getAuthorName(deletedComment.sender)}'s comment from ${found.entry.getData().code}`);

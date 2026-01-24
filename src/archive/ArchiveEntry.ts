@@ -42,6 +42,9 @@ export type ArchiveEntryData = {
     timestamp?: number; // legacy
     archivedAt: number;
     updatedAt: number;
+
+    // comments
+    num_comments: number;
 }
 
 export class ArchiveEntry {
@@ -89,7 +92,8 @@ export class ArchiveEntry {
             author_references: this.data.author_references,
             post: this.data.post,
             archivedAt: this.data.archivedAt,
-            updatedAt: this.data.updatedAt
+            updatedAt: this.data.updatedAt,
+            num_comments: this.data.num_comments
         };
 
         return fs.writeFile(dataPath, JSON.stringify(dataCleaned, null, 2), 'utf-8');
@@ -98,24 +102,12 @@ export class ArchiveEntry {
     public async load(): Promise<void> {
         const dataPath = this.getDataPath();
         this.data = JSON.parse(await fs.readFile(dataPath, 'utf-8')) as ArchiveEntryData;
-        if (!this.data.references) this.data.references = [];
-        if (!this.data.author_references) this.data.author_references = [];
-        if (!this.data.archivedAt) this.data.archivedAt = this.data.timestamp || Date.now();
-        if (!this.data.updatedAt) this.data.updatedAt = this.data.archivedAt;
-        if (!this.data.reservedCodes) this.data.reservedCodes = [this.data.code];
-        if (!this.data.pastPostThreadIds) this.data.pastPostThreadIds = this.data.post ? [this.data.post.threadId] : [];
     }
 
     public static async fromFolder(folder: string): Promise<ArchiveEntry | null> {
         const dataPath = Path.join(folder, 'data.json');
         try {
             const data: ArchiveEntryData = JSON.parse(await fs.readFile(dataPath, 'utf-8'));
-            if (!data.references) data.references = [];
-            if (!data.author_references) data.author_references = [];
-            if (!data.archivedAt) data.archivedAt = data.timestamp || Date.now();
-            if (!data.updatedAt) data.updatedAt = data.archivedAt;
-            if (!data.reservedCodes) data.reservedCodes = [data.code];
-            if (!data.pastPostThreadIds) data.pastPostThreadIds = data.post ? [data.post.threadId] : [];
             const entry = new ArchiveEntry(data, folder);
             return entry;
         } catch (error) {
