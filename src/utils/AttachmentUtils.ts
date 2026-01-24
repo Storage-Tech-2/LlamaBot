@@ -738,7 +738,9 @@ async function findFirstFileWithNameInZip(zipPath: string, fileName: string): Pr
 }
 
 export function getAttachmentDescriptionForMenus(attachment: BaseAttachment): string {
-    const dateTime = `${new Date(attachment.timestamp).toLocaleString()} ${new Date(attachment.timestamp).toLocaleTimeString([], { timeZoneName: 'short' })}`;
+    const dateTime = new Date(attachment.timestamp).toLocaleString([], {
+        timeZoneName: 'short'
+    });
     if (attachment.description) {
         return `${dateTime} - ${attachment.description}`;
     }
