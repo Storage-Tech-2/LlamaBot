@@ -157,7 +157,7 @@ export class SetImagesMenu implements Menu {
             }
 
             const embed = new EmbedBuilder()
-                .setTitle(truncateFileName(nextAttachment.name, 256))
+                .setTitle(truncateFileName(escapeDiscordString(nextAttachment.name), 256))
                 .setDescription(getAttachmentDescriptionForMenus(nextAttachment) || 'No description')
                 .setThumbnail(nextAttachment.url);
 

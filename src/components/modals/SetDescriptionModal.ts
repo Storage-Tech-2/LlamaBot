@@ -110,9 +110,14 @@ export class SetDescriptionModal implements Modal {
                 const embeds = [];
                 if (isImage) {
                     const embed = new EmbedBuilder()
-                        .setTitle(truncateFileName(nextAttachment.name, 256))
+                        .setTitle(truncateFileName(escapeDiscordString(nextAttachment.name), 256))
                         .setDescription(getAttachmentDescriptionForMenus(nextAttachment) || 'No description')
                         .setThumbnail(nextAttachment.url);
+                    embeds.push(embed);
+                } else {
+                    const embed = new EmbedBuilder()
+                        .setTitle(truncateFileName(escapeDiscordString(nextAttachment.name), 256))
+                        .setDescription(getAttachmentDescriptionForMenus(nextAttachment) || 'No description');
                     embeds.push(embed);
                 }
 
