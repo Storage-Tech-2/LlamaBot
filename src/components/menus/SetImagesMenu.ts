@@ -164,7 +164,6 @@ export class SetImagesMenu implements Menu {
             await interaction.editReply({
                 content: `We've detected that you added ${addedWithoutDescriptions.length} image${addedWithoutDescriptions.length > 1 ? 's' : ''} without descriptions.` +
                     `\n\nSet a description for the image **${escapeDiscordString(nextAttachment.name)}**?`,
-                flags: [MessageFlags.SuppressEmbeds],
                 components: [row as any],
                 embeds: [embed],
             });

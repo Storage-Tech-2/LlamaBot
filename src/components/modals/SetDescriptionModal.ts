@@ -119,7 +119,7 @@ export class SetDescriptionModal implements Modal {
                 await interaction.reply({
                     content: `Set info for ${isImage ? 'image' : 'attachment'} **${escapeDiscordString(foundAttachment.name)}**:\n${foundAttachment.description ? `Description: ${foundAttachment.description}` : 'No description set.'}` +
                         `\n\nSet a description for the next ${isImage ? 'image' : 'attachment'} **${escapeDiscordString(nextAttachment.name)}**?`,
-                    flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds],
+                    flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
                     components: [row as any],
                     embeds: embeds
                 });
