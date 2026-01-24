@@ -174,7 +174,7 @@ export class SetAttachmentsMenu implements Menu {
         }
 
 
-        if (interaction.deferred) {
+        if (!replace && interaction.deferred) {
             await interaction.editReply({
                 content: split[0],
                 flags: [MessageFlags.SuppressEmbeds],
