@@ -15,7 +15,7 @@ export class SetDescriptionButton implements Button {
         return new ButtonBuilder()
             .setCustomId(this.getID() + '|' + (isImage ? 'i' : 'a') + '|' + id + '|' + taskID)
             .setLabel(truncateStringWithEllipsis(taskID.length > 0 ? `Set info: ${attachmentName}` : `Edit info: ${attachmentName}` , 80))
-            .setStyle(ButtonStyle.Primary)
+            .setStyle(taskID.length > 0 ? ButtonStyle.Primary : ButtonStyle.Secondary);
     }
 
     async execute(guildHolder: GuildHolder, interaction: ButtonInteraction, type: string, id: Snowflake, taskID: string): Promise<void> {
