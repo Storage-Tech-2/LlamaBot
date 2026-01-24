@@ -1,5 +1,4 @@
 import { TemporaryCache } from "../archive/TemporaryCache.js";
-import path from "path";
 import fs from "fs/promises";
 
 export class AliasManager {

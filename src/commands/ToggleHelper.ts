@@ -32,6 +32,7 @@ export class ToggleHelper implements Command {
                 username: interaction.user.username,
                 thankedCountTotal: 0,
                 thankedBuffer: [],
+                llmWarnings: [],
                 disableRole: false // Initialize disableRole to false
             };
         }

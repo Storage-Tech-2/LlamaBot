@@ -866,7 +866,7 @@ export function transformOutputWithReferencesForEmbeddings(
     return transformOutputWithReferencesWrapper(
         text,
         references,
-        (reference, matchedText, isHeader, isWithinHyperlink, hyperlinkText, _hyperlinkURL, hyperlinkTitle) => {
+        (reference, matchedText, isHeader, _isWithinHyperlink, hyperlinkText, _hyperlinkURL, _hyperlinkTitle) => {
             if (isHeader) {
                 return; // skip replacements in headers
             }

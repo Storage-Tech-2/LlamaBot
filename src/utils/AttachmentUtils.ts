@@ -1,16 +1,17 @@
 import { Bot } from '../Bot.js'
 import { Message, Snowflake, TextBasedChannel, TextThreadChannel } from 'discord.js'
-import { Attachment } from '../submissions/Attachment.js'
+import { Attachment, AttachmentSource, BaseAttachment } from '../submissions/Attachment.js'
 import { Image } from '../submissions/Image.js'
 import Path from 'path'
 import fs from 'fs/promises'
 import got from 'got'
 import sharp from 'sharp'
 import { MCMeta } from './MCMeta.js'
-import { escapeString } from './Util.js'
+import { escapeString, getAuthorName, getMessageAuthor } from './Util.js'
 import yauzl from "yauzl"
 import nbt from 'prismarine-nbt'
 import { Litematic } from '../lib/litematic-reader/main.js'
+import { Author } from '../submissions/Author.js'
 
 export async function processImages(images: Image[], download_folder: string, processed_folder: string, bot: Bot): Promise<Image[]> {
     if (images.length > 0) {
@@ -75,6 +76,7 @@ export async function processImages(images: Image[], download_folder: string, pr
 
         image.width = s.width;
         image.height = s.height;
+        image.size = imageData.rawBody.length;
 
         await fs.unlink(downloadPath); // Remove the original file after processing
     }));
@@ -291,6 +293,10 @@ export async function analyzeAttachments(attachments: Attachment[], attachments_
         const ext = attachment.name.split('.').pop();
         if (attachment.canDownload && attachment.path) {
             const attachmentPath = Path.join(attachments_folder, attachment.path);
+            const fileMetadata = await fs.stat(attachmentPath).catch(() => null);
+            if (fileMetadata) {
+                attachment.size = fileMetadata.size;
+            }
             if (ext === 'litematic') {
                 // Process litematic files
                 await processLitematic(attachment, attachmentPath, mcMeta);
@@ -411,7 +417,7 @@ export async function iterateAllMessages(channel: TextBasedChannel, iterator: (m
         messages = await channel.messages.fetch({ limit: 100, before: messages.last()?.id });
     }
 }
-export function getAttachmentsFromText(text: string, attachments: Attachment[] = [], suffix = ""): Attachment[] {
+export function getAttachmentsFromText(text: string, attachments: BaseAttachment[], timestamp: number, author: Author): BaseAttachment[] {
     // Find all URLs in the message
     const urls = text.match(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g)
     if (urls) {
@@ -440,7 +446,10 @@ export function getAttachmentsFromText(text: string, attachments: Attachment[] =
                     name: name,
                     contentType: 'mediafire',
                     url: url,
-                    description: description || `[MediaFire]${suffix}`,
+                    timestamp: timestamp,
+                    author: author,
+                    source: AttachmentSource.URLInMessage,
+                    description: description || '',
                     canDownload: false // MediaFire links cannot be downloaded directly
                 })
             } else if (url.startsWith('https://youtu.be/') || url.startsWith('https://www.youtube.com/watch')) {
@@ -460,7 +469,10 @@ export function getAttachmentsFromText(text: string, attachments: Attachment[] =
                     name: `YouTube Video ${videoId}`,
                     contentType: 'youtube',
                     url: urlCleaned.toString(),
-                    description: description || `[YouTube]${suffix}`,
+                    timestamp: timestamp,
+                    author: author,
+                    source: AttachmentSource.URLInMessage,
+                    description: description || '',
                     canDownload: false // YouTube links cannot be downloaded directly
                 })
             } else if (url.startsWith('https://cdn.discordapp.com/attachments/')) {
@@ -475,7 +487,10 @@ export function getAttachmentsFromText(text: string, attachments: Attachment[] =
                     name: name,
                     contentType: 'discord',
                     url: url,
-                    description: description || `[DiscordCDN]${suffix}`,
+                    timestamp: timestamp,
+                    author: author,
+                    source: AttachmentSource.URLInMessage,
+                    description: description || '',
                     canDownload: true // Discord CDN links can be downloaded directly
                 })
             } else if (url.startsWith('https://bilibili.com/') || url.startsWith('https://www.bilibili.com/')) {
@@ -491,7 +506,10 @@ export function getAttachmentsFromText(text: string, attachments: Attachment[] =
                     name: `Bilibili Video ${videoId}`,
                     contentType: 'bilibili',
                     url: url,
-                    description: description || `[Bilibili]${suffix}`,
+                    timestamp: timestamp,
+                    author: author,
+                    source: AttachmentSource.URLInMessage,
+                    description: description || '',
                     canDownload: false // Bilibili links cannot be downloaded directly
                 })
             }
@@ -499,10 +517,14 @@ export function getAttachmentsFromText(text: string, attachments: Attachment[] =
     }
     return attachments;
 }
-export function getAttachmentsFromMessage(message: Message, attachments: Attachment[] = []): Attachment[] {
+
+export function getAttachmentsFromMessage(message: Message, attachments: BaseAttachment[] = []): BaseAttachment[] {
+
+    const author = getMessageAuthor(message);
+
     if (message.content.length > 0) {
         // Get attachments from the message text
-        getAttachmentsFromText(message.content, attachments, ` Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`);
+        getAttachmentsFromText(message.content, attachments, message.createdTimestamp, author);
     }
     if (message.attachments.size > 0) {
         const hasDescription = message.content.startsWith("Description:");
@@ -521,7 +543,11 @@ export function getAttachmentsFromMessage(message: Message, attachments: Attachm
                 name: attachment.name,
                 contentType: attachment.contentType || 'unknown',
                 url: attachment.url,
-                description: description ? description : `Sent by ${message.author.username} at ${message.createdAt.toLocaleString()}`,
+                timestamp: message.createdTimestamp,
+                author: author,
+                source: AttachmentSource.MessageAttachment,
+                description: description,
+                size: attachment.size,
                 canDownload: true, // Discord attachments can be downloaded directly
             });
         })
@@ -529,11 +555,11 @@ export function getAttachmentsFromMessage(message: Message, attachments: Attachm
     return attachments;
 }
 
-export async function getAllAttachments(channel: TextThreadChannel, selfID: Snowflake): Promise<Attachment[]> {
+export async function getAllAttachments(channel: TextThreadChannel, selfID: Snowflake): Promise<BaseAttachment[]> {
     let attachments: Attachment[] = [];
 
     await iterateAllMessages(channel, async (message: Message) => {
-        if (message.author.id === selfID ) {
+        if (message.author.id === selfID) {
             return true;
         }
         // Get attachments from the message
@@ -694,4 +720,11 @@ async function findFirstFileWithNameInZip(zipPath: string, fileName: string): Pr
             });
         });
     });
+}
+
+export function getAttachmentDescriptionForMenus(attachment: BaseAttachment): string {
+    if (attachment.description) {
+        return `${new Date(attachment.timestamp).toLocaleDateString()} - ${attachment.description}`;
+    }
+    return `Sent by ${getAuthorName(attachment.author)} on ${new Date(attachment.timestamp).toLocaleDateString()}`;
 }

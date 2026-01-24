@@ -6,7 +6,7 @@ import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Attachment } from "../../submissions/Attachment.js";
 import { SkipAttachmentsButton } from "../buttons/SkipAttachmentsButton.js";
-import { filterAttachments } from "../../utils/AttachmentUtils.js";
+import { filterAttachments, getAttachmentDescriptionForMenus } from "../../utils/AttachmentUtils.js";
 import { AddAttachmentButton } from "../buttons/AddAttachmentButton.js";
 import { RefreshListButton } from "../buttons/RefreshListButton.js";
 
@@ -25,7 +25,7 @@ export class SetAttachmentsMenu implements Menu {
                 fileAttachments.map(file => {
                     return new StringSelectMenuOptionBuilder().setLabel(truncateFileName(file.name, 50))
                         .setValue(file.id)
-                        .setDescription(file.description.substring(0, 100) || "No description")
+                        .setDescription(getAttachmentDescriptionForMenus(file) || "No description")
                         .setDefault(currentFiles.some(att => att.id === file.id))
                 })
             )
@@ -111,6 +111,8 @@ export class SetAttachmentsMenu implements Menu {
             return;
         }
 
+        const newAttachmentsProcessed = submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) ?? [];
+
         submission.save()
 
         let description = `Attachments set by <@${interaction.user.id}>:\n\n`
@@ -119,7 +121,7 @@ export class SetAttachmentsMenu implements Menu {
         const wdls: Attachment[] = []
         const videos: Attachment[] = []
         const others: Attachment[] = []
-        newAttachments.forEach(attachment => {
+        newAttachmentsProcessed.forEach(attachment => {
             if (attachment.contentType === 'youtube' || attachment.contentType === 'bilibili') {
                 videos.push(attachment)
             } else if (attachment.wdl) {

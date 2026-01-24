@@ -3,8 +3,9 @@ import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
 import { canEditSubmission, escapeDiscordString, replyEphemeral, splitIntoChunks } from "../../utils/Util.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
-import { Attachment } from "../../submissions/Attachment.js";
+import { Attachment, AttachmentSource } from "../../submissions/Attachment.js";
 import { filterAttachments, getAttachmentsFromText } from "../../utils/AttachmentUtils.js";
+import { AuthorType } from "../../submissions/Author.js";
 
 export class AddAttachmentModal implements Modal {
     getID(): string {
@@ -93,7 +94,13 @@ export class AddAttachmentModal implements Modal {
             return;
         }
 
-        const textAttachments = getAttachmentsFromText(url);
+        const textAttachments = getAttachmentsFromText(url, [], Date.now(), {
+            type: AuthorType.DiscordExternal,
+            id: interaction.user.id,
+            username: interaction.user.username,
+            iconURL: interaction.user.displayAvatarURL()
+        });
+        
         if (textAttachments.length === 0 && !uploadedAttachment) {
             replyEphemeral(interaction, 'No valid attachments found at the provided URL.');
             return;
@@ -114,7 +121,15 @@ export class AddAttachmentModal implements Modal {
             id: uploadedAttachment.id,
             name: uploadedAttachment.name,
             url: uploadedAttachment.url,
-            description: description || `Added by ${interaction.user.username} at ${(new Date()).toLocaleString()}`,
+            timestamp: Date.now(),
+            author: {
+                type: AuthorType.DiscordExternal,
+                id: interaction.user.id,
+                username: interaction.user.username,
+                iconURL: interaction.user.displayAvatarURL()
+            },
+            source: AttachmentSource.DirectUpload,
+            description: description,
             contentType: uploadedAttachment.contentType || 'unknown',
             canDownload: true,
         };

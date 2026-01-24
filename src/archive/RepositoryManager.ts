@@ -17,16 +17,17 @@ import { ArchiveComment } from "./ArchiveComments.js";
 import { Author, AuthorType } from "../submissions/Author.js";
 import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
 import { makeEntryReadMe } from "./ReadMeMaker.js";
-import { analyzeAttachments, filterAttachmentsForViewer, getAttachmentsFromMessage, getAttachmentsFromText, getFileKey, processAttachments } from "../utils/AttachmentUtils.js";
+import { analyzeAttachments, filterAttachmentsForViewer, getAttachmentsFromMessage, getFileKey, processAttachments } from "../utils/AttachmentUtils.js";
 import { DictionaryManager } from "./DictionaryManager.js";
 import { IndexManager } from "./IndexManager.js";
 import { DiscordServersDictionary } from "./DiscordServersDictionary.js";
-import { getDiscordServersFromReferences, ReferenceType, tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords, transformOutputWithReferencesForEmbeddings, transformOutputWithReferencesForGithub } from "../utils/ReferenceUtils.js";
+import { getDiscordServersFromReferences, ReferenceType, tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords, transformOutputWithReferencesForEmbeddings } from "../utils/ReferenceUtils.js";
 import { PersistentIndex, PersistentIndexChannel, PersistentIndexEntry, serializePersistentIndex } from "../utils/PersistentIndexUtils.js";
 import { postToMarkdown } from "../utils/MarkdownUtils.js";
 import { base64ToInt8Array, EmbeddingsEntry, EmbeddingsSearchResult as EmbeddingsSearchResult, generateDocumentEmbeddings, getClosestWithIndex, loadHNSWIndex, makeHNSWIndex } from "../llm/EmbeddingUtils.js";
 import { type HierarchicalNSW } from "hnswlib-node";
 import { TemporaryCache } from "./TemporaryCache.js";
+import { AttachmentSource } from "../submissions/Attachment.js";
 
 export class RepositoryManager {
     public folderPath: string;
@@ -1394,8 +1395,6 @@ export class RepositoryManager {
                     const author = (await reclassifyAuthors(this.guildHolder, [comment.sender]))[0];
                     comment.sender = author;
 
-                    const textAttachments = getAttachmentsFromText(comment.content);
-
                     const files: AttachmentBuilder[] = [];
                     if (comment.attachments.length > 0) {
                         for (const attachment of comment.attachments) {
@@ -1404,7 +1403,7 @@ export class RepositoryManager {
                             }
 
                             // check if the attachment exists in textAttachments
-                            if (textAttachments.some(a => a.id === attachment.id)) {
+                            if (attachment.source === AttachmentSource.URLInMessage) {
                                 continue; // Skip attachments that are already in the text
                             }
 

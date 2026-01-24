@@ -3,7 +3,7 @@ import { Button } from '../interface/Button.js'
 import { Menu } from '../interface/Menu.js'
 import { Modal } from '../interface/Modal.js'
 import { Secrets, SysAdmin } from '../Bot.js'
-import { Interaction, MessageFlags, PermissionFlagsBits, REST, Routes, Snowflake } from 'discord.js'
+import { Interaction, Message, MessageFlags, PermissionFlagsBits, REST, Routes, Snowflake } from 'discord.js'
 import { GuildHolder } from '../GuildHolder.js'
 import { Attachment } from '../submissions/Attachment.js'
 import { Image } from '../submissions/Image.js'
@@ -559,7 +559,7 @@ export async function getDiscordAuthorsFromIDs(guildHolder: GuildHolder, ids: Sn
             });
             continue;
         }
-        
+
         const user = await guildHolder.getBot().client.users.fetch(id).catch(() => null);
         if (user) {
             authors.push({
@@ -813,4 +813,23 @@ export function areAuthorsListEqual(
     }
 
     return true;
+}
+
+export function getMessageAuthor(message: Message): DiscordAuthor {
+    if (message.member) {
+        return {
+            type: AuthorType.DiscordInGuild,
+            id: message.author.id,
+            username: message.author.username,
+            displayName: message.member.displayName,
+            iconURL: message.author.displayAvatarURL(),
+        };
+    } else {
+        return {
+            type: AuthorType.DiscordExternal,
+            id: message.author.id,
+            username: message.author.username,
+            iconURL: message.author.displayAvatarURL(),
+        };
+    }
 }

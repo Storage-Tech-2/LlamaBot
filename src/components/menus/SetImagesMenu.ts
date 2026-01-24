@@ -4,20 +4,20 @@ import { Menu } from "../../interface/Menu.js";
 import { canEditSubmission, escapeDiscordString, replyEphemeral, truncateFileName } from "../../utils/Util.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
-import { Image } from "../../submissions/Image.js";
 import path from "path";
 import { SetAttachmentsMenu } from "./SetAttachmentsMenu.js";
 import { SkipImagesButton } from "../buttons/SkipImagesButton.js";
-import { filterImages, getFileKey } from "../../utils/AttachmentUtils.js";
+import { filterImages, getAttachmentDescriptionForMenus, getFileKey } from "../../utils/AttachmentUtils.js";
 import { AddImageButton } from "../buttons/AddImageButton.js";
 import { RefreshListButton } from "../buttons/RefreshListButton.js";
+import { BaseAttachment } from "../../submissions/Attachment.js";
 
 export class SetImagesMenu implements Menu {
     getID(): string {
         return "set-images-menu";
     }
 
-    getBuilder(imageAttachments: Image[], currentImages: Image[]): StringSelectMenuBuilder {
+    getBuilder(imageAttachments: BaseAttachment[], currentImages: BaseAttachment[]): StringSelectMenuBuilder {
         return new StringSelectMenuBuilder()
             .setCustomId(this.getID())
             .setMinValues(0)
@@ -27,7 +27,7 @@ export class SetImagesMenu implements Menu {
                 imageAttachments.map(image => {
                     return new StringSelectMenuOptionBuilder().setLabel(truncateFileName(image.name, 50))
                         .setValue(image.id)
-                        .setDescription(image.description.substring(0, 100) || "No description")
+                        .setDescription(getAttachmentDescriptionForMenus(image).substring(0, 100) || "No description")
                         .setDefault(currentImages.some(img => img.id === image.id))
                 })
             )
@@ -39,14 +39,7 @@ export class SetImagesMenu implements Menu {
 
         currentImages.forEach(file => {
             if (!attachments.some(att => att.id === file.id)) {
-                attachments.push({
-                    id: file.id,
-                    name: file.name,
-                    url: file.url,
-                    description: file.description,
-                    contentType: file.contentType,
-                    canDownload: true,
-                })
+                attachments.push(file);
             }
         });
 
@@ -55,7 +48,7 @@ export class SetImagesMenu implements Menu {
         if (!imageAttachments.length) {
             return null;
         }
-        
+
         // limit to 25 images, removing non-current first
         if (imageAttachments.length > 25) {
             let toRemove = imageAttachments.length - 25;
@@ -106,39 +99,25 @@ export class SetImagesMenu implements Menu {
         const attachments = await submission.getAttachments()
 
         const currentImages = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) ?? [];
-        const newImages = interaction.values.map((value) => {
+        const newImages: BaseAttachment[] = interaction.values.map((value) => {
             const found = attachments.find(attachment => attachment.id === value);
             if (found) {
                 return found;
             }
-
             const imageFound = currentImages.find(img => img.id === value);
             if (imageFound) {
-                return {
-                    id: imageFound.id,
-                    name: imageFound.name,
-                    url: imageFound.url,
-                    description: imageFound.description,
-                    contentType: imageFound.contentType,
-                    canDownload: true,
-                }
+                return imageFound;
             }
-
             return null;
         }).filter(o => !!o);
+
         const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null;
-        const added: Image[] = [];
-        const removed: Image[] = [];
+        const added: BaseAttachment[] = [];
+        const removed: BaseAttachment[] = [];
 
         newImages.forEach((image) => {
             if (!currentImages.some(img => img.id === image.id)) {
-                added.push({
-                    id: image.id,
-                    name: image.name,
-                    url: image.url,
-                    description: image.description,
-                    contentType: image.contentType
-                });
+                added.push(image);
             }
         });
 

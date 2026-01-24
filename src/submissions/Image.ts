@@ -1,12 +1,6 @@
-import { Snowflake } from "discord.js"
+import { BaseAttachment } from "./Attachment.js"
 
-export type Image = {
-    id: Snowflake,
-    name: string,
-    url: string,
-    description: string,
-    contentType: string,
+export type Image = BaseAttachment & {
     width?: number,
-    height?: number,
-    path?: string, // Local path if downloaded
+    height?: number
 }

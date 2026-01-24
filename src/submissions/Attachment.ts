@@ -1,11 +1,28 @@
 import { Snowflake } from "discord.js";
+import { Author } from "./Author.js";
 
-export type Attachment = {
+
+export enum AttachmentSource {
+    DirectUpload = "DirectUpload",
+    MessageAttachment = "MessageAttachment",
+    URLInMessage = "URLInMessage",
+}
+
+export type BaseAttachment = {
     id: Snowflake,
     name: string,
     url: string,
     description: string,
+    timestamp: number, // Timestamp when the attachment was added
+    author: Author,
+    source: AttachmentSource,
     contentType: string,
+    path?: string, // Local path if downloaded
+    size?: number, // Size in bytes if known
+    canDownload: boolean, // Whether the file can be downloaded
+}
+
+export type Attachment = BaseAttachment & {
 
     // For litematics
     litematic?: {
@@ -31,7 +48,4 @@ export type Attachment = {
         width: number, // Video width
         height: number, // Video height
     }
-
-    canDownload: boolean, // Whether the file can be downloaded
-    path?: string, // Local path if downloaded
 }

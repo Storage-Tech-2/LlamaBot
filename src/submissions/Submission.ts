@@ -10,7 +10,7 @@ import { LLMRequest } from "../llm/LLMRequest.js";
 import { ExtractionPrompt } from "../llm/prompts/ExtractionPrompt.js";
 import { LLMResponse } from "../llm/LLMResponse.js";
 import { extractUserIdsFromText, getAuthorsString, getDiscordAuthorsFromIDs, reclassifyAuthors, splitIntoChunks } from "../utils/Util.js";
-import { Attachment } from "./Attachment.js";
+import { BaseAttachment } from "./Attachment.js";
 import { RevisionManager } from "./RevisionManager.js";
 import { Revision, RevisionType } from "./Revision.js";
 import { RevisionEmbed } from "../embed/RevisionEmbed.js";
@@ -33,7 +33,7 @@ export class Submission {
     private extractionResults?: LLMResponseFuture;
     private llmReviseResponse?: LLMResponseFuture;
     public lastAccessed: number = Date.now();
-    private cachedAttachments?: Attachment[];
+    private cachedAttachments?: BaseAttachment[];
     public imagesProcessing: boolean = false;
     public attachmentsProcessing: boolean = false;
     public tagging: boolean = false;
@@ -807,7 +807,7 @@ export class Submission {
         return this.config;
     }
 
-    async getAttachments() {
+    async getAttachments(): Promise<BaseAttachment[]> {
         if (this.cachedAttachments) {
             return this.cachedAttachments
         }

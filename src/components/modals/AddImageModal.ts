@@ -4,9 +4,10 @@ import { Modal } from "../../interface/Modal.js";
 import { canEditSubmission, escapeDiscordString, replyEphemeral } from "../../utils/Util.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { filterImages, getFileKey } from "../../utils/AttachmentUtils.js";
-import { Image } from "../../submissions/Image.js";
 import path from "path";
 import { SetAttachmentsMenu } from "../menus/SetAttachmentsMenu.js";
+import { AttachmentSource, BaseAttachment } from "../../submissions/Attachment.js";
+import { AuthorType } from "../../submissions/Author.js";
 
 export class AddImageModal implements Modal {
     getID(): string {
@@ -85,12 +86,21 @@ export class AddImageModal implements Modal {
             return;
         }
 
-        const imageObj: Image = {
+        const imageObj: BaseAttachment = {
             id: uploadedAttachment.id,
             name: uploadedAttachment.name,
             url: uploadedAttachment.url,
-            description: description || `Added by ${interaction.user.username} at ${(new Date()).toLocaleString()}`,
-            contentType: uploadedAttachment.contentType || 'unknown'
+            timestamp: Date.now(),
+            author: {
+                type: AuthorType.DiscordExternal,
+                id: interaction.user.id,
+                username: interaction.user.username,
+                iconURL: interaction.user.displayAvatarURL()
+            },
+            source: AttachmentSource.DirectUpload,
+            description: description,
+            contentType: uploadedAttachment.contentType || 'unknown',
+            canDownload: true,
         };
 
         if (filterImages([imageObj]).length === 0) {
