@@ -119,8 +119,11 @@ export class SetAttachmentsMenu implements Menu {
             const nextAttachment = data.toAsk[0];
             const askButton = new SetDescriptionButton().getBuilder(nextAttachment.name, false, nextAttachment.id, identifier);
             const skipButton = new SkipDescriptionButton().getBuilder(false, nextAttachment.id, identifier, false);
-            const skipAllButton = new SkipDescriptionButton().getBuilder(false, nextAttachment.id, identifier, true);
-            const row = new ActionRowBuilder().addComponents(askButton, skipButton, skipAllButton);
+            const row = new ActionRowBuilder().addComponents(askButton, skipButton);
+            if (addedAttachmentsWithoutDescriptions.length > 1) {
+                const skipAllButton = new SkipDescriptionButton().getBuilder(false, nextAttachment.id, identifier, true);
+                row.addComponents(skipAllButton);
+            }
 
             await interaction.editReply({
                 content: `We've detected that you added ${addedAttachmentsWithoutDescriptions.length} attachment${addedAttachmentsWithoutDescriptions.length > 1 ? 's' : ''} without descriptions.` +
