@@ -72,6 +72,12 @@ export class AddImageModal implements Modal {
             return;
         }
 
+        // check if images exceed 5
+        if ((submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) || []).length >= 5) {
+            replyEphemeral(interaction, 'You cannot add more than 5 images to a submission!');
+            return;
+        }
+
         const uploadedAttachment = interaction.fields.getUploadedFiles('attachmentInput', true).first();
         const description = (interaction.fields.getTextInputValue('descriptionInput') || '').replace(/\n/g, ' ').trim();
 

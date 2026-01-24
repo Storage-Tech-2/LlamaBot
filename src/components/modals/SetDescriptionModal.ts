@@ -5,7 +5,6 @@ import { canEditSubmission, replyEphemeral, truncateStringWithEllipsis } from ".
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Attachment } from "../../submissions/Attachment.js";
 import { AttachmentAskDescriptionData } from "../menus/SetAttachmentsMenu.js";
-import { SetDescriptionButton } from "../buttons/SetDescriptionButton.js";
 
 export class SetDescriptionModal implements Modal {
     getID(): string {
@@ -90,8 +89,8 @@ export class SetDescriptionModal implements Modal {
             // are any left?
             if (attachmentSetTaskData.toAsk.length > 0) {
                 // ask for the next one
-                const nextAttachment = attachmentSetTaskData.toAsk[0];
-                const askButton = new SetDescriptionButton().getBuilder(nextAttachment.name, nextAttachment.id, taskID);
+                // const nextAttachment = attachmentSetTaskData.toAsk[0];
+                // const askButton = new SetDescriptionButton().getBuilder(nextAttachment.name, nextAttachment.id, taskID);
             }
         } else if (currentAttachments.includes(foundAttachment)) {
             submission.getConfigManager().setConfig(SubmissionConfigs.ATTACHMENTS, currentAttachments);

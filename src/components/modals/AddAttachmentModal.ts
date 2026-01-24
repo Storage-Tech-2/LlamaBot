@@ -80,6 +80,12 @@ export class AddAttachmentModal implements Modal {
             return;
         }
 
+        // check if attachments exceed 10
+        if ((submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) || []).length >= 10) {
+            replyEphemeral(interaction, 'You cannot add more than 10 attachments to a submission!');
+            return;
+        }
+
         const uploadedAttachment = interaction.fields.getUploadedFiles('attachmentInput')?.first();
         const url = interaction.fields.getTextInputValue('urlInput');
         const description = (interaction.fields.getTextInputValue('descriptionInput') || '').replace(/\n/g, ' ').trim();
@@ -100,7 +106,7 @@ export class AddAttachmentModal implements Modal {
             username: interaction.user.username,
             iconURL: interaction.user.displayAvatarURL()
         });
-        
+
         if (textAttachments.length === 0 && !uploadedAttachment) {
             replyEphemeral(interaction, 'No valid attachments found at the provided URL.');
             return;

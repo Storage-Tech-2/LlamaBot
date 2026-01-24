@@ -1,4 +1,4 @@
-import { ActionRowBuilder, Interaction, Message, MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
+import { ActionRowBuilder, Interaction, MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
 import { canEditSubmission, replyEphemeral, splitIntoChunks, truncateFileName, truncateStringWithEllipsis } from "../../utils/Util.js";
@@ -103,9 +103,9 @@ export class SetAttachmentsMenu implements Menu {
             return attachments.find(attachment => attachment.id === id) ?? currentAttachments.find(attachment => attachment.id === id);
         }).filter(o => !!o);
 
-        const addedAttachmentsWithoutDescriptions = newAttachments.filter(newAtt => {
-            return !newAtt.description && !currentAttachments.some(currAtt => currAtt.id === newAtt.id);
-        });
+        // const addedAttachmentsWithoutDescriptions = newAttachments.filter(newAtt => {
+        //     return !newAtt.description && !currentAttachments.some(currAtt => currAtt.id === newAtt.id);
+        // });
 
         // if (addedAttachmentsWithoutDescriptions.length > 0) {
         //     const data = {

@@ -3,6 +3,7 @@ import { GuildHolder } from "../../GuildHolder.js";
 import { Button } from "../../interface/Button.js";
 import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
 import { AddAttachmentModal } from "../modals/AddAttachmentModal.js";
+import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 
 export class AddAttachmentButton implements Button {
     getID(): string {
@@ -30,6 +31,11 @@ export class AddAttachmentButton implements Button {
             return;
         }
 
+        // check if attachments exceed 10
+        if ((submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) || []).length >= 10) {
+            replyEphemeral(interaction, 'You cannot add more than 10 attachments to a submission!');
+            return;
+        }
 
         const modal = new AddAttachmentModal().getBuilder()
         await interaction.showModal(modal);
