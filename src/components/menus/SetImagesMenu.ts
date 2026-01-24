@@ -198,6 +198,7 @@ export class SetImagesMenu implements Menu {
 
         const files = [];
         const embeds = [];
+        const buttons = [];
         const processedFolder = submission.getProcessedImagesFolder();
         for (const attachment of newImages) {
             const key = getFileKey(attachment, 'png');
@@ -214,14 +215,18 @@ export class SetImagesMenu implements Menu {
             }
 
             embeds.push(embed);
+            buttons.push(new SetDescriptionButton().getBuilder(attachment.name, true, attachment.id, ''));
         }
+
+        const row = new ActionRowBuilder().addComponents(...buttons);
 
         if (!replace && interaction.deferred) {
             await interaction.editReply({
                 content: newImages.length === 0 ? `<@${interaction.user.id}> marked this submission as containing no images` : `<@${interaction.user.id}> set main image${newImages.length > 1 ? 's' : ''} for submission`,
                 embeds,
                 files,
-                allowedMentions: { parse: [] }
+                allowedMentions: { parse: [] },
+                components: [row as any],
             })
         } else if (interaction.replied) {
             await interaction.followUp({
@@ -229,7 +234,8 @@ export class SetImagesMenu implements Menu {
                 embeds,
                 files,
                 flags: [MessageFlags.SuppressNotifications],
-                allowedMentions: { parse: [] }
+                allowedMentions: { parse: [] },
+                components: [row as any],
             })
         } else {
             await interaction.reply({
@@ -237,7 +243,8 @@ export class SetImagesMenu implements Menu {
                 embeds,
                 files,
                 flags: [MessageFlags.SuppressNotifications],
-                allowedMentions: { parse: [] }
+                allowedMentions: { parse: [] },
+                components: [row as any],
             })
         }
 

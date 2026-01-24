@@ -1,4 +1,4 @@
-import { AttachmentBuilder, EmbedBuilder, FileUploadBuilder, LabelBuilder, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
+import { ActionRowBuilder, AttachmentBuilder, EmbedBuilder, FileUploadBuilder, LabelBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
 import { canEditSubmission, escapeDiscordString, replyEphemeral } from "../../utils/Util.js";
@@ -9,6 +9,7 @@ import { SetAttachmentsMenu } from "../menus/SetAttachmentsMenu.js";
 import { AttachmentSource, BaseAttachment } from "../../submissions/Attachment.js";
 import { AuthorType } from "../../submissions/Author.js";
 import { SetImagesMenu } from "../menus/SetImagesMenu.js";
+import { SetDescriptionButton } from "../buttons/SetDescriptionButton.js";
 
 export class AddImageModal implements Modal {
     getID(): string {
@@ -187,10 +188,17 @@ export class AddImageModal implements Modal {
             embed.setFooter({ text: imageObj.description.substring(0, 2048) });
         }
 
+        const editDescriptionButton = new SetDescriptionButton().getBuilder(imageObj.name, true, imageObj.id, '');
+        const row = new ActionRowBuilder().addComponents(editDescriptionButton);
+
+
         await interaction.followUp({
             content: message,
             embeds: [embed],
-            files: [file]
+            files: [file],
+            components: [row as any],
+            allowedMentions: { parse: [] },
+            flags: MessageFlags.SuppressNotifications
         })
 
         await submission.statusUpdated();

@@ -40,11 +40,6 @@ export class SetDescriptionModal implements Modal {
 
     async execute(guildHolder: GuildHolder, interaction: ModalSubmitInteraction, type: string, id: Snowflake, taskID: string): Promise<void> {
 
-
-        if (!interaction.isFromMessage()) {
-            return; // should not happen
-        }
-
         const submissionId = interaction.channelId
         if (!submissionId) {
             replyEphemeral(interaction, 'Submission ID not found')
@@ -71,7 +66,7 @@ export class SetDescriptionModal implements Modal {
             return;
         }
 
-        const taskData = await guildHolder.getBot().getTempDataStore().getEntry(taskID);
+        const taskData = taskID.length > 0 ? await guildHolder.getBot().getTempDataStore().getEntry(taskID) : null;
         const attachmentSetTaskData = taskData ? taskData.data as AttachmentAskDescriptionData : null;
         const currentAttachments: BaseAttachment[] = submission.getConfigManager().getConfig(isImage ? SubmissionConfigs.IMAGES : SubmissionConfigs.ATTACHMENTS) || [];
 
@@ -126,12 +121,14 @@ export class SetDescriptionModal implements Modal {
                     embeds.push(embed);
                 }
 
-                await interaction.update({
-                    content: `Set info for ${isImage ? 'image' : 'attachment'} **${escapeDiscordString(foundAttachment.name)}**:\n${foundAttachment.description ? `Description: ${foundAttachment.description}` : 'No description set.'}` +
-                        `\n\nSet a description for the next ${isImage ? 'image' : 'attachment'} **${escapeDiscordString(nextAttachment.name)}**?`,
-                    components: [row as any],
-                    embeds: embeds
-                });
+                if (interaction.isFromMessage()) {
+                    await interaction.update({
+                        content: `Set info for ${isImage ? 'image' : 'attachment'} **${escapeDiscordString(foundAttachment.name)}**:\n${foundAttachment.description ? `Description: ${foundAttachment.description}` : 'No description set.'}` +
+                            `\n\nSet a description for the next ${isImage ? 'image' : 'attachment'} **${escapeDiscordString(nextAttachment.name)}**?`,
+                        components: [row as any],
+                        embeds: embeds
+                    });
+                }
             } else {
                 // all done, set attachments
                 await interaction.deferUpdate();

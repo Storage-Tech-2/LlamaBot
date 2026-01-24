@@ -14,7 +14,7 @@ export class SetDescriptionButton implements Button {
     getBuilder(attachmentName: string, isImage: boolean, id: Snowflake, taskID: string): ButtonBuilder {
         return new ButtonBuilder()
             .setCustomId(this.getID() + '|' + (isImage ? 'i' : 'a') + '|' + id + '|' + taskID)
-            .setLabel(truncateStringWithEllipsis(`Set info: ${attachmentName}`, 80))
+            .setLabel(truncateStringWithEllipsis(taskID.length > 0 ? `Set info: ${attachmentName}` : `Edit info: ${attachmentName}` , 80))
             .setStyle(ButtonStyle.Primary)
     }
 
@@ -40,7 +40,7 @@ export class SetDescriptionButton implements Button {
             return;
         }
 
-        const data = await guildHolder.getBot().getTempDataStore().getEntry(taskID);
+        const data = taskID.length > 0 ? await guildHolder.getBot().getTempDataStore().getEntry(taskID) : null;
         const attachmentSetTaskData = data ? data.data as AttachmentAskDescriptionData : null;
         const currentAttachments: BaseAttachment[] = submission.getConfigManager().getConfig(isImage ? SubmissionConfigs.IMAGES : SubmissionConfigs.ATTACHMENTS) || [];
 

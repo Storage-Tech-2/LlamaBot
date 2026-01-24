@@ -164,6 +164,23 @@ export class SetAttachmentsMenu implements Menu {
 
         submission.save()
 
+        const rows: ActionRowBuilder<any>[] = [];
+
+        if (newAttachmentsProcessed.length > 0) {
+            rows.push(new ActionRowBuilder());
+        }
+
+        newAttachmentsProcessed.forEach(attachment => {
+            const currentRow = rows[rows.length - 1];
+            const editDescriptionButton = new SetDescriptionButton().getBuilder(attachment.name, false, attachment.id, '');
+            if (currentRow.components.length >= 5) {
+                const newRow = new ActionRowBuilder().addComponents(editDescriptionButton);
+                rows.push(newRow);
+            } else {
+                currentRow.addComponents(editDescriptionButton);
+            }
+        });
+
         let description = `Attachments set by <@${interaction.user.id}>:\n\n` + getAttachmentsSetMessage(newAttachmentsProcessed);
 
         const split = splitIntoChunks(description, 2000);
@@ -177,19 +194,22 @@ export class SetAttachmentsMenu implements Menu {
             await interaction.editReply({
                 content: split[0],
                 flags: [MessageFlags.SuppressEmbeds],
-                allowedMentions: { parse: [] }
+                allowedMentions: { parse: [] },
+                components: split.length === 1 ? rows : []
             })
         } else if (interaction.replied) {
             await interaction.followUp({
                 content: split[0],
                 flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications],
-                allowedMentions: { parse: [] }
+                allowedMentions: { parse: [] },
+                components: split.length === 1 ? rows : []
             })
         } else {
             await interaction.reply({
                 content: split[0],
                 flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications],
-                allowedMentions: { parse: [] }
+                allowedMentions: { parse: [] },
+                components: split.length === 1 ? rows : []
             })
         }
 
@@ -199,7 +219,8 @@ export class SetAttachmentsMenu implements Menu {
             await interaction.channel.send({
                 content: split[i],
                 flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications],
-                allowedMentions: { parse: [] }
+                allowedMentions: { parse: [] },
+                components: i === split.length - 1 ? rows : []
             })
         }
 
