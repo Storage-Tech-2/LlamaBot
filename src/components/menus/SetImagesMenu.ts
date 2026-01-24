@@ -178,31 +178,51 @@ export class SetImagesMenu implements Menu {
         submission.checkReview()
     }
 
-    public static async sendImagesMenuAndButton(submission: Submission, interaction: Interaction): Promise<Message> {
+    public static async sendImagesMenuAndButton(submission: Submission, interaction: Interaction, useUpdate: boolean = false) {
         const menu = await new SetImagesMenu().getBuilderOrNull(submission);
         if (menu) {
             const rows = [new ActionRowBuilder().addComponents(menu)];
-            const secondRow = new ActionRowBuilder().addComponents(new RefreshListButton().getBuilder(true),new AddImageButton().getBuilder());
+            const secondRow = new ActionRowBuilder().addComponents(new RefreshListButton().getBuilder(true), new AddImageButton().getBuilder());
             if (submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null) {
                 secondRow.addComponents(new SkipImagesButton().getBuilder());
             }
             rows.push(secondRow);
 
-            return replyEphemeral(interaction, `Please choose images for the submission`, {
-                components: rows
-            })
+            if (interaction.isButton() && useUpdate) {
+                await interaction.update({
+                    content: `Please choose images for the submission`,
+                    components: rows as any
+                });
+                return;
+            } else {
+                await replyEphemeral(interaction, `Please choose images for the submission`, {
+                    components: rows
+                });
+                return;
+            }
         } else {
             const row = new ActionRowBuilder().addComponents(new RefreshListButton().getBuilder(true), new AddImageButton().getBuilder());
             if (submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null) {
                 row.addComponents(new SkipImagesButton().getBuilder())
             }
-            return replyEphemeral(interaction, `No images found! Try uploading images first and then press the button below.`,
-                {
-                    flags: MessageFlags.Ephemeral,
+            if (interaction.isButton() && useUpdate) {
+                await interaction.update({
+                    content: `No images found! Try uploading images first and then press the button below.`,
                     components: [
-                        row
+                        row as any
                     ]
                 });
+                return;
+            } else {
+                await replyEphemeral(interaction, `No images found! Try uploading images first and then press the button below.`,
+                    {
+                        flags: MessageFlags.Ephemeral,
+                        components: [
+                            row
+                        ]
+                    });
+                return;
+            }
         }
     }
 

@@ -31,9 +31,9 @@ export class RefreshListButton implements Button {
 
 
         if (isImages == "y") {
-            await SetImagesMenu.sendImagesMenuAndButton(submission, interaction);
+            await SetImagesMenu.sendImagesMenuAndButton(submission, interaction, true);
         } else {
-            await SetAttachmentsMenu.sendAttachmentsMenuAndButton(submission, interaction);
+            await SetAttachmentsMenu.sendAttachmentsMenuAndButton(submission, interaction, true);
         }
         
 

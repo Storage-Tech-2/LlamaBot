@@ -96,7 +96,7 @@ export class SetAttachmentsMenu implements Menu {
             return
         }
 
-        await interaction.deferUpdate()
+        await interaction.deferReply()
         const attachments = await submission.getAttachments()
         const currentAttachments = submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) ?? [];
         const newAttachments = interaction.values.map(id => {
@@ -116,12 +116,12 @@ export class SetAttachmentsMenu implements Menu {
         //     const identifier = guildHolder.getBot().getTempDataStore().getNewId();
         //     guildHolder.getBot().getTempDataStore().addEntry(identifier, data, 30 * 60 * 1000); // 30 minutes
         // } else {
-            // await interaction.update({
-            //     content: 'Processing attachments...',
-            //     components: [],
-            //     flags: MessageFlags.SuppressEmbeds
-            // }); // clear loading state
-            await SetAttachmentsMenu.setAttachmentsAndSetResponse(submission, newAttachments, interaction);
+        // await interaction.update({
+        //     content: 'Processing attachments...',
+        //     components: [],
+        //     flags: MessageFlags.SuppressEmbeds
+        // }); // clear loading state
+        await SetAttachmentsMenu.setAttachmentsAndSetResponse(submission, newAttachments, interaction);
         // }
     }
 
@@ -176,7 +176,7 @@ export class SetAttachmentsMenu implements Menu {
         submission.checkReview();
     }
 
-    public static async sendAttachmentsMenuAndButton(submission: Submission, interaction: Interaction): Promise<Message> {
+    public static async sendAttachmentsMenuAndButton(submission: Submission, interaction: Interaction, useUpdate: boolean = false) {
         const menu = await new SetAttachmentsMenu().getBuilderOrNull(submission);
         if (menu) {
             const rows = [new ActionRowBuilder().addComponents(menu)];
@@ -186,21 +186,41 @@ export class SetAttachmentsMenu implements Menu {
             }
             rows.push(secondRow);
 
-            return replyEphemeral(interaction, `Please choose other attachments (eg: Schematics/WDLs) for the submission`, {
-                components: rows
-            })
+            if (interaction.isButton() && useUpdate) {
+                await interaction.update({
+                    content: `Please choose other attachments (eg: Schematics/WDLs) for the submission`,
+                    components: rows as any
+                });
+                return;
+            } else {
+                await replyEphemeral(interaction, `Please choose other attachments (eg: Schematics/WDLs) for the submission`, {
+                    components: rows
+                })
+                return;
+            }
         } else {
             const row = new ActionRowBuilder().addComponents(new RefreshListButton().getBuilder(false), new AddAttachmentButton().getBuilder());
             if (submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) === null) {
                 row.addComponents(new SkipAttachmentsButton().getBuilder())
             }
-            return replyEphemeral(interaction, `No attachments found! Try uploading attachments first and then press the button below.`,
-                {
-                    flags: MessageFlags.Ephemeral,
+            if (interaction.isButton() && useUpdate) {
+                await interaction.update({
+                    content: `No attachments found! Try uploading attachments first and then press the button below.`,
                     components: [
-                        row
+                        row as any
                     ]
                 });
+                return;
+            } else {
+                await replyEphemeral(interaction, `No attachments found! Try uploading attachments first and then press the button below.`,
+                    {
+                        flags: MessageFlags.Ephemeral,
+                        components: [
+                            row
+                        ]
+                    });
+                return;
+            }
         }
     }
 }
