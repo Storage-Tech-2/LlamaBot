@@ -1,7 +1,7 @@
 import { ActionRowBuilder, ButtonInteraction, Interaction, MessageFlags, ModalSubmitInteraction, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { canEditSubmission, replyEphemeral, replyReplace, splitIntoChunks, truncateFileName, truncateStringWithEllipsis } from "../../utils/Util.js";
+import { canEditSubmission, escapeDiscordString, replyEphemeral, replyReplace, splitIntoChunks, truncateFileName, truncateStringWithEllipsis } from "../../utils/Util.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Attachment, AttachmentAskDescriptionData } from "../../submissions/Attachment.js";
@@ -9,6 +9,8 @@ import { SkipAttachmentsButton } from "../buttons/SkipAttachmentsButton.js";
 import { filterAttachments, getAttachmentDescriptionForMenus, getAttachmentsSetMessage } from "../../utils/AttachmentUtils.js";
 import { AddAttachmentButton } from "../buttons/AddAttachmentButton.js";
 import { RefreshListButton } from "../buttons/RefreshListButton.js";
+import { SetDescriptionButton } from "../buttons/SetDescriptionButton.js";
+import { SkipDescriptionButton } from "../buttons/SkipDescriptionButton.js";
 
 export class SetAttachmentsMenu implements Menu {
     getID(): string {
@@ -112,6 +114,19 @@ export class SetAttachmentsMenu implements Menu {
 
             const identifier = guildHolder.getBot().getTempDataStore().getNewId();
             guildHolder.getBot().getTempDataStore().addEntry(identifier, data, 30 * 60 * 1000); // 30 minutes
+
+
+            const nextAttachment = data.toAsk[0];
+            const askButton = new SetDescriptionButton().getBuilder(nextAttachment.name, false, nextAttachment.id, identifier);
+            const skipButton = new SkipDescriptionButton().getBuilder(false, nextAttachment.id, identifier);
+            const row = new ActionRowBuilder().addComponents(askButton, skipButton);
+
+            await interaction.reply({
+                content: `We've detected that you added ${addedAttachmentsWithoutDescriptions.length} attachment${addedAttachmentsWithoutDescriptions.length > 1 ? 's' : ''} without descriptions.` +
+                    `\n\nSet a description for the attachment **${escapeDiscordString(nextAttachment.name)}**?`,
+                flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds],
+                components: [row as any],
+            });
         } else {
             await SetAttachmentsMenu.setAttachmentsAndSetResponse(submission, newAttachments, interaction);
         }
@@ -190,7 +205,7 @@ export class SetAttachmentsMenu implements Menu {
             if (submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) === null) {
                 row.addComponents(new SkipAttachmentsButton().getBuilder())
             }
-           
+
             await replyReplace(useUpdate, interaction, `No attachments found! Try uploading attachments first and then press the button below.`, [
                 row as any
             ])

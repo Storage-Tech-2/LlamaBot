@@ -10,7 +10,9 @@ import { SkipImagesButton } from "../buttons/SkipImagesButton.js";
 import { filterImages, getAttachmentDescriptionForMenus, getFileKey } from "../../utils/AttachmentUtils.js";
 import { AddImageButton } from "../buttons/AddImageButton.js";
 import { RefreshListButton } from "../buttons/RefreshListButton.js";
-import { BaseAttachment } from "../../submissions/Attachment.js";
+import { AttachmentAskDescriptionData, BaseAttachment } from "../../submissions/Attachment.js";
+import { SetDescriptionButton } from "../buttons/SetDescriptionButton.js";
+import { SkipDescriptionButton } from "../buttons/SkipDescriptionButton.js";
 
 export class SetImagesMenu implements Menu {
     getID(): string {
@@ -133,7 +135,32 @@ export class SetImagesMenu implements Menu {
             return;
         }
 
-        await SetImagesMenu.setAndReply(submission, interaction, newImages);
+        const addedWithoutDescriptions = added.filter(img => !img.description || img.description.trim().length === 0);
+
+        if (addedWithoutDescriptions.length > 0) {
+            const data: AttachmentAskDescriptionData = {
+                areImages: true,
+                toAsk: addedWithoutDescriptions,
+                toSet: newImages
+            }
+
+            const identifier = guildHolder.getBot().getTempDataStore().getNewId();
+            guildHolder.getBot().getTempDataStore().addEntry(identifier, data, 30 * 60 * 1000); // 30 minutes
+
+            const nextAttachment = data.toAsk[0];
+            const askButton = new SetDescriptionButton().getBuilder(nextAttachment.name, true, nextAttachment.id, identifier);
+            const skipButton = new SkipDescriptionButton().getBuilder(true, nextAttachment.id, identifier);
+            const row = new ActionRowBuilder().addComponents(askButton, skipButton);
+
+            await interaction.reply({
+                content: `We've detected that you added ${addedWithoutDescriptions.length} image${addedWithoutDescriptions.length > 1 ? 's' : ''} without descriptions.` +
+                    `\n\nSet a description for the image **${escapeDiscordString(nextAttachment.name)}**?`,
+                flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds],
+                components: [row as any],
+            });
+        } else {
+            await SetImagesMenu.setAndReply(submission, interaction, newImages);
+        }
     }
 
     public static async setAndReply(submission: Submission, interaction: StringSelectMenuInteraction | ModalSubmitInteraction | ButtonInteraction, newImages: BaseAttachment[]) {
