@@ -4,7 +4,7 @@ import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
 import { AnyThreadChannel, AttachmentBuilder, ChannelType, EmbedBuilder, ForumChannel, ForumLayoutType, GuildTextBasedChannel, Message, MessageFlags, PartialMessage, Snowflake } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
-import { areAuthorsSame, chunkArray, deepClone, escapeString, generateCommitMessage, getAuthorIconURL, getAuthorName, getChangeIDs, getCodeAndDescriptionFromTopic, getGithubOwnerAndProject, mergeTwoArraysUnique, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
+import { areAuthorsSame, chunkArray, deepClone, escapeString, generateCommitMessage, getAuthorIconURL, getAuthorName, hasAttachmentNameChanged, getCodeAndDescriptionFromTopic, getGithubOwnerAndProject, mergeTwoArraysUnique, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";
 import { Submission } from "../submissions/Submission.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
@@ -1087,7 +1087,7 @@ export class RepositoryManager {
                 // Check if images are the same
                 const existingImages = existing.entry.getData().images;
                 const newImages = newEntryData.images;
-                if (!getChangeIDs(existingImages, newImages) && !forceNew) { // no problem
+                if (!hasAttachmentNameChanged(existingImages, newImages) && !forceNew) { // no problem
                     newEntryData.post = existing.entry.getData().post || newEntryData.post;
                 } else {
                     // If images are different, we need to delete the thread
@@ -1111,7 +1111,7 @@ export class RepositoryManager {
 
         if (existing) {
             const existingData = existing.entry.getData();
-            if (getChangeIDs(existingData.attachments, newEntryData.attachments) || existingData.code !== newEntryData.code) {
+            if (hasAttachmentNameChanged(existingData.attachments, newEntryData.attachments) || existingData.code !== newEntryData.code) {
                 newEntryData.post.uploadMessageId = '';
             } else if (existingData.post) {
                 newEntryData.post.uploadMessageId = existingData.post.uploadMessageId;
@@ -1745,7 +1745,7 @@ export class RepositoryManager {
             const existingComment = existingCommentIndex !== -1 ? comments[existingCommentIndex] : null;
 
             // Check if things have changed
-            if (existingComment && existingComment.content === content && !getChangeIDs(existingComment.attachments, attachments)) {
+            if (existingComment && existingComment.content === content && !hasAttachmentNameChanged(existingComment.attachments, attachments)) {
                 // No changes, nothing to do
                 this.lock.release();
                 return;

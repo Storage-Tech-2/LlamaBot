@@ -1,5 +1,5 @@
 import { Bot } from '../Bot.js'
-import { Message, Snowflake, TextBasedChannel, TextThreadChannel } from 'discord.js'
+import { Base, Message, Snowflake, TextBasedChannel, TextThreadChannel } from 'discord.js'
 import { Attachment, AttachmentSource, BaseAttachment } from '../submissions/Attachment.js'
 import { Image } from '../submissions/Image.js'
 import Path from 'path'
@@ -12,6 +12,33 @@ import yauzl from "yauzl"
 import nbt from 'prismarine-nbt'
 import { Litematic } from '../lib/litematic-reader/main.js'
 import { Author } from '../submissions/Author.js'
+
+export async function changeImageName(processed_folder: string, oldImage: BaseAttachment, newImage: BaseAttachment): Promise<void> {
+
+    const oldPath = Path.join(processed_folder, getFileKey(oldImage, 'png'));
+    const newPath = Path.join(processed_folder, getFileKey(newImage, 'png'));
+    try {
+        await fs.rename(oldPath, newPath);
+        newImage.path = getFileKey(newImage, 'png');
+    } catch (error) {
+        console.error(`Failed to rename image file from ${oldPath} to ${newPath}:`, error);
+    }
+}
+
+export async function changeAttachmentName(attachments_folder: string, oldAttachment: BaseAttachment, newAttachment: BaseAttachment): Promise<void> {
+    if (!newAttachment.canDownload) {
+        return;
+    }
+    const oldPath = Path.join(attachments_folder, getFileKey(oldAttachment));
+    const newPath = Path.join(attachments_folder, getFileKey(newAttachment));
+
+    try {
+        await fs.rename(oldPath, newPath);
+        newAttachment.path = getFileKey(newAttachment);
+    } catch (error) {
+        console.error(`Failed to rename image file from ${oldPath} to ${newPath}:`, error);
+    }
+}
 
 export async function processImages(images: Image[], download_folder: string, processed_folder: string, bot: Bot): Promise<Image[]> {
     if (images.length > 0) {
@@ -659,6 +686,15 @@ export function getFileKey(file: Attachment | Image, new_ext: string = '') {
     const escapedPrefix = escapeString(prefix)
     const escapedExt = ext ? `.${escapeString(ext)}` : ''
     return `${escapedPrefix}${escapedExt}`;
+}
+
+
+export function getFileExtension(fileName: string): string {
+    return Path.extname(fileName).slice(1).toLowerCase();
+}
+
+export function getFileNameWithoutExtension(fileName: string): string {
+    return Path.basename(fileName, Path.extname(fileName));
 }
 
 async function findFirstFileWithNameInZip(zipPath: string, fileName: string): Promise<Buffer | null> {

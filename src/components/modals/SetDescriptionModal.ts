@@ -1,29 +1,43 @@
 import { ActionRowBuilder, EmbedBuilder, LabelBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, Snowflake, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
-import { canEditSubmission, escapeDiscordString, replyEphemeral, truncateFileName, truncateStringWithEllipsis } from "../../utils/Util.js";
+import { canEditSubmission, deepClone, escapeDiscordString, replyEphemeral, truncateFileName, truncateStringWithEllipsis } from "../../utils/Util.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { AttachmentAskDescriptionData, BaseAttachment } from "../../submissions/Attachment.js";
 import { SetDescriptionButton } from "../buttons/SetDescriptionButton.js";
 import { SkipDescriptionButton } from "../buttons/SkipDescriptionButton.js";
 import { SetAttachmentsMenu } from "../menus/SetAttachmentsMenu.js";
 import { SetImagesMenu } from "../menus/SetImagesMenu.js";
-import { getAttachmentDescriptionForMenus } from "../../utils/AttachmentUtils.js";
+import { changeAttachmentName, changeImageName, getAttachmentDescriptionForMenus, getFileExtension, getFileNameWithoutExtension } from "../../utils/AttachmentUtils.js";
 
 export class SetDescriptionModal implements Modal {
     getID(): string {
         return "set-desc-mdl";
     }
 
-    getBuilder(attachmentName: string, isImage: boolean, id: Snowflake, taskID: string): ModalBuilder {
+    getBuilder(attachmentName: string, attachmentDescription: string, isImage: boolean, id: Snowflake, taskID: string): ModalBuilder {
+
         const modal = new ModalBuilder()
             .setCustomId(this.getID() + '|' + (isImage ? 'i' : 'a') + '|' + id + '|' + taskID)
             .setTitle(truncateStringWithEllipsis(`Info for ${attachmentName}`, 45))
+
+        const nameInput = new TextInputBuilder()
+            .setCustomId('nameInput')
+            .setPlaceholder('Attachment Name')
+            .setMaxLength(100)
+            .setValue(getFileNameWithoutExtension(attachmentName))
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true);
+
+        const nameLabel = new LabelBuilder()
+            .setLabel('Attachment Name:')
+            .setTextInputComponent(nameInput);
 
         const descriptionInput = new TextInputBuilder()
             .setCustomId('descriptionInput')
             .setPlaceholder('Optional description')
             .setMaxLength(300)
+            .setValue(attachmentDescription)
             .setStyle(TextInputStyle.Paragraph)
             .setRequired(false);
 
@@ -32,6 +46,7 @@ export class SetDescriptionModal implements Modal {
             .setTextInputComponent(descriptionInput);
 
         modal.addLabelComponents(
+            nameLabel,
             descriptionLabel
         );
 
@@ -82,6 +97,7 @@ export class SetDescriptionModal implements Modal {
             return;
         }
 
+        const name = getFileNameWithoutExtension(interaction.fields.getTextInputValue('nameInput'));
         const description = (interaction.fields.getTextInputValue('descriptionInput') || '').replace(/\n/g, ' ').trim();
 
         if (description.length > 300) {
@@ -89,6 +105,21 @@ export class SetDescriptionModal implements Modal {
             return;
         }
 
+        if (name.length === 0 || name.length > 100) {
+            replyEphemeral(interaction, 'Name must be between 1 and 100 characters long!');
+            return;
+        }
+
+        const oldFileNameWithoutExt = getFileNameWithoutExtension(foundAttachment.name);
+        const oldFileExtension = getFileExtension(foundAttachment.name);
+
+        if (oldFileNameWithoutExt === name && foundAttachment.description === description) {
+            replyEphemeral(interaction, 'No changes were made to the attachment info.');
+            return;
+        }
+
+        const oldFile = deepClone(foundAttachment);
+        foundAttachment.name = oldFileExtension ? `${name}.${oldFileExtension}` : name;
         foundAttachment.description = description;
 
 
@@ -145,13 +176,37 @@ export class SetDescriptionModal implements Modal {
             } else {
                 submission.getConfigManager().setConfig(SubmissionConfigs.ATTACHMENTS, currentAttachments);
             }
+
+            if (oldFileNameWithoutExt !== name) {
+                // rename the file on disk
+                if (isImage) {
+                    await changeImageName(submission.getProcessedImagesFolder(), oldFile, foundAttachment);
+                } else {
+                    await changeAttachmentName(submission.getAttachmentFolder(), oldFile, foundAttachment);
+                }
+            }
+            
             await submission.save();
+            // await interaction.reply({
+            //     content: `<@${interaction.user.id}> set description for ${isImage ? 'image' : 'attachment'} **${escapeDiscordString(foundAttachment.name)}**:\n${foundAttachment.description ? `${foundAttachment.description}` : 'No description set.'}`,
+            //     flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds],
+            //     allowedMentions: { parse: [] }
+            // });
+
+            const message = [`<@${interaction.user.id}> updated info for ${isImage ? 'image' : 'attachment'} **${escapeDiscordString(foundAttachment.name)}**:`];
+            if (oldFileNameWithoutExt !== name) {
+                message.push(`- Name changed to: ${escapeDiscordString(foundAttachment.name)} from ${escapeDiscordString(oldFile.name)}`);
+            }
+            if (oldFile.description !== description) {
+                message.push(`- Description ${description.length > 0 ? `set to: ${description}` : 'removed'}`);
+            }
 
             await interaction.reply({
-                content: `<@${interaction.user.id}> set info for ${isImage ? 'image' : 'attachment'} **${escapeDiscordString(foundAttachment.name)}**:\n${foundAttachment.description ? `Description: ${foundAttachment.description}` : 'No description set.'}`,
+                content: message.join('\n'),
                 flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds],
                 allowedMentions: { parse: [] }
             });
+
         }
 
     }

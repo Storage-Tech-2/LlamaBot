@@ -395,6 +395,7 @@ export class Submission {
             const processedFolder = this.getProcessedImagesFolder();
             const downloadFolder = Path.join(this.folderPath, 'downloaded_images');
             await processImages(images, downloadFolder, processedFolder, this.guildHolder.getBot());
+            this.config.setConfig(SubmissionConfigs.IMAGES, images);
             this.imagesProcessing = false;
         } catch (error: any) {
             this.imagesProcessing = false;
@@ -414,6 +415,7 @@ export class Submission {
             const attachments = this.config.getConfig(SubmissionConfigs.ATTACHMENTS) || [];
             const attachmentsFolder = this.getAttachmentFolder();
             await processAttachments(attachments, attachmentsFolder, this.guildHolder.getBot());
+            this.config.setConfig(SubmissionConfigs.ATTACHMENTS, attachments);
             this.attachmentsProcessing = false;
         } catch (error: any) {
             this.attachmentsProcessing = false;

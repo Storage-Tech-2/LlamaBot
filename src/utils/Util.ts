@@ -5,7 +5,7 @@ import { Modal } from '../interface/Modal.js'
 import { Secrets, SysAdmin } from '../Bot.js'
 import { ActionRowBuilder, Interaction, Message, MessageFlags, PermissionFlagsBits, REST, Routes, Snowflake } from 'discord.js'
 import { GuildHolder } from '../GuildHolder.js'
-import { Attachment } from '../submissions/Attachment.js'
+import { Attachment, BaseAttachment } from '../submissions/Attachment.js'
 import { Image } from '../submissions/Image.js'
 import Path from 'path'
 import { AllAuthorPropertiesAccessor, Author, AuthorType, DiscordAuthor } from '../submissions/Author.js'
@@ -17,6 +17,7 @@ import { Tag } from '../submissions/Tag.js'
 import { SubmissionStatus } from '../submissions/SubmissionStatus.js'
 import { SubmissionRecord } from './MarkdownUtils.js'
 import { ContextMenuCommand } from '../interface/ContextMenuCommand.js'
+import { getFileKey } from './AttachmentUtils.js'
 
 export function getItemsFromArray<T extends (Button | Menu | Modal | Command | ContextMenuCommand)>(itemArray: T[]): Map<string, T> {
     const items = new Map()
@@ -243,10 +244,10 @@ export function getChange<T>(old: T, updated: T): Change<T> | undefined {
     return { old, new: updated };
 }
 
-export function getChangeIDs<T extends { id: Snowflake }>(old: T[], updated: T[]): Change<T[]> | undefined {
+export function hasAttachmentNameChanged(old: BaseAttachment[], updated: BaseAttachment[]): Change<BaseAttachment[]> | undefined {
     // Create sets for old and new arrays
-    const oldSet = new Set(old.map(item => item.id));
-    const newSet = new Set(updated.map(item => item.id));
+    const oldSet = new Set(old.map(item => getFileKey(item)));
+    const newSet = new Set(updated.map(item => getFileKey(item)));
 
     // Check if the sets are identical
     if (newSet.size === oldSet.size && oldSet.intersection(newSet).size === oldSet.size) {
@@ -279,8 +280,8 @@ export function getChanges(
         endorsers: getChange(existing.endorsers, updated.endorsers),
         tags: getChangeNames(existing.tags, updated.tags),
         records: getChangeRecords(existing.records, updated.records),
-        images: getChangeIDs(existing.images, updated.images),
-        attachments: getChangeIDs(existing.attachments, updated.attachments)
+        images: hasAttachmentNameChanged(existing.images, updated.images),
+        attachments: hasAttachmentNameChanged(existing.attachments, updated.attachments)
     }
 }
 

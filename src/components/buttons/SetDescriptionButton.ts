@@ -51,7 +51,7 @@ export class SetDescriptionButton implements Button {
             attachment = currentAttachments.find(att => att.id === id) || null;
         }
 
-        const modal = new SetDescriptionModal().getBuilder(attachment?.name || "Unknown", isImage, id, taskID);
+        const modal = new SetDescriptionModal().getBuilder(attachment?.name || "Unknown", attachment?.description || "", isImage, id, taskID);
         await interaction.showModal(modal);
     }
 }
