@@ -8,6 +8,7 @@ import path from "path";
 import { SetAttachmentsMenu } from "../menus/SetAttachmentsMenu.js";
 import { AttachmentSource, BaseAttachment } from "../../submissions/Attachment.js";
 import { AuthorType } from "../../submissions/Author.js";
+import { SetImagesMenu } from "../menus/SetImagesMenu.js";
 
 export class AddImageModal implements Modal {
     getID(): string {
@@ -121,7 +122,11 @@ export class AddImageModal implements Modal {
         }
 
 
-        await interaction.deferReply();
+        if (!interaction.isFromMessage()) {
+            return; // should not happen
+        }
+
+        await interaction.deferUpdate();
 
         // const webhook = await submissionChannel.parent.createWebhook({
         //     name: 'LlamaBot Attachment Uploader',
@@ -161,7 +166,10 @@ export class AddImageModal implements Modal {
         }
 
         await submission.save();
-        
+
+        await SetImagesMenu.sendImagesMenuAndButton(submission, interaction, true);
+
+
         let message = `<@${interaction.user.id}> added image: ${imageObj.url}`;
         if (description.length > 0) {
             message += ` with description`;

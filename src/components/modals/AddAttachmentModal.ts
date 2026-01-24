@@ -6,6 +6,7 @@ import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Attachment, AttachmentSource } from "../../submissions/Attachment.js";
 import { filterAttachments, getAttachmentsFromText } from "../../utils/AttachmentUtils.js";
 import { AuthorType } from "../../submissions/Author.js";
+import { SetAttachmentsMenu } from "../menus/SetAttachmentsMenu.js";
 
 export class AddAttachmentModal implements Modal {
     getID(): string {
@@ -151,7 +152,11 @@ export class AddAttachmentModal implements Modal {
             return;
         }
 
-        await interaction.deferReply();
+        if (!interaction.isFromMessage()) {
+            return; // should not happen
+        }
+
+        await interaction.deferUpdate();
 
         // const webhook = await submissionChannel.parent.createWebhook({
         //     name: 'LlamaBot Attachment Uploader',
@@ -195,6 +200,9 @@ export class AddAttachmentModal implements Modal {
         }
 
         await submission.save();
+
+        await SetAttachmentsMenu.sendAttachmentsMenuAndButton(submission, interaction, true);
+                  
 
         let message = `<@${interaction.user.id}> added `;
         if (attachmentObj.youtube || attachmentObj.contentType === 'youtube' || attachmentObj.contentType === 'bilibili') {
