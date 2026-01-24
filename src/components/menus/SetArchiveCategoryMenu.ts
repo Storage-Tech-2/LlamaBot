@@ -5,6 +5,7 @@ import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
 import { GuildConfigs } from "../../config/GuildConfigs.js";
 import { SetArchiveChannelMenu } from "./SetArchiveChannelMenu.js";
 import { Submission } from "../../submissions/Submission.js";
+import { BackToCategoryButton } from "../buttons/BackToCategoryButton.js";
 
 export class SetArchiveCategoryMenu implements Menu {
     getID(): string {
@@ -82,6 +83,7 @@ export class SetArchiveCategoryMenu implements Menu {
         const newCategory = interaction.values[0]
         const row = new ActionRowBuilder()
             .addComponents(await new SetArchiveChannelMenu().getBuilder(guildHolder, newCategory, submission))
+            .addComponents(new BackToCategoryButton().getBuilder())
         await interaction.update({
             content: `Please select an archive channel`,
             components: [row as any]
