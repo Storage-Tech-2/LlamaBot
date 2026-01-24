@@ -744,7 +744,7 @@ export function getAttachmentDescriptionForMenus(attachment: BaseAttachment): st
     if (attachment.description) {
         return `${dateTime} - ${attachment.description}`;
     }
-    return `Sent by ${getAuthorName(attachment.author)} on ${dateTime}`;
+    return `${dateTime} - No description`;
 }
 
 export function getAttachmentsSetMessage(attachments: Attachment[]): string {
