@@ -106,9 +106,9 @@ export class SkipDescriptionButton implements Button {
             await interaction.deferUpdate();
             guildHolder.getBot().getTempDataStore().removeEntry(taskID);
             if (isImage) {
-                await SetImagesMenu.setAndReply(isAll, submission, interaction, attachmentSetTaskData.toSet);
+                await SetImagesMenu.setAndReply(false, submission, interaction, attachmentSetTaskData.toSet);
             } else {
-                await SetAttachmentsMenu.setAttachmentsAndSetResponse(isAll, submission, attachmentSetTaskData.toSet, interaction);
+                await SetAttachmentsMenu.setAttachmentsAndSetResponse(false, submission, attachmentSetTaskData.toSet, interaction);
             }
         }
 
