@@ -1,7 +1,7 @@
 import { ActionRowBuilder, Interaction, Message, MessageFlags, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, UserSelectMenuBuilder, UserSelectMenuInteraction } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { areAuthorsSame, canEditSubmission, getAuthorName, getAuthorsString, getDiscordAuthorsFromIDs, reclassifyAuthors, replyEphemeral, truncateStringWithEllipsis } from "../../utils/Util.js";
+import { areAuthorsSame, canEditSubmission, getAuthorName, getAuthorsString, getDiscordAuthorsFromIDs, reclassifyAuthors, replyEphemeral, replyReplace, truncateStringWithEllipsis } from "../../utils/Util.js";
 import { Author, AuthorType } from "../../submissions/Author.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
@@ -236,7 +236,7 @@ export class SetAuthorsMenu implements Menu {
         await submission.onAuthorsUpdated();
     }
 
-    public static async sendAuthorsMenuAndButton(submission: Submission, interaction: Interaction): Promise<Message> {
+    public static async sendAuthorsMenuAndButton(submission: Submission, interaction: Interaction) {
         const guildHolder = submission.getGuildHolder();
         const components = [];
         const row = new ActionRowBuilder()
@@ -254,7 +254,7 @@ export class SetAuthorsMenu implements Menu {
         const extraAuthors = currentAuthors.filter(author => {
             return author.type === AuthorType.Unknown || author.type === AuthorType.DiscordDeleted;
         });
-        
+
         if (extraAuthors.length > 0) {
             const row1 = new ActionRowBuilder()
                 .addComponents(await new SetAuthorsMenu().getBuilder(guildHolder, submission, true));
@@ -267,9 +267,9 @@ export class SetAuthorsMenu implements Menu {
         }
         row2.addComponents(new AddAuthorButton().getBuilder());
         components.push(row2);
-        return replyEphemeral(interaction, `Please select author(s) for the submission. They will also be able to edit this submission.`, {
+        replyReplace(false, interaction, `Please select author(s) for the submission. They will also be able to edit this submission.`,
             components
-        });
+        );
     }
 
 }
