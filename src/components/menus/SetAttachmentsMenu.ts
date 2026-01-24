@@ -1,7 +1,7 @@
 import { ActionRowBuilder, ButtonInteraction, Interaction, MessageFlags, ModalSubmitInteraction, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { canEditSubmission, replyEphemeral, splitIntoChunks, truncateFileName, truncateStringWithEllipsis } from "../../utils/Util.js";
+import { canEditSubmission, replyEphemeral, replyReplace, splitIntoChunks, truncateFileName, truncateStringWithEllipsis } from "../../utils/Util.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Attachment, AttachmentAskDescriptionData } from "../../submissions/Attachment.js";
@@ -184,42 +184,16 @@ export class SetAttachmentsMenu implements Menu {
                 secondRow.addComponents(new SkipAttachmentsButton().getBuilder())
             }
             rows.push(secondRow);
-
-            if ((interaction.isButton() || interaction.isStringSelectMenu()) && useUpdate) {
-                await interaction.update({
-                    content: `Please choose other attachments (eg: Schematics/WDLs) for the submission`,
-                    components: rows as any
-                });
-                return;
-            } else {
-                await replyEphemeral(interaction, `Please choose other attachments (eg: Schematics/WDLs) for the submission`, {
-                    components: rows
-                })
-                return;
-            }
+            await replyReplace(useUpdate, interaction, `Please choose other attachments (eg: Schematics/WDLs) for the submission`, rows);
         } else {
             const row = new ActionRowBuilder().addComponents(new RefreshListButton().getBuilder(false), new AddAttachmentButton().getBuilder());
             if (submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) === null) {
                 row.addComponents(new SkipAttachmentsButton().getBuilder())
             }
-            if ((interaction.isButton() || interaction.isStringSelectMenu()) && useUpdate) {
-                await interaction.update({
-                    content: `No attachments found! Try uploading attachments first and then press the button below.`,
-                    components: [
-                        row as any
-                    ]
-                });
-                return;
-            } else {
-                await replyEphemeral(interaction, `No attachments found! Try uploading attachments first and then press the button below.`,
-                    {
-                        flags: MessageFlags.Ephemeral,
-                        components: [
-                            row
-                        ]
-                    });
-                return;
-            }
+           
+            await replyReplace(useUpdate, interaction, `No attachments found! Try uploading attachments first and then press the button below.`, [
+                row as any
+            ])
         }
     }
 }

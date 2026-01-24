@@ -3,7 +3,7 @@ import { Button } from '../interface/Button.js'
 import { Menu } from '../interface/Menu.js'
 import { Modal } from '../interface/Modal.js'
 import { Secrets, SysAdmin } from '../Bot.js'
-import { Interaction, Message, MessageFlags, PermissionFlagsBits, REST, Routes, Snowflake } from 'discord.js'
+import { ActionRowBuilder, Interaction, Message, MessageFlags, PermissionFlagsBits, REST, Routes, Snowflake } from 'discord.js'
 import { GuildHolder } from '../GuildHolder.js'
 import { Attachment } from '../submissions/Attachment.js'
 import { Image } from '../submissions/Image.js'
@@ -41,6 +41,51 @@ export async function deployCommands(
     return rest.put(Routes.applicationGuildCommands(secrets.clientId, guildHolder.getGuildId()), { body: commands })
 }
 
+export async function replyReplace(doUpdate: boolean, interaction: Interaction, content: string, components: ActionRowBuilder<any>[] = []) {
+    try {
+        if (interaction.isRepliable() && interaction.deferred) {
+            return await interaction.editReply({
+                content: content,
+                components: components,
+                flags: [MessageFlags.SuppressEmbeds],
+                allowedMentions: { parse: [] }
+            })
+        } else if ((interaction.isButton() || interaction.isStringSelectMenu()) && doUpdate) {
+            return await interaction.update({
+                content: content,
+                components: components,
+                flags: [MessageFlags.SuppressEmbeds],
+                allowedMentions: { parse: [] }
+            })
+        } else if (interaction.isRepliable() && !interaction.replied) {
+            await interaction.reply({
+                content: content,
+                components: components,
+                flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications],
+                allowedMentions: { parse: [] }
+            })
+        } else if (interaction.isRepliable()) {
+            return await interaction.followUp({
+                content: content,
+                components: components,
+                flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications],
+                allowedMentions: { parse: [] }
+            })
+        } else if (interaction.channel?.isSendable()) {
+            return await interaction.channel.send({
+                content: content,
+                components: components,
+                flags: [MessageFlags.SuppressEmbeds],
+                allowedMentions: { parse: [] }
+            })
+        } else {
+            throw new Error('Cannot reply to interaction')
+        }
+
+    } catch (error: any) {
+        console.error('Error replying replace:', error);
+    }
+}
 
 export async function replyEphemeral(interaction: any, content: string, options = {}) {
     try {

@@ -1,7 +1,7 @@
 import { ActionRowBuilder, AttachmentBuilder, ButtonInteraction, EmbedBuilder, Interaction, MessageFlags, ModalSubmitInteraction, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { canEditSubmission, escapeDiscordString, replyEphemeral, truncateFileName, truncateStringWithEllipsis } from "../../utils/Util.js";
+import { canEditSubmission, escapeDiscordString, replyEphemeral, replyReplace, truncateFileName, truncateStringWithEllipsis } from "../../utils/Util.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import path from "path";
@@ -210,42 +210,15 @@ export class SetImagesMenu implements Menu {
                 secondRow.addComponents(new SkipImagesButton().getBuilder());
             }
             rows.push(secondRow);
-
-            if ((interaction.isButton() || interaction.isStringSelectMenu()) && useUpdate) {
-                await interaction.update({
-                    content: `Please choose images for the submission`,
-                    components: rows as any
-                });
-                return;
-            } else {
-                await replyEphemeral(interaction, `Please choose images for the submission`, {
-                    components: rows
-                });
-                return;
-            }
+            await replyReplace(useUpdate, interaction, `Please choose images for the submission`, rows as any)
         } else {
             const row = new ActionRowBuilder().addComponents(new RefreshListButton().getBuilder(true), new AddImageButton().getBuilder());
             if (submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null) {
                 row.addComponents(new SkipImagesButton().getBuilder())
             }
-            if ((interaction.isButton() || interaction.isStringSelectMenu()) && useUpdate) {
-                await interaction.update({
-                    content: `No images found! Try uploading images first and then press the button below.`,
-                    components: [
-                        row as any
-                    ]
-                });
-                return;
-            } else {
-                await replyEphemeral(interaction, `No images found! Try uploading images first and then press the button below.`,
-                    {
-                        flags: MessageFlags.Ephemeral,
-                        components: [
-                            row
-                        ]
-                    });
-                return;
-            }
+            await replyReplace(useUpdate, interaction, `No images found! Try uploading images first and then press the button below.`, [
+                row as any
+            ])
         }
     }
 
