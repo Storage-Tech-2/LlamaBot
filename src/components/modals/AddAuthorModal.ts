@@ -184,6 +184,8 @@ export class AddAuthorModal implements Modal {
         }
         currentAuthors.push(author);
 
+        await interaction.deferUpdate();
+        
         currentAuthors = await reclassifyAuthors(guildHolder, currentAuthors);
     
         submission.getConfigManager().setConfig(SubmissionConfigs.AUTHORS, currentAuthors);
