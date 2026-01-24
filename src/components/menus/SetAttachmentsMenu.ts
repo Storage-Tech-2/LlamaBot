@@ -46,6 +46,24 @@ export class SetAttachmentsMenu implements Menu {
         if (!fileAttachments.length) {
             return null; // No file attachments available
         }
+
+        // if more than 25 attachments, limit to first 25
+        if (fileAttachments.length > 25) {
+            let toRemove = fileAttachments.length - 25;
+            for (let i = fileAttachments.length - 1; i >= 0 && toRemove > 0; i--) {
+                const file = fileAttachments[i];
+                if (!currentAttachments.some(att => att.id === file.id)) {
+                    fileAttachments.splice(i, 1);
+                    toRemove--;
+                }
+            }
+
+            // if still more than 25, slice the array
+            if (fileAttachments.length > 25) {
+                fileAttachments.splice(25);
+            }
+        }
+
         return this.getBuilder(fileAttachments, currentAttachments);
     }
 

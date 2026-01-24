@@ -55,6 +55,23 @@ export class SetImagesMenu implements Menu {
         if (!imageAttachments.length) {
             return null;
         }
+        
+        // limit to 25 images, removing non-current first
+        if (imageAttachments.length > 25) {
+            let toRemove = imageAttachments.length - 25;
+            for (let i = imageAttachments.length - 1; i >= 0 && toRemove > 0; i--) {
+                const file = imageAttachments[i];
+                if (!currentImages.some(att => att.id === file.id)) {
+                    imageAttachments.splice(i, 1);
+                    toRemove--;
+                }
+            }
+
+            // if still more than 25, slice the array
+            if (imageAttachments.length > 25) {
+                imageAttachments.splice(25);
+            }
+        }
 
         return this.getBuilder(imageAttachments, currentImages);
     }
