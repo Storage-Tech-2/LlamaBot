@@ -1,11 +1,12 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, MessageFlags, Snowflake } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, EmbedBuilder, MessageFlags, Snowflake } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Button } from "../../interface/Button.js";
-import { canEditSubmission, escapeDiscordString, replyEphemeral } from "../../utils/Util.js";
+import { canEditSubmission, escapeDiscordString, replyEphemeral, truncateFileName } from "../../utils/Util.js";
 import { AttachmentAskDescriptionData } from "../../submissions/Attachment.js";
 import { SetDescriptionButton } from "./SetDescriptionButton.js";
 import { SetImagesMenu } from "../menus/SetImagesMenu.js";
 import { SetAttachmentsMenu } from "../menus/SetAttachmentsMenu.js";
+import { getAttachmentDescriptionForMenus } from "../../utils/AttachmentUtils.js";
 
 export class SkipDescriptionButton implements Button {
     getID(): string {
@@ -79,11 +80,21 @@ export class SkipDescriptionButton implements Button {
                 throw new Error('Skipped attachment is null when it should not be.');
             }
 
+            const embeds = [];
+            if (isImage) {
+                const embed = new EmbedBuilder()
+                    .setTitle(truncateFileName(nextAttachment.name, 256))
+                    .setDescription(getAttachmentDescriptionForMenus(nextAttachment) || 'No description')
+                    .setThumbnail(nextAttachment.url);
+                embeds.push(embed);
+            }
+
             await interaction.update({
                 content: `Skipped description for **${escapeDiscordString(skippedAttachment.name)}**.` +
                     `\n\nSet a description for the next ${isImage ? 'image' : 'attachment'} **${escapeDiscordString(nextAttachment.name)}**?`,
                 flags: [MessageFlags.SuppressEmbeds],
                 components: [row as any],
+                embeds: embeds
             });
         } else {
             // all done, set attachments

@@ -1,13 +1,14 @@
-import { ActionRowBuilder, LabelBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, Snowflake, TextInputBuilder, TextInputStyle } from "discord.js";
+import { ActionRowBuilder, EmbedBuilder, LabelBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, Snowflake, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
-import { canEditSubmission, escapeDiscordString, replyEphemeral, truncateStringWithEllipsis } from "../../utils/Util.js";
+import { canEditSubmission, escapeDiscordString, replyEphemeral, truncateFileName, truncateStringWithEllipsis } from "../../utils/Util.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { AttachmentAskDescriptionData, BaseAttachment } from "../../submissions/Attachment.js";
 import { SetDescriptionButton } from "../buttons/SetDescriptionButton.js";
 import { SkipDescriptionButton } from "../buttons/SkipDescriptionButton.js";
 import { SetAttachmentsMenu } from "../menus/SetAttachmentsMenu.js";
 import { SetImagesMenu } from "../menus/SetImagesMenu.js";
+import { getAttachmentDescriptionForMenus } from "../../utils/AttachmentUtils.js";
 
 export class SetDescriptionModal implements Modal {
     getID(): string {
@@ -67,7 +68,7 @@ export class SetDescriptionModal implements Modal {
         const taskData = await guildHolder.getBot().getTempDataStore().getEntry(taskID);
         const attachmentSetTaskData = taskData ? taskData.data as AttachmentAskDescriptionData : null;
         const currentAttachments: BaseAttachment[] = submission.getConfigManager().getConfig(isImage ? SubmissionConfigs.IMAGES : SubmissionConfigs.ATTACHMENTS) || [];
-        
+
         let foundAttachment = null;
         if (attachmentSetTaskData) {
             foundAttachment = attachmentSetTaskData.toSet.find(att => att.id === id);
@@ -89,7 +90,7 @@ export class SetDescriptionModal implements Modal {
 
         foundAttachment.description = description;
 
-      
+
 
         if (attachmentSetTaskData) {
             // update the task data as well
@@ -105,11 +106,22 @@ export class SetDescriptionModal implements Modal {
                 const skipButton = new SkipDescriptionButton().getBuilder(isImage, nextAttachment.id, taskID, false);
                 const row = new ActionRowBuilder().addComponents(askButton, skipButton);
 
+
+                const embeds = [];
+                if (isImage) {
+                    const embed = new EmbedBuilder()
+                        .setTitle(truncateFileName(nextAttachment.name, 256))
+                        .setDescription(getAttachmentDescriptionForMenus(nextAttachment) || 'No description')
+                        .setThumbnail(nextAttachment.url);
+                    embeds.push(embed);
+                }
+
                 await interaction.reply({
                     content: `Set info for ${isImage ? 'image' : 'attachment'} **${escapeDiscordString(foundAttachment.name)}**:\n${foundAttachment.description ? `Description: ${foundAttachment.description}` : 'No description set.'}` +
                         `\n\nSet a description for the next ${isImage ? 'image' : 'attachment'} **${escapeDiscordString(nextAttachment.name)}**?`,
                     flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds],
                     components: [row as any],
+                    embeds: embeds
                 });
             } else {
                 // all done, set attachments

@@ -156,11 +156,17 @@ export class SetImagesMenu implements Menu {
                 row.addComponents(skipAllButton);
             }
 
+            const embed = new EmbedBuilder()
+                .setTitle(truncateFileName(nextAttachment.name, 256))
+                .setDescription(getAttachmentDescriptionForMenus(nextAttachment) || 'No description')
+                .setThumbnail(nextAttachment.url);
+
             await interaction.editReply({
                 content: `We've detected that you added ${addedWithoutDescriptions.length} image${addedWithoutDescriptions.length > 1 ? 's' : ''} without descriptions.` +
                     `\n\nSet a description for the image **${escapeDiscordString(nextAttachment.name)}**?`,
                 flags: [MessageFlags.SuppressEmbeds],
                 components: [row as any],
+                embeds: [embed],
             });
         } else {
             await SetImagesMenu.setAndReply(true, submission, interaction, newImages);
