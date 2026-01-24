@@ -1,7 +1,7 @@
 import { ActionRowBuilder, Interaction, Message, MessageFlags, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, UserSelectMenuBuilder, UserSelectMenuInteraction } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { areAuthorsSame, canEditSubmission, getAuthorName, getAuthorsString, getDiscordAuthorsFromIDs, reclassifyAuthors, replyEphemeral } from "../../utils/Util.js";
+import { areAuthorsSame, canEditSubmission, getAuthorName, getAuthorsString, getDiscordAuthorsFromIDs, reclassifyAuthors, replyEphemeral, truncateStringWithEllipsis } from "../../utils/Util.js";
 import { Author, AuthorType } from "../../submissions/Author.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
@@ -33,7 +33,7 @@ export class SetAuthorsMenu implements Menu {
                 .setPlaceholder('Select authors')
                 .setOptions(extraAuthors.map(author => {
                     const opt = new StringSelectMenuOptionBuilder();
-                    opt.setLabel(getAuthorName(author) || 'Unknown Author');
+                    opt.setLabel(truncateStringWithEllipsis(getAuthorName(author) || 'Unknown Author', 100));
                     opt.setValue(author.username || 'unknown-author');
                     opt.setDefault(extraAuthors.some(a => a.username === author.username));
                     return opt;

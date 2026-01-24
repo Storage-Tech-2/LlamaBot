@@ -1,7 +1,7 @@
 import { ChannelType, MessageFlags, Snowflake, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { canEditSubmission, getCodeAndDescriptionFromTopic, replyEphemeral } from "../../utils/Util.js";
+import { canEditSubmission, getCodeAndDescriptionFromTopic, replyEphemeral, truncateStringWithEllipsis } from "../../utils/Util.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { SetTagsMenu } from "./SetTagsMenu.js";
@@ -42,7 +42,7 @@ export class SetArchiveChannelMenu implements Menu {
                     const { description } = getCodeAndDescriptionFromTopic(channel.topic || '');
                     return new StringSelectMenuOptionBuilder().setLabel(channel.name)
                         .setValue(channel.id)
-                        .setDescription(description.substring(0, 100) || 'No description')
+                        .setDescription(truncateStringWithEllipsis(description || 'No description', 100))
                         .setDefault(currentArchiveChannel === channel.id)
                 })
             )

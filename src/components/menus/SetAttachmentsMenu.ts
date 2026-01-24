@@ -1,7 +1,7 @@
 import { ActionRowBuilder, Interaction, Message, MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { canEditSubmission, replyEphemeral, splitIntoChunks, truncateFileName } from "../../utils/Util.js";
+import { canEditSubmission, replyEphemeral, splitIntoChunks, truncateFileName, truncateStringWithEllipsis } from "../../utils/Util.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Attachment } from "../../submissions/Attachment.js";
@@ -29,7 +29,7 @@ export class SetAttachmentsMenu implements Menu {
                 fileAttachments.map(file => {
                     return new StringSelectMenuOptionBuilder().setLabel(truncateFileName(file.name, 50))
                         .setValue(file.id)
-                        .setDescription(getAttachmentDescriptionForMenus(file) || "No description")
+                        .setDescription(truncateStringWithEllipsis(getAttachmentDescriptionForMenus(file), 100) || "No description")
                         .setDefault(currentFiles.some(att => att.id === file.id))
                 })
             )

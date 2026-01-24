@@ -1,7 +1,7 @@
 import { ActionRowBuilder, ForumChannel, Interaction, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { canEditSubmission, canSetPrivilegedTags, replyEphemeral } from "../../utils/Util.js";
+import { canEditSubmission, canSetPrivilegedTags, replyEphemeral, truncateStringWithEllipsis } from "../../utils/Util.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { SetImagesMenu } from "./SetImagesMenu.js";
@@ -32,7 +32,7 @@ export class SetTagsMenu implements Menu {
             .setPlaceholder('Select tags')
             .addOptions(
                 Array.from(tags).map(tag => {
-                    const opt = new StringSelectMenuOptionBuilder().setLabel(tag.name)
+                    const opt = new StringSelectMenuOptionBuilder().setLabel(truncateStringWithEllipsis(tag.name, 100))
                         .setValue(tag.id)
                         .setDefault(currentTags.some(t => t.id === tag.id))
                     if (tag.emoji?.name) {
