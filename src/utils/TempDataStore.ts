@@ -14,10 +14,15 @@ export class TempDataStore {
     }
 
     getNewId(): string {
-        return `${Math.random().toString(36).substring(
-            2, 15)}`;
+        while (true) {
+            const candidate = Math.random().toString(36).substring(
+                2, 15);
+            if (!this.entries.has(candidate)) {
+                return candidate;
+            }
+        }
     }
-    
+
     addEntry(id: string, data: any, expiresInMs: number): void {
         const expiresAt = Date.now() + expiresInMs;
         this.entries.set(id, { id, data, expiresAt });
