@@ -61,21 +61,14 @@ export async function replyReplace(doUpdate: boolean, interaction: Interaction, 
             await interaction.reply({
                 content: content,
                 components: components,
-                flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications],
+                flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications, MessageFlags.Ephemeral],
                 allowedMentions: { parse: [] }
             })
         } else if (interaction.isRepliable()) {
             return await interaction.followUp({
                 content: content,
                 components: components,
-                flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications],
-                allowedMentions: { parse: [] }
-            })
-        } else if (interaction.channel?.isSendable()) {
-            return await interaction.channel.send({
-                content: content,
-                components: components,
-                flags: [MessageFlags.SuppressEmbeds],
+                flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications, MessageFlags.Ephemeral],
                 allowedMentions: { parse: [] }
             })
         } else {
