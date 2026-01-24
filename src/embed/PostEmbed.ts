@@ -93,7 +93,7 @@ export class PostEmbed {
                 const url = attachmentURLs.get(attachment.name) || attachment.url;
                 const githubLink = `${rawURL}/${attachment.path}`;
                 const viewerURL = `https://storagetech2.org/renderer?url=${githubLink}`;
-                description += `- ${url} [[View Schematic]](${viewerURL}): ` + (attachment.litematic?.error || `MC ${attachment.litematic?.version}, Size ${attachment.litematic?.size} \n`);
+                description += `- ${url} [[View Schematic]](${viewerURL}): ` + (attachment.litematic?.error || `MC ${attachment.litematic?.version}, Size ${attachment.litematic?.size}`) + `, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`;
                 if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
             })
         }
@@ -102,7 +102,7 @@ export class PostEmbed {
             description += '### WDLs\n'
             wdls.forEach(attachment => {
                 const url = attachmentURLs.get(attachment.name) || attachment.url;
-                description += `- ${url} [[Github Mirror]](${rawURL}/${attachment.path}): ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}\n`
+                description += `- ${url} [[Github Mirror]](${rawURL}/${attachment.path}): ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
                 if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
             })
         }
@@ -129,7 +129,7 @@ export class PostEmbed {
             description += '### Other files\n'
             others.forEach(attachment => {
                 if (attachment.contentType === 'mediafire') {
-                    description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Mediafire link\n`
+                    description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Mediafire link, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
                     if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
                     return;
                 } else if (attachment.contentType === 'youtube') {
@@ -138,11 +138,11 @@ export class PostEmbed {
                     return;
                 } else if (attachment.canDownload) {
                     const url = attachmentURLs.get(attachment.name) || attachment.url;
-                    description += `- ${url} [[Github Mirror]](${rawURL}/${attachment.path}): Discord link\n`
+                    description += `- ${url} [[Github Mirror]](${rawURL}/${attachment.path}): Discord attachment, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
                     if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
                     return;
                 } else {
-                    description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): ContentType ${attachment.contentType}\n`
+                    description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): ContentType ${attachment.contentType}, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
                     if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
                     return;
                 }
