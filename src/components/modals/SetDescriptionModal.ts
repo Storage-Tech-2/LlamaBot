@@ -39,6 +39,12 @@ export class SetDescriptionModal implements Modal {
     }
 
     async execute(guildHolder: GuildHolder, interaction: ModalSubmitInteraction, type: string, id: Snowflake, taskID: string): Promise<void> {
+
+
+        if (!interaction.isFromMessage()) {
+            return; // should not happen
+        }
+
         const submissionId = interaction.channelId
         if (!submissionId) {
             replyEphemeral(interaction, 'Submission ID not found')
@@ -91,7 +97,6 @@ export class SetDescriptionModal implements Modal {
         foundAttachment.description = description;
 
 
-
         if (attachmentSetTaskData) {
             // update the task data as well
             if (attachmentSetTaskData.toAsk.includes(foundAttachment)) {
@@ -121,21 +126,20 @@ export class SetDescriptionModal implements Modal {
                     embeds.push(embed);
                 }
 
-                await interaction.reply({
+                await interaction.update({
                     content: `Set info for ${isImage ? 'image' : 'attachment'} **${escapeDiscordString(foundAttachment.name)}**:\n${foundAttachment.description ? `Description: ${foundAttachment.description}` : 'No description set.'}` +
                         `\n\nSet a description for the next ${isImage ? 'image' : 'attachment'} **${escapeDiscordString(nextAttachment.name)}**?`,
-                    flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications],
                     components: [row as any],
                     embeds: embeds
                 });
             } else {
                 // all done, set attachments
-                await interaction.deferReply();
+                await interaction.deferUpdate();
                 guildHolder.getBot().getTempDataStore().removeEntry(taskID);
                 if (isImage) {
-                    await SetImagesMenu.setAndReply(false, submission, interaction, attachmentSetTaskData.toSet);
+                    await SetImagesMenu.setAndReply(true, submission, interaction, attachmentSetTaskData.toSet);
                 } else {
-                    await SetAttachmentsMenu.setAttachmentsAndSetResponse(false, submission, attachmentSetTaskData.toSet, interaction);
+                    await SetAttachmentsMenu.setAttachmentsAndSetResponse(true, submission, attachmentSetTaskData.toSet, interaction);
                 }
             }
         } else if (currentAttachments.includes(foundAttachment)) {

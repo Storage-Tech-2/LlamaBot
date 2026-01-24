@@ -165,13 +165,11 @@ export class SetImagesMenu implements Menu {
                 .setDescription(getAttachmentDescriptionForMenus(nextAttachment) || 'No description')
                 .setThumbnail(nextAttachment.url);
 
-            await interaction.editReply({});
-            await interaction.followUp({
+            await interaction.editReply({
                 content: `We've detected that you added ${addedWithoutDescriptions.length} image${addedWithoutDescriptions.length > 1 ? 's' : ''} without descriptions.` +
                     `\n\nSet a description for the image **${escapeDiscordString(nextAttachment.name)}**?`,
                 components: [row as any],
                 embeds: [embed],
-                flags: [MessageFlags.Ephemeral]
             });
         } else {
             await SetImagesMenu.setAndReply(true, submission, interaction, newImages);
@@ -217,7 +215,7 @@ export class SetImagesMenu implements Menu {
             embeds.push(embed);
         }
 
-        if (!replace &&interaction.deferred) {
+        if (!replace && interaction.deferred) {
             await interaction.editReply({
                 content: newImages.length === 0 ? `<@${interaction.user.id}> marked this submission as containing no images` : `<@${interaction.user.id}> set main image${newImages.length > 1 ? 's' : ''} for submission`,
                 embeds,

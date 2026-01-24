@@ -127,12 +127,10 @@ export class SetAttachmentsMenu implements Menu {
             const embed = new EmbedBuilder()
                 .setTitle(truncateFileName(escapeDiscordString(nextAttachment.name), 256))
                 .setDescription(getAttachmentDescriptionForMenus(nextAttachment) || 'No description');
-            await interaction.editReply({});
 
-            await interaction.followUp({
+            await interaction.editReply({
                 content: `We've detected that you added ${addedAttachmentsWithoutDescriptions.length} attachment${addedAttachmentsWithoutDescriptions.length > 1 ? 's' : ''} without descriptions.` +
                     `\n\nSet a description for the attachment **${escapeDiscordString(nextAttachment.name)}**?`,
-                flags: [MessageFlags.Ephemeral],
                 components: [row as any],
                 embeds: [embed]
             });
