@@ -7,7 +7,7 @@ import { Attachment, AttachmentSource } from "../../submissions/Attachment.js";
 import { filterAttachments, getAttachmentsFromText } from "../../utils/AttachmentUtils.js";
 import { AuthorType } from "../../submissions/Author.js";
 import { SetAttachmentsMenu } from "../menus/SetAttachmentsMenu.js";
-import { SetDescriptionButton } from "../buttons/SetDescriptionButton.js";
+import { EditInfoMultipleButton } from "../buttons/EditInfoMultipleButton.js";
 
 export class AddAttachmentModal implements Modal {
     getID(): string {
@@ -230,7 +230,7 @@ export class AddAttachmentModal implements Modal {
             message += ` with description: ${description}`;
         }
 
-        const editDescriptionButton = new SetDescriptionButton().getBuilder(attachmentObj.name, false, attachmentObj.id, '');
+        const editDescriptionButton = new EditInfoMultipleButton().getBuilder(false);
         const row = new ActionRowBuilder().addComponents(editDescriptionButton);
         
 

@@ -13,6 +13,7 @@ import { RefreshListButton } from "../buttons/RefreshListButton.js";
 import { AttachmentAskDescriptionData, BaseAttachment } from "../../submissions/Attachment.js";
 import { SetDescriptionButton } from "../buttons/SetDescriptionButton.js";
 import { SkipDescriptionButton } from "../buttons/SkipDescriptionButton.js";
+import { EditInfoMultipleButton } from "../buttons/EditInfoMultipleButton.js";
 
 export class SetImagesMenu implements Menu {
     getID(): string {
@@ -198,7 +199,6 @@ export class SetImagesMenu implements Menu {
 
         const files = [];
         const embeds = [];
-        const buttons = [];
         const processedFolder = submission.getProcessedImagesFolder();
         for (const attachment of newImages) {
             const key = getFileKey(attachment, 'png');
@@ -215,10 +215,9 @@ export class SetImagesMenu implements Menu {
             }
 
             embeds.push(embed);
-            buttons.push(new SetDescriptionButton().getBuilder(attachment.name, true, attachment.id, ''));
         }
 
-        const row = new ActionRowBuilder().addComponents(...buttons);
+        const row = newImages.length ? new ActionRowBuilder().addComponents(new EditInfoMultipleButton().getBuilder(true)) : null;
 
         if (!replace && interaction.deferred) {
             await interaction.editReply({
@@ -226,7 +225,7 @@ export class SetImagesMenu implements Menu {
                 embeds,
                 files,
                 allowedMentions: { parse: [] },
-                components: [row as any],
+                components: row ? [row as any] : [],
             })
         } else if (interaction.replied) {
             await interaction.followUp({
@@ -235,7 +234,7 @@ export class SetImagesMenu implements Menu {
                 files,
                 flags: [MessageFlags.SuppressNotifications],
                 allowedMentions: { parse: [] },
-                components: [row as any],
+                components: row ? [row as any] : [],
             })
         } else {
             await interaction.reply({
@@ -244,7 +243,7 @@ export class SetImagesMenu implements Menu {
                 files,
                 flags: [MessageFlags.SuppressNotifications],
                 allowedMentions: { parse: [] },
-                components: [row as any],
+                components: row ? [row as any] : [],
             })
         }
 

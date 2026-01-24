@@ -1,5 +1,5 @@
 import { Bot } from '../Bot.js'
-import { Base, Message, Snowflake, TextBasedChannel, TextThreadChannel } from 'discord.js'
+import { Message, Snowflake, TextBasedChannel, TextThreadChannel } from 'discord.js'
 import { Attachment, AttachmentSource, BaseAttachment } from '../submissions/Attachment.js'
 import { Image } from '../submissions/Image.js'
 import Path from 'path'

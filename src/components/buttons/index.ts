@@ -21,6 +21,7 @@ import { EditFactButton } from "./EditFactButton.js";
 import { BackToCategoryButton } from "./BackToCategoryButton.js";
 import { SetDescriptionButton } from "./SetDescriptionButton.js";
 import { SkipDescriptionButton } from "./SkipDescriptionButton.js";
+import { EditInfoMultipleButton } from "./EditInfoMultipleButton.js";
 
 export function getButtons() {
     const Buttons = [
@@ -47,6 +48,7 @@ export function getButtons() {
         new BackToCategoryButton(),
         new SetDescriptionButton(),
         new SkipDescriptionButton(),
+        new EditInfoMultipleButton(),
     ];
     return Buttons;
 }

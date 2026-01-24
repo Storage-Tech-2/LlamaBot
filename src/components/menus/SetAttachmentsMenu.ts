@@ -11,6 +11,7 @@ import { AddAttachmentButton } from "../buttons/AddAttachmentButton.js";
 import { RefreshListButton } from "../buttons/RefreshListButton.js";
 import { SetDescriptionButton } from "../buttons/SetDescriptionButton.js";
 import { SkipDescriptionButton } from "../buttons/SkipDescriptionButton.js";
+import { EditInfoMultipleButton } from "../buttons/EditInfoMultipleButton.js";
 
 export class SetAttachmentsMenu implements Menu {
     getID(): string {
@@ -167,19 +168,8 @@ export class SetAttachmentsMenu implements Menu {
         const rows: ActionRowBuilder<any>[] = [];
 
         if (newAttachmentsProcessed.length > 0) {
-            rows.push(new ActionRowBuilder());
+            rows.push(new ActionRowBuilder().addComponents(new EditInfoMultipleButton().getBuilder(false)));
         }
-
-        newAttachmentsProcessed.forEach(attachment => {
-            const currentRow = rows[rows.length - 1];
-            const editDescriptionButton = new SetDescriptionButton().getBuilder(attachment.name, false, attachment.id, '');
-            if (currentRow.components.length >= 5) {
-                const newRow = new ActionRowBuilder().addComponents(editDescriptionButton);
-                rows.push(newRow);
-            } else {
-                currentRow.addComponents(editDescriptionButton);
-            }
-        });
 
         let description = `Attachments set by <@${interaction.user.id}>:\n\n` + getAttachmentsSetMessage(newAttachmentsProcessed);
 

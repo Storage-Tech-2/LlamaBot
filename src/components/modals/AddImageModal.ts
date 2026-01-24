@@ -9,7 +9,7 @@ import { SetAttachmentsMenu } from "../menus/SetAttachmentsMenu.js";
 import { AttachmentSource, BaseAttachment } from "../../submissions/Attachment.js";
 import { AuthorType } from "../../submissions/Author.js";
 import { SetImagesMenu } from "../menus/SetImagesMenu.js";
-import { SetDescriptionButton } from "../buttons/SetDescriptionButton.js";
+import { EditInfoMultipleButton } from "../buttons/EditInfoMultipleButton.js";
 
 export class AddImageModal implements Modal {
     getID(): string {
@@ -188,7 +188,7 @@ export class AddImageModal implements Modal {
             embed.setFooter({ text: imageObj.description.substring(0, 2048) });
         }
 
-        const editDescriptionButton = new SetDescriptionButton().getBuilder(imageObj.name, true, imageObj.id, '');
+        const editDescriptionButton = new EditInfoMultipleButton().getBuilder(true);
         const row = new ActionRowBuilder().addComponents(editDescriptionButton);
 
 
