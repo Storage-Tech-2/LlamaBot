@@ -10,7 +10,7 @@ import { LLMRequest } from "../llm/LLMRequest.js";
 import { ExtractionPrompt } from "../llm/prompts/ExtractionPrompt.js";
 import { LLMResponse } from "../llm/LLMResponse.js";
 import { extractUserIdsFromText, getAuthorsString, getDiscordAuthorsFromIDs, reclassifyAuthors, splitIntoChunks } from "../utils/Util.js";
-import { BaseAttachment } from "./Attachment.js";
+import { Attachment, BaseAttachment } from "./Attachment.js";
 import { RevisionManager } from "./RevisionManager.js";
 import { Revision, RevisionType } from "./Revision.js";
 import { RevisionEmbed } from "../embed/RevisionEmbed.js";
@@ -824,6 +824,18 @@ export class Submission {
         }, 5000)
 
         return attachments
+    }
+
+    async getAttachmentById(attachmentId: string): Promise<Attachment | null> {
+        const currentAttachments = await this.config.getConfig(SubmissionConfigs.ATTACHMENTS) || [];
+        const attachment = currentAttachments.find((att: Attachment) => att.id === attachmentId);
+        if (attachment) {
+            return attachment;
+        }
+        // otherwise, check all attachments in the channel
+        const allAttachments = await this.getAttachments();
+        const found = allAttachments.find(att => att.id === attachmentId);
+        return found || null;
     }
 
     public async publish(silent: boolean = false, force: boolean = false, statusCallback?: (status: string) => Promise<void>) {

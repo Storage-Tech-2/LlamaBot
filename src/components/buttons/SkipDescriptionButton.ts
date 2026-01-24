@@ -4,15 +4,15 @@ import { Button } from "../../interface/Button.js";
 import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 
-export class SkipAttachmentsButton implements Button {
+export class SkipDescriptionButton implements Button {
     getID(): string {
-        return "skip-attachments-button";
+        return "skip-description-button";
     }
 
-    getBuilder(): ButtonBuilder {
+    getBuilder(taskID: string): ButtonBuilder {
         return new ButtonBuilder()
-            .setCustomId(this.getID())
-            .setLabel('Skip Attachments')
+            .setCustomId(this.getID() + '|' + taskID)
+            .setLabel('Skip Description')
             .setStyle(ButtonStyle.Danger);
     }
 

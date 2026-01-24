@@ -7,7 +7,7 @@ import fs from 'fs/promises'
 import got from 'got'
 import sharp from 'sharp'
 import { MCMeta } from './MCMeta.js'
-import { escapeString, getAuthorName, getMessageAuthor } from './Util.js'
+import { escapeDiscordString, escapeString, getAuthorName, getMessageAuthor } from './Util.js'
 import yauzl from "yauzl"
 import nbt from 'prismarine-nbt'
 import { Litematic } from '../lib/litematic-reader/main.js'
@@ -528,7 +528,12 @@ export function getAttachmentsFromMessage(message: Message, attachments: BaseAtt
     }
     if (message.attachments.size > 0) {
         const hasDescription = message.content.startsWith("Description:");
-        const description = hasDescription ? message.content.substring(12).trim() : '';
+        let description = hasDescription ? message.content.substring(12).trim() : '';
+
+        if (!description && message.content.length < 200 && message.attachments.size === 1) {
+            // If only one attachment, use whole message as description
+            description = message.content.split('\n')[0].trim(); // only first line
+        }
 
         message.attachments.forEach(attachment => {
             const index = attachments.findIndex(attachment2 => attachment2.id === attachment.id);
@@ -727,4 +732,81 @@ export function getAttachmentDescriptionForMenus(attachment: BaseAttachment): st
         return `${new Date(attachment.timestamp).toLocaleDateString()} - ${attachment.description}`;
     }
     return `Sent by ${getAuthorName(attachment.author)} on ${new Date(attachment.timestamp).toLocaleDateString()}`;
+}
+
+export function getAttachmentsSetMessage(attachments: Attachment[]): string {
+    const litematics: Attachment[] = []
+    const wdls: Attachment[] = []
+    const videos: Attachment[] = []
+    const others: Attachment[] = []
+    attachments.forEach(attachment => {
+        if (attachment.contentType === 'youtube' || attachment.contentType === 'bilibili') {
+            videos.push(attachment)
+        } else if (attachment.wdl) {
+            wdls.push(attachment)
+        } else if (attachment.litematic) {
+            litematics.push(attachment)
+        } else {
+            others.push(attachment)
+        }
+    })
+
+    let description = '';
+    if (litematics.length) {
+        description += '**Litematics:**\n'
+        litematics.forEach(attachment => {
+            description += `- ${attachment.canDownload ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${attachment.litematic?.error || `MC ${attachment.litematic?.version}, ${attachment.litematic?.size}`}\n`
+            if (attachment.description) description += `  - ${attachment.description}\n`
+            description += `  - Sent by ${getAuthorName(attachment.author)} at <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
+        })
+    }
+
+    if (wdls.length) {
+        description += '**WDLs:**\n'
+        wdls.forEach(attachment => {
+            description += `- ${attachment.canDownload ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}\n`
+            if (attachment.description) description += `  - ${attachment.description}\n`
+            description += `  - Sent by ${getAuthorName(attachment.author)} at <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
+        })
+    }
+
+    if (videos.length) {
+        description += '**Videos:**\n'
+        videos.forEach(attachment => {
+            if (attachment.contentType === 'bilibili') {
+                description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Bilibili video\n`
+                if (attachment.description) description += `  - ${attachment.description}\n`
+                description += `  - Sent by ${getAuthorName(attachment.author)} at <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
+                return;
+            }
+            if (!attachment.youtube) {
+                description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link\n`
+                if (attachment.description) description += `  - ${attachment.description}`
+                description += `  - Sent by ${getAuthorName(attachment.author)} at <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
+                return;
+            }
+            description += `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): by [${escapeDiscordString(attachment.youtube?.author_name)}](${attachment.youtube?.author_url})\n`
+            if (attachment.description) description += `  - ${attachment.description}\n`
+            description += `  - Sent by ${getAuthorName(attachment.author)} at <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
+        })
+    }
+
+    if (others.length) {
+        description += '**Other files:**\n'
+        others.forEach(attachment => {
+            let type = attachment.contentType;
+            switch (attachment.contentType) {
+                case 'mediafire':
+                    type = 'Mediafire link';
+                    break;
+                case 'discord':
+                    type = 'Discord link';
+                    break;
+            }
+            description += `- ${attachment.contentType == 'discord' ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${type}\n`
+            if (attachment.description) description += `  - ${attachment.description}\n`
+            description += `  - Sent by ${getAuthorName(attachment.author)} at <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
+        })
+    }
+    return description;
 }

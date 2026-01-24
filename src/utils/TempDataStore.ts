@@ -14,9 +14,10 @@ export class TempDataStore {
     }
 
     getNewId(): string {
-        return `${Date.now()}-${Math.random().toString(36).substring(
+        return `${Math.random().toString(36).substring(
             2, 15)}`;
     }
+    
     addEntry(id: string, data: any, expiresInMs: number): void {
         const expiresAt = Date.now() + expiresInMs;
         this.entries.set(id, { id, data, expiresAt });

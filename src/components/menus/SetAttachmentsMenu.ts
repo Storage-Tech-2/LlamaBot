@@ -1,15 +1,19 @@
 import { ActionRowBuilder, Interaction, Message, MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { canEditSubmission, escapeDiscordString, escapeString, getAuthorName, replyEphemeral, splitIntoChunks, truncateFileName } from "../../utils/Util.js";
+import { canEditSubmission, replyEphemeral, splitIntoChunks, truncateFileName } from "../../utils/Util.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Attachment } from "../../submissions/Attachment.js";
 import { SkipAttachmentsButton } from "../buttons/SkipAttachmentsButton.js";
-import { filterAttachments, getAttachmentDescriptionForMenus } from "../../utils/AttachmentUtils.js";
+import { filterAttachments, getAttachmentDescriptionForMenus, getAttachmentsSetMessage } from "../../utils/AttachmentUtils.js";
 import { AddAttachmentButton } from "../buttons/AddAttachmentButton.js";
 import { RefreshListButton } from "../buttons/RefreshListButton.js";
 
+export type AttachmentAskDescriptionData = {
+    toAsk: Attachment[];
+    toSet: Attachment[];
+}
 export class SetAttachmentsMenu implements Menu {
     getID(): string {
         return "set-attachments-menu";
@@ -34,7 +38,7 @@ export class SetAttachmentsMenu implements Menu {
     async getBuilderOrNull(submission: Submission): Promise<StringSelectMenuBuilder | null> {
         const attachments = await submission.getAttachments()
         const currentAttachments = submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) ?? [];
-       
+
         currentAttachments.forEach(file => {
             if (!attachments.some(att => att.id === file.id)) {
                 attachments.push(file);
@@ -99,15 +103,45 @@ export class SetAttachmentsMenu implements Menu {
             return attachments.find(attachment => attachment.id === id) ?? currentAttachments.find(attachment => attachment.id === id);
         }).filter(o => !!o);
 
+        const addedAttachmentsWithoutDescriptions = newAttachments.filter(newAtt => {
+            return !newAtt.description && !currentAttachments.some(currAtt => currAtt.id === newAtt.id);
+        });
+
+        // if (addedAttachmentsWithoutDescriptions.length > 0) {
+        //     const data = {
+        //         toAsk: addedAttachmentsWithoutDescriptions,
+        //         toSet: newAttachments
+        //     }
+
+        //     const identifier = guildHolder.getBot().getTempDataStore().getNewId();
+        //     guildHolder.getBot().getTempDataStore().addEntry(identifier, data, 30 * 60 * 1000); // 30 minutes
+        // } else {
+            await interaction.update({
+                content: 'Processing attachments...',
+                components: [],
+                flags: MessageFlags.SuppressEmbeds
+            }); // clear loading state
+            await SetAttachmentsMenu.setAttachmentsAndSetResponse(submission, newAttachments, interaction);
+        // }
+    }
+
+    public static async setAttachmentsAndSetResponse(submission: Submission, newAttachments: Attachment[], interaction: StringSelectMenuInteraction): Promise<void> {
         submission.getConfigManager().setConfig(SubmissionConfigs.ATTACHMENTS, newAttachments);
         try {
             await submission.processAttachments()
         } catch (error: any) {
             console.error('Error processing attachments:', error)
-            await interaction.editReply({
-                content: 'Failed to process attachments: ' + error.message,
-                flags: MessageFlags.SuppressEmbeds
-            });
+            if (interaction.deferred) {
+                await interaction.editReply({
+                    content: 'Failed to process attachments: ' + error.message,
+                    flags: MessageFlags.SuppressEmbeds
+                });
+            } else {
+                await interaction.reply({
+                    content: 'Failed to process attachments: ' + error.message,
+                    flags: [MessageFlags.Ephemeral, MessageFlags.SuppressEmbeds]
+                });
+            }
             return;
         }
 
@@ -115,94 +149,27 @@ export class SetAttachmentsMenu implements Menu {
 
         submission.save()
 
-        let description = `Attachments set by <@${interaction.user.id}>:\n\n`
-
-        const litematics: Attachment[] = []
-        const wdls: Attachment[] = []
-        const videos: Attachment[] = []
-        const others: Attachment[] = []
-        newAttachmentsProcessed.forEach(attachment => {
-            if (attachment.contentType === 'youtube' || attachment.contentType === 'bilibili') {
-                videos.push(attachment)
-            } else if (attachment.wdl) {
-                wdls.push(attachment)
-            } else if (attachment.litematic) {
-                litematics.push(attachment)
-            } else {
-                others.push(attachment)
-            }
-        })
-
-        if (litematics.length) {
-            description += '**Litematics:**\n'
-            litematics.forEach(attachment => {
-                description += `- ${attachment.canDownload ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${attachment.litematic?.error || `MC ${attachment.litematic?.version}, ${attachment.litematic?.size}`}\n`
-                if (attachment.description) description += `  - ${attachment.description}\n`
-                description += `  - Sent by ${getAuthorName(attachment.author)} at <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
-            })
-        }
-
-        if (wdls.length) {
-            description += '**WDLs:**\n'
-            wdls.forEach(attachment => {
-                description += `- ${attachment.canDownload ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}\n`
-                if (attachment.description) description += `  - ${attachment.description}\n`
-                description += `  - Sent by ${getAuthorName(attachment.author)} at <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
-            })
-        }
-
-        if (videos.length) {
-            description += '**Videos:**\n'
-            videos.forEach(attachment => {
-                if (attachment.contentType === 'bilibili') {
-                    description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Bilibili video\n`
-                    if (attachment.description) description += `  - ${attachment.description}\n`
-                    description += `  - Sent by ${getAuthorName(attachment.author)} at <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
-                    return;
-                }
-                if (!attachment.youtube) {
-                    description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link\n`
-                    if (attachment.description) description += `  - ${attachment.description}`
-                    description += `  - Sent by ${getAuthorName(attachment.author)} at <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
-                    return;
-                }
-                description += `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): by [${escapeDiscordString(attachment.youtube?.author_name)}](${attachment.youtube?.author_url})\n`
-                if (attachment.description) description += `  - ${attachment.description}\n`
-                description += `  - Sent by ${getAuthorName(attachment.author)} at <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
-            })
-        }
-
-        if (others.length) {
-            description += '**Other files:**\n'
-            others.forEach(attachment => {
-                let type = attachment.contentType;
-                switch (attachment.contentType) {
-                    case 'mediafire':
-                        type = 'Mediafire link';
-                        break;
-                    case 'discord':
-                        type = 'Discord link';
-                        break;
-                }
-                description += `- ${attachment.contentType == 'discord' ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${type}\n`
-                if (attachment.description) description += `  - ${attachment.description}\n`
-                description += `  - Sent by ${getAuthorName(attachment.author)} at <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
-            })
-        }
+        let description = `Attachments set by <@${interaction.user.id}>:\n\n` + getAttachmentsSetMessage(newAttachmentsProcessed);
 
         const split = splitIntoChunks(description, 2000);
-        await interaction.editReply({
-            content: split[0],
-            flags: MessageFlags.SuppressEmbeds
-        })
+        if (interaction.deferred) {
+            await interaction.editReply({
+                content: split[0],
+                flags: MessageFlags.SuppressEmbeds
+            })
+        } else {
+            await interaction.reply({
+                content: split[0],
+                flags: MessageFlags.SuppressEmbeds
+            })
+        }
 
-        if (split.length > 1) {
-            for (let i = 1; i < split.length; i++) {
-                await interaction.followUp({
-                    content: split[i],
-                    flags: MessageFlags.SuppressEmbeds
-                })
-            }
+        for (let i = 1; i < split.length; i++) {
+            if (!interaction.channel || !interaction.channel.isSendable()) continue;
+            await interaction.channel.send({
+                content: split[i],
+                flags: MessageFlags.SuppressEmbeds
+            })
         }
 
         await submission.statusUpdated();
@@ -219,7 +186,7 @@ export class SetAttachmentsMenu implements Menu {
             }
             rows.push(secondRow);
 
-            return replyEphemeral(interaction, `Please choose other attachments (eg: Schematics/WDLs) for the submission`,{
+            return replyEphemeral(interaction, `Please choose other attachments (eg: Schematics/WDLs) for the submission`, {
                 components: rows
             })
         } else {
