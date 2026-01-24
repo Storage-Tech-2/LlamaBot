@@ -1,7 +1,7 @@
 import { FileUploadBuilder, LabelBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
-import { canEditSubmission, escapeDiscordString, replyEphemeral, splitIntoChunks } from "../../utils/Util.js";
+import { canEditSubmission, escapeDiscordString, replyEphemeral, splitIntoChunks, truncateStringWithEllipsis } from "../../utils/Util.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Attachment, AttachmentSource } from "../../submissions/Attachment.js";
 import { filterAttachments, getAttachmentsFromText } from "../../utils/AttachmentUtils.js";
@@ -229,22 +229,12 @@ export class AddAttachmentModal implements Modal {
             message += ` with description: ${description}`;
         }
 
-        const split = splitIntoChunks(message, 2000);
-        await interaction.editReply({
-            content: split[0],
+        await interaction.followUp({
+            content: truncateStringWithEllipsis(message, 2000),
             flags: [MessageFlags.SuppressEmbeds],
             allowedMentions: { parse: [] }
         })
 
-        if (split.length > 1) {
-            for (let i = 1; i < split.length; i++) {
-                await interaction.followUp({
-                    content: split[i],
-                    flags: MessageFlags.SuppressEmbeds,
-                    allowedMentions: { parse: [] }
-                })
-            }
-        }
         await submission.statusUpdated();
         submission.checkReview();
     }

@@ -187,7 +187,7 @@ export class AddImageModal implements Modal {
             embed.setFooter({ text: imageObj.description.substring(0, 2048) });
         }
 
-        await interaction.editReply({
+        await interaction.followUp({
             content: message,
             embeds: [embed],
             files: [file]
