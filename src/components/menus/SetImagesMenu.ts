@@ -96,6 +96,8 @@ export class SetImagesMenu implements Menu {
             return
         }
 
+        await interaction.deferUpdate();
+
         const attachments = await submission.getAttachments()
 
         const currentImages = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) ?? [];
@@ -128,21 +130,27 @@ export class SetImagesMenu implements Menu {
         });
 
         if (added.length === 0 && removed.length === 0) {
-            replyEphemeral(interaction, 'No changes made to images');
+            await interaction.editReply('No changes made to images.');
             return;
         }
 
+        await SetImagesMenu.setAndReply(submission, interaction, newImages, isFirstTime);
+    }
+
+    public static async setAndReply(submission: Submission, interaction: StringSelectMenuInteraction, newImages: BaseAttachment[], isFirstTime: boolean) {
         submission.getConfigManager().setConfig(SubmissionConfigs.IMAGES, newImages);
-        await interaction.deferReply()
+   
         try {
             await submission.processImages();
         } catch (error: any) {
             console.error('Error processing image:', error.message)
-            interaction.editReply('Error processing image: ' + error.message);
+            await interaction.editReply('Error processing image: ' + error.message);
             return
         }
 
         await submission.save();
+
+        await this.sendImagesMenuAndButton(submission, interaction, true);
 
         const files = [];
         const embeds = [];
@@ -163,10 +171,11 @@ export class SetImagesMenu implements Menu {
 
             embeds.push(embed);
         }
-        await interaction.editReply({
+        await interaction.followUp({
             content: newImages.length === 0 ? `<@${interaction.user.id}> marked this submission as containing no images` : `<@${interaction.user.id}> set main image${newImages.length > 1 ? 's' : ''} for submission`,
             embeds,
-            files
+            files,
+            flags: [MessageFlags.SuppressNotifications]
         })
 
         await submission.statusUpdated();
@@ -188,7 +197,7 @@ export class SetImagesMenu implements Menu {
             }
             rows.push(secondRow);
 
-            if (interaction.isButton() && useUpdate) {
+            if ((interaction.isButton() || interaction.isStringSelectMenu()) && useUpdate) {
                 await interaction.update({
                     content: `Please choose images for the submission`,
                     components: rows as any
@@ -205,7 +214,7 @@ export class SetImagesMenu implements Menu {
             if (submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null) {
                 row.addComponents(new SkipImagesButton().getBuilder())
             }
-            if (interaction.isButton() && useUpdate) {
+            if ((interaction.isButton() || interaction.isStringSelectMenu()) && useUpdate) {
                 await interaction.update({
                     content: `No images found! Try uploading images first and then press the button below.`,
                     components: [

@@ -96,7 +96,7 @@ export class SetAttachmentsMenu implements Menu {
             return
         }
 
-        await interaction.deferReply()
+        await interaction.deferUpdate()
         const attachments = await submission.getAttachments()
         const currentAttachments = submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) ?? [];
         const newAttachments = interaction.values.map(id => {
@@ -152,17 +152,14 @@ export class SetAttachmentsMenu implements Menu {
         let description = `Attachments set by <@${interaction.user.id}>:\n\n` + getAttachmentsSetMessage(newAttachmentsProcessed);
 
         const split = splitIntoChunks(description, 2000);
-        if (interaction.deferred) {
-            await interaction.editReply({
-                content: split[0],
-                flags: MessageFlags.SuppressEmbeds
-            })
-        } else {
-            await interaction.reply({
-                content: split[0],
-                flags: MessageFlags.SuppressEmbeds
-            })
-        }
+        
+        await this.sendAttachmentsMenuAndButton(submission, interaction, true);
+
+        await interaction.followUp({
+            content: split[0],
+            flags: MessageFlags.SuppressEmbeds
+        })
+        
 
         for (let i = 1; i < split.length; i++) {
             if (!interaction.channel || !interaction.channel.isSendable()) continue;
@@ -186,7 +183,7 @@ export class SetAttachmentsMenu implements Menu {
             }
             rows.push(secondRow);
 
-            if (interaction.isButton() && useUpdate) {
+            if ((interaction.isButton() || interaction.isStringSelectMenu()) && useUpdate) {
                 await interaction.update({
                     content: `Please choose other attachments (eg: Schematics/WDLs) for the submission`,
                     components: rows as any
@@ -203,7 +200,7 @@ export class SetAttachmentsMenu implements Menu {
             if (submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) === null) {
                 row.addComponents(new SkipAttachmentsButton().getBuilder())
             }
-            if (interaction.isButton() && useUpdate) {
+            if ((interaction.isButton() || interaction.isStringSelectMenu()) && useUpdate) {
                 await interaction.update({
                     content: `No attachments found! Try uploading attachments first and then press the button below.`,
                     components: [

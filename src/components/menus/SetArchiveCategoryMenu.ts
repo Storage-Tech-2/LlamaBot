@@ -82,8 +82,9 @@ export class SetArchiveCategoryMenu implements Menu {
         const newCategory = interaction.values[0]
         const row = new ActionRowBuilder()
             .addComponents(await new SetArchiveChannelMenu().getBuilder(guildHolder, newCategory, submission))
-        await replyEphemeral(interaction, `Please select an archive channel`, {
-            components: [row]
+        await interaction.update({
+            content: `Please select an archive channel`,
+            components: [row as any]
         })
 
     }
