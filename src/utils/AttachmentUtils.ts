@@ -745,6 +745,9 @@ export function getAttachmentDescriptionForMenus(attachment: BaseAttachment): st
 }
 
 export function getAttachmentsSetMessage(attachments: Attachment[]): string {
+    if (attachments.length === 0) {
+        return 'No attachments set.';
+    }
     const litematics: Attachment[] = []
     const wdls: Attachment[] = []
     const videos: Attachment[] = []
