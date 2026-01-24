@@ -84,7 +84,7 @@ export class EditCommand implements Command {
         const subcommand = interaction.options.getSubcommand();
         switch (subcommand) {
             case 'authors': {
-                await SetAuthorsMenu.sendAuthorsMenuAndButton(submission, interaction);
+                await SetAuthorsMenu.sendAuthorsMenuAndButton(submission, interaction, false);
                 break;
             }
             case 'channel': {

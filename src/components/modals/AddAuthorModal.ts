@@ -200,7 +200,7 @@ export class AddAuthorModal implements Modal {
             flags: MessageFlags.SuppressNotifications
         });
 
-        await SetAuthorsMenu.sendAuthorsMenuAndButton(submission, interaction);
+        await SetAuthorsMenu.sendAuthorsMenuAndButton(submission, interaction, true);
 
         await submission.statusUpdated();
 

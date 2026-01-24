@@ -236,7 +236,7 @@ export class SetAuthorsMenu implements Menu {
         await submission.onAuthorsUpdated();
     }
 
-    public static async sendAuthorsMenuAndButton(submission: Submission, interaction: Interaction) {
+    public static async sendAuthorsMenuAndButton(submission: Submission, interaction: Interaction, replace: boolean) {
         const guildHolder = submission.getGuildHolder();
         const components = [];
         const row = new ActionRowBuilder()
@@ -267,7 +267,7 @@ export class SetAuthorsMenu implements Menu {
         }
         row2.addComponents(new AddAuthorButton().getBuilder());
         components.push(row2);
-        replyReplace(false, interaction, `Please select author(s) for the submission. They will also be able to edit this submission.`,
+        replyReplace(replace, interaction, `Please select author(s) for the submission. They will also be able to edit this submission.`,
             components
         );
     }

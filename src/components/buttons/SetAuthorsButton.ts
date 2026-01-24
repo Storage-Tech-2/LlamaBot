@@ -35,7 +35,7 @@ export class SetAuthorsButton implements Button {
             return;
         }
 
-        SetAuthorsMenu.sendAuthorsMenuAndButton(submission, interaction);
+        SetAuthorsMenu.sendAuthorsMenuAndButton(submission, interaction, false);
     }
 
 }
