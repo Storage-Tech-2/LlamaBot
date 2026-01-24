@@ -1,4 +1,4 @@
-import { ActionRowBuilder, Interaction, Message, MessageFlags, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, UserSelectMenuBuilder, UserSelectMenuInteraction } from "discord.js";
+import { ActionRowBuilder, Interaction, MessageFlags, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, UserSelectMenuBuilder, UserSelectMenuInteraction } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
 import { areAuthorsSame, canEditSubmission, getAuthorName, getAuthorsString, getDiscordAuthorsFromIDs, reclassifyAuthors, replyEphemeral, replyReplace, truncateStringWithEllipsis } from "../../utils/Util.js";

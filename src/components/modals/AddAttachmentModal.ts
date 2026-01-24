@@ -1,7 +1,7 @@
 import { FileUploadBuilder, LabelBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
-import { canEditSubmission, escapeDiscordString, replyEphemeral, splitIntoChunks, truncateStringWithEllipsis } from "../../utils/Util.js";
+import { canEditSubmission, escapeDiscordString, replyEphemeral, truncateStringWithEllipsis } from "../../utils/Util.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Attachment, AttachmentSource } from "../../submissions/Attachment.js";
 import { filterAttachments, getAttachmentsFromText } from "../../utils/AttachmentUtils.js";
