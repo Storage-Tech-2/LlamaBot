@@ -31,9 +31,9 @@ export class AddAttachmentButton implements Button {
             return;
         }
 
-        // check if attachments exceed 10
-        if ((submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) || []).length >= 10) {
-            replyEphemeral(interaction, 'You cannot add more than 10 attachments to a submission!');
+        // check if attachments exceed 25
+        if ((submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) || []).length >= 25) {
+            replyEphemeral(interaction, 'You cannot add more than 25 attachments to a submission!');
             return;
         }
 

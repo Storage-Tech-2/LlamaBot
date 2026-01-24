@@ -22,7 +22,7 @@ export class SetAttachmentsMenu implements Menu {
         return new StringSelectMenuBuilder()
             .setCustomId(this.getID())
             .setMinValues(0)
-            .setMaxValues(Math.min(10, fileAttachments.length))
+            .setMaxValues(Math.min(25, fileAttachments.length))
             .setPlaceholder('Select files')
             .addOptions(
                 fileAttachments.map(file => {
