@@ -94,12 +94,11 @@ export class SkipDescriptionButton implements Button {
                 embeds.push(embed);
             }
 
-            await interaction.reply({
+            await interaction.update({
                 content: `Skipped description for **${escapeDiscordString(skippedAttachment.name)}**.` +
                     `\n\nSet a description for the next ${isImage ? 'image' : 'attachment'} **${escapeDiscordString(nextAttachment.name)}**?`,
                 components: [row as any],
                 embeds: embeds,
-                flags: [MessageFlags.Ephemeral]
             });
         } else {
             // all done, set attachments
