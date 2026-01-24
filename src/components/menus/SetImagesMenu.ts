@@ -1,4 +1,4 @@
-import { ActionRowBuilder, AttachmentBuilder, EmbedBuilder, Interaction, MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
+import { ActionRowBuilder, AttachmentBuilder, ButtonInteraction, EmbedBuilder, Interaction, MessageFlags, ModalSubmitInteraction, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
 import { canEditSubmission, escapeDiscordString, replyEphemeral, truncateFileName, truncateStringWithEllipsis } from "../../utils/Util.js";
@@ -113,7 +113,6 @@ export class SetImagesMenu implements Menu {
             return null;
         }).filter(o => !!o);
 
-        const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null;
         const added: BaseAttachment[] = [];
         const removed: BaseAttachment[] = [];
 
@@ -134,12 +133,14 @@ export class SetImagesMenu implements Menu {
             return;
         }
 
-        await SetImagesMenu.setAndReply(submission, interaction, newImages, isFirstTime);
+        await SetImagesMenu.setAndReply(submission, interaction, newImages);
     }
 
-    public static async setAndReply(submission: Submission, interaction: StringSelectMenuInteraction, newImages: BaseAttachment[], isFirstTime: boolean) {
+    public static async setAndReply(submission: Submission, interaction: StringSelectMenuInteraction | ModalSubmitInteraction | ButtonInteraction, newImages: BaseAttachment[]) {
+
+        const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null;
         submission.getConfigManager().setConfig(SubmissionConfigs.IMAGES, newImages);
-   
+
         try {
             await submission.processImages();
         } catch (error: any) {
@@ -150,7 +151,9 @@ export class SetImagesMenu implements Menu {
 
         await submission.save();
 
-        await this.sendImagesMenuAndButton(submission, interaction, true);
+        if (interaction.isStringSelectMenu()) {
+            await this.sendImagesMenuAndButton(submission, interaction, true);
+        }
 
         const files = [];
         const embeds = [];
@@ -171,12 +174,23 @@ export class SetImagesMenu implements Menu {
 
             embeds.push(embed);
         }
-        await interaction.followUp({
-            content: newImages.length === 0 ? `<@${interaction.user.id}> marked this submission as containing no images` : `<@${interaction.user.id}> set main image${newImages.length > 1 ? 's' : ''} for submission`,
-            embeds,
-            files,
-            flags: [MessageFlags.SuppressNotifications]
-        })
+
+        if (interaction.isStringSelectMenu()) {
+            await interaction.followUp({
+                content: newImages.length === 0 ? `<@${interaction.user.id}> marked this submission as containing no images` : `<@${interaction.user.id}> set main image${newImages.length > 1 ? 's' : ''} for submission`,
+                embeds,
+                files,
+                flags: [MessageFlags.SuppressNotifications],
+                allowedMentions: { parse: [] }
+            })
+        } else {
+            await interaction.editReply({
+                content: newImages.length === 0 ? `<@${interaction.user.id}> marked this submission as containing no images` : `<@${interaction.user.id}> set main image${newImages.length > 1 ? 's' : ''} for submission`,
+                embeds,
+                files,
+                allowedMentions: { parse: [] }
+            })
+        }
 
         await submission.statusUpdated();
 

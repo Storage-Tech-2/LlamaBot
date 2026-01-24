@@ -31,7 +31,8 @@ export class AddImageModal implements Modal {
 
         const descriptionInput = new TextInputBuilder()
             .setCustomId('descriptionInput')
-            .setPlaceholder('Optional description for the image')
+            .setPlaceholder('Optional description')
+            .setMaxLength(300)
             .setStyle(TextInputStyle.Paragraph)
             .setRequired(false);
 
@@ -83,6 +84,11 @@ export class AddImageModal implements Modal {
 
         if (!uploadedAttachment) {
             replyEphemeral(interaction, 'No attachment uploaded. Please try again.');
+            return;
+        }
+
+        if (description.length > 300) {
+            replyEphemeral(interaction, 'Description cannot exceed 300 characters!');
             return;
         }
 

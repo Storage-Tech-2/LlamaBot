@@ -7,11 +7,12 @@ import fs from 'fs/promises'
 import got from 'got'
 import sharp from 'sharp'
 import { MCMeta } from './MCMeta.js'
-import { escapeDiscordString, escapeString, getAuthorName, getMessageAuthor } from './Util.js'
+import { escapeDiscordString, escapeString, getAuthorName, getMessageAuthor, truncateStringWithEllipsis } from './Util.js'
 import yauzl from "yauzl"
 import nbt from 'prismarine-nbt'
 import { Litematic } from '../lib/litematic-reader/main.js'
 import { Author } from '../submissions/Author.js'
+import { truncate } from 'fs'
 
 export async function processImages(images: Image[], download_folder: string, processed_folder: string, bot: Bot): Promise<Image[]> {
     if (images.length > 0) {
@@ -431,11 +432,16 @@ export function getAttachmentsFromText(text: string, attachments: BaseAttachment
                 description = text.substring(lineStart, index - 2).trim();
             }
 
+            // if description is too long, truncate it
+            if (description && description.length > 300) {
+                description = truncateStringWithEllipsis(description, 300);
+            }
+
             // Check if mediafire
             // https://www.mediafire.com/file/idjbw9lc1kt4obj/1_17_Crafter-r2.zip/file
             // https://www.mediafire.com/folder/5ajiire4a6cs5/Scorpio+MIS
             if (url.startsWith('https://www.mediafire.com/file/') || url.startsWith('https://www.mediafire.com/folder/')) {
-                const id = url.split('/')[4]
+                const id = url.split('/')[4].substring(0, 20) // limit to first 20 characters
                 const name = url.split('/')[5]
                 // check if duplicate
                 if (attachments.some(attachment => attachment.id === id)) {
@@ -454,7 +460,7 @@ export function getAttachmentsFromText(text: string, attachments: BaseAttachment
                 })
             } else if (url.startsWith('https://youtu.be/') || url.startsWith('https://www.youtube.com/watch')) {
                 // YouTube links
-                const videoId = new URL(url).searchParams.get('v') || url.split('/').pop();
+                const videoId = (new URL(url).searchParams.get('v') || url.split('/').pop() || '').substring(0, 20);
                 if (!videoId) return;
                 if (attachments.some(attachment => attachment.id === videoId)) {
                     return;
@@ -496,7 +502,7 @@ export function getAttachmentsFromText(text: string, attachments: BaseAttachment
             } else if (url.startsWith('https://bilibili.com/') || url.startsWith('https://www.bilibili.com/')) {
                 // Bilibili links
                 const urlObj = new URL(url);
-                const videoId = urlObj.pathname.split('/')[2] || urlObj.searchParams.get('bvid');
+                const videoId = (urlObj.pathname.split('/')[2] || urlObj.searchParams.get('bvid') || '').substring(0, 20);
                 if (!videoId) return;
                 if (attachments.some(attachment => attachment.id === videoId)) {
                     return;
@@ -533,6 +539,11 @@ export function getAttachmentsFromMessage(message: Message, attachments: BaseAtt
         if (!description && message.content.length < 100 && message.attachments.size === 1) {
             // If only one attachment, use whole message as description
             description = message.content.split('\n')[0].trim(); // only first line
+        }
+
+        // if description is too long, truncate it
+        if (description && description.length > 300) {
+            description = truncateStringWithEllipsis(description, 300);
         }
 
         message.attachments.forEach(attachment => {

@@ -49,3 +49,9 @@ export type Attachment = BaseAttachment & {
         height: number, // Video height
     }
 }
+
+export type AttachmentAskDescriptionData = {
+    areImages: boolean;
+    toAsk: Attachment[];
+    toSet: Attachment[];
+}

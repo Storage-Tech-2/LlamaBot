@@ -7,6 +7,7 @@ import { DictionaryEditModal } from "./DictionaryEditModal.js";
 import { AddAttachmentModal } from "./AddAttachmentModal.js";
 import { AddImageModal } from "./AddImageModal.js";
 import { FactEditModal } from "./FactEditModal.js";
+import { SetDescriptionModal } from "./SetDescriptionModal.js";
 
 export function getModals(): Modal[] {
     const Modals: Modal[] = [
@@ -17,7 +18,8 @@ export function getModals(): Modal[] {
         new AddAttachmentModal(),
         new AddImageModal(),
         new DictionaryEditModal(),
-        new FactEditModal()
+        new FactEditModal(),
+        new SetDescriptionModal(),
     ];
     return Modals;
 }

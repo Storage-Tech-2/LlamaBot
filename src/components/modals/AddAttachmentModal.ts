@@ -38,7 +38,8 @@ export class AddAttachmentModal implements Modal {
 
         const descriptionInput = new TextInputBuilder()
             .setCustomId('descriptionInput')
-            .setPlaceholder('Optional description for the attachment')
+            .setPlaceholder('Optional description')
+            .setMaxLength(300)
             .setStyle(TextInputStyle.Paragraph)
             .setRequired(false);
 
@@ -97,6 +98,11 @@ export class AddAttachmentModal implements Modal {
 
         if (uploadedAttachment && url) {
             replyEphemeral(interaction, 'Please provide either an uploaded attachment or a URL, not both.');
+            return;
+        }
+
+        if (description.length > 300) {
+            replyEphemeral(interaction, 'Description cannot exceed 300 characters!');
             return;
         }
 
@@ -218,14 +224,16 @@ export class AddAttachmentModal implements Modal {
         const split = splitIntoChunks(message, 2000);
         await interaction.editReply({
             content: split[0],
-            flags: MessageFlags.SuppressEmbeds
+            flags: [MessageFlags.SuppressEmbeds],
+            allowedMentions: { parse: [] }
         })
 
         if (split.length > 1) {
             for (let i = 1; i < split.length; i++) {
                 await interaction.followUp({
                     content: split[i],
-                    flags: MessageFlags.SuppressEmbeds
+                    flags: MessageFlags.SuppressEmbeds,
+                    allowedMentions: { parse: [] }
                 })
             }
         }

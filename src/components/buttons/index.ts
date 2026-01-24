@@ -19,6 +19,8 @@ import { SkipAttachmentsButton } from "./SkipAttachmentsButton.js";
 import { SkipImagesButton } from "./SkipImagesButton.js";
 import { EditFactButton } from "./EditFactButton.js";
 import { BackToCategoryButton } from "./BackToCategoryButton.js";
+import { SetDescriptionButton } from "./SetDescriptionButton.js";
+import { SkipDescriptionButton } from "./SkipDescriptionButton.js";
 
 export function getButtons() {
     const Buttons = [
@@ -43,6 +45,8 @@ export function getButtons() {
         new EditDictionaryEntryButton(),
         new EditFactButton(),
         new BackToCategoryButton(),
+        new SetDescriptionButton(),
+        new SkipDescriptionButton(),
     ];
     return Buttons;
 }

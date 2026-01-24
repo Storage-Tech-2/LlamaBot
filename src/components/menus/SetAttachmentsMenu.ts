@@ -1,19 +1,15 @@
-import { ActionRowBuilder, Interaction, MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
+import { ActionRowBuilder, ButtonInteraction, Interaction, MessageFlags, ModalSubmitInteraction, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
 import { canEditSubmission, replyEphemeral, splitIntoChunks, truncateFileName, truncateStringWithEllipsis } from "../../utils/Util.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
-import { Attachment } from "../../submissions/Attachment.js";
+import { Attachment, AttachmentAskDescriptionData } from "../../submissions/Attachment.js";
 import { SkipAttachmentsButton } from "../buttons/SkipAttachmentsButton.js";
 import { filterAttachments, getAttachmentDescriptionForMenus, getAttachmentsSetMessage } from "../../utils/AttachmentUtils.js";
 import { AddAttachmentButton } from "../buttons/AddAttachmentButton.js";
 import { RefreshListButton } from "../buttons/RefreshListButton.js";
 
-export type AttachmentAskDescriptionData = {
-    toAsk: Attachment[];
-    toSet: Attachment[];
-}
 export class SetAttachmentsMenu implements Menu {
     getID(): string {
         return "set-attachments-menu";
@@ -103,29 +99,25 @@ export class SetAttachmentsMenu implements Menu {
             return attachments.find(attachment => attachment.id === id) ?? currentAttachments.find(attachment => attachment.id === id);
         }).filter(o => !!o);
 
-        // const addedAttachmentsWithoutDescriptions = newAttachments.filter(newAtt => {
-        //     return !newAtt.description && !currentAttachments.some(currAtt => currAtt.id === newAtt.id);
-        // });
+        const addedAttachmentsWithoutDescriptions = newAttachments.filter(newAtt => {
+            return !newAtt.description && !currentAttachments.some(currAtt => currAtt.id === newAtt.id);
+        });
 
-        // if (addedAttachmentsWithoutDescriptions.length > 0) {
-        //     const data = {
-        //         toAsk: addedAttachmentsWithoutDescriptions,
-        //         toSet: newAttachments
-        //     }
+        if (addedAttachmentsWithoutDescriptions.length > 0) {
+            const data: AttachmentAskDescriptionData = {
+                areImages: false,
+                toAsk: addedAttachmentsWithoutDescriptions,
+                toSet: newAttachments
+            }
 
-        //     const identifier = guildHolder.getBot().getTempDataStore().getNewId();
-        //     guildHolder.getBot().getTempDataStore().addEntry(identifier, data, 30 * 60 * 1000); // 30 minutes
-        // } else {
-        // await interaction.update({
-        //     content: 'Processing attachments...',
-        //     components: [],
-        //     flags: MessageFlags.SuppressEmbeds
-        // }); // clear loading state
-        await SetAttachmentsMenu.setAttachmentsAndSetResponse(submission, newAttachments, interaction);
-        // }
+            const identifier = guildHolder.getBot().getTempDataStore().getNewId();
+            guildHolder.getBot().getTempDataStore().addEntry(identifier, data, 30 * 60 * 1000); // 30 minutes
+        } else {
+            await SetAttachmentsMenu.setAttachmentsAndSetResponse(submission, newAttachments, interaction);
+        }
     }
 
-    public static async setAttachmentsAndSetResponse(submission: Submission, newAttachments: Attachment[], interaction: StringSelectMenuInteraction): Promise<void> {
+    public static async setAttachmentsAndSetResponse(submission: Submission, newAttachments: Attachment[], interaction: StringSelectMenuInteraction | ModalSubmitInteraction | ButtonInteraction): Promise<void> {
         submission.getConfigManager().setConfig(SubmissionConfigs.ATTACHMENTS, newAttachments);
         try {
             await submission.processAttachments()
@@ -152,20 +144,30 @@ export class SetAttachmentsMenu implements Menu {
         let description = `Attachments set by <@${interaction.user.id}>:\n\n` + getAttachmentsSetMessage(newAttachmentsProcessed);
 
         const split = splitIntoChunks(description, 2000);
-        
-        await this.sendAttachmentsMenuAndButton(submission, interaction, true);
 
-        await interaction.followUp({
-            content: split[0],
-            flags: MessageFlags.SuppressEmbeds
-        })
-        
+        if (interaction.isStringSelectMenu()) {
+            await this.sendAttachmentsMenuAndButton(submission, interaction, true);
+
+            await interaction.followUp({
+                content: split[0],
+                flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications],
+                allowedMentions: { parse: [] }
+            })
+        } else {
+            await interaction.editReply({
+                content: split[0],
+                flags: [MessageFlags.SuppressEmbeds],
+                allowedMentions: { parse: [] }
+            })
+        }
+
 
         for (let i = 1; i < split.length; i++) {
             if (!interaction.channel || !interaction.channel.isSendable()) continue;
             await interaction.channel.send({
                 content: split[i],
-                flags: MessageFlags.SuppressEmbeds
+                flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications],
+                allowedMentions: { parse: [] }
             })
         }
 
