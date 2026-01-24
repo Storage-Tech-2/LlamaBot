@@ -47,12 +47,14 @@ export async function replyReplace(doUpdate: boolean, interaction: Interaction, 
             return await interaction.editReply({
                 content: content,
                 components: components,
+                embeds: [],
                 allowedMentions: { parse: [] }
             })
         } else if ((interaction.isButton() || interaction.isStringSelectMenu()) && doUpdate) {
             return await interaction.update({
                 content: content,
                 components: components,
+                embeds: [],
                 allowedMentions: { parse: [] }
             })
         } else if (interaction.isRepliable() && !interaction.replied) {
@@ -60,6 +62,7 @@ export async function replyReplace(doUpdate: boolean, interaction: Interaction, 
                 content: content,
                 components: components,
                 flags: [MessageFlags.SuppressNotifications, MessageFlags.Ephemeral],
+                embeds: [],
                 allowedMentions: { parse: [] }
             })
         } else if (interaction.isRepliable()) {
@@ -67,6 +70,7 @@ export async function replyReplace(doUpdate: boolean, interaction: Interaction, 
                 content: content,
                 components: components,
                 flags: [MessageFlags.SuppressNotifications, MessageFlags.Ephemeral],
+                embeds: [],
                 allowedMentions: { parse: [] }
             })
         } else {
