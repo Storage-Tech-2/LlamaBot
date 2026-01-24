@@ -530,7 +530,7 @@ export function getAttachmentsFromMessage(message: Message, attachments: BaseAtt
         const hasDescription = message.content.startsWith("Description:");
         let description = hasDescription ? message.content.substring(12).trim() : '';
 
-        if (!description && message.content.length < 200 && message.attachments.size === 1) {
+        if (!description && message.content.length < 100 && message.attachments.size === 1) {
             // If only one attachment, use whole message as description
             description = message.content.split('\n')[0].trim(); // only first line
         }
