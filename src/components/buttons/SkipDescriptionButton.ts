@@ -12,14 +12,14 @@ export class SkipDescriptionButton implements Button {
         return "skip-desc-btn";
     }
 
-    getBuilder(isImage: boolean, attachmentID: Snowflake, taskID: string): ButtonBuilder {
+    getBuilder(isImage: boolean, attachmentID: Snowflake, taskID: string, all: boolean): ButtonBuilder {
         return new ButtonBuilder()
-            .setCustomId(this.getID() + '|' + (isImage ? 'i' : 'a') + '|' + attachmentID + '|' + taskID)
-            .setLabel('Skip Description')
-            .setStyle(ButtonStyle.Danger);
+            .setCustomId(this.getID() + '|' + (isImage ? 'i' : 'a') + '|' + attachmentID + '|' + taskID + '|' + (all ? '1' : '0'))
+            .setLabel(all ? 'Skip All' : 'Skip')
+            .setStyle(all ? ButtonStyle.Danger : ButtonStyle.Secondary);
     }
 
-    async execute(guildHolder: GuildHolder, interaction: ButtonInteraction, type: string, attachmentID: Snowflake, taskID: string): Promise<void> {
+    async execute(guildHolder: GuildHolder, interaction: ButtonInteraction, type: string, attachmentID: Snowflake, taskID: string, all: string): Promise<void> {
         const submission = await guildHolder.getSubmissionsManager().getSubmission(interaction.channelId);
         if (!submission) {
             replyEphemeral(interaction, 'Submission not found');
@@ -35,6 +35,7 @@ export class SkipDescriptionButton implements Button {
         }
 
         const isImage = type === 'i';
+        const isAll = all === '1';
         const processing = isImage ? submission.imagesProcessing : submission.attachmentsProcessing;
 
         if (processing) {
@@ -50,15 +51,20 @@ export class SkipDescriptionButton implements Button {
             return;
         }
 
-        // check if attachmentID is first in toAsk
-        if (attachmentSetTaskData.toAsk.length === 0 || attachmentSetTaskData.toAsk[0].id !== attachmentID) {
-            replyEphemeral(interaction, 'This attachment is not the current one to set description for.');
-            return;
-        }
+        let skippedAttachment = null;
 
-        // remove from toAsk and add to toSet without description
-        const skippedAttachment = attachmentSetTaskData.toAsk.shift()!;
-        skippedAttachment.description = '';
+        if (!isAll) {
+            // check if attachmentID is first in toAsk
+            if (attachmentSetTaskData.toAsk.length === 0 || attachmentSetTaskData.toAsk[0].id !== attachmentID) {
+                replyEphemeral(interaction, 'This attachment is not the current one to set description for.');
+                return;
+            }
+
+            // remove from toAsk and add to toSet without description
+            skippedAttachment = attachmentSetTaskData.toAsk.shift();
+        } else {
+            attachmentSetTaskData.toAsk.length = 0;
+        }
 
 
 
@@ -66,23 +72,27 @@ export class SkipDescriptionButton implements Button {
             // ask for the next one
             const nextAttachment = attachmentSetTaskData.toAsk[0];
             const askButton = new SetDescriptionButton().getBuilder(nextAttachment.name, isImage, nextAttachment.id, taskID);
-            const skipButton = new SkipDescriptionButton().getBuilder(isImage, nextAttachment.id, taskID);
+            const skipButton = new SkipDescriptionButton().getBuilder(isImage, nextAttachment.id, taskID, false);
             const row = new ActionRowBuilder().addComponents(askButton, skipButton);
 
-            await interaction.reply({
+            if (!skippedAttachment) {
+                throw new Error('Skipped attachment is null when it should not be.');
+            }
+
+            await interaction.update({
                 content: `Skipped description for **${escapeDiscordString(skippedAttachment.name)}**.` +
                     `\n\nSet a description for the next ${isImage ? 'image' : 'attachment'} **${escapeDiscordString(nextAttachment.name)}**?`,
-                flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds],
+                flags: [MessageFlags.SuppressEmbeds],
                 components: [row as any],
             });
         } else {
             // all done, set attachments
-            await interaction.deferReply();
+            await interaction.deferUpdate();
             guildHolder.getBot().getTempDataStore().removeEntry(taskID);
             if (isImage) {
-                await SetImagesMenu.setAndReply(submission, interaction, attachmentSetTaskData.toSet);
+                await SetImagesMenu.setAndReply(true, submission, interaction, attachmentSetTaskData.toSet);
             } else {
-                await SetAttachmentsMenu.setAttachmentsAndSetResponse(submission, attachmentSetTaskData.toSet, interaction);
+                await SetAttachmentsMenu.setAttachmentsAndSetResponse(true, submission, attachmentSetTaskData.toSet, interaction);
             }
         }
 

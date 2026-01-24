@@ -118,8 +118,9 @@ export class SetAttachmentsMenu implements Menu {
 
             const nextAttachment = data.toAsk[0];
             const askButton = new SetDescriptionButton().getBuilder(nextAttachment.name, false, nextAttachment.id, identifier);
-            const skipButton = new SkipDescriptionButton().getBuilder(false, nextAttachment.id, identifier);
-            const row = new ActionRowBuilder().addComponents(askButton, skipButton);
+            const skipButton = new SkipDescriptionButton().getBuilder(false, nextAttachment.id, identifier, false);
+            const skipAllButton = new SkipDescriptionButton().getBuilder(false, nextAttachment.id, identifier, true);
+            const row = new ActionRowBuilder().addComponents(askButton, skipButton, skipAllButton);
 
             await interaction.editReply({
                 content: `We've detected that you added ${addedAttachmentsWithoutDescriptions.length} attachment${addedAttachmentsWithoutDescriptions.length > 1 ? 's' : ''} without descriptions.` +
@@ -128,11 +129,11 @@ export class SetAttachmentsMenu implements Menu {
                 components: [row as any],
             });
         } else {
-            await SetAttachmentsMenu.setAttachmentsAndSetResponse(submission, newAttachments, interaction);
+            await SetAttachmentsMenu.setAttachmentsAndSetResponse(true, submission, newAttachments, interaction);
         }
     }
 
-    public static async setAttachmentsAndSetResponse(submission: Submission, newAttachments: Attachment[], interaction: StringSelectMenuInteraction | ModalSubmitInteraction | ButtonInteraction): Promise<void> {
+    public static async setAttachmentsAndSetResponse(replace: boolean, submission: Submission, newAttachments: Attachment[], interaction: StringSelectMenuInteraction | ModalSubmitInteraction | ButtonInteraction): Promise<void> {
         submission.getConfigManager().setConfig(SubmissionConfigs.ATTACHMENTS, newAttachments);
         try {
             await submission.processAttachments()
@@ -160,7 +161,7 @@ export class SetAttachmentsMenu implements Menu {
 
         const split = splitIntoChunks(description, 2000);
 
-        if (interaction.isStringSelectMenu()) {
+        if (replace) {
             await this.sendAttachmentsMenuAndButton(submission, interaction, true);
 
             await interaction.followUp({

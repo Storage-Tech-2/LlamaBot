@@ -102,7 +102,7 @@ export class SetDescriptionModal implements Modal {
                 // ask for the next one
                 const nextAttachment = attachmentSetTaskData.toAsk[0];
                 const askButton = new SetDescriptionButton().getBuilder(nextAttachment.name, isImage, nextAttachment.id, taskID);
-                const skipButton = new SkipDescriptionButton().getBuilder(isImage, nextAttachment.id, taskID);
+                const skipButton = new SkipDescriptionButton().getBuilder(isImage, nextAttachment.id, taskID, false);
                 const row = new ActionRowBuilder().addComponents(askButton, skipButton);
 
                 await interaction.reply({
@@ -116,9 +116,9 @@ export class SetDescriptionModal implements Modal {
                 await interaction.deferReply();
                 guildHolder.getBot().getTempDataStore().removeEntry(taskID);
                 if (isImage) {
-                    await SetImagesMenu.setAndReply(submission, interaction, attachmentSetTaskData.toSet);
+                    await SetImagesMenu.setAndReply(false, submission, interaction, attachmentSetTaskData.toSet);
                 } else {
-                    await SetAttachmentsMenu.setAttachmentsAndSetResponse(submission, attachmentSetTaskData.toSet, interaction);
+                    await SetAttachmentsMenu.setAttachmentsAndSetResponse(false, submission, attachmentSetTaskData.toSet, interaction);
                 }
             }
         } else if (currentAttachments.includes(foundAttachment)) {

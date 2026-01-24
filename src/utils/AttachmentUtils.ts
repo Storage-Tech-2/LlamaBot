@@ -12,7 +12,6 @@ import yauzl from "yauzl"
 import nbt from 'prismarine-nbt'
 import { Litematic } from '../lib/litematic-reader/main.js'
 import { Author } from '../submissions/Author.js'
-import { truncate } from 'fs'
 
 export async function processImages(images: Image[], download_folder: string, processed_folder: string, bot: Bot): Promise<Image[]> {
     if (images.length > 0) {

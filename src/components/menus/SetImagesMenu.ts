@@ -149,8 +149,9 @@ export class SetImagesMenu implements Menu {
 
             const nextAttachment = data.toAsk[0];
             const askButton = new SetDescriptionButton().getBuilder(nextAttachment.name, true, nextAttachment.id, identifier);
-            const skipButton = new SkipDescriptionButton().getBuilder(true, nextAttachment.id, identifier);
-            const row = new ActionRowBuilder().addComponents(askButton, skipButton);
+            const skipButton = new SkipDescriptionButton().getBuilder(true, nextAttachment.id, identifier, false);
+            const skipAllButton = new SkipDescriptionButton().getBuilder(true, nextAttachment.id, identifier, true);
+            const row = new ActionRowBuilder().addComponents(askButton, skipButton, skipAllButton);
 
             await interaction.editReply({
                 content: `We've detected that you added ${addedWithoutDescriptions.length} image${addedWithoutDescriptions.length > 1 ? 's' : ''} without descriptions.` +
@@ -159,11 +160,11 @@ export class SetImagesMenu implements Menu {
                 components: [row as any],
             });
         } else {
-            await SetImagesMenu.setAndReply(submission, interaction, newImages);
+            await SetImagesMenu.setAndReply(true, submission, interaction, newImages);
         }
     }
 
-    public static async setAndReply(submission: Submission, interaction: StringSelectMenuInteraction | ModalSubmitInteraction | ButtonInteraction, newImages: BaseAttachment[]) {
+    public static async setAndReply(replace: boolean, submission: Submission, interaction: StringSelectMenuInteraction | ModalSubmitInteraction | ButtonInteraction, newImages: BaseAttachment[]) {
 
         const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null;
         submission.getConfigManager().setConfig(SubmissionConfigs.IMAGES, newImages);
@@ -178,7 +179,7 @@ export class SetImagesMenu implements Menu {
 
         await submission.save();
 
-        if (interaction.isStringSelectMenu()) {
+        if (replace) {
             await this.sendImagesMenuAndButton(submission, interaction, true);
         }
 
@@ -202,7 +203,7 @@ export class SetImagesMenu implements Menu {
             embeds.push(embed);
         }
 
-        if (interaction.isStringSelectMenu()) {
+        if (replace) {
             await interaction.followUp({
                 content: newImages.length === 0 ? `<@${interaction.user.id}> marked this submission as containing no images` : `<@${interaction.user.id}> set main image${newImages.length > 1 ? 's' : ''} for submission`,
                 embeds,
