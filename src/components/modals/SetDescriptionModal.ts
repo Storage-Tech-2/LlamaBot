@@ -122,7 +122,11 @@ export class SetDescriptionModal implements Modal {
                 }
             }
         } else if (currentAttachments.includes(foundAttachment)) {
-            submission.getConfigManager().setConfig(SubmissionConfigs.ATTACHMENTS, currentAttachments);
+            if (isImage) {
+                submission.getConfigManager().setConfig(SubmissionConfigs.IMAGES, currentAttachments);
+            } else {
+                submission.getConfigManager().setConfig(SubmissionConfigs.ATTACHMENTS, currentAttachments);
+            }
             await submission.save();
 
             await interaction.reply({
