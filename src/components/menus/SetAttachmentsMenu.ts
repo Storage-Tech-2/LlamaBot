@@ -96,7 +96,7 @@ export class SetAttachmentsMenu implements Menu {
             return
         }
 
-        await interaction.deferReply()
+        await interaction.deferUpdate()
         const attachments = await submission.getAttachments()
         const currentAttachments = submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) ?? [];
         const newAttachments = interaction.values.map(id => {
@@ -116,11 +116,11 @@ export class SetAttachmentsMenu implements Menu {
         //     const identifier = guildHolder.getBot().getTempDataStore().getNewId();
         //     guildHolder.getBot().getTempDataStore().addEntry(identifier, data, 30 * 60 * 1000); // 30 minutes
         // } else {
-            await interaction.update({
-                content: 'Processing attachments...',
-                components: [],
-                flags: MessageFlags.SuppressEmbeds
-            }); // clear loading state
+            // await interaction.update({
+            //     content: 'Processing attachments...',
+            //     components: [],
+            //     flags: MessageFlags.SuppressEmbeds
+            // }); // clear loading state
             await SetAttachmentsMenu.setAttachmentsAndSetResponse(submission, newAttachments, interaction);
         // }
     }
