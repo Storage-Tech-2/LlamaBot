@@ -152,10 +152,10 @@ export class SetImagesMenu implements Menu {
             const skipButton = new SkipDescriptionButton().getBuilder(true, nextAttachment.id, identifier);
             const row = new ActionRowBuilder().addComponents(askButton, skipButton);
 
-            await interaction.reply({
+            await interaction.editReply({
                 content: `We've detected that you added ${addedWithoutDescriptions.length} image${addedWithoutDescriptions.length > 1 ? 's' : ''} without descriptions.` +
                     `\n\nSet a description for the image **${escapeDiscordString(nextAttachment.name)}**?`,
-                flags: [MessageFlags.Ephemeral, MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds],
+                flags: [MessageFlags.SuppressEmbeds],
                 components: [row as any],
             });
         } else {
