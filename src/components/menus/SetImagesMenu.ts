@@ -131,7 +131,11 @@ export class SetImagesMenu implements Menu {
         });
 
         if (added.length === 0 && removed.length === 0) {
-            await interaction.editReply('No changes made to images.');
+            await interaction.editReply({});
+            await interaction.followUp({
+                content: 'No changes made to images.',
+                flags: [MessageFlags.Ephemeral]
+            });
             return;
         }
 
