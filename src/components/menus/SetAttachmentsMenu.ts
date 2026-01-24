@@ -180,7 +180,7 @@ export class SetAttachmentsMenu implements Menu {
                 flags: [MessageFlags.SuppressEmbeds],
                 allowedMentions: { parse: [] }
             })
-        } else if (!interaction.replied) {
+        } else if (interaction.replied) {
             await interaction.followUp({
                 content: split[0],
                 flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications],
