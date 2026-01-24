@@ -1,7 +1,7 @@
 import { ActionRowBuilder, Interaction, Message, MessageFlags, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { canEditSubmission, escapeDiscordString, escapeString, replyEphemeral, splitIntoChunks, truncateFileName } from "../../utils/Util.js";
+import { canEditSubmission, escapeDiscordString, escapeString, getAuthorName, replyEphemeral, splitIntoChunks, truncateFileName } from "../../utils/Util.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Attachment } from "../../submissions/Attachment.js";
@@ -138,6 +138,7 @@ export class SetAttachmentsMenu implements Menu {
             litematics.forEach(attachment => {
                 description += `- ${attachment.canDownload ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${attachment.litematic?.error || `MC ${attachment.litematic?.version}, ${attachment.litematic?.size}`}\n`
                 if (attachment.description) description += `  - ${attachment.description}\n`
+                description += `  - Sent by ${getAuthorName(attachment.author)} at <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
             })
         }
 
@@ -146,6 +147,7 @@ export class SetAttachmentsMenu implements Menu {
             wdls.forEach(attachment => {
                 description += `- ${attachment.canDownload ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}\n`
                 if (attachment.description) description += `  - ${attachment.description}\n`
+                description += `  - Sent by ${getAuthorName(attachment.author)} at <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
             })
         }
 
@@ -155,15 +157,18 @@ export class SetAttachmentsMenu implements Menu {
                 if (attachment.contentType === 'bilibili') {
                     description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Bilibili video\n`
                     if (attachment.description) description += `  - ${attachment.description}\n`
+                    description += `  - Sent by ${getAuthorName(attachment.author)} at <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
                     return;
                 }
                 if (!attachment.youtube) {
                     description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link\n`
                     if (attachment.description) description += `  - ${attachment.description}`
+                    description += `  - Sent by ${getAuthorName(attachment.author)} at <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
                     return;
                 }
                 description += `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): by [${escapeDiscordString(attachment.youtube?.author_name)}](${attachment.youtube?.author_url})\n`
                 if (attachment.description) description += `  - ${attachment.description}\n`
+                description += `  - Sent by ${getAuthorName(attachment.author)} at <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
             })
         }
 
@@ -181,6 +186,7 @@ export class SetAttachmentsMenu implements Menu {
                 }
                 description += `- ${attachment.contentType == 'discord' ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${type}\n`
                 if (attachment.description) description += `  - ${attachment.description}\n`
+                description += `  - Sent by ${getAuthorName(attachment.author)} at <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
             })
         }
 
