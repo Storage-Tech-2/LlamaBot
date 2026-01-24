@@ -47,28 +47,26 @@ export async function replyReplace(doUpdate: boolean, interaction: Interaction, 
             return await interaction.editReply({
                 content: content,
                 components: components,
-                flags: [MessageFlags.SuppressEmbeds],
                 allowedMentions: { parse: [] }
             })
         } else if ((interaction.isButton() || interaction.isStringSelectMenu()) && doUpdate) {
             return await interaction.update({
                 content: content,
                 components: components,
-                flags: [MessageFlags.SuppressEmbeds],
                 allowedMentions: { parse: [] }
             })
         } else if (interaction.isRepliable() && !interaction.replied) {
             await interaction.reply({
                 content: content,
                 components: components,
-                flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications, MessageFlags.Ephemeral],
+                flags: [MessageFlags.SuppressNotifications, MessageFlags.Ephemeral],
                 allowedMentions: { parse: [] }
             })
         } else if (interaction.isRepliable()) {
             return await interaction.followUp({
                 content: content,
                 components: components,
-                flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications, MessageFlags.Ephemeral],
+                flags: [MessageFlags.SuppressNotifications, MessageFlags.Ephemeral],
                 allowedMentions: { parse: [] }
             })
         } else {
