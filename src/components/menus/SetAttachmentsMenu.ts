@@ -128,7 +128,7 @@ export class SetAttachmentsMenu implements Menu {
                 .setTitle(truncateFileName(escapeDiscordString(nextAttachment.name), 256))
                 .setDescription(getAttachmentDescriptionForMenus(nextAttachment) || 'No description');
             await interaction.editReply({});
-            
+
             await interaction.followUp({
                 content: `We've detected that you added ${addedAttachmentsWithoutDescriptions.length} attachment${addedAttachmentsWithoutDescriptions.length > 1 ? 's' : ''} without descriptions.` +
                     `\n\nSet a description for the attachment **${escapeDiscordString(nextAttachment.name)}**?`,
@@ -171,16 +171,25 @@ export class SetAttachmentsMenu implements Menu {
 
         if (replace) {
             await this.sendAttachmentsMenuAndButton(submission, interaction, true);
+        }
 
+
+        if (interaction.deferred) {
+            await interaction.editReply({
+                content: split[0],
+                flags: [MessageFlags.SuppressEmbeds],
+                allowedMentions: { parse: [] }
+            })
+        } else if (!interaction.replied) {
             await interaction.followUp({
                 content: split[0],
                 flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications],
                 allowedMentions: { parse: [] }
             })
         } else {
-            await interaction.editReply({
+            await interaction.reply({
                 content: split[0],
-                flags: [MessageFlags.SuppressEmbeds],
+                flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications],
                 allowedMentions: { parse: [] }
             })
         }

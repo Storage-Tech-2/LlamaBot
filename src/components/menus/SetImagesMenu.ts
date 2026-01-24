@@ -213,7 +213,14 @@ export class SetImagesMenu implements Menu {
             embeds.push(embed);
         }
 
-        if (replace) {
+        if (interaction.deferred) {
+            await interaction.editReply({
+                content: newImages.length === 0 ? `<@${interaction.user.id}> marked this submission as containing no images` : `<@${interaction.user.id}> set main image${newImages.length > 1 ? 's' : ''} for submission`,
+                embeds,
+                files,
+                allowedMentions: { parse: [] }
+            })
+        } else if (interaction.replied) {
             await interaction.followUp({
                 content: newImages.length === 0 ? `<@${interaction.user.id}> marked this submission as containing no images` : `<@${interaction.user.id}> set main image${newImages.length > 1 ? 's' : ''} for submission`,
                 embeds,
@@ -222,10 +229,11 @@ export class SetImagesMenu implements Menu {
                 allowedMentions: { parse: [] }
             })
         } else {
-            await interaction.editReply({
+            await interaction.reply({
                 content: newImages.length === 0 ? `<@${interaction.user.id}> marked this submission as containing no images` : `<@${interaction.user.id}> set main image${newImages.length > 1 ? 's' : ''} for submission`,
                 embeds,
                 files,
+                flags: [MessageFlags.SuppressNotifications],
                 allowedMentions: { parse: [] }
             })
         }
