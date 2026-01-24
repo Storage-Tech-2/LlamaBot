@@ -44,7 +44,7 @@ export async function deployCommands(
 
 export async function replyReplace(doUpdate: boolean, interaction: Interaction, content: string, components: ActionRowBuilder<any>[] = []) {
     try {
-        if (interaction.isRepliable() && interaction.deferred) {
+        if (doUpdate && interaction.isRepliable() && interaction.deferred) {
             return await interaction.editReply({
                 content: content,
                 components: components,
