@@ -337,29 +337,56 @@ async function optimizeWorlds(worlds: WorldMetadata[], contexts: ArchiveContext[
         }
     }
 
-    for (const world of worlds) {
-        const abs = worldPathsByRelative.get(world.path);
-        if (!abs) continue;
-        await optimizeWorld(abs);
-    }
+    const concurrency = 4;
+    let index = 0;
+
+    const runNext = async (): Promise<void> => {
+        while (index < worlds.length) {
+            const current = index++;
+            const world = worlds[current];
+            const abs = worldPathsByRelative.get(world.path);
+            if (!abs) continue;
+            await optimizeWorld(abs);
+        }
+    };
+
+    const workers = Array.from({ length: Math.min(concurrency, worlds.length) }, () => runNext());
+    await Promise.all(workers);
 }
 
 async function optimizeWorld(worldDir: string): Promise<void> {
     await runMcSelector(worldDir);
 
-    const pathsToDelete = [
-        'stats',
-        'scripts',
-        'playerdata',
-        'advancements',
-        'datapacks',
-        'data',
-        'poi',
+    // const pathsToDelete = [
+    //     'stats',
+    //     'scripts',
+    //     'playerdata',
+    //     'advancements',
+    //     'datapacks',
+    //     'data',
+    //     'poi',
+    // ]
+
+    // for (const relPath of pathsToDelete) {
+    //     const targetPath = Path.join(worldDir, relPath);
+    //     await fs.rm(targetPath, { recursive: true, force: true }).catch(() => null);
+    // }
+
+    const pathsToKeep = [
+        'region',
+        'level.dat',
+        'DIM-1',
+        'DIM1',
+        'icon.png',
+        'entities'
     ]
 
-    for (const relPath of pathsToDelete) {
-        const targetPath = Path.join(worldDir, relPath);
-        await fs.rm(targetPath, { recursive: true, force: true }).catch(() => null);
+    const entries = await fs.readdir(worldDir, { withFileTypes: true });
+    for (const entry of entries) {
+        if (!pathsToKeep.includes(entry.name)) {
+            const targetPath = Path.join(worldDir, entry.name);
+            await fs.rm(targetPath, { recursive: true, force: true }).catch(() => null);
+        }
     }
 }
 
