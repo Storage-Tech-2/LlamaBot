@@ -17,7 +17,7 @@ const MC_SELECTOR_QUERY = 'InhabitedTime = 0 AND !(Palette intersects "observer,
 const MC_SELECTOR_JAR = Path.join(process.cwd(), 'java', 'mcaselector-2.6.1.jar');
 
 export type WorldMetadata = {
-    path: string; // always relative to root zip; nested zips use "!/" separators
+    path: string; // always relative to root zip; nested zips separated by '/'
     version?: string;
     levelName?: string;
     error?: string;
@@ -31,7 +31,7 @@ type ExtractionBudget = {
 type ZipSource = { zipPath?: string; buffer?: Buffer };
 
 type ArchiveContext = {
-    relPath: string;           // '' for root, 'foo.zip', 'foo.zip!/bar.zip', etc.
+    relPath: string;           // '' for root, 'foo.zip', 'foo.zip/bar.zip', etc.
     extractDir: string;        // directory containing extracted contents
     zipOutputPath?: string;    // where to write the zipped file for this archive inside its parent; undefined for root
 };
@@ -271,7 +271,7 @@ async function analyzeExtractedWorlds(contexts: ArchiveContext[]): Promise<World
         const worldDirs = await findWorldFolders(ctx.extractDir);
         for (const dir of worldDirs) {
             const relInside = Path.relative(ctx.extractDir, dir).split(Path.sep).join(Path.posix.sep) || '.';
-            const worldPath = ctx.relPath ? `${ctx.relPath}!/${relInside}` : relInside;
+            const worldPath = ctx.relPath ? `${ctx.relPath}/${relInside}` : relInside;
             const meta = await parseWorldMetadataFromDisk(dir, worldPath);
             worlds.push(meta);
         }
@@ -330,7 +330,7 @@ async function optimizeWorlds(worlds: WorldMetadata[], contexts: ArchiveContext[
         const worldDirs = await findWorldFolders(ctx.extractDir);
         for (const dir of worldDirs) {
             const relInside = Path.relative(ctx.extractDir, dir).split(Path.sep).join(Path.posix.sep) || '.';
-            const key = ctx.relPath ? `${ctx.relPath}!/${relInside}` : relInside;
+            const key = ctx.relPath ? `${ctx.relPath}/${relInside}` : relInside;
             worldPathsByRelative.set(key, dir);
         }
     }
@@ -372,7 +372,7 @@ async function runMcSelector(worldPath: string): Promise<void> {
 
 async function repackageArchives(contexts: ArchiveContext[], outputZipPath: string): Promise<void> {
     // Rezip nested archives first (deepest first), then root
-    const sorted = [...contexts].sort((a, b) => b.relPath.split('!/').length - a.relPath.split('!/').length);
+    const sorted = [...contexts].sort((a, b) => b.relPath.split('/').length - a.relPath.split('/').length);
     for (const ctx of sorted) {
         const targetZip = ctx.relPath === '' ? outputZipPath : ctx.zipOutputPath;
         if (!targetZip) continue;
@@ -484,7 +484,7 @@ async function analyzeZipRecursive(source: ZipSource, relPath: string, budget: E
                 }
                 const buffer = await readEntryToBuffer(zipfile, entry, budget);
                 const worldDir = Path.posix.dirname(normalized);
-                const worldPath = relPath ? `${relPath}!/${worldDir || '.'}` : (worldDir || '.');
+                const worldPath = relPath ? `${relPath}/${worldDir || '.'}` : (worldDir || '.');
                 const meta = await parseWorldMetadataFromBuffer(worldPath, buffer);
                 results.push(meta);
                 zipfile.readEntry();
@@ -522,7 +522,7 @@ async function analyzeZipRecursive(source: ZipSource, relPath: string, budget: E
 
 function combineRelPath(parent: string, child: string): string {
     const cleanChild = child.replace(/\/$/, '');
-    return parent ? `${parent}!/${cleanChild}` : cleanChild;
+    return parent ? `${parent}/${cleanChild}` : cleanChild;
 }
 
 function openZipSource(source: ZipSource): Promise<yauzl.ZipFile> {
