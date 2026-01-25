@@ -8,7 +8,7 @@ import { SetTemplateModal } from "../components/modals/SetTemplateModal.js";
 import { Reference, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
 import { RevisionEmbed } from "../embed/RevisionEmbed.js";
 import { AuthorType, DiscordAuthor } from "../submissions/Author.js";
-import { analyzeWorldDownloads, optimizeWorldDownloads } from "../utils/WDLUtils.js";
+import { findWorldsInZip, optimizeWorldsInZip } from "../utils/WDLUtils.js";
 import got from "got";
 import Path from "path";
 import os from "os";
@@ -560,7 +560,7 @@ export class DebugCommand implements Command {
             await fs.writeFile(inputPath, res.body);
 
             const outputTarget = Path.join(session, 'optimized.zip');
-            const { zipPath, worlds } = await optimizeWorldDownloads(inputPath, session, outputTarget);
+            const { zipPath, worlds } = await optimizeWorldsInZip(inputPath, session, outputTarget);
             const optimizedBuffer = await fs.readFile(zipPath);
             const outName = Path.basename(zipPath);
 
@@ -600,7 +600,7 @@ export class DebugCommand implements Command {
             const res = await got(attachment.url, { responseType: 'buffer' });
             await fs.writeFile(inputPath, res.body);
             
-            const worlds = await analyzeWorldDownloads(inputPath);
+            const worlds = await findWorldsInZip(inputPath);
 
             const summaryLines = worlds.map((w, idx) => {
                 const label = Path.basename(w.path) || `world-${idx + 1}`;

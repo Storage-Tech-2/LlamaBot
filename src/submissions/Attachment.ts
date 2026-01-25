@@ -36,7 +36,6 @@ export type Attachment = BaseAttachment & {
     wdl?: {
         version?: string, // Minecraft version
         error?: string, // Error message if any
-        optimized?: boolean, // Whether the world is optimized
     },
 
     wdls?: WorldMetadata[],

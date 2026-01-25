@@ -40,7 +40,7 @@ type ArchiveContext = {
  * Optimize a WDL zip: extract (including nested zips), analyze worlds, run MCSelector on each world, and repackage.
  * Returns metadata for all worlds with paths relative to the input zip.
  */
-export async function optimizeWorldDownloads(zipPath: string, tempDir: string, outputFile?: string): Promise<{ zipPath: string; worlds: WorldMetadata[] }> {
+export async function optimizeWorldsInZip(zipPath: string, tempDir: string, outputFile?: string): Promise<{ zipPath: string; worlds: WorldMetadata[] }> {
     const tempRoot = Path.resolve(tempDir);
     await fs.mkdir(tempRoot, { recursive: true });
 
@@ -52,8 +52,8 @@ export async function optimizeWorldDownloads(zipPath: string, tempDir: string, o
         tempRoot,
         `${Path.basename(zipPath, Path.extname(zipPath)) || 'world'}-optimized-${Date.now().toString(36)}.zip`
     );
-    await fs.rm(outputZipPath, { force: true });
-    await fs.mkdir(Path.dirname(outputZipPath), { recursive: true });
+
+    await fs.mkdir(Path.dirname(outputZipPath), { recursive: true }).catch(() => {});
 
     await fs.access(MC_SELECTOR_JAR).catch(() => {
         throw new Error(`MCSelector jar not found at ${MC_SELECTOR_JAR}`);
@@ -89,7 +89,7 @@ export async function optimizeWorldDownloads(zipPath: string, tempDir: string, o
 /**
  * Analyze a WDL zip (file path or buffer) without writing to disk. Returns metadata with paths relative to the zip root.
  */
-export async function analyzeWorldDownloads(zipSource: string | Buffer, budget?: ExtractionBudget): Promise<WorldMetadata[]> {
+export async function findWorldsInZip(zipSource: string | Buffer, budget?: ExtractionBudget): Promise<WorldMetadata[]> {
     const sessionBudget: ExtractionBudget = budget ?? {
         remainingBytes: MAX_TOTAL_UNCOMPRESSED_BYTES,
         perEntryLimit: MAX_ENTRY_UNCOMPRESSED_BYTES
@@ -392,7 +392,7 @@ async function optimizeWorld(worldDir: string): Promise<void> {
 
 async function runMcSelector(worldPath: string): Promise<void> {
     return new Promise((resolve, reject) => {
-        const args = ['-jar', MC_SELECTOR_JAR, '--mode', 'delete', '--query', MC_SELECTOR_QUERY, '--world', Path.resolve(worldPath)];
+        const args = ['-jar', MC_SELECTOR_JAR, '--mode', 'delete', '--query', MC_SELECTOR_QUERY, '--radius', '2', '--world', Path.resolve(worldPath)];
         const proc = spawn('java', args, { stdio: ['ignore', 'pipe', 'pipe'] });
 
         let stderr = '';

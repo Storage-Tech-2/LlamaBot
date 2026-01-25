@@ -7,11 +7,10 @@ import fs from 'fs/promises'
 import got from 'got'
 import sharp from 'sharp'
 import { MCMeta } from './MCMeta.js'
-import { escapeDiscordString, escapeString, getAuthorName, getMessageAuthor, truncateStringWithEllipsis } from './Util.js'
-import yauzl from "yauzl"
-import nbt from 'prismarine-nbt'
+import { escapeDiscordString, escapeString, getMessageAuthor, truncateStringWithEllipsis } from './Util.js'
 import { Litematic } from '../lib/litematic-reader/main.js'
 import { Author } from '../submissions/Author.js'
+import { findWorldsInZip } from './WDLUtils.js'
 
 export async function changeImageName(processed_folder: string, oldImage: BaseAttachment, newImage: BaseAttachment): Promise<void> {
 
@@ -392,41 +391,46 @@ export function filterAttachmentsForViewer(attachments: Attachment[]): Attachmen
 }
 
 
+function compareSemver(a: string, b: string): number {
+    const parse = (v: string) => v.split('.').map(num => parseInt(num));
+    const aParts = parse(a);
+    const bParts = parse(b);
+    for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+        const aNum = aParts[i] || 0;
+        const bNum = bParts[i] || 0;
+        if (aNum > bNum) return -1;
+        if (aNum < bNum) return 1;
+    }
+    return 0;
+}
 
 async function processWDLs(attachment: Attachment, attachmentPath: string): Promise<void> {
     try {
-        const levelDat = await findFirstFileWithNameInZip(attachmentPath, 'level.dat');
-        if (!levelDat) {
-            return; // No level.dat found, nothing to process
-        }
-
-        const levelDatBuffer = levelDat;
-        const parsedNbt = await nbt.parse(levelDatBuffer);
-        const data = parsedNbt.parsed as any;
-        if (data.type !== 'compound' || !data.value) {
-            attachment.wdl = { error: 'Invalid Level.dat' };
+        const analysis = await findWorldsInZip(attachmentPath);
+        
+        if (analysis.length === 0) {
             return;
         }
 
-        const dataTag = data.value.Data;
-        if (!dataTag || dataTag.type !== 'compound' || !dataTag.value) {
-            attachment.wdl = { error: 'Invalid Level.dat' };
+        attachment.wdls = analysis;
+
+        let versions = new Set<string>();
+        for (const world of analysis) {
+            if (world.version) {
+                versions.add(world.version);
+            }
+        }
+
+        if (!versions.size) {
+            attachment.wdl = { error: analysis[0].error || 'No valid worlds found' };
             return;
         }
 
-        const versionTag = dataTag.value.Version;
-        if (!versionTag || versionTag.type !== 'compound' || !versionTag.value) {
-            attachment.wdl = { error: 'Invalid Level.dat' };
-            return;
-        }
+        // sort versions descending
+        const versionsArray = Array.from(versions);
+        versionsArray.sort(compareSemver);
 
-        const versionName = versionTag.value.Name;
-        if (!versionName || versionName.type !== 'string' || !versionName.value) {
-            attachment.wdl = { error: 'Invalid Level.dat' };
-            return;
-        }
-
-        attachment.wdl = { version: versionName.value };
+        attachment.wdl = { version: versionsArray.join(', ') };
     } catch (error) {
         console.error('Error processing WDL file:', error);
     }
@@ -695,82 +699,6 @@ export function getFileExtension(fileName: string): string {
 
 export function getFileNameWithoutExtension(fileName: string): string {
     return Path.basename(fileName, Path.extname(fileName));
-}
-
-async function findFirstFileWithNameInZip(zipPath: string, fileName: string): Promise<Buffer | null> {
-    return new Promise((resolve, reject) => {
-        // 100 MB
-        const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
-        yauzl.open(zipPath, {
-            lazyEntries: true,
-            validateEntrySizes: true
-        }, (err, zipfile) => {
-            if (err) {
-                return reject(err);
-            }
-
-            zipfile.readEntry();
-            zipfile.on('entry', (entry) => {
-                const normalized = Path.posix.normalize(entry.fileName); // yauzl always gives / separators
-                const isDir = normalized.endsWith("/");
-                if (normalized.startsWith("../") || Path.isAbsolute(normalized)) {
-                    zipfile.close();                                               // hard-fail the whole archive
-                    return reject(new Error(`Path traversal detected: ${entry.fileName}`));
-                }
-
-                if (isDir) {
-                    zipfile.readEntry();                                           // nothing to extract
-                    return;
-                }
-
-                // Size checks
-                if (entry.uncompressedSize > MAX_FILE_SIZE) {
-                    zipfile.close();
-                    return reject(
-                        new Error(`Entry ${entry.fileName} is ${entry.uncompressedSize} bytes (> limit)`),
-                    );
-                }
-
-                if (Path.posix.basename(normalized) !== fileName) {
-                    zipfile.readEntry();
-                    return;
-                }
-
-                zipfile.openReadStream(entry, (err, readStream) => {
-                    if (err) {
-                        zipfile.close();
-                        return reject(err);
-                    }
-
-                    const chunks: Buffer[] = [];
-                    readStream.on('data', (chunk) => {
-                        chunks.push(chunk);
-                    });
-
-                    readStream.on('end', () => {
-                        const fileBuffer = Buffer.concat(chunks);
-                        zipfile.close();
-                        resolve(fileBuffer); // Return the file buffer
-                    });
-
-                    readStream.on('error', (error) => {
-                        zipfile.close();
-                        reject(error);
-                    });
-                });
-            });
-
-            zipfile.on('end', () => {
-                zipfile.close();
-                resolve(null); // No file found
-            });
-
-            zipfile.on('error', (error) => {
-                zipfile.close();
-                reject(error);
-            });
-        });
-    });
 }
 
 export function getAttachmentDescriptionForMenus(attachment: BaseAttachment): string {
