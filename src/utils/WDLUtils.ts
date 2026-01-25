@@ -4,19 +4,35 @@ import Path from 'path';
 import { pipeline } from 'stream/promises';
 import { spawn } from 'child_process';
 import yauzl from 'yauzl';
+import nbt from 'prismarine-nbt';
 
 const MAX_ENTRY_UNCOMPRESSED_BYTES = 1 * 1024 * 1024 * 1024; // 1 GB per entry to blunt zip bombs
 const MAX_TOTAL_UNCOMPRESSED_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB overall limit
 const MAX_ENTRIES = 20000;
 
+const MC_SELECTOR_TIMEOUT_MS = 5 * 60 * 1000; // 5 minute timeout to avoid unbounded processing
+const MAX_LEVEL_DAT_BYTES = 64 * 1024 * 1024; // Cap level.dat parsing to avoid memory abuse
+
 const MC_SELECTOR_QUERY = 'InhabitedTime = 0 AND !(Palette intersects "observer,repeater,comparator,piston,sticky_piston,redstone_torch,redstone_wire,redstone_wall_torch,hopper,dispenser,dropper,crafter")';
 const MC_SELECTOR_JAR = Path.join(process.cwd(), 'java', 'mcaselector-2.6.1.jar');
 
+type ExtractionBudget = {
+    remainingBytes: number;
+    perEntryLimit: number;
+};
+
 /**
  * Extracts and optimizes the worlds inside a WDL zip (including nested zips), then repackages everything with maximum compression.
- * Returns the path to the new zip file containing all original files (minus skipped __MACOSX) and optimized worlds.
+ * Returns the path to the new zip file containing all original files (minus skipped __MACOSX) and optimized worlds, plus metadata for each world.
  */
-export async function optimizeWorldDownloads(zipPath: string, tempDir: string): Promise<string> {
+export type WorldMetadata = {
+    path: string;
+    version?: string;
+    levelName?: string;
+    error?: string;
+};
+
+export async function optimizeWorldDownloads(zipPath: string, tempDir: string, outputFile?: string, budget?: ExtractionBudget): Promise<{ zipPath: string; worlds: WorldMetadata[] }> {
     const tempRoot = Path.resolve(tempDir);
     await fs.mkdir(tempRoot, { recursive: true });
 
@@ -24,21 +40,29 @@ export async function optimizeWorldDownloads(zipPath: string, tempDir: string): 
     const extractionRoot = Path.join(sessionRoot, 'extracted');
     await fs.mkdir(extractionRoot, { recursive: true });
 
-    const outputName = `${Path.basename(zipPath, Path.extname(zipPath)) || 'world'}-optimized-${Date.now().toString(36)}.zip`;
-    const outputZipPath = Path.join(tempRoot, outputName);
+    const outputZipPath = outputFile ? Path.resolve(outputFile) : Path.join(
+        tempRoot,
+        `${Path.basename(zipPath, Path.extname(zipPath)) || 'world'}-optimized-${Date.now().toString(36)}.zip`
+    );
     await fs.rm(outputZipPath, { force: true });
+    await fs.mkdir(Path.dirname(outputZipPath), { recursive: true });
 
     await fs.access(MC_SELECTOR_JAR).catch(() => {
         throw new Error(`MCSelector jar not found at ${MC_SELECTOR_JAR}`);
     });
 
-    try {
-        await extractZipSafely(zipPath, extractionRoot);
+    const sessionBudget: ExtractionBudget = budget ?? {
+        remainingBytes: MAX_TOTAL_UNCOMPRESSED_BYTES,
+        perEntryLimit: MAX_ENTRY_UNCOMPRESSED_BYTES
+    };
 
-        const nestedOptimized = await processNestedZipArchives(extractionRoot, tempRoot);
+    try {
+        await extractZipSafely(zipPath, extractionRoot, sessionBudget);
+
+        const nestedMetadata = await processNestedZipArchives(extractionRoot, tempRoot, sessionBudget);
 
         const worldFolders = await findWorldFolders(extractionRoot);
-        if (worldFolders.length === 0 && !nestedOptimized) {
+        if (worldFolders.length === 0 && nestedMetadata.length === 0) {
             throw new Error('No Minecraft world folders (containing level.dat) found in the archive');
         }
 
@@ -47,13 +71,17 @@ export async function optimizeWorldDownloads(zipPath: string, tempDir: string): 
         }
 
         await createZipFromRoot(extractionRoot, outputZipPath);
-        return outputZipPath;
+        const metadata = await Promise.all(worldFolders.map(parseWorldMetadata));
+        return {
+            zipPath: outputZipPath,
+            worlds: [...metadata, ...nestedMetadata]
+        };
     } finally {
         await fs.rm(sessionRoot, { recursive: true, force: true }).catch(() => undefined);
     }
 }
 
-async function extractZipSafely(zipPath: string, destination: string): Promise<void> {
+async function extractZipSafely(zipPath: string, destination: string, budget: ExtractionBudget): Promise<void> {
     const destinationRoot = Path.resolve(destination);
     await fs.mkdir(destinationRoot, { recursive: true });
 
@@ -64,7 +92,6 @@ async function extractZipSafely(zipPath: string, destination: string): Promise<v
             }
 
             let finished = false;
-            let totalUncompressed = 0;
             let entryCount = 0;
             const rootWithSep = destinationRoot.endsWith(Path.sep) ? destinationRoot : `${destinationRoot}${Path.sep}`;
 
@@ -111,11 +138,11 @@ async function extractZipSafely(zipPath: string, destination: string): Promise<v
                     return fail(new Error(`Symlink entries are not allowed (${entry.fileName})`));
                 }
 
-                if (entry.uncompressedSize > MAX_ENTRY_UNCOMPRESSED_BYTES) {
+                if (entry.uncompressedSize > budget.perEntryLimit) {
                     return fail(new Error(`Entry ${entry.fileName} exceeds per-file size limit (${entry.uncompressedSize} bytes)`));
                 }
 
-                if (totalUncompressed + entry.uncompressedSize > MAX_TOTAL_UNCOMPRESSED_BYTES) {
+                if (entry.uncompressedSize > budget.remainingBytes) {
                     return fail(new Error('Archive uncompressed size exceeds safety limit'));
                 }
 
@@ -135,7 +162,7 @@ async function extractZipSafely(zipPath: string, destination: string): Promise<v
 
                         pipeline(readStream, createWriteStream(resolvedTarget))
                             .then(() => {
-                                totalUncompressed += entry.uncompressedSize;
+                                budget.remainingBytes -= entry.uncompressedSize;
                                 zipfile.readEntry();
                             })
                             .catch(fail);
@@ -173,8 +200,8 @@ async function findWorldFolders(root: string): Promise<string[]> {
     return worlds;
 }
 
-async function processNestedZipArchives(root: string, tempRoot: string): Promise<boolean> {
-    let foundWorldZip = false;
+async function processNestedZipArchives(root: string, tempRoot: string, budget: ExtractionBudget): Promise<WorldMetadata[]> {
+    let foundWorldZip: WorldMetadata[] = [];
     const entries = await fs.readdir(root, { withFileTypes: true });
 
     for (const entry of entries) {
@@ -184,8 +211,8 @@ async function processNestedZipArchives(root: string, tempRoot: string): Promise
 
         const fullPath = Path.join(root, entry.name);
         if (entry.isDirectory()) {
-            const nested = await processNestedZipArchives(fullPath, tempRoot);
-            foundWorldZip = foundWorldZip || nested;
+            const nested = await processNestedZipArchives(fullPath, tempRoot, budget);
+            foundWorldZip = foundWorldZip.concat(nested);
             continue;
         }
 
@@ -204,10 +231,10 @@ async function processNestedZipArchives(root: string, tempRoot: string): Promise
             continue;
         }
 
-        const optimizedPath = await optimizeWorldDownloads(fullPath, tempRoot);
+        const { zipPath: optimizedPath, worlds } = await optimizeWorldDownloads(fullPath, tempRoot, undefined, budget);
         await fs.copyFile(optimizedPath, fullPath);
         await fs.rm(optimizedPath, { force: true }).catch(() => undefined);
-        foundWorldZip = true;
+        foundWorldZip = foundWorldZip.concat(worlds);
     }
 
     return foundWorldZip;
@@ -215,26 +242,74 @@ async function processNestedZipArchives(root: string, tempRoot: string): Promise
 
 async function runMcSelector(worldPath: string): Promise<void> {
     return new Promise((resolve, reject) => {
-        const args = ['-jar', MC_SELECTOR_JAR, '--mode', 'delete', '--query', MC_SELECTOR_QUERY, '--world', worldPath];
+        const resolvedWorld = Path.resolve(worldPath);
+        const args = ['-jar', MC_SELECTOR_JAR, '--mode', 'delete', '--query', MC_SELECTOR_QUERY, '--world', resolvedWorld];
         const proc = spawn('java', args, { stdio: ['ignore', 'pipe', 'pipe'] });
 
         let stderr = '';
         let stdout = '';
+        let timedOut = false;
+        const timer = setTimeout(() => {
+            timedOut = true;
+            proc.kill('SIGKILL');
+        }, MC_SELECTOR_TIMEOUT_MS);
+
         proc.stdout.on('data', (data) => {
             stdout += data.toString();
         });
         proc.stderr.on('data', (data) => {
             stderr += data.toString();
         });
-        proc.on('error', (error) => reject(error));
+        proc.on('error', (error) => {
+            clearTimeout(timer);
+            reject(error);
+        });
         proc.on('close', (code) => {
+            clearTimeout(timer);
+            if (timedOut) {
+                return reject(new Error(`Failed to optimize world at ${resolvedWorld}: MCSelector timed out after ${MC_SELECTOR_TIMEOUT_MS}ms`));
+            }
             if (code === 0) {
                 return resolve();
             }
             const message = stderr.trim() || stdout.trim() || `java exited with code ${code ?? 'unknown'}`;
-            reject(new Error(`Failed to optimize world at ${worldPath}: ${message}`));
+            reject(new Error(`Failed to optimize world at ${resolvedWorld}: ${message}`));
         });
     });
+}
+
+async function parseWorldMetadata(worldPath: string): Promise<WorldMetadata> {
+    const meta: WorldMetadata = { path: Path.resolve(worldPath) };
+    const levelDatPath = Path.join(worldPath, 'level.dat');
+    try {
+        const stats = await fs.stat(levelDatPath);
+        if (stats.size > MAX_LEVEL_DAT_BYTES) {
+            meta.error = `level.dat exceeds size limit (${stats.size} bytes)`;
+            return meta;
+        }
+
+        const buffer = await fs.readFile(levelDatPath);
+        const parsed = await nbt.parse(buffer);
+        const data = parsed.parsed as any;
+        const dataTag = data?.value?.Data;
+        const versionTag = dataTag?.value?.Version;
+        const versionName = versionTag?.value?.Name;
+        const versionValue = versionName?.value;
+        if (typeof versionValue === 'string' && versionValue.trim().length > 0) {
+            meta.version = versionValue;
+        } else {
+            meta.error = 'Invalid version';
+        }
+
+        const levelNameTag = dataTag?.value?.LevelName;
+        const levelNameValue = levelNameTag?.value;
+        if (typeof levelNameValue === 'string' && levelNameValue.trim().length > 0) {
+            meta.levelName = levelNameValue;
+        }
+    } catch (error: any) {
+        meta.error = error?.message || 'Failed to parse level.dat';
+    }
+    return meta;
 }
 
 async function archiveContainsWorld(zipPath: string): Promise<boolean> {
@@ -314,7 +389,7 @@ async function createZipFromRoot(extractionRoot: string, outputZipPath: string):
 
 async function tryZipBinary(cwd: string, relativePaths: string[], outputZipPath: string): Promise<boolean> {
     return new Promise((resolve, reject) => {
-        const args = ['-r', '-9', outputZipPath, ...relativePaths];
+        const args = ['-r', '-9', outputZipPath, '--', ...relativePaths];
         const proc = spawn('zip', args, { cwd });
         let stderr = '';
         let stdout = '';

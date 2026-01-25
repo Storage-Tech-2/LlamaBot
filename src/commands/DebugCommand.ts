@@ -545,13 +545,15 @@ export class DebugCommand implements Command {
             const res = await got(attachment.url, { responseType: 'buffer' });
             await fs.writeFile(inputPath, res.body);
 
-            const optimizedPath = await optimizeWorldDownloads(inputPath, session);
-            const optimizedBuffer = await fs.readFile(optimizedPath);
-            const outName = Path.basename(optimizedPath);
+            const outputTarget = Path.join(session, 'optimized.zip');
+            const { zipPath, worlds } = await optimizeWorldDownloads(inputPath, session, outputTarget);
+            const optimizedBuffer = await fs.readFile(zipPath);
+            const outName = Path.basename(zipPath);
 
             const file = new AttachmentBuilder(optimizedBuffer, { name: outName });
+            const worldSummary = worlds.map(w => `${Path.basename(w.path)}: ${w.version || w.error || 'Unknown'}`).join('\n');
             await interaction.editReply({
-                content: `Optimized WDL created (${outName}).`,
+                content: `Optimized WDL created (${outName}).\n${worldSummary ? `Worlds:\n${worldSummary}` : ''}`,
                 files: [file]
             });
         } catch (error: any) {
