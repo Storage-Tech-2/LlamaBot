@@ -174,7 +174,7 @@ async function extractArchiveContents(params: {
                 throw new Error(`Zip archive has too many entries (>${MAX_ENTRIES})`);
             }
 
-            const normalized = Path.posix.normalize(entry.fileName);
+            const normalized = normalizeEntryPath(entry.fileName);
             if (normalized.startsWith('../') || Path.posix.isAbsolute(normalized)) {
                 throw new Error(`Path traversal detected for entry ${entry.fileName}`);
             }
@@ -235,7 +235,8 @@ async function extractArchiveContents(params: {
             const isZip = normalized.toLowerCase().endsWith('.zip');
             if (isZip) {
                 const nestedRel = combineRelPath(relPath, normalized);
-                const nestedDir = getNextExtractDir(nestedRel.replace(/\//g, '-')); // avoid OS path separators in folder name
+                const folderName = Path.basename(normalized);
+                const nestedDir = getNextExtractDir(folderName);
                 await extractArchiveRecursive({
                     source: { zipPath: target },
                     relPath: nestedRel,
@@ -456,7 +457,7 @@ async function analyzeZipRecursive(source: ZipSource, relPath: string, budget: E
             entryCount += 1;
             if (entryCount > MAX_ENTRIES) throw new Error(`Zip archive has too many entries (>${MAX_ENTRIES})`);
 
-            const normalized = Path.posix.normalize(entry.fileName);
+            const normalized = normalizeEntryPath(entry.fileName);
             if (normalized.startsWith('../') || Path.posix.isAbsolute(normalized)) {
                 throw new Error(`Path traversal detected for entry ${entry.fileName}`);
             }
@@ -524,6 +525,11 @@ async function analyzeZipRecursive(source: ZipSource, relPath: string, budget: E
 function combineRelPath(parent: string, child: string): string {
     const cleanChild = child.replace(/\/$/, '');
     return parent ? `${parent}/${cleanChild}` : cleanChild;
+}
+
+function normalizeEntryPath(name: string): string {
+    // Convert any backslashes to POSIX-style separators before normalizing
+    return Path.posix.normalize(name.replace(/\\/g, '/'));
 }
 
 function openZipSource(source: ZipSource): Promise<yauzl.ZipFile> {
