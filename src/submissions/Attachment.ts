@@ -1,5 +1,6 @@
 import { Snowflake } from "discord.js";
 import { Author } from "./Author.js";
+import { WorldMetadata } from "../utils/WDLUtils.js";
 
 
 export enum AttachmentSource {
@@ -31,12 +32,14 @@ export type Attachment = BaseAttachment & {
         error?: string,
     },
 
-    // For wdl files
+    // For wdl files, legacy
     wdl?: {
         version?: string, // Minecraft version
         error?: string, // Error message if any
         optimized?: boolean, // Whether the world is optimized
     },
+
+    wdls?: WorldMetadata[],
 
     // For youtube links
     youtube?: {

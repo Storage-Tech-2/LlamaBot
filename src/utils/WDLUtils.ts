@@ -81,6 +81,189 @@ export async function optimizeWorldDownloads(zipPath: string, tempDir: string, o
     }
 }
 
+/**
+ * Extracts worlds inside a WDL zip (including nested zips) and returns metadata without modifying or creating archives.
+ */
+export async function analyzeWorldDownloads(zipPath: string, budget?: ExtractionBudget): Promise<WorldMetadata[]> {
+    const sessionBudget: ExtractionBudget = budget ?? {
+        remainingBytes: MAX_TOTAL_UNCOMPRESSED_BYTES,
+        perEntryLimit: MAX_ENTRY_UNCOMPRESSED_BYTES
+    };
+    const absoluteZip = Path.resolve(zipPath);
+    return analyzeZipSource({ zipPath: absoluteZip }, sessionBudget, absoluteZip);
+}
+
+type ZipSource = { zipPath?: string; buffer?: Buffer };
+
+async function analyzeZipSource(source: ZipSource, budget: ExtractionBudget, displayRoot: string): Promise<WorldMetadata[]> {
+    const zipfile = await openZipSource(source);
+    const results: WorldMetadata[] = [];
+
+    return new Promise<WorldMetadata[]>((resolve, reject) => {
+        let finished = false;
+        let entryCount = 0;
+
+        const fail = (error: unknown) => {
+            if (finished) return;
+            finished = true;
+            zipfile.close();
+            reject(error instanceof Error ? error : new Error(String(error)));
+        };
+
+        const succeed = () => {
+            if (finished) return;
+            finished = true;
+            zipfile.close();
+            resolve(results);
+        };
+
+        const next = () => zipfile.readEntry();
+
+        zipfile.on('entry', (entry) => {
+            (async () => {
+                entryCount += 1;
+                if (entryCount > MAX_ENTRIES) {
+                    throw new Error(`Zip archive has too many entries (>${MAX_ENTRIES})`);
+                }
+
+                const normalized = Path.posix.normalize(entry.fileName);
+                if (normalized.startsWith('../') || Path.posix.isAbsolute(normalized)) {
+                    throw new Error(`Path traversal detected for entry ${entry.fileName}`);
+                }
+
+                if (normalized === '__MACOSX' || normalized.startsWith('__MACOSX/')) {
+                    next();
+                    return;
+                }
+
+                const mode = entry.externalFileAttributes >>> 16;
+                const isSymlink = (mode & 0o170000) === 0o120000;
+                if (isSymlink) {
+                    throw new Error(`Symlink entries are not allowed (${entry.fileName})`);
+                }
+
+                const isDirectory = normalized.endsWith('/');
+                if (isDirectory) {
+                    next();
+                    return;
+                }
+
+                const baseName = Path.posix.basename(normalized).toLowerCase();
+                if (baseName === 'level.dat') {
+                    if (entry.uncompressedSize > budget.perEntryLimit || entry.uncompressedSize > MAX_LEVEL_DAT_BYTES) {
+                        throw new Error(`Entry ${entry.fileName} exceeds per-file size limit (${entry.uncompressedSize} bytes)`);
+                    }
+                    if (entry.uncompressedSize > budget.remainingBytes) {
+                        throw new Error('Archive uncompressed size exceeds safety limit');
+                    }
+                    const buffer = await readEntryToBuffer(zipfile, entry, budget);
+                    const worldDir = Path.posix.dirname(normalized);
+                    const worldPath = formatWorldPath(displayRoot, worldDir);
+                    const meta = await parseWorldMetadataFromBuffer(worldPath, buffer);
+                    results.push(meta);
+                    next();
+                    return;
+                }
+
+                const lowerName = normalized.toLowerCase();
+                if (lowerName.endsWith('.zip')) {
+                    if (entry.uncompressedSize > budget.perEntryLimit) {
+                        throw new Error(`Entry ${entry.fileName} exceeds per-file size limit (${entry.uncompressedSize} bytes)`);
+                    }
+                    if (entry.uncompressedSize > budget.remainingBytes) {
+                        throw new Error('Archive uncompressed size exceeds safety limit');
+                    }
+                    const buffer = await readEntryToBuffer(zipfile, entry, budget);
+                    const nestedRoot = `${displayRoot}!/${normalized}`;
+                    const nested = await analyzeZipSource({ buffer }, budget, nestedRoot);
+                    results.push(...nested);
+                    next();
+                    return;
+                }
+
+                next();
+            })().catch(fail);
+        });
+
+        zipfile.on('end', () => succeed());
+        zipfile.on('error', (error) => fail(error));
+        next();
+    });
+}
+
+function openZipSource(source: ZipSource): Promise<yauzl.ZipFile> {
+    const options = { lazyEntries: true, validateEntrySizes: true } as const;
+    if (source.zipPath) {
+        return new Promise((resolve, reject) => {
+            yauzl.open(source.zipPath as string, options, (err, zipfile) => {
+                if (err || !zipfile) {
+                    reject(err ?? new Error('Unable to open zip file'));
+                    return;
+                }
+                resolve(zipfile);
+            });
+        });
+    }
+
+    if (source.buffer) {
+        return new Promise((resolve, reject) => {
+            yauzl.fromBuffer(source.buffer as Buffer, options, (err, zipfile) => {
+                if (err || !zipfile) {
+                    reject(err ?? new Error('Unable to open zip buffer'));
+                    return;
+                }
+                resolve(zipfile);
+            });
+        });
+    }
+
+    return Promise.reject(new Error('No zip source provided'));
+}
+
+function readEntryToBuffer(zipfile: yauzl.ZipFile, entry: yauzl.Entry, budget: ExtractionBudget): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+        zipfile.openReadStream(entry, (openErr, readStream) => {
+            if (openErr || !readStream) {
+                reject(openErr ?? new Error(`Failed to read entry ${entry.fileName}`));
+                return;
+            }
+
+            const chunks: Buffer[] = [];
+            let total = 0;
+            let failed = false;
+
+            const abort = (error: Error) => {
+                if (failed) return;
+                failed = true;
+                readStream.destroy();
+                reject(error);
+            };
+
+            readStream.on('data', (chunk: Buffer) => {
+                total += chunk.length;
+                if (total > budget.perEntryLimit || total > budget.remainingBytes) {
+                    abort(new Error(`Entry ${entry.fileName} exceeds size limits during read`));
+                    return;
+                }
+                chunks.push(chunk);
+            });
+
+            readStream.on('end', () => {
+                if (failed) return;
+                budget.remainingBytes -= total;
+                resolve(Buffer.concat(chunks));
+            });
+
+            readStream.on('error', (err) => abort(err instanceof Error ? err : new Error(String(err))));
+        });
+    });
+}
+
+function formatWorldPath(displayRoot: string, worldDir: string): string {
+    const cleanDir = worldDir === '.' ? '' : worldDir.replace(/\/$/, '');
+    return cleanDir ? `${displayRoot}!/${cleanDir}` : displayRoot;
+}
+
 async function extractZipSafely(zipPath: string, destination: string, budget: ExtractionBudget): Promise<void> {
     const destinationRoot = Path.resolve(destination);
     await fs.mkdir(destinationRoot, { recursive: true });
@@ -289,6 +472,16 @@ async function parseWorldMetadata(worldPath: string): Promise<WorldMetadata> {
         }
 
         const buffer = await fs.readFile(levelDatPath);
+        return await parseWorldMetadataFromBuffer(meta.path, buffer);
+    } catch (error: any) {
+        meta.error = error?.message || 'Failed to parse level.dat';
+        return meta;
+    }
+}
+
+async function parseWorldMetadataFromBuffer(worldPath: string, buffer: Buffer): Promise<WorldMetadata> {
+    const meta: WorldMetadata = { path: worldPath };
+    try {
         const parsed = await nbt.parse(buffer);
         const data = parsed.parsed as any;
         const dataTag = data?.value?.Data;
