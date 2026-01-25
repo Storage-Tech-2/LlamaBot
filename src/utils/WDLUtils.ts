@@ -235,7 +235,7 @@ async function extractArchiveContents(params: {
             const isZip = normalized.toLowerCase().endsWith('.zip');
             if (isZip) {
                 const nestedRel = combineRelPath(relPath, normalized);
-                const nestedDir = getNextExtractDir(nestedRel.replace(/\//g, ':'));
+                const nestedDir = getNextExtractDir(nestedRel.replaceAll('/', ':'));
                 await extractArchiveRecursive({
                     source: { zipPath: target },
                     relPath: nestedRel,
