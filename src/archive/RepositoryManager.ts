@@ -17,7 +17,7 @@ import { ArchiveComment } from "./ArchiveComments.js";
 import { Author, AuthorType } from "../submissions/Author.js";
 import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
 import { makeEntryReadMe } from "./ReadMeMaker.js";
-import { analyzeAttachments, filterAttachmentsForViewer, getAttachmentsFromMessage, getFileKey, processAttachments } from "../utils/AttachmentUtils.js";
+import { analyzeAttachments, filterAttachmentsForViewer, getAttachmentsFromMessage, getFileKey, optimizeAttachments, processAttachments } from "../utils/AttachmentUtils.js";
 import { DictionaryManager } from "./DictionaryManager.js";
 import { IndexManager } from "./IndexManager.js";
 import { DiscordServersDictionary } from "./DiscordServersDictionary.js";
@@ -942,13 +942,20 @@ export class RepositoryManager {
 
                     const newKey = `${destKey}${ext ? '.' + ext : ''}`;
                     const sourcePath = Path.join(submission.getAttachmentFolder(), getFileKey(attachment));
+                    const sourcePathOptimized = Path.join(submission.getOptimizedAttachmentFolder(), getFileKey(attachment));
                     const destPath = Path.join(attachmentFolder, newKey);
                     attachment.path = `attachments/${newKey}`;
                     attachment.name = newKey; // Update the name to the new key
+
                     if (!attachment.canDownload) {
                         await fs.writeFile(destPath, attachment.url || '', 'utf-8');
                     } else {
-                        await fs.copyFile(sourcePath, destPath);
+                        // check if optimized file exists
+                        if (await fs.access(sourcePathOptimized).then(() => true).catch(() => false)) {
+                            await fs.copyFile(sourcePathOptimized, destPath);
+                        } else {
+                            await fs.copyFile(sourcePath, destPath);
+                        }
                     }
                 }
 
@@ -982,7 +989,7 @@ export class RepositoryManager {
         newEntryData: ArchiveEntryData,
         archiveChannelId: Snowflake,
         forceNew: boolean,
-        reanalyzeAttachments: boolean,
+        reanalyzeAndOptimizeAttachments: boolean,
         moveAttachments: (entryData: ArchiveEntryData, imageFolder: string, attachmentFolder: string) => Promise<void>,
         statusCallback: (status: string) => Promise<void> | void = () => { }
     ): Promise<{ oldEntryData?: ArchiveEntryData, newEntryData: ArchiveEntryData }> {
@@ -1131,9 +1138,33 @@ export class RepositoryManager {
 
         await moveAttachments(newEntryData, imageFolder, attachmentFolder);
 
-        if (reanalyzeAttachments) {
-            await reportStatus('Reanalyzing attachments');
+        if (reanalyzeAndOptimizeAttachments) {
+            await reportStatus('Reanalyzing and optimizing attachments');
             await analyzeAttachments(newEntryData.attachments, entryFolderPath);
+
+            const tempFolder = Path.join(this.folderPath, 'temp_attachments');
+            await fs.mkdir(tempFolder, { recursive: true });
+
+            const optimizedFolder = Path.join(this.folderPath, 'optimized_attachments');
+            await fs.mkdir(optimizedFolder, { recursive: true });
+
+            await optimizeAttachments(newEntryData.attachments, entryFolderPath, optimizedFolder, tempFolder, reportStatus);
+            
+            // remove temp folder
+            await fs.rm(tempFolder, { recursive: true, force: true });
+
+            // move optimized files back to attachment folder
+            for (const attachment of newEntryData.attachments) {
+                if (!attachment.canDownload || !attachment.path) continue;
+                const optimizedPath = Path.join(optimizedFolder, attachment.path);
+                const destPath = Path.join(entryFolderPath, attachment.path);
+                if (await fs.access(optimizedPath).then(() => true).catch(() => false)) {
+                    await fs.copyFile(optimizedPath, destPath);
+                }
+            }
+
+            // remove optimized folder
+            await fs.rm(optimizedFolder, { recursive: true, force: true });
         }
 
         if (existing && isSameChannel) {

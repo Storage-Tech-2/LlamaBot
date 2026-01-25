@@ -20,7 +20,7 @@ import { PublishButton } from "../components/buttons/PublishButton.js";
 import { SubmissionTagNames, SubmissionTags } from "./SubmissionTags.js";
 import { DiscordAuthor } from "./Author.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
-import { processImages, processAttachments, getAllAttachments } from "../utils/AttachmentUtils.js";
+import { processImages, processAttachments, getAllAttachments, optimizeAttachments } from "../utils/AttachmentUtils.js";
 import { RuleMatcher } from "../utils/RuleMatcher.js";
 import { tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
 
@@ -424,6 +424,22 @@ export class Submission {
         }
     }
 
+    public async optimizeAttachments(progressCallback?: (message: string) => Promise<void>) {
+        try {
+            const attachments = this.config.getConfig(SubmissionConfigs.ATTACHMENTS) || [];
+            const attachmentsFolder = this.getAttachmentFolder();
+            const optimizedFolder = this.getOptimizedAttachmentFolder();
+            await optimizeAttachments(
+                attachments, attachmentsFolder, optimizedFolder, this.getTempFolder(),
+                progressCallback || (async (_message: string) => { })
+            );
+            this.config.setConfig(SubmissionConfigs.ATTACHMENTS, attachments);
+        } catch (error: any) {
+            console.error('Error optimizing attachments:', error.message);
+            throw error;
+        }
+    }
+
     public getProcessedImagesFolder(): string {
         return Path.join(this.folderPath, 'processed_images');
     }
@@ -432,6 +448,13 @@ export class Submission {
         return Path.join(this.folderPath, 'attachments');
     }
 
+    public getOptimizedAttachmentFolder(): string {
+        return Path.join(this.folderPath, 'optimized_attachments');
+    }
+
+    public getTempFolder(): string {
+        return Path.join(this.folderPath, 'temp');
+    }
 
     public async sendNotificationsToSubscribers(channel: TextThreadChannel) {
         const subscriptionManager = this.guildHolder.getUserSubscriptionManager();
@@ -849,6 +872,8 @@ export class Submission {
 
 
         let oldEntryData, newEntryData;
+
+        await this.optimizeAttachments(statusCallback);
 
         try {
             const dt = await this.guildHolder.getRepositoryManager().addOrUpdateEntryFromSubmission(this, force, statusCallback);

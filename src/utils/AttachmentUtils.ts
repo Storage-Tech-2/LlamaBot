@@ -10,7 +10,7 @@ import { MCMeta } from './MCMeta.js'
 import { escapeDiscordString, escapeString, getMessageAuthor, truncateStringWithEllipsis } from './Util.js'
 import { Litematic } from '../lib/litematic-reader/main.js'
 import { Author } from '../submissions/Author.js'
-import { findWorldsInZip } from './WDLUtils.js'
+import { findWorldsInZip, optimizeWorldsInZip } from './WDLUtils.js'
 
 export async function changeImageName(processed_folder: string, oldImage: BaseAttachment, newImage: BaseAttachment): Promise<void> {
 
@@ -311,6 +311,53 @@ export async function processAttachments(attachments: Attachment[], attachments_
     return attachments;
 }
 
+export async function optimizeAttachments(
+    attachments: Attachment[],
+    attachments_folder: string, optimized_folder: string, temp_folder: string,
+    progressCallback: (message: string) => Promise<void>
+): Promise<Attachment[]> {
+    let tempIndex = 0;
+    await fs.mkdir(optimized_folder, { recursive: true });
+    await fs.mkdir(temp_folder, { recursive: true });
+    
+    await Promise.all(attachments.map(async (attachment) => {
+        if (attachment.wdl && attachment.path) {
+            const attachmentPath = Path.join(attachments_folder, attachment.path);
+            const optimizedPath = Path.join(optimized_folder, attachment.path);
+            
+            const existsInOptimized = await fs.access(optimizedPath).then(() => true).catch(() => false);
+            if (existsInOptimized) { // do nothing if already optimized
+                return;
+            }
+
+            const existsInOriginal = await fs.access(attachmentPath).then(() => true).catch(() => false);
+            if (!existsInOriginal) {
+                return;
+            }
+
+            await progressCallback(`Optimizing attachment ${attachment.name}...`);
+            // make temp folder
+
+            const tempAttachmentPath = Path.join(temp_folder, `temp_${tempIndex++}`);
+
+            await fs.mkdir(tempAttachmentPath);
+            try {
+                const result = await optimizeWorldsInZip(attachmentPath, tempAttachmentPath, optimizedPath);
+                if (result.zipPath) {
+                    attachment.wdl.optimized = true;
+                }
+            } catch (error) {
+                console.error('Error optimizing WDL file:', error);
+            }
+        }
+    }));
+
+    // Remove temp folder
+    await fs.rmdir(temp_folder, { recursive: true }).catch(() => {});
+
+    return attachments;
+}
+
 export async function analyzeAttachments(attachments: Attachment[], attachments_folder: string): Promise<Attachment[]> {
     const mcMeta = new MCMeta();
     await mcMeta.fetchVersionData();
@@ -407,7 +454,7 @@ function compareSemver(a: string, b: string): number {
 async function processWDLs(attachment: Attachment, attachmentPath: string): Promise<void> {
     try {
         const analysis = await findWorldsInZip(attachmentPath);
-        
+
         if (analysis.length === 0) {
             return;
         }

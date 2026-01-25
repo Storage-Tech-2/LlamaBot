@@ -11,7 +11,6 @@ import { AuthorType, DiscordAuthor } from "../submissions/Author.js";
 import { findWorldsInZip, optimizeWorldsInZip } from "../utils/WDLUtils.js";
 import got from "got";
 import Path from "path";
-import os from "os";
 import fs from "fs/promises";
 
 export class DebugCommand implements Command {
