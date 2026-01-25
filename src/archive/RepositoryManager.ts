@@ -1165,6 +1165,8 @@ export class RepositoryManager {
 
             // remove optimized folder
             await fs.rm(optimizedFolder, { recursive: true, force: true });
+
+            newEntryData.post.uploadMessageId = '';
         }
 
         if (existing && isSameChannel) {
