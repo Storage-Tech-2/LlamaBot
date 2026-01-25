@@ -59,10 +59,12 @@ export async function optimizeWorldDownloads(zipPath: string, tempDir: string, o
     try {
         await extractZipSafely(zipPath, extractionRoot, sessionBudget);
 
-        const nestedMetadata = await processNestedZipArchives(extractionRoot, tempRoot, sessionBudget);
+        const worlds: WorldMetadata[] = [];
+        const nestedWorlds = await processNestedZipArchives(extractionRoot, tempRoot, sessionBudget);
+        worlds.push(...nestedWorlds);
 
         const worldFolders = await findWorldFolders(extractionRoot);
-        if (worldFolders.length === 0 && nestedMetadata.length === 0) {
+        if (worldFolders.length === 0 && worlds.length === 0) {
             throw new Error('No Minecraft world folders (containing level.dat) found in the archive');
         }
 
@@ -71,10 +73,11 @@ export async function optimizeWorldDownloads(zipPath: string, tempDir: string, o
         }
 
         await createZipFromRoot(extractionRoot, outputZipPath);
-        const metadata = await Promise.all(worldFolders.map(parseWorldMetadata));
+        const topLevelMetadata = await Promise.all(worldFolders.map((wf) => parseWorldMetadata(wf, extractionRoot)));
+        worlds.push(...topLevelMetadata);
         return {
             zipPath: outputZipPath,
-            worlds: [...metadata, ...nestedMetadata]
+            worlds
         };
     } finally {
         await fs.rm(sessionRoot, { recursive: true, force: true }).catch(() => undefined);
@@ -84,13 +87,18 @@ export async function optimizeWorldDownloads(zipPath: string, tempDir: string, o
 /**
  * Extracts worlds inside a WDL zip (including nested zips) and returns metadata without modifying or creating archives.
  */
-export async function analyzeWorldDownloads(zipPath: string, budget?: ExtractionBudget): Promise<WorldMetadata[]> {
+export async function analyzeWorldDownloads(zipSource: string | Buffer, budget?: ExtractionBudget): Promise<WorldMetadata[]> {
     const sessionBudget: ExtractionBudget = budget ?? {
         remainingBytes: MAX_TOTAL_UNCOMPRESSED_BYTES,
         perEntryLimit: MAX_ENTRY_UNCOMPRESSED_BYTES
     };
-    const absoluteZip = Path.resolve(zipPath);
-    return analyzeZipSource({ zipPath: absoluteZip }, sessionBudget, absoluteZip);
+
+    if (typeof zipSource === 'string') {
+        const absoluteZip = Path.resolve(zipSource);
+        return analyzeZipSource({ zipPath: absoluteZip }, sessionBudget, '');
+    }
+
+    return analyzeZipSource({ buffer: zipSource }, sessionBudget, '');
 }
 
 type ZipSource = { zipPath?: string; buffer?: Buffer };
@@ -174,7 +182,7 @@ async function analyzeZipSource(source: ZipSource, budget: ExtractionBudget, dis
                         throw new Error('Archive uncompressed size exceeds safety limit');
                     }
                     const buffer = await readEntryToBuffer(zipfile, entry, budget);
-                    const nestedRoot = `${displayRoot}!/${normalized}`;
+                    const nestedRoot = buildNestedRoot(displayRoot, normalized);
                     const nested = await analyzeZipSource({ buffer }, budget, nestedRoot);
                     results.push(...nested);
                     next();
@@ -259,9 +267,17 @@ function readEntryToBuffer(zipfile: yauzl.ZipFile, entry: yauzl.Entry, budget: E
     });
 }
 
+function buildNestedRoot(parent: string, child: string): string {
+    if (!parent) return child;
+    return `${parent}!/${child}`;
+}
+
 function formatWorldPath(displayRoot: string, worldDir: string): string {
     const cleanDir = worldDir === '.' ? '' : worldDir.replace(/\/$/, '');
-    return cleanDir ? `${displayRoot}!/${cleanDir}` : displayRoot;
+    if (displayRoot && cleanDir) return `${displayRoot}!/${cleanDir}`;
+    if (displayRoot) return displayRoot;
+    if (cleanDir) return cleanDir;
+    return '.';
 }
 
 async function extractZipSafely(zipPath: string, destination: string, budget: ExtractionBudget): Promise<void> {
@@ -277,6 +293,21 @@ async function extractZipSafely(zipPath: string, destination: string, budget: Ex
             let finished = false;
             let entryCount = 0;
             const rootWithSep = destinationRoot.endsWith(Path.sep) ? destinationRoot : `${destinationRoot}${Path.sep}`;
+            const extractedEntries = new Map<string, 'file' | 'dir'>(); // prevent duplicate or clobbering entries
+
+            const ensureUniquePath = (desired: string, isDir: boolean): string => {
+                let candidate = desired;
+                let counter = 1;
+                while (extractedEntries.has(candidate)) {
+                    const dir = Path.dirname(desired);
+                    const base = Path.basename(desired);
+                    const ext = isDir ? '' : Path.extname(base);
+                    const name = isDir ? base : Path.basename(base, ext);
+                    candidate = Path.join(dir, `${name}__dup${counter}${ext}`);
+                    counter += 1;
+                }
+                return candidate;
+            };
 
             const fail = (error: unknown) => {
                 if (finished) return;
@@ -331,19 +362,24 @@ async function extractZipSafely(zipPath: string, destination: string, budget: Ex
 
                 const isDirectory = normalized.endsWith('/');
                 if (isDirectory) {
-                    fs.mkdir(resolvedTarget, { recursive: true })
+                    const target = ensureUniquePath(resolvedTarget, true);
+                    extractedEntries.set(target, 'dir');
+                    fs.mkdir(target, { recursive: true })
                         .then(() => zipfile.readEntry())
                         .catch(fail);
                     return;
                 }
 
-                fs.mkdir(Path.dirname(resolvedTarget), { recursive: true }).then(() => {
+                const target = ensureUniquePath(resolvedTarget, false);
+                extractedEntries.set(target, 'file');
+
+                fs.mkdir(Path.dirname(target), { recursive: true }).then(() => {
                     zipfile.openReadStream(entry, (openErr, readStream) => {
                         if (openErr || !readStream) {
                             return fail(openErr ?? new Error(`Failed to read entry ${entry.fileName}`));
                         }
 
-                        pipeline(readStream, createWriteStream(resolvedTarget))
+                        pipeline(readStream, createWriteStream(target, { flags: 'wx' }))
                             .then(() => {
                                 budget.remainingBytes -= entry.uncompressedSize;
                                 zipfile.readEntry();
@@ -403,21 +439,20 @@ async function processNestedZipArchives(root: string, tempRoot: string, budget: 
             continue;
         }
 
-        let containsWorld = false;
         try {
-            containsWorld = await archiveContainsWorld(fullPath);
+            const { zipPath: optimizedPath, worlds } = await optimizeWorldDownloads(fullPath, tempRoot, undefined, budget);
+            await fs.copyFile(optimizedPath, fullPath);
+            await fs.rm(optimizedPath, { force: true }).catch(() => undefined);
+            const relativeEntry = Path.posix.normalize(Path.relative(root, fullPath).split(Path.sep).join(Path.posix.sep));
+            foundWorldZip = foundWorldZip.concat(prefixWorldPaths(worlds, relativeEntry));
         } catch (error: any) {
-            throw new Error(`Failed to inspect nested zip ${fullPath}: ${error?.message || String(error)}`);
+            const message = error?.message || '';
+            if (message.includes('No Minecraft world folders')) {
+                // skip archives with no worlds
+                continue;
+            }
+            throw error;
         }
-
-        if (!containsWorld) {
-            continue;
-        }
-
-        const { zipPath: optimizedPath, worlds } = await optimizeWorldDownloads(fullPath, tempRoot, undefined, budget);
-        await fs.copyFile(optimizedPath, fullPath);
-        await fs.rm(optimizedPath, { force: true }).catch(() => undefined);
-        foundWorldZip = foundWorldZip.concat(worlds);
     }
 
     return foundWorldZip;
@@ -461,8 +496,8 @@ async function runMcSelector(worldPath: string): Promise<void> {
     });
 }
 
-async function parseWorldMetadata(worldPath: string): Promise<WorldMetadata> {
-    const meta: WorldMetadata = { path: Path.resolve(worldPath) };
+async function parseWorldMetadata(worldPath: string, baseRoot: string): Promise<WorldMetadata> {
+    const meta: WorldMetadata = { path: toRelativeWorldPath(baseRoot, worldPath) };
     const levelDatPath = Path.join(worldPath, 'level.dat');
     try {
         const stats = await fs.stat(levelDatPath);
@@ -505,60 +540,18 @@ async function parseWorldMetadataFromBuffer(worldPath: string, buffer: Buffer): 
     return meta;
 }
 
-async function archiveContainsWorld(zipPath: string): Promise<boolean> {
-    const absolute = Path.resolve(zipPath);
-    return new Promise((resolve, reject) => {
-        yauzl.open(absolute, { lazyEntries: true, validateEntrySizes: true }, (err, zipfile) => {
-            if (err || !zipfile) {
-                return reject(err ?? new Error('Unable to open zip file'));
-            }
+function toRelativeWorldPath(baseRoot: string, absolutePath: string): string {
+    const rel = Path.relative(baseRoot, absolutePath).split(Path.sep).join(Path.posix.sep);
+    return rel.length > 0 ? rel : '.';
+}
 
-            let finished = false;
-            let entryCount = 0;
-
-            const finish = (value: boolean, error?: unknown) => {
-                if (finished) return;
-                finished = true;
-                zipfile.close();
-                if (error) {
-                    reject(error instanceof Error ? error : new Error(String(error)));
-                    return;
-                }
-                resolve(value);
-            };
-
-            zipfile.readEntry();
-            zipfile.on('entry', (entry) => {
-                entryCount += 1;
-                if (entryCount > MAX_ENTRIES) {
-                    return finish(false, new Error(`Zip archive has too many entries (>${MAX_ENTRIES})`));
-                }
-
-                const normalized = Path.posix.normalize(entry.fileName);
-                if (normalized.startsWith('../') || Path.posix.isAbsolute(normalized)) {
-                    return finish(false, new Error(`Path traversal detected for entry ${entry.fileName}`));
-                }
-
-                if (normalized === '__MACOSX' || normalized.startsWith('__MACOSX/')) {
-                    zipfile.readEntry();
-                    return;
-                }
-
-                if (entry.uncompressedSize > MAX_ENTRY_UNCOMPRESSED_BYTES) {
-                    return finish(false, new Error(`Entry ${entry.fileName} exceeds per-file size limit (${entry.uncompressedSize} bytes)`));
-                }
-
-                if (Path.posix.basename(normalized).toLowerCase() === 'level.dat') {
-                    return finish(true);
-                }
-
-                zipfile.readEntry();
-            });
-
-            zipfile.on('end', () => finish(false));
-            zipfile.on('error', (error) => finish(false, error));
-        });
-    });
+function prefixWorldPaths(worlds: WorldMetadata[], prefix: string): WorldMetadata[] {
+    const cleanPrefix = prefix.replace(/\/$/, '');
+    if (!cleanPrefix) return worlds;
+    return worlds.map((world) => ({
+        ...world,
+        path: `${cleanPrefix}!/${world.path}`
+    }));
 }
 
 async function createZipFromRoot(extractionRoot: string, outputZipPath: string): Promise<void> {
