@@ -131,6 +131,11 @@ export class EditorPowersCommand implements Command {
             return;
         }
 
+        if (subcommand === 'makeindex') {
+            await this.makeIndex(guildHolder, interaction);
+            return;
+        }
+
         const channelId = interaction.channelId;
         const submission = await guildHolder.getSubmissionsManager().getSubmission(channelId);
         if (!submission) {
@@ -139,9 +144,6 @@ export class EditorPowersCommand implements Command {
         }
 
         switch (subcommand) {
-            case 'makeindex':
-                await this.makeIndex(guildHolder, interaction);
-                return;
             case 'clearendorsements':
                 const endorsements = submission.getConfigManager().getConfig(SubmissionConfigs.ENDORSERS);
                 if (endorsements.length === 0) {

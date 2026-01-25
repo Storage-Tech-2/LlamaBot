@@ -106,13 +106,14 @@ export class SetImagesMenu implements Menu {
 
         const currentImages = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) ?? [];
         const newImages: BaseAttachment[] = interaction.values.map((value) => {
-            const found = attachments.find(attachment => attachment.id === value);
-            if (found) {
-                return found;
-            }
             const imageFound = currentImages.find(img => img.id === value);
             if (imageFound) {
                 return imageFound;
+            }
+
+            const found = attachments.find(attachment => attachment.id === value);
+            if (found) {
+                return found;
             }
             return null;
         }).filter(o => !!o);

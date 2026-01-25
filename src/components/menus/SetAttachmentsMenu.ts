@@ -100,7 +100,7 @@ export class SetAttachmentsMenu implements Menu {
         const attachments = await submission.getAttachments()
         const currentAttachments = submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) ?? [];
         const newAttachments = interaction.values.map(id => {
-            return attachments.find(attachment => attachment.id === id) ?? currentAttachments.find(attachment => attachment.id === id);
+            return currentAttachments.find(attachment => attachment.id === id) ?? attachments.find(attachment => attachment.id === id);
         }).filter(o => !!o);
 
         const addedAttachmentsWithoutDescriptions = newAttachments.filter(newAtt => {
