@@ -529,6 +529,18 @@ async function optimizeWorld(worldDir: string): Promise<void> {
             await fs.rm(targetPath, { recursive: true, force: true }).catch(() => null);
         }
     }
+
+    // in the DIM-1 and DIM1 folders, only keep region/ and entities/
+    for (const dim of ['DIM-1', 'DIM1']) {
+        const dimPath = Path.join(worldDir, dim);
+        const dimEntries = await fs.readdir(dimPath, { withFileTypes: true }).catch(() => []);
+        for (const entry of dimEntries) {
+            if (entry.name !== 'region' && entry.name !== 'entities') {
+                const targetPath = Path.join(dimPath, entry.name);
+                await fs.rm(targetPath, { recursive: true, force: true }).catch(() => null);
+            }
+        }
+    }
 }
 
 async function runMcSelector(worldPath: string): Promise<void> {
