@@ -807,18 +807,16 @@ export function getAttachmentsSetMessage(attachments: Attachment[]): string {
     if (litematics.length) {
         description += '**Litematics:**\n'
         litematics.forEach(attachment => {
-            description += `- ${attachment.canDownload ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${attachment.litematic?.error || `MC ${attachment.litematic?.version}, ${attachment.litematic?.size}`}\n`
+            description += `- ${attachment.canDownload ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${attachment.litematic?.error || `MC ${attachment.litematic?.version}, ${attachment.litematic?.size}`}, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
             if (attachment.description) description += `  - ${attachment.description}\n`
-            description += `  - Sent by ${getAuthorName(attachment.author)} on <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
         })
     }
 
     if (wdls.length) {
         description += '**WDLs:**\n'
         wdls.forEach(attachment => {
-            description += `- ${attachment.canDownload ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}\n`
+            description += `- ${attachment.canDownload ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
             if (attachment.description) description += `  - ${attachment.description}\n`
-            description += `  - Sent by ${getAuthorName(attachment.author)} on <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
         })
     }
 
@@ -828,18 +826,15 @@ export function getAttachmentsSetMessage(attachments: Attachment[]): string {
             if (attachment.contentType === 'bilibili') {
                 description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Bilibili video\n`
                 if (attachment.description) description += `  - ${attachment.description}\n`
-                description += `  - Sent by ${getAuthorName(attachment.author)} on <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
                 return;
             }
             if (!attachment.youtube) {
                 description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link\n`
                 if (attachment.description) description += `  - ${attachment.description}`
-                description += `  - Sent by ${getAuthorName(attachment.author)} on <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
                 return;
             }
             description += `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): by [${escapeDiscordString(attachment.youtube?.author_name)}](${attachment.youtube?.author_url})\n`
             if (attachment.description) description += `  - ${attachment.description}\n`
-            description += `  - Sent by ${getAuthorName(attachment.author)} on <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
         })
     }
 
@@ -855,9 +850,8 @@ export function getAttachmentsSetMessage(attachments: Attachment[]): string {
                     type = 'Discord link';
                     break;
             }
-            description += `- ${attachment.contentType == 'discord' ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${type}\n`
+            description += `- ${attachment.contentType == 'discord' ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${type}, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
             if (attachment.description) description += `  - ${attachment.description}\n`
-            description += `  - Sent by ${getAuthorName(attachment.author)} on <t:${Math.floor(attachment.timestamp / 1000)}:f>\n`
         })
     }
     return description;
