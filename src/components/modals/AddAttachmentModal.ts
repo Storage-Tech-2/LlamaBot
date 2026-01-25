@@ -223,13 +223,13 @@ export class AddAttachmentModal implements Modal {
         } else if (attachmentObj.contentType === 'bilibili') {
             message += `Bilibili video: [${escapeDiscordString(attachmentObj.name)}](${attachmentObj.url})`;
         } else if (attachmentObj.wdl) {
-            message += `WDL: [${escapeDiscordString(attachmentObj.name)}](${attachmentObj.url}): ${attachmentObj.wdl?.error || `MC ${attachmentObj.wdl?.version}`}`;
+            message += `WDL: ${attachmentObj.url} : ${attachmentObj.wdl?.error || `MC ${attachmentObj.wdl?.version}`}`;
         } else if (attachmentObj.litematic) {
-            message += `Litematic: [${escapeDiscordString(attachmentObj.name)}](${attachmentObj.url}): ${attachmentObj.litematic?.error || `MC ${attachmentObj.litematic?.version}, ${attachmentObj.litematic?.size}`}`;
+            message += `Litematic: ${attachmentObj.url} : ${attachmentObj.litematic?.error || `MC ${attachmentObj.litematic?.version}, ${attachmentObj.litematic?.size}`}`;
         } else if (attachmentObj.contentType === 'mediafire') {
             message += `Mediafire link: [${escapeDiscordString(attachmentObj.name)}](${attachmentObj.url})`;
         } else if (attachmentObj.contentType === 'discord') {
-            message += `Discord attachment: [${escapeDiscordString(attachmentObj.name)}](${attachmentObj.url})`;
+            message += `Discord attachment: ${attachmentObj.url} `;
         } else {
             message += `attachment: [${escapeDiscordString(attachmentObj.name)}](${attachmentObj.url})`;
         }
