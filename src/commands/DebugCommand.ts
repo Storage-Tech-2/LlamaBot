@@ -566,9 +566,11 @@ export class DebugCommand implements Command {
 
             const file = new AttachmentBuilder(optimizedBuffer, { name: outName });
             const worldSummary = worlds.map(w => `${Path.basename(w.path)}: ${w.version || w.error || 'Unknown'}`).join('\n');
+            const analysisJson = Buffer.from(JSON.stringify(worlds, null, 2));
+            const analysisAttachment = new AttachmentBuilder(analysisJson, { name: 'wdl-analysis.json' });
             await interaction.editReply({
                 content: `Optimized WDL created (${outName}).\n${worldSummary ? `Worlds:\n${worldSummary}` : ''}`,
-                files: [file]
+                files: [file, analysisAttachment]
             });
         } catch (error: any) {
             await interaction.editReply({ content: `Optimization failed: ${error?.message || 'Unknown error'}` });
