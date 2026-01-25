@@ -550,7 +550,7 @@ export class DebugCommand implements Command {
         await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
         const workRoot = process.cwd();
-        const session = Path.join(workRoot, `${Date.now().toString(36)}-${attachment.id}`);
+        const session = Path.join(workRoot, 'debug' , `${Date.now().toString(36)}-${attachment.id}`);
         const inputPath = Path.join(session, 'input.zip');
 
         try {
@@ -575,7 +575,7 @@ export class DebugCommand implements Command {
         } catch (error: any) {
             await interaction.editReply({ content: `Optimization failed: ${error?.message || 'Unknown error'}` });
         } finally {
-            await fs.rm(session, { recursive: true, force: true }).catch(() => null);
+            // await fs.rm(session, { recursive: true, force: true }).catch(() => null);
         }
     }
 
@@ -592,7 +592,7 @@ export class DebugCommand implements Command {
 
         try {
             const workRoot = process.cwd();
-            const session = Path.join(workRoot, `${Date.now().toString(36)}-${attachment.id}`);
+            const session = Path.join(workRoot, 'debug', `${Date.now().toString(36)}-${attachment.id}`);
             const inputPath = Path.join(session, 'input.zip');
 
             await fs.mkdir(session, { recursive: true });

@@ -44,7 +44,7 @@ export async function optimizeWorldDownloads(zipPath: string, tempDir: string, o
     const tempRoot = Path.resolve(tempDir);
     await fs.mkdir(tempRoot, { recursive: true });
 
-    const sessionRoot = Path.join(tempRoot, `wdl-session-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
+    const sessionRoot = tempRoot;
     const rootExtractDir = Path.join(sessionRoot, 'root');
     await fs.mkdir(rootExtractDir, { recursive: true });
 
@@ -63,30 +63,25 @@ export async function optimizeWorldDownloads(zipPath: string, tempDir: string, o
         remainingBytes: MAX_TOTAL_UNCOMPRESSED_BYTES,
         perEntryLimit: MAX_ENTRY_UNCOMPRESSED_BYTES
     };
+    const contexts: ArchiveContext[] = [];
+    await extractArchiveRecursive({
+        source: { zipPath: Path.resolve(zipPath) },
+        relPath: '',
+        extractDir: rootExtractDir,
+        sessionRoot,
+        budget,
+        contexts
+    });
 
-    try {
-        const contexts: ArchiveContext[] = [];
-        await extractArchiveRecursive({
-            source: { zipPath: Path.resolve(zipPath) },
-            relPath: '',
-            extractDir: rootExtractDir,
-            sessionRoot,
-            budget,
-            contexts
-        });
-
-        const worlds = await analyzeExtractedWorlds(contexts);
-        if (worlds.length === 0) {
-            throw new Error('No Minecraft world folders (containing level.dat) found in the archive');
-        }
-
-        await optimizeWorlds(worlds, contexts);
-        await repackageArchives(contexts, outputZipPath);
-
-        return { zipPath: outputZipPath, worlds };
-    } finally {
-        await fs.rm(sessionRoot, { recursive: true, force: true }).catch(() => undefined);
+    const worlds = await analyzeExtractedWorlds(contexts);
+    if (worlds.length === 0) {
+        throw new Error('No Minecraft world folders (containing level.dat) found in the archive');
     }
+
+    await optimizeWorlds(worlds, contexts);
+    await repackageArchives(contexts, outputZipPath);
+
+    return { zipPath: outputZipPath, worlds };
 }
 
 /**
@@ -239,7 +234,7 @@ async function extractArchiveContents(params: {
             const isZip = normalized.toLowerCase().endsWith('.zip');
             if (isZip) {
                 const nestedRel = combineRelPath(relPath, normalized);
-                const nestedDir = Path.join(sessionRoot, 'nested', `${Date.now().toString(36)}-${nestedCounter++}`);
+                const nestedDir = Path.join(sessionRoot, `${Date.now().toString(36)}-${nestedCounter++}`);
                 await extractArchiveRecursive({
                     source: { zipPath: target },
                     relPath: nestedRel,
