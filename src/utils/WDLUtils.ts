@@ -64,11 +64,12 @@ export async function optimizeWorldDownloads(zipPath: string, tempDir: string, o
         perEntryLimit: MAX_ENTRY_UNCOMPRESSED_BYTES
     };
     const contexts: ArchiveContext[] = [];
+    let nestedCounter = 0;
     await extractArchiveRecursive({
         source: { zipPath: Path.resolve(zipPath) },
         relPath: '',
         extractDir: rootExtractDir,
-        sessionRoot,
+        getNextExtractDir: (suffix: string) => Path.join(sessionRoot, `nested-${nestedCounter++}-${suffix}`),
         budget,
         contexts
     });
@@ -102,18 +103,18 @@ async function extractArchiveRecursive(params: {
     source: ZipSource;
     relPath: string;
     extractDir: string;
-    sessionRoot: string;
+    getNextExtractDir: (suffix: string) => string;
     budget: ExtractionBudget;
     contexts: ArchiveContext[];
 }): Promise<void> {
-    const { source, relPath, extractDir, sessionRoot, budget, contexts } = params;
+    const { source, relPath, extractDir, getNextExtractDir, budget, contexts } = params;
     contexts.push({ relPath, extractDir, zipOutputPath: relPath ? extractDir.replace(/\/$/, '') : undefined });
 
     await extractArchiveContents({
         source,
         relPath,
         extractDir,
-        sessionRoot,
+        getNextExtractDir,
         budget,
         contexts
     });
@@ -123,11 +124,11 @@ async function extractArchiveContents(params: {
     source: ZipSource;
     relPath: string;
     extractDir: string;
-    sessionRoot: string;
+    getNextExtractDir: (suffix: string) => string;
     budget: ExtractionBudget;
     contexts: ArchiveContext[];
 }): Promise<void> {
-    const { source, relPath, extractDir, sessionRoot, budget, contexts } = params;
+    const { source, relPath, extractDir, getNextExtractDir, budget, contexts } = params;
     await fs.mkdir(extractDir, { recursive: true });
 
     const zipfile = await openZipSource(source);
@@ -137,7 +138,7 @@ async function extractArchiveContents(params: {
         let entryCount = 0;
         const rootWithSep = extractDir.endsWith(Path.sep) ? extractDir : `${extractDir}${Path.sep}`;
         const takenPaths = new Map<string, 'file' | 'dir'>(); // avoid collisions
-        let nestedCounter = 0;
+
 
         const fail = (error: unknown) => {
             if (finished) return;
@@ -234,12 +235,12 @@ async function extractArchiveContents(params: {
             const isZip = normalized.toLowerCase().endsWith('.zip');
             if (isZip) {
                 const nestedRel = combineRelPath(relPath, normalized);
-                const nestedDir = Path.join(sessionRoot, `${Date.now().toString(36)}-${nestedCounter++}`);
+                const nestedDir = getNextExtractDir(nestedRel.replace(/\//g, ':'));
                 await extractArchiveRecursive({
                     source: { zipPath: target },
                     relPath: nestedRel,
                     extractDir: nestedDir,
-                    sessionRoot,
+                    getNextExtractDir,
                     budget,
                     contexts
                 });
