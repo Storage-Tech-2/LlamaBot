@@ -326,7 +326,6 @@ async function parseWorldMetadataFromBuffer(worldPath: string, buffer: Buffer): 
 }
 
 // -------- Optimization --------
-
 async function optimizeWorlds(worlds: WorldMetadata[], contexts: ArchiveContext[]): Promise<void> {
     const worldPathsByRelative = new Map<string, string>(); // relative -> absolute world dir
     for (const ctx of contexts) {
@@ -341,7 +340,26 @@ async function optimizeWorlds(worlds: WorldMetadata[], contexts: ArchiveContext[
     for (const world of worlds) {
         const abs = worldPathsByRelative.get(world.path);
         if (!abs) continue;
-        await runMcSelector(abs);
+        await optimizeWorld(abs);
+    }
+}
+
+async function optimizeWorld(worldDir: string): Promise<void> {
+    await runMcSelector(worldDir);
+
+    const pathsToDelete = [
+        'stats',
+        'scripts',
+        'playerdata',
+        'advancements',
+        'datapacks',
+        'data',
+        'poi',
+    ]
+
+    for (const relPath of pathsToDelete) {
+        const targetPath = Path.join(worldDir, relPath);
+        await fs.rm(targetPath, { recursive: true, force: true }).catch(() => null);
     }
 }
 
