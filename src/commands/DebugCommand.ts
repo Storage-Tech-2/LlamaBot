@@ -8,6 +8,11 @@ import { SetTemplateModal } from "../components/modals/SetTemplateModal.js";
 import { Reference, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
 import { RevisionEmbed } from "../embed/RevisionEmbed.js";
 import { AuthorType, DiscordAuthor } from "../submissions/Author.js";
+import { optimizeWorldDownloads } from "../utils/WDLUtils.js";
+import got from "got";
+import Path from "path";
+import os from "os";
+import fs from "fs/promises";
 
 export class DebugCommand implements Command {
     getID(): string {
@@ -105,6 +110,17 @@ export class DebugCommand implements Command {
                 sub
                     .setName('listauthors')
                     .setDescription('List archived post authors who are not in the guild')
+            )
+            .addSubcommand(sub =>
+                sub
+                    .setName('optimizewdl')
+                    .setDescription('Optimize a WDL zip using MCSelector and return the optimized zip')
+                    .addAttachmentOption(opt =>
+                        opt
+                            .setName('zip')
+                            .setDescription('Zip containing one or more world downloads')
+                            .setRequired(true)
+                    )
             );
 
         return data;
@@ -149,6 +165,9 @@ export class DebugCommand implements Command {
                 break;
             case 'listauthors':
                 await this.handleListAuthors(guildHolder, interaction);
+                break;
+            case 'optimizewdl':
+                await this.handleOptimizeWdl(guildHolder, interaction);
                 break;
             default:
                 await replyEphemeral(interaction, 'Unknown subcommand.');
@@ -504,5 +523,41 @@ export class DebugCommand implements Command {
             content: summary,
             files: [attachment]
         });
+    }
+
+    private async handleOptimizeWdl(_guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const attachment = interaction.options.getAttachment('zip', true);
+        const nameLower = (attachment.name || '').toLowerCase();
+        if (!nameLower.endsWith('.zip')) {
+            await replyEphemeral(interaction, 'Please provide a .zip file.');
+            return;
+        }
+
+        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
+        const workRoot = Path.join(os.tmpdir(), 'wdl-debug');
+        const session = Path.join(workRoot, `${Date.now().toString(36)}-${attachment.id}`);
+        const inputPath = Path.join(session, 'input.zip');
+
+        try {
+            await fs.mkdir(session, { recursive: true });
+
+            const res = await got(attachment.url, { responseType: 'buffer' });
+            await fs.writeFile(inputPath, res.body);
+
+            const optimizedPath = await optimizeWorldDownloads(inputPath, session);
+            const optimizedBuffer = await fs.readFile(optimizedPath);
+            const outName = Path.basename(optimizedPath);
+
+            const file = new AttachmentBuilder(optimizedBuffer, { name: outName });
+            await interaction.editReply({
+                content: `Optimized WDL created (${outName}).`,
+                files: [file]
+            });
+        } catch (error: any) {
+            await interaction.editReply({ content: `Optimization failed: ${error?.message || 'Unknown error'}` });
+        } finally {
+            await fs.rm(session, { recursive: true, force: true }).catch(() => null);
+        }
     }
 }

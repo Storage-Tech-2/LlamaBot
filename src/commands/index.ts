@@ -18,7 +18,7 @@ import { ToggleHelper } from "./ToggleHelper.js";
 import { UnsubscribeCommand } from "./UnsubscribeCommand.js";
 import { TopHelpersCommand } from "./TopHelpersCommand.js";
 import { DiscordsCommand } from "./DiscordsCommand.js";
-// import { DebugCommand } from "./DebugCommand.js";
+import { DebugCommand } from "./DebugCommand.js";
 import { DefineCommand } from "./DefineCommand.js";
 import { SearchCommand } from "./SearchCommand.js";
 import { JoinDiscordCommand } from "./JoinDiscordCommand.js";
@@ -46,7 +46,7 @@ export function getCommands() {
         new DictionaryEditCommand(),
         new DiscordsCommand(),
         new AskCommand(),
-     //   new DebugCommand(),
+        new DebugCommand(),
         new DefineCommand(),
         new SearchCommand(),
         new JoinDiscordCommand()
