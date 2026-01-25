@@ -159,31 +159,39 @@ export class AddAttachmentModal implements Modal {
 
         await interaction.deferUpdate();
 
-        // const webhook = await submissionChannel.parent.createWebhook({
-        //     name: 'LlamaBot Attachment Uploader',
-        // });
+        if (uploadedAttachment) {
+            const webhook = await submissionChannel.parent.createWebhook({
+                name: 'LlamaBot Attachment Uploader',
+            });
 
-        // const member = interaction.guild?.members.cache.get(interaction.user.id);
+            const member = interaction.guild?.members.cache.get(interaction.user.id);
 
-        //  await webhook.send({
-        //     username: member?.displayName || interaction.user.username,
-        //     avatarURL: member?.displayAvatarURL(),
-        //     content: description.length > 0 ? `Description: ${description}` : '',
-        //     allowedMentions: { parse: [] },
-        //     threadId: submissionChannel.id,
-        //     files: [
-        //         {
-        //             name: attachmentObj.name,
-        //             attachment: attachmentObj.url
-        //         }
-        //     ]
-        // }).catch((e) => {
-        //     console.log("Failed to post with webhook", e)
-        // });
+            const message = await webhook.send({
+                username: member?.displayName || interaction.user.username,
+                avatarURL: member?.displayAvatarURL(),
+                content: description.length > 0 ? `Description: ${description}` : '',
+                allowedMentions: { parse: [] },
+                threadId: submissionChannel.id,
+                flags: [MessageFlags.SuppressEmbeds],
+                files: [
+                    {
+                        name: attachmentObj.name,
+                        attachment: attachmentObj.url
+                    }
+                ]
+            }).catch((e) => {
+                console.log("Failed to post with webhook", e)
+            });
 
+            await webhook.delete().catch(() => { /* ignore */ });
 
-        // await webhook.delete().catch(() => { /* ignore */ });
-
+            // set new URL from message attachment
+            const msgAttachment = message?.attachments.first();
+            if (msgAttachment) {
+                attachmentObj.url = msgAttachment.url;
+                attachmentObj.id = msgAttachment.id;
+            }
+        }
 
         const currentAttachments = submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) ?? [];
         currentAttachments.push(attachmentObj);
@@ -203,7 +211,7 @@ export class AddAttachmentModal implements Modal {
         await submission.save();
 
         await SetAttachmentsMenu.sendAttachmentsMenuAndButton(submission, interaction, true);
-                  
+
 
         let message = `<@${interaction.user.id}> added `;
         if (attachmentObj.youtube || attachmentObj.contentType === 'youtube' || attachmentObj.contentType === 'bilibili') {
@@ -232,7 +240,7 @@ export class AddAttachmentModal implements Modal {
 
         const editDescriptionButton = new EditInfoMultipleButton().getBuilder(false);
         const row = new ActionRowBuilder().addComponents(editDescriptionButton);
-        
+
 
         await interaction.followUp({
             content: truncateStringWithEllipsis(message, 2000),

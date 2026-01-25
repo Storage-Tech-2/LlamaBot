@@ -129,29 +129,39 @@ export class AddImageModal implements Modal {
 
         await interaction.deferUpdate();
 
-        // const webhook = await submissionChannel.parent.createWebhook({
-        //     name: 'LlamaBot Attachment Uploader',
-        // });
+       if (uploadedAttachment) {
+            const webhook = await submissionChannel.parent.createWebhook({
+                name: 'LlamaBot Attachment Uploader',
+            });
 
-        // const member = interaction.guild?.members.cache.get(interaction.user.id);
+            const member = interaction.guild?.members.cache.get(interaction.user.id);
 
-        // await webhook.send({
-        //     username: member?.displayName || interaction.user.username,
-        //     avatarURL: member?.displayAvatarURL(),
-        //     content: description.length > 0 ? `Description: ${description}` : '',
-        //     allowedMentions: { parse: [] },
-        //     threadId: submissionChannel.id,
-        //     files: [
-        //         {
-        //             name: imageObj.name,
-        //             attachment: imageObj.url
-        //         }
-        //     ]
-        // }).catch((e) => {
-        //     console.log("Failed to post with webhook", e)
-        // });
+            const message = await webhook.send({
+                username: member?.displayName || interaction.user.username,
+                avatarURL: member?.displayAvatarURL(),
+                content: description.length > 0 ? `Description: ${description}` : '',
+                allowedMentions: { parse: [] },
+                threadId: submissionChannel.id,
+                flags: [MessageFlags.SuppressEmbeds],
+                files: [
+                    {
+                        name: imageObj.name,
+                        attachment: imageObj.url
+                    }
+                ]
+            }).catch((e) => {
+                console.log("Failed to post with webhook", e)
+            });
 
-        // await webhook.delete().catch(() => { /* ignore */ });
+            await webhook.delete().catch(() => { /* ignore */ });
+
+            // set new URL from message attachment
+            const msgAttachment = message?.attachments.first();
+            if (msgAttachment) {
+                imageObj.url = msgAttachment.url;
+                imageObj.id = msgAttachment.id;
+            }
+        }
 
         const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null;
         const currentImages = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) ?? [];
