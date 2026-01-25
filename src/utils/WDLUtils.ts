@@ -372,7 +372,8 @@ async function runMcSelector(worldPath: string): Promise<void> {
 
 async function repackageArchives(contexts: ArchiveContext[], outputZipPath: string): Promise<void> {
     // Rezip nested archives first (deepest first), then root
-    const sorted = [...contexts].sort((a, b) => b.relPath.split('/').length - a.relPath.split('/').length);
+    const depth = (relPath: string) => (relPath === '' ? 0 : relPath.split('/').length);
+    const sorted = [...contexts].sort((a, b) => depth(b.relPath) - depth(a.relPath));
     for (const ctx of sorted) {
         const targetZip = ctx.relPath === '' ? outputZipPath : ctx.zipOutputPath;
         if (!targetZip) continue;
