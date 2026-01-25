@@ -8,7 +8,7 @@ import { SetTemplateModal } from "../components/modals/SetTemplateModal.js";
 import { Reference, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
 import { RevisionEmbed } from "../embed/RevisionEmbed.js";
 import { AuthorType, DiscordAuthor } from "../submissions/Author.js";
-import { optimizeWorldDownloads } from "../utils/WDLUtils.js";
+import { analyzeWorldDownloads, optimizeWorldDownloads } from "../utils/WDLUtils.js";
 import got from "got";
 import Path from "path";
 import os from "os";
@@ -121,6 +121,17 @@ export class DebugCommand implements Command {
                             .setDescription('Zip containing one or more world downloads')
                             .setRequired(true)
                     )
+            )
+            .addSubcommand(sub =>
+                sub
+                    .setName('analyzewdl')
+                    .setDescription('Analyze a WDL zip and report world metadata (no writes)')
+                    .addAttachmentOption(opt =>
+                        opt
+                            .setName('zip')
+                            .setDescription('Zip containing one or more world downloads')
+                            .setRequired(true)
+                    )
             );
 
         return data;
@@ -168,6 +179,9 @@ export class DebugCommand implements Command {
                 break;
             case 'optimizewdl':
                 await this.handleOptimizeWdl(guildHolder, interaction);
+                break;
+            case 'analyzewdl':
+                await this.handleAnalyzeWdl(guildHolder, interaction);
                 break;
             default:
                 await replyEphemeral(interaction, 'Unknown subcommand.');
@@ -535,7 +549,7 @@ export class DebugCommand implements Command {
 
         await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
-        const workRoot = Path.join(os.tmpdir(), 'wdl-debug');
+        const workRoot = process.cwd();
         const session = Path.join(workRoot, `${Date.now().toString(36)}-${attachment.id}`);
         const inputPath = Path.join(session, 'input.zip');
 
@@ -552,14 +566,61 @@ export class DebugCommand implements Command {
 
             const file = new AttachmentBuilder(optimizedBuffer, { name: outName });
             const worldSummary = worlds.map(w => `${Path.basename(w.path)}: ${w.version || w.error || 'Unknown'}`).join('\n');
+            const analysisJson = Buffer.from(JSON.stringify(worlds, null, 2));
+            const analysisAttachment = new AttachmentBuilder(analysisJson, { name: 'wdl-analysis.json' });
             await interaction.editReply({
                 content: `Optimized WDL created (${outName}).\n${worldSummary ? `Worlds:\n${worldSummary}` : ''}`,
-                files: [file]
+                files: [file, analysisAttachment]
             });
         } catch (error: any) {
             await interaction.editReply({ content: `Optimization failed: ${error?.message || 'Unknown error'}` });
         } finally {
             await fs.rm(session, { recursive: true, force: true }).catch(() => null);
+        }
+    }
+
+    private async handleAnalyzeWdl(_guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const attachment = interaction.options.getAttachment('zip', true);
+        const nameLower = (attachment.name || '').toLowerCase();
+        if (!nameLower.endsWith('.zip')) {
+            await replyEphemeral(interaction, 'Please provide a .zip file.');
+            return;
+        }
+
+        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
+
+        try {
+            const workRoot = process.cwd();
+            const session = Path.join(workRoot, `${Date.now().toString(36)}-${attachment.id}`);
+            const inputPath = Path.join(session, 'input.zip');
+
+            await fs.mkdir(session, { recursive: true });
+
+            const res = await got(attachment.url, { responseType: 'buffer' });
+            await fs.writeFile(inputPath, res.body);
+            
+            const worlds = await analyzeWorldDownloads(inputPath);
+
+            const summaryLines = worlds.map((w, idx) => {
+                const label = Path.basename(w.path) || `world-${idx + 1}`;
+                const details = w.version || w.error || 'Unknown';
+                const name = w.levelName ? ` (${w.levelName})` : '';
+                return `${label}${name}: ${details}`;
+            });
+
+            const limitedSummary = summaryLines.slice(0, 20).join('\n');
+            const truncated = summaryLines.length > 20 ? `\n...and ${summaryLines.length - 20} more` : '';
+
+            const analysisJson = Buffer.from(JSON.stringify(worlds, null, 2));
+            const analysisAttachment = new AttachmentBuilder(analysisJson, { name: 'wdl-analysis.json' });
+
+            await interaction.editReply({
+                content: `Found ${worlds.length} world${worlds.length === 1 ? '' : 's'}.\n${limitedSummary}${truncated}`,
+                files: [analysisAttachment]
+            });
+        } catch (error: any) {
+            await interaction.editReply({ content: `Analysis failed: ${error?.message || 'Unknown error'}` });
         }
     }
 }
