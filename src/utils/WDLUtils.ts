@@ -82,7 +82,8 @@ export async function optimizeWorldDownloads(zipPath: string, tempDir: string, o
     await optimizeWorlds(worlds, contexts);
     await repackageArchives(contexts, outputZipPath);
 
-    return { zipPath: outputZipPath, worlds };
+    const orderedWorlds = orderWorlds(worlds);
+    return { zipPath: outputZipPath, worlds: orderedWorlds };
 }
 
 /**
@@ -94,7 +95,8 @@ export async function analyzeWorldDownloads(zipSource: string | Buffer, budget?:
         perEntryLimit: MAX_ENTRY_UNCOMPRESSED_BYTES
     };
     const source: ZipSource = typeof zipSource === 'string' ? { zipPath: Path.resolve(zipSource) } : { buffer: zipSource };
-    return analyzeZipRecursive(source, '', sessionBudget);
+    const worlds = await analyzeZipRecursive(source, '', sessionBudget);
+    return orderWorlds(worlds);
 }
 
 // -------- Extraction --------
@@ -525,6 +527,16 @@ async function analyzeZipRecursive(source: ZipSource, relPath: string, budget: E
 function combineRelPath(parent: string, child: string): string {
     const cleanChild = child.replace(/\/$/, '');
     return parent ? `${parent}/${cleanChild}` : cleanChild;
+}
+
+function orderWorlds(worlds: WorldMetadata[]): WorldMetadata[] {
+    const depth = (path: string) => (path === '' ? 0 : path.split('/').length);
+    return [...worlds].sort((a, b) => {
+        const da = depth(a.path);
+        const db = depth(b.path);
+        if (da !== db) return da - db;
+        return a.path.localeCompare(b.path);
+    });
 }
 
 function normalizeEntryPath(name: string): string {
