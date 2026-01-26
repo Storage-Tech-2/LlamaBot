@@ -869,7 +869,15 @@ export class RepositoryManager {
 
                     if (thread) {
                         const threadInstance = thread[1];
+
+                        const wasArchived = threadInstance.archived;
+                        if (wasArchived) {
+                            await threadInstance.setArchived(false);
+                        }
                         await threadInstance.setAppliedTags(updatedTags.map(t => {return t.id;}));
+                        if (wasArchived) {
+                            await threadInstance.setArchived(true);
+                        }
                     }
                 }
 
