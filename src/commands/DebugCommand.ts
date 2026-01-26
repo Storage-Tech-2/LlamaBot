@@ -891,5 +891,7 @@ export class DebugCommand implements Command {
 
         await guildHolder.getRepositoryManager().restoreTags();
 
+        await interaction.editReply({ content: 'Global tags restored to archive entries and Discord threads.' } );
+
     }
 }
