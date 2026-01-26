@@ -12,6 +12,8 @@ import { SetDesignerRoleMenu } from "../components/menus/SetDesignerRoleMenu.js"
 import { SetScriptModal } from "../components/modals/SetScriptModal.js";
 import { republishAllEntries } from "../archive/Tasks.js";
 import { GlobalTag, RepositoryConfigs } from "../archive/RepositoryConfigs.js";
+import { syncGlobalTagAdd } from "../utils/GlobalTagUtils.js";
+import { GlobalTagSelectMenu, GlobalTagUpdates, hasGlobalTagUpdates } from "../components/menus/GlobalTagSelectMenu.js";
 
 export class Mwa implements Command {
     getID(): string {
@@ -161,6 +163,72 @@ export class Mwa implements Command {
             )
             .addSubcommand(subcommand =>
                 subcommand
+                    .setName('globaltagadd')
+                    .setDescription('Add a global archive tag')
+                    .addStringOption(option =>
+                        option
+                            .setName('name')
+                            .setDescription('Tag name (max 20 characters)')
+                            .setRequired(true)
+                    )
+                    .addStringOption(option =>
+                        option
+                            .setName('emoji')
+                            .setDescription('Emoji for the tag')
+                    )
+                    .addBooleanOption(option =>
+                        option
+                            .setName('moderated')
+                            .setDescription('Require Manage Threads permission to use this tag')
+                    )
+                    .addStringOption(option =>
+                        option
+                            .setName('colorweb')
+                            .setDescription('Hex color for the website (e.g., #ff8800)')
+                    )
+                    .addStringOption(option =>
+                        option
+                            .setName('colormod')
+                            .setDescription('Hex/decimal color for Discord embeds (e.g., 0xFF8800)')
+                    )
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('globaltagedit')
+                    .setDescription('Edit an existing global archive tag')
+                    .addStringOption(option =>
+                        option
+                            .setName('name')
+                            .setDescription('New name for the tag (max 20 characters)')
+                    )
+                    .addStringOption(option =>
+                        option
+                            .setName('emoji')
+                            .setDescription('New emoji, or "clear" to remove')
+                    )
+                    .addBooleanOption(option =>
+                        option
+                            .setName('moderated')
+                            .setDescription('Whether the tag is moderated')
+                    )
+                    .addStringOption(option =>
+                        option
+                            .setName('colorweb')
+                            .setDescription('New hex color for the website or "clear" to remove')
+                    )
+                    .addStringOption(option =>
+                        option
+                            .setName('colormod')
+                            .setDescription('New embed color (hex/decimal) or "clear" to remove')
+                    )
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('globaltagremove')
+                    .setDescription('Remove a global archive tag')
+            )
+            .addSubcommand(subcommand =>
+                subcommand
                     .setName('republisheverything')
                     .setDescription('Republish all posts in the archive')
                     .addChannelOption(option =>
@@ -251,6 +319,12 @@ export class Mwa implements Command {
             this.setRepo(guildHolder, interaction)
         } else if (interaction.options.getSubcommand() === 'setdictionary') {
             this.setDictionary(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'globaltagadd') {
+            this.addGlobalTag(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'globaltagedit') {
+            this.editGlobalTag(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'globaltagremove') {
+            this.removeGlobalTag(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'blacklistadd') {
             this.addToBlacklist(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'blacklistremove') {
@@ -816,6 +890,163 @@ export class Mwa implements Command {
         await interaction.editReply('Archives setup complete! Please check the channels for the new tags and settings.');
     }
 
+    async addGlobalTag(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const nameRaw = interaction.options.getString('name', true).trim();
+        if (!nameRaw.length) {
+            await replyEphemeral(interaction, 'Tag name cannot be empty.');
+            return;
+        }
+        if (nameRaw.length > 20) {
+            await replyEphemeral(interaction, 'Tag names must be 20 characters or fewer.');
+            return;
+        }
+
+        const emojiResult = parseEmojiOption(interaction.options.getString('emoji'), false);
+        if (emojiResult.error) {
+            await replyEphemeral(interaction, emojiResult.error);
+            return;
+        }
+
+        const colorWebResult = parseColorWebOption(interaction.options.getString('colorweb'), false);
+        if (colorWebResult.error) {
+            await replyEphemeral(interaction, colorWebResult.error);
+            return;
+        }
+
+        const colorModResult = parseColorModOption(interaction.options.getString('colormod'), false);
+        if (colorModResult.error) {
+            await replyEphemeral(interaction, colorModResult.error);
+            return;
+        }
+
+        const moderated = interaction.options.getBoolean('moderated');
+        const configManager = guildHolder.getRepositoryManager().getConfigManager();
+        const existingTags = configManager.getConfig(RepositoryConfigs.GLOBAL_TAGS);
+
+        if (existingTags.some(tag => tag.name.toLowerCase() === nameRaw.toLowerCase())) {
+            await replyEphemeral(interaction, `A global tag named "${nameRaw}" already exists.`);
+            return;
+        }
+
+        const newTag: GlobalTag = {
+            name: nameRaw,
+            moderated: moderated ?? false,
+        };
+
+        if (emojiResult.provided && emojiResult.value) {
+            newTag.emoji = emojiResult.value;
+        }
+        if (colorWebResult.provided && colorWebResult.value) {
+            newTag.colorWeb = colorWebResult.value;
+        }
+        if (colorModResult.provided && colorModResult.value !== undefined) {
+            newTag.colorMod = colorModResult.value;
+        }
+
+        configManager.setConfig(RepositoryConfigs.GLOBAL_TAGS, [...existingTags, newTag]);
+
+        try {
+            await guildHolder.getRepositoryManager().configChanged();
+        } catch (error: any) {
+            await replyEphemeral(interaction, `Failed to save global tag: ${error?.message || error}`);
+            return;
+        }
+
+        let syncMessage = '';
+        try {
+            const syncResult = await syncGlobalTagAdd(guildHolder, newTag);
+            syncMessage = ` Synced to ${syncResult.updated}/${syncResult.total} archive forums.`;
+        } catch (error: any) {
+            syncMessage = ' Saved, but failed to sync archive forums (check bot permissions).';
+        }
+
+        await replyEphemeral(interaction, `Added global tag "${newTag.name}"${newTag.emoji ? ` (${newTag.emoji})` : ''}.${syncMessage}`);
+    }
+
+    async editGlobalTag(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const updates: GlobalTagUpdates = {};
+
+        const newNameRaw = interaction.options.getString('name');
+        if (newNameRaw !== null) {
+            const trimmed = newNameRaw.trim();
+            if (!trimmed.length) {
+                await replyEphemeral(interaction, 'New name cannot be empty.');
+                return;
+            }
+            if (trimmed.length > 20) {
+                await replyEphemeral(interaction, 'Tag names must be 20 characters or fewer.');
+                return;
+            }
+            updates.name = trimmed;
+        }
+
+        const emojiResult = parseEmojiOption(interaction.options.getString('emoji'), true);
+        if (emojiResult.error) {
+            await replyEphemeral(interaction, emojiResult.error);
+            return;
+        }
+        if (emojiResult.provided) {
+            updates.emoji = emojiResult.value ?? null;
+        }
+
+        const moderated = interaction.options.getBoolean('moderated');
+        if (moderated !== null) {
+            updates.moderated = moderated;
+        }
+
+        const colorWebResult = parseColorWebOption(interaction.options.getString('colorweb'), true);
+        if (colorWebResult.error) {
+            await replyEphemeral(interaction, colorWebResult.error);
+            return;
+        }
+        if (colorWebResult.provided) {
+            updates.colorWeb = colorWebResult.value ?? null;
+        }
+
+        const colorModResult = parseColorModOption(interaction.options.getString('colormod'), true);
+        if (colorModResult.error) {
+            await replyEphemeral(interaction, colorModResult.error);
+            return;
+        }
+        if (colorModResult.provided) {
+            updates.colorMod = colorModResult.value ?? null;
+        }
+
+        if (!hasGlobalTagUpdates(updates)) {
+            await replyEphemeral(interaction, 'Provide at least one field to change.');
+            return;
+        }
+
+        const tags = guildHolder.getRepositoryManager().getConfigManager().getConfig(RepositoryConfigs.GLOBAL_TAGS);
+        if (!tags.length) {
+            await replyEphemeral(interaction, 'No global tags have been configured yet.');
+            return;
+        }
+
+        const token = GlobalTagSelectMenu.createPayload(updates, interaction.user.id);
+        const row = new ActionRowBuilder()
+            .addComponents(await new GlobalTagSelectMenu().getBuilder(guildHolder, 'edit', token));
+
+        await replyEphemeral(interaction, 'Select a global tag to edit; the chosen tag will be updated with the options you provided.', {
+            components: [row]
+        });
+    }
+
+    async removeGlobalTag(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const tags = guildHolder.getRepositoryManager().getConfigManager().getConfig(RepositoryConfigs.GLOBAL_TAGS);
+        if (!tags.length) {
+            await replyEphemeral(interaction, 'No global tags are configured.');
+            return;
+        }
+
+        const row = new ActionRowBuilder()
+            .addComponents(await new GlobalTagSelectMenu().getBuilder(guildHolder, 'remove'));
+
+        await replyEphemeral(interaction, 'Select a global tag to remove. It will also be removed from archive forums.', {
+            components: [row]
+        });
+    }
+
     async republishEverything(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         // Get all entries from the archive
         const channelInfo = interaction.options.getChannel('channel');
@@ -871,4 +1102,74 @@ export class Mwa implements Command {
         }
         replyEphemeral(interaction, `Successfully set alias for URL ${url} to code "${alias}".`);
     }
+}
+
+type ParsedStringOption = { provided: boolean, value?: string | null, error?: string };
+type ParsedNumberOption = { provided: boolean, value?: number | null, error?: string };
+
+function parseEmojiOption(raw: string | null, allowClear: boolean): ParsedStringOption {
+    if (raw === null) {
+        return { provided: false };
+    }
+    const trimmed = raw.trim();
+    if (!trimmed.length) {
+        return { provided: false };
+    }
+    const lowered = trimmed.toLowerCase();
+    if (allowClear && (lowered === 'clear' || lowered === 'none')) {
+        return { provided: true, value: null };
+    }
+    if (trimmed.length > 50) {
+        return { provided: true, error: 'Emoji value is too long.' };
+    }
+    return { provided: true, value: trimmed };
+}
+
+function parseColorWebOption(raw: string | null, allowClear: boolean): ParsedStringOption {
+    if (raw === null) {
+        return { provided: false };
+    }
+    const trimmed = raw.trim();
+    if (!trimmed.length) {
+        return { provided: false };
+    }
+    const lowered = trimmed.toLowerCase();
+    if (allowClear && (lowered === 'clear' || lowered === 'none')) {
+        return { provided: true, value: null };
+    }
+
+    const normalized = trimmed.startsWith('#') ? trimmed.slice(1) : trimmed;
+    if (!/^[0-9a-fA-F]{6}$/.test(normalized)) {
+        return { provided: true, error: 'Color must be a 6-digit hex code (e.g., #ff8800).' };
+    }
+
+    return { provided: true, value: `#${normalized.toLowerCase()}` };
+}
+
+function parseColorModOption(raw: string | null, allowClear: boolean): ParsedNumberOption {
+    if (raw === null) {
+        return { provided: false };
+    }
+    const trimmed = raw.trim();
+    if (!trimmed.length) {
+        return { provided: false };
+    }
+    const lowered = trimmed.toLowerCase();
+    if (allowClear && (lowered === 'clear' || lowered === 'none')) {
+        return { provided: true, value: null };
+    }
+
+    let parsed: number | null = null;
+    const hexMatch = lowered.match(/^0x([0-9a-f]{6,8})$/) || lowered.match(/^#([0-9a-f]{6,8})$/) || lowered.match(/^([0-9a-f]{6,8})$/);
+    if (hexMatch) {
+        parsed = Number.parseInt(hexMatch[1], 16);
+    } else if (/^\d+$/.test(trimmed)) {
+        parsed = Number.parseInt(trimmed, 10);
+    }
+
+    if (parsed === null || !Number.isFinite(parsed) || parsed < 0 || parsed > 0xFFFFFFFF) {
+        return { provided: true, error: 'Embed color must be a hex value (e.g., 0xFF8800) or a non-negative integer.' };
+    }
+
+    return { provided: true, value: parsed };
 }

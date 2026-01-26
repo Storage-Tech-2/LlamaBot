@@ -9,6 +9,7 @@ import { SetEndorseRolesMenu } from "./SetEndorseRolesMenu.js";
 import { SetHelperRoleMenu } from "./SetHelperRoleMenu.js";
 import { SetImagesMenu } from "./SetImagesMenu.js";
 import { SetTagsMenu } from "./SetTagsMenu.js";
+import { GlobalTagSelectMenu } from "./GlobalTagSelectMenu.js";
 
 export function getMenus() {
     const Menus = [
@@ -23,7 +24,8 @@ export function getMenus() {
         new SetArchiveChannelMenu(),
         new SetTagsMenu(),
         new SetImagesMenu(),
-        new SetAttachmentsMenu()
+        new SetAttachmentsMenu(),
+        new GlobalTagSelectMenu()
     ];
     return Menus;
 }
