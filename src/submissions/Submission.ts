@@ -526,9 +526,14 @@ export class Submission {
                 throw new Error('Status message not sent yet!');
             }
 
-            const channel = await this.getSubmissionChannel();
+            const channel = await this.getSubmissionChannel(true);
             if (!channel) {
                 throw new Error('Submission channel not found');
+            }
+
+            const wasArchived = channel.archived;
+            if (wasArchived) {
+                await channel.setArchived(false);
             }
 
             const message = await channel.messages.fetch(statusMessageId).catch(() => null);
@@ -593,6 +598,10 @@ export class Submission {
             }
 
             await this.updateTags(); // Update tags based on the current status
+
+            if (wasArchived) {
+                await channel.setArchived(true);
+            }
         } catch (error) {
             console.error('Error updating status:', error);
         }

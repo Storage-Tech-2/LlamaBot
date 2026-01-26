@@ -994,6 +994,15 @@ export class RepositoryManager {
                         channelChanged = true;
                         changedEntryPaths.push(entry.getDataPath());
                     }
+
+                    // update submission
+                    const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entryData.id);
+                    if (submission) {
+                        // set tags
+                        submission.getConfigManager().setConfig(SubmissionConfigs.TAGS, entryData.tags);
+                        await submission.save();
+                        await submission.statusUpdated();
+                    }
                 }
 
                 if (channelChanged) {
