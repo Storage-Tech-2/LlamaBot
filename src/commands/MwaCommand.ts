@@ -164,17 +164,17 @@ export class Mwa implements Command {
             .addSubcommand(subcommand =>
                 subcommand
                     .setName('globaltagadd')
-                    .setDescription('Add a global archive tag via modal')
+                    .setDescription('Add a global archive tag')
             )
             .addSubcommand(subcommand =>
                 subcommand
                     .setName('globaltagedit')
-                    .setDescription('Edit a global archive tag (select + modal)')
+                    .setDescription('Edit a global archive tag')
             )
             .addSubcommand(subcommand =>
                 subcommand
                     .setName('globaltagremove')
-                    .setDescription('Remove a global archive tag (select)')
+                    .setDescription('Remove a global archive tag')
             )
             .addSubcommand(subcommand =>
                 subcommand
