@@ -983,7 +983,7 @@ export class RepositoryManager {
                         const tag = availableForReuse[matchByNameAvailableIndex];
                         availableForReuse.splice(matchByNameAvailableIndex, 1);
                         tag.moderated = !!gt.moderated;
-                        tag.emoji = gt.emoji ? { id: null, name: gt.emoji } : tag.emoji ?? null;
+                        tag.emoji = gt.emoji ? { id: null, name: gt.emoji } : null;
                         return tag;
                     }
 
