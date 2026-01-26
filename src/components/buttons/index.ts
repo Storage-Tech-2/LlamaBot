@@ -22,6 +22,8 @@ import { BackToCategoryButton } from "./BackToCategoryButton.js";
 import { SetDescriptionButton } from "./SetDescriptionButton.js";
 import { SkipDescriptionButton } from "./SkipDescriptionButton.js";
 import { EditInfoMultipleButton } from "./EditInfoMultipleButton.js";
+import { LiftTimeoutButton } from "./LiftTimeoutButton.js";
+import { BanUserButton } from "./BanUserButton.js";
 
 export function getButtons() {
     const Buttons = [
@@ -49,6 +51,8 @@ export function getButtons() {
         new SetDescriptionButton(),
         new SkipDescriptionButton(),
         new EditInfoMultipleButton(),
+        new LiftTimeoutButton(),
+        new BanUserButton(),
     ];
     return Buttons;
 }

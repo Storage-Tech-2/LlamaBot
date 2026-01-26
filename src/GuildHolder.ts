@@ -1,4 +1,4 @@
-import { ActionRowBuilder, AnyThreadChannel, ChannelType, EmbedBuilder, Guild, GuildAuditLogsEntry, GuildMember, Message, MessageFlags, Role, PartialGuildMember, Snowflake, Attachment, GuildChannel, PartialMessage, TextChannel, TextThreadChannel } from "discord.js";
+import { ActionRowBuilder, AnyThreadChannel, ButtonBuilder, ChannelType, EmbedBuilder, Guild, GuildAuditLogsEntry, GuildMember, Message, MessageFlags, Role, PartialGuildMember, Snowflake, Attachment, GuildChannel, PartialMessage, TextChannel, TextThreadChannel } from "discord.js";
 import { Bot, SysAdmin } from "./Bot.js";
 import { ConfigManager } from "./config/ConfigManager.js";
 import Path from "path";
@@ -28,6 +28,8 @@ import z from "zod";
 import { base64ToInt8Array, generateQueryEmbeddings } from "./llm/EmbeddingUtils.js";
 import { PrivateFactBase } from "./archive/PrivateFactBase.js";
 import { AliasManager } from "./support/AliasManager.js";
+import { LiftTimeoutButton } from "./components/buttons/LiftTimeoutButton.js";
+import { BanUserButton } from "./components/buttons/BanUserButton.js";
 /**
  * GuildHolder is a class that manages guild-related data.
  */
@@ -640,6 +642,11 @@ export class GuildHolder {
 
     public async timeoutUserForSpam(userData: UserData, autoTimeout: boolean = false) {
         const member = await this.guild.members.fetch(userData.id).catch(() => null);
+        const actionRow = new ActionRowBuilder<ButtonBuilder>()
+            .addComponents(
+                new LiftTimeoutButton().getBuilder(userData.id),
+                new BanUserButton().getBuilder(userData.id),
+            );
         if (member) {
             try {
                 const duration = 28 * 24 * 60 * 60 * 1000; // 28 days in milliseconds
@@ -653,7 +660,7 @@ export class GuildHolder {
 
                 const modChannel = await this.guild.channels.fetch(this.getConfigManager().getConfig(GuildConfigs.MOD_LOG_CHANNEL_ID)).catch(() => null);
                 if (modChannel && modChannel.isSendable()) {
-                    await modChannel.send({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
+                    await modChannel.send({ embeds: [embed], components: [actionRow as any], flags: [MessageFlags.SuppressNotifications] });
                 }
                 return;
             }
@@ -710,7 +717,7 @@ export class GuildHolder {
 
             const modChannel = await this.guild.channels.fetch(this.getConfigManager().getConfig(GuildConfigs.MOD_LOG_CHANNEL_ID)).catch(() => null);
             if (modChannel && modChannel.isSendable()) {
-                await modChannel.send({ embeds: [embed], flags: [MessageFlags.SuppressNotifications] });
+                await modChannel.send({ embeds: [embed], components: [actionRow as any], flags: [MessageFlags.SuppressNotifications] });
             }
         }
     }
