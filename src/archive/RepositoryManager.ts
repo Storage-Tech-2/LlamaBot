@@ -40,10 +40,11 @@ export class RepositoryManager {
     private indexManager: IndexManager;
     private discordServersDictionary: DiscordServersDictionary;
     private hnswIndexCache: TemporaryCache<HierarchicalNSW | null>;
+    private channelsCache: TemporaryCache<ArchiveChannelReference[]>;
     constructor(guildHolder: GuildHolder, folderPath: string, globalDiscordServersDictionary?: DiscordServersDictionary) {
         this.guildHolder = guildHolder;
         this.folderPath = folderPath;
-        this.configManager = new ConfigManager(Path.join(folderPath, 'config.json'));
+        this.configManager = new ConfigManager(this.getConfigFilePath());
         this.dictionaryManager = new DictionaryManager(this.guildHolder, Path.join(this.folderPath, 'dictionary'), this);
         this.indexManager = new IndexManager(this.dictionaryManager, this, this.folderPath);
         this.dictionaryManager.setIndexManager(this.indexManager);
@@ -52,12 +53,30 @@ export class RepositoryManager {
             return await loadHNSWIndex(this.getHNSWIndexPath()).catch(() => null);
         });
 
-        this.configManager.setChangeListener(async () => {
-            if (this.git) {
-                await this.commit('Updated repository configuration', [Path.join(this.folderPath, 'config.json')]).catch(() => { });
-                await this.push().catch(() => { });
-            }
+        this.channelsCache = new TemporaryCache<ArchiveChannelReference[]>(10 * 60 * 1000, async () => {
+            return this.loadChannelReferencesFromFile();
         });
+    }
+
+    getConfigFilePath(): string {
+        return Path.join(this.folderPath, 'config.json');
+    }
+
+    public async configChanged() {
+        await this.lock.acquire();
+        await this.configManager.saveConfig();
+        await this.commit('Updated repository configuration', [this.getConfigFilePath()]).catch(() => { });
+        await this.push().catch(() => { });
+        await this.lock.release();
+    }
+
+    loadChannelReferencesFromFile(): Promise<ArchiveChannelReference[]> {
+        const channelsPath = this.getChannelsFilePath();
+        return fs.readFile(channelsPath, 'utf-8').then(data => JSON.parse(data) as ArchiveChannelReference[]).catch(() => []);
+    }
+
+    getChannelsFilePath(): string {
+        return Path.join(this.folderPath, 'channels.json');
     }
 
     async init() {
@@ -92,6 +111,16 @@ export class RepositoryManager {
             await this.pull();
         } catch (e: any) {
             console.error("Error pulling from remote:", e.message);
+        }
+
+        // check legacy
+        const legacyChannels = this.configManager.getConfig(RepositoryConfigs.ARCHIVE_CHANNELS_LEGACY);
+        if (legacyChannels.length > 0) {
+            await this.setChannelReferences(legacyChannels);
+            this.configManager.deleteConfig(RepositoryConfigs.ARCHIVE_CHANNELS_LEGACY);
+            await this.configManager.saveConfig();
+            await this.add(this.getConfigFilePath());
+            await this.commit('Migrated archive channels from legacy config');
         }
 
         try {
@@ -161,7 +190,7 @@ export class RepositoryManager {
         const tags = new Map<string, number>();
         const categories = new Map<string, number>();
 
-        const channelReferences = this.getChannelReferences();
+        const channelReferences = await this.getChannelReferences();
 
         channelReferences.sort((a, b) => a.position - b.position);
 
@@ -335,7 +364,7 @@ export class RepositoryManager {
     }
 
     public async iterateAllEntries(callback: (entry: ArchiveEntry, entryRef: ArchiveEntryReference, channelRef: ArchiveChannelReference, channel: ArchiveChannel) => Promise<void>) {
-        const channelReferences = this.getChannelReferences();
+        const channelReferences = await this.getChannelReferences();
         for (const channelRef of channelReferences) {
             const channelPath = Path.join(this.folderPath, channelRef.path);
             const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
@@ -357,7 +386,7 @@ export class RepositoryManager {
     }
 
     public async iterateAllEntryRefs(callback: (entryRef: ArchiveEntryReference, channelRef: ArchiveChannelReference, channel: ArchiveChannel) => Promise<void>) {
-        const channelReferences = this.getChannelReferences();
+        const channelReferences = await this.getChannelReferences();
         for (const channelRef of channelReferences) {
             const channelPath = Path.join(this.folderPath, channelRef.path);
             const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
@@ -412,8 +441,15 @@ export class RepositoryManager {
         await this.git.addRemote('origin', `https://x-access-token:${token}@github.com/${owner}/${project}.git`);
     }
 
-    public getChannelReferences() {
-        return this.configManager.getConfig(RepositoryConfigs.ARCHIVE_CHANNELS);
+    public async getChannelReferences() {
+        return this.channelsCache.get();
+    }
+
+    public async setChannelReferences(references: ArchiveChannelReference[]) {
+        const channelsPath = this.getChannelsFilePath();
+        await fs.writeFile(channelsPath, JSON.stringify(references, null, 2), 'utf-8');
+        this.channelsCache.set(references);
+        await this.git?.add(channelsPath);
     }
 
     async setupArchives(channels: ForumChannel[]) {
@@ -466,7 +502,7 @@ export class RepositoryManager {
         reMapped.sort((a, b) => a.position - b.position);
 
 
-        const existingChannels = this.getChannelReferences();
+        const existingChannels = await this.getChannelReferences();
         const newChannels = reMapped.filter(c => !existingChannels.some(ec => ec.id === c.id));
         const removedChannels = existingChannels.filter(ec => !reMapped.some(c => c.id === ec.id));
         const modifiedChannels = reMapped.filter(c => {
@@ -650,7 +686,8 @@ export class RepositoryManager {
         }
 
         // Finally, save the new config
-        this.configManager.setConfig(RepositoryConfigs.ARCHIVE_CHANNELS, reMapped);
+        //this.configManager.setConfig(RepositoryConfigs.ARCHIVE_CHANNELS, reMapped);
+        await this.setChannelReferences(reMapped);
         await this.save();
 
         // Rebuild index
@@ -658,7 +695,7 @@ export class RepositoryManager {
         await this.dictionaryManager.rebuildIndexAndEmbeddings();
 
         // Add config if it doesn't exist
-        await this.git.add(Path.join(this.folderPath, 'config.json'));
+        await this.git.add(this.getConfigFilePath());
         await this.commit('Updated repository configuration');
         try {
             await this.push().catch(() => { });
@@ -684,7 +721,7 @@ export class RepositoryManager {
         entryRef: ArchiveEntryReference,
         entryIndex: number
     }> {
-        const channelReferences = this.getChannelReferences();
+        const channelReferences = await this.getChannelReferences();
         for (const channelRef of channelReferences) {
             const channelPath = Path.join(this.folderPath, channelRef.path);
             const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
@@ -723,7 +760,7 @@ export class RepositoryManager {
             channelCode,
         } = splitCode(submissionCode);
 
-        const channelReferences = this.getChannelReferences();
+        const channelReferences = await this.getChannelReferences();
         const channelRef = channelReferences.find(c => c.code === channelCode);
         if (!channelRef) {
             return null;
@@ -766,7 +803,7 @@ export class RepositoryManager {
             throw new Error("Submission does not have an archive channel set");
         }
 
-        const archiveChannelRef = this.getChannelReferences().find(c => c.id === archiveChannelId);
+        const archiveChannelRef = (await this.getChannelReferences()).find(c => c.id === archiveChannelId);
         if (!archiveChannelRef) {
             throw new Error("Archive channel reference not found");
         }
@@ -1016,7 +1053,7 @@ export class RepositoryManager {
         }
 
 
-        const archiveChannelRef = this.getChannelReferences().find(c => c.id === archiveChannelId);
+        const archiveChannelRef = (await this.getChannelReferences()).find(c => c.id === archiveChannelId);
         if (!archiveChannelRef) {
             throw new Error("Archive channel reference not found");
         }
@@ -1149,7 +1186,7 @@ export class RepositoryManager {
             await fs.mkdir(optimizedFolder, { recursive: true });
 
             await optimizeAttachments(newEntryData.attachments, entryFolderPath, optimizedFolder, tempFolder, reportStatus);
-            
+
             // remove temp folder
             await fs.rm(tempFolder, { recursive: true, force: true });
 
@@ -2273,7 +2310,7 @@ export class RepositoryManager {
 
     public async getEntriesByAuthor(author: Author, endorsers: boolean = false): Promise<ArchiveEntryData[]> {
         const entries: ArchiveEntryData[] = [];
-        const channelRefs = this.getChannelReferences();
+        const channelRefs = await this.getChannelReferences();
         for (const channelRef of channelRefs) {
             const channelPath = Path.join(this.folderPath, channelRef.path);
             const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
@@ -2320,7 +2357,7 @@ export class RepositoryManager {
     public async getArchiveStats(): Promise<{ numPosts: number, numSubmissions: number }> {
         let numPosts = 0;
 
-        const channelRefs = this.getChannelReferences();
+        const channelRefs = await this.getChannelReferences();
         for (const channelRef of channelRefs) {
             const channelPath = Path.join(this.folderPath, channelRef.path);
             const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
@@ -2339,7 +2376,7 @@ export class RepositoryManager {
         let numPosts = 0;
         let numEndorsed = 0;
 
-        const channelRefs = this.getChannelReferences();
+        const channelRefs = await this.getChannelReferences();
         for (const channelRef of channelRefs) {
             const channelPath = Path.join(this.folderPath, channelRef.path);
             const archiveChannel = await ArchiveChannel.fromFolder(channelPath);

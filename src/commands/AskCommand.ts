@@ -4,7 +4,6 @@ import { GuildHolder } from "../GuildHolder.js";
 import { getAuthorsString, isAdmin, replyEphemeral, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
 import { transformOutputWithReferencesForDiscord } from "../utils/ReferenceUtils.js";
 import { base64ToInt8Array, computeSimilarities, generateQueryEmbeddings } from "../llm/EmbeddingUtils.js";
-import { RepositoryConfigs } from "../archive/RepositoryConfigs.js";
 import { EditFactButton } from "../components/buttons/EditFactButton.js";
 
 type DatabaseChoice = "all" | "dictionary" | "repository" | "channel" | "factbase";
@@ -98,7 +97,7 @@ export class AskCommand implements Command {
         const queryEmbedding = base64ToInt8Array(embedding.embeddings[0]);
 
         // get indexess
-        const channels = guildHolder.getRepositoryManager().getConfigManager().getConfig(RepositoryConfigs.ARCHIVE_CHANNELS).filter(c => c.embedding);
+        const channels = (await guildHolder.getRepositoryManager().getChannelReferences()).filter(c => c.embedding);
         const channelEmbeddingVectors = channels.map(c => base64ToInt8Array(c.embedding!));
 
         type ScoredEntry = {

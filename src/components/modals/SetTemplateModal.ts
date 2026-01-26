@@ -52,6 +52,8 @@ export class SetTemplateModal implements Modal {
         guildHolder.getRepositoryManager().getConfigManager().setConfig(RepositoryConfigs.POST_SCHEMA, schema);
         guildHolder.getRepositoryManager().getConfigManager().setConfig(RepositoryConfigs.POST_STYLE, style);
 
+        await guildHolder.getRepositoryManager().configChanged();
+        
         await interaction.reply({
             content: 'Post template has been set successfully!',
         });

@@ -705,7 +705,7 @@ export class DebugCommand implements Command {
         const guild = guildHolder.getGuild();
 
         const repositoryManager = guildHolder.getRepositoryManager();
-        if (repositoryManager.getChannelReferences().length === 0) {
+        if ((await repositoryManager.getChannelReferences()).length === 0) {
             await interaction.editReply({ content: 'No archive channels configured.' });
             return;
         }

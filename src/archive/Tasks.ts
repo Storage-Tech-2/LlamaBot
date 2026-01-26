@@ -28,7 +28,7 @@ export async function republishAllEntries(
 
     await repositoryManager.getLock().acquire();
     try {
-        const channelRefs = repositoryManager.getChannelReferences();
+        const channelRefs = await repositoryManager.getChannelReferences();
         for (const channelRef of channelRefs) {
             const channelPath = Path.join(repositoryManager.folderPath, channelRef.path);
             const archiveChannel = await ArchiveChannel.fromFolder(channelPath);

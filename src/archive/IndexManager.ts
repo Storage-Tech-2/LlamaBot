@@ -91,7 +91,7 @@ export class IndexManager {
         if (Object.prototype.hasOwnProperty.call(index, postID)) {
             return index[postID];
         } else {
-            const channelReferences = this.repositoryManager.getChannelReferences();
+            const channelReferences = await this.repositoryManager.getChannelReferences();
             for (const channelRef of channelReferences) {
                 const channelPath = Path.join(this.archiveFolderPath, channelRef.path);
                 const archiveChannel = await ArchiveChannel.fromFolder(channelPath);

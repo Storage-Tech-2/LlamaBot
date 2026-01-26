@@ -79,9 +79,9 @@ export const DEFAULT_GLOBAL_TAGS: GlobalTag[] = [
 
 export const RepositoryConfigs = {
     /**
-     * Channel categories for the archive.
+     * Old channel categories for the archive.
      */
-    ARCHIVE_CHANNELS: new Config<ArchiveChannelReference[]>("archiveChannels", []),
+    ARCHIVE_CHANNELS_LEGACY: new Config<ArchiveChannelReference[]>("archiveChannels", []),
 
     /**
      * Schema for the posts
