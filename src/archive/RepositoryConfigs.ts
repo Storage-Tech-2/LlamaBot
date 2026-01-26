@@ -62,21 +62,25 @@ export const DEFAULT_GLOBAL_TAGS: GlobalTag[] = [
         name: 'Untested',
         emoji: '⁉️',
         colorWeb: '#fcd34d',
+        colorMod: 0xFF8C6E00,
     },
     {
         name: 'Broken',
         emoji: '💔',
         colorWeb: '#ff6969',
+        colorMod: 0xFF8B1A1A,
     },
     {
         name: 'Tested & Functional',
         emoji: '✅',
         colorWeb: '#34d399',
+        colorMod: 0xFF1E7F1E,
     },
     {
         name: 'Recommended',
         emoji: '⭐',
         colorWeb: '#29b0ff',
+        colorMod: 0xFF0066CC,
         moderated: true
     }
 ];
