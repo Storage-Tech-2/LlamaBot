@@ -854,7 +854,7 @@ export class Mwa implements Command {
         const row = new ActionRowBuilder()
             .addComponents(await new GlobalTagSelectMenu().getBuilder(guildHolder, 'edit'));
 
-        await replyEphemeral(interaction, 'Select a global tag to edit; a modal will appear with current values pre-filled.', {
+        await replyEphemeral(interaction, 'Select a global tag to edit', {
             components: [row]
         });
     }
