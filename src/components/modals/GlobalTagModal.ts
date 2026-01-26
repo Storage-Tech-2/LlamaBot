@@ -1,7 +1,7 @@
 import { LabelBuilder, ModalBuilder, ModalSubmitInteraction, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
-import { isAdmin, replyEphemeral } from "../../utils/Util.js";
+import { deepClone, isAdmin, replyEphemeral } from "../../utils/Util.js";
 import { GlobalTag, RepositoryConfigs } from "../../archive/RepositoryConfigs.js";
 import { findTagNameConflict, getArchiveForumChannels } from "../../utils/GlobalTagUtils.js";
 import { parseColorModOption, parseColorWebOption, parseEmojiOption } from "../../utils/TagValidation.js";
@@ -96,6 +96,7 @@ export class GlobalTagModal implements Modal {
 
         const configManager = guildHolder.getRepositoryManager().getConfigManager();
         const tags = configManager.getConfig(RepositoryConfigs.GLOBAL_TAGS);
+        const oldTags = deepClone(tags);
         let currentTag: GlobalTag | undefined;
         let tagIndex = -1;
         if (mode === 'edit') {
@@ -172,7 +173,7 @@ export class GlobalTagModal implements Modal {
             }
 
             await interaction.deferReply();
-            await guildHolder.getRepositoryManager().applyGlobalTagChanges(newGlobalTags);
+            await guildHolder.getRepositoryManager().applyGlobalTagChanges(oldTags, newGlobalTags);
 
             await interaction.editReply({
                 content: `Added global tag "${newTag.name}"${newTag.emoji ? ` (${newTag.emoji})` : ''}.`,
@@ -229,7 +230,11 @@ export class GlobalTagModal implements Modal {
         }
 
         await interaction.deferReply();
-        await guildHolder.getRepositoryManager().applyGlobalTagChanges(updatedTags, currentTag!.name);
+        const renamedFromMap = new Map<string, string>();
+        if (currentTag!.name !== updatedTag.name) {
+            renamedFromMap.set(updatedTag.name, currentTag!.name);
+        }
+        await guildHolder.getRepositoryManager().applyGlobalTagChanges(oldTags, updatedTags, renamedFromMap);
 
         await interaction.editReply({
             content: `Updated global tag "${currentTag!.name}" to "${updatedTag.name}".`,

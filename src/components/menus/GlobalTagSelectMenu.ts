@@ -2,7 +2,7 @@ import { StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuO
 import { GuildHolder } from "../../GuildHolder.js";
 import { RepositoryConfigs } from "../../archive/RepositoryConfigs.js";
 import { Menu } from "../../interface/Menu.js";
-import { isAdmin, replyEphemeral } from "../../utils/Util.js";
+import { deepClone, isAdmin, replyEphemeral } from "../../utils/Util.js";
 import { GlobalTagModal } from "../modals/GlobalTagModal.js";
 
 export class GlobalTagSelectMenu implements Menu {
@@ -43,6 +43,7 @@ export class GlobalTagSelectMenu implements Menu {
         const tagName = interaction.values[0];
         const configManager = guildHolder.getRepositoryManager().getConfigManager();
         const tags = configManager.getConfig(RepositoryConfigs.GLOBAL_TAGS);
+        const oldTags = deepClone(tags);
         const tagIndex = tags.findIndex(tag => tag.name === tagName);
 
         if (tagIndex === -1) {
@@ -64,7 +65,7 @@ export class GlobalTagSelectMenu implements Menu {
             }
 
             await interaction.deferUpdate();
-            await guildHolder.getRepositoryManager().applyGlobalTagChanges(updatedTags, removedTag.name);
+            await guildHolder.getRepositoryManager().applyGlobalTagChanges(oldTags, updatedTags);
 
             await interaction.editReply({
                 content: `Removed global tag "${removedTag.name}".`,
