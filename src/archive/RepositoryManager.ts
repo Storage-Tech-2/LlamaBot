@@ -943,29 +943,42 @@ export class RepositoryManager {
 
                 const available = forum.availableTags;
 
-                const globalTagData = globalTags.map(gt => {
+                const globalTagData: GuildForumTag[] = globalTags.map(gt => {
                     const matchByName = available.find(t => t.name === gt.name);
                     const matchByOldName = renamedFrom && gt.name !== renamedFrom ? available.find(t => t.name === renamedFrom) : undefined;
-                    const existing = matchByOldName || matchByName;
+                    const existing = matchByOldName ?? matchByName;
+                    if (existing) {
+                        existing.name = gt.name; // update name in case of rename
+                        existing.moderated = !!gt.moderated;
+                        if (gt.emoji) {
+                            existing.emoji = { id: null, name: gt.emoji };
+                        }
+                        return existing;
+                    }
                     return {
-                        id: existing?.id,
                         name: gt.name,
                         moderated: !!gt.moderated,
                         emoji: gt.emoji ? { id: null, name: gt.emoji } : null,
-                    };
+                    } as GuildForumTag;
                 });
 
-                const globalNames = new Set(globalTags.map(t => t.name.toLowerCase()));
-                const remaining = available
-                    .filter(t => !globalTagData.some((gt) => gt.id === t.id) && !globalNames.has(t.name.toLowerCase()) && (!renamedFrom || t.name.toLowerCase() !== renamedFrom.toLowerCase()))
-                    .map(t => ({
-                        id: t.id,
-                        name: t.name,
-                        moderated: t.moderated,
-                        emoji: t.emoji ? { id: t.emoji.id, name: t.emoji.name } : null,
-                    }));
+                const remaining: GuildForumTag[] = [];
+                
+                available.forEach(tag => {
+                    const isExisting = globalTagData.find(t => t.id && t.id === tag.id);
+                    if (isExisting) {
+                        return;
+                    }
 
-                const newTags = [...globalTagData, ...remaining];
+                    const existing = remaining.find(t => t.id === tag.id);
+                    if (existing) {
+                        return;
+                    }
+                    
+                    remaining.push(tag);                   
+                });
+
+                let newTags = [...globalTagData, ...remaining];
 
                 // Only update if changed
                 const changed = newTags.length !== available.length || newTags.some((t, i) => {
@@ -975,6 +988,9 @@ export class RepositoryManager {
 
                 if (changed) {
                     await forum.setAvailableTags(newTags);
+                    // get new available tags
+                    await forum.fetch();
+                    newTags = forum.availableTags;
                 }
 
                 // Update stored entries for this channel based on tag IDs
