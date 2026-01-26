@@ -1120,6 +1120,11 @@ export class RepositoryManager {
             throw new Error("Submission does not have an archive channel set");
         }
 
+        const archiveChannel = await this.guildHolder.getGuild().channels.fetch(archiveChannelId);
+        if (!archiveChannel || archiveChannel.type !== ChannelType.GuildForum) {
+            throw new Error("Archive channel not a valid forum channel");
+        }
+
         const archiveChannelRef = (await this.getChannelReferences()).find(c => c.id === archiveChannelId);
         if (!archiveChannelRef) {
             throw new Error("Archive channel reference not found");
@@ -1131,7 +1136,7 @@ export class RepositoryManager {
         let entryData: ArchiveEntryData | null = null;
         try {
             const channelPath = Path.join(this.folderPath, archiveChannelRef.path);
-            const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
+            const archiveChannelData = await ArchiveChannel.fromFolder(channelPath);
 
 
             // Find old entry if it exists
@@ -1147,7 +1152,7 @@ export class RepositoryManager {
                     // If the code is reserved, use it
                     newCode = code;
 
-                    if (!archiveChannel.getData().entries.find(e => e.code === newCode && submission.getId() !== e.id)) {
+                    if (!archiveChannelData.getData().entries.find(e => e.code === newCode && submission.getId() !== e.id)) {
                         break;
                     }
                 }
@@ -1155,20 +1160,20 @@ export class RepositoryManager {
 
             if (!newCode) {
                 // If no reserved code was found, generate a new code
-                newCode = archiveChannelRef.code + (++archiveChannel.getData().currentCodeId).toString().padStart(3, '0');
+                newCode = archiveChannelRef.code + (++archiveChannelData.getData().currentCodeId).toString().padStart(3, '0');
             }
 
             // Check if the code already exists in the channel
-            for (let i = 0; i < archiveChannel.getData().entries.length; i++) {
-                const existingCodeEntry = archiveChannel.getData().entries.find(e => e.code === newCode);
+            for (let i = 0; i < archiveChannelData.getData().entries.length; i++) {
+                const existingCodeEntry = archiveChannelData.getData().entries.find(e => e.code === newCode);
                 if (existingCodeEntry && submission.getId() !== existingCodeEntry.id) {
-                    newCode = archiveChannelRef.code + (++archiveChannel.getData().currentCodeId).toString().padStart(3, '0');
+                    newCode = archiveChannelRef.code + (++archiveChannelData.getData().currentCodeId).toString().padStart(3, '0');
                 } else {
                     break; // Found a unique code
                 }
             }
 
-            await archiveChannel.savePrivate();
+            await archiveChannelData.savePrivate();
 
             // Add the new code to the reserved codes if it doesn't already exist
             if (!reservedCodes.includes(newCode)) {
@@ -1198,6 +1203,7 @@ export class RepositoryManager {
             const oldRef = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS_REFERENCES);
             const authors = await reclassifyAuthors(this.guildHolder, config.getConfig(SubmissionConfigs.AUTHORS) || []);
             const now = Date.now();
+
             entryData = deepClone({
                 id: submission.getId(),
                 name: config.getConfig(SubmissionConfigs.NAME),
@@ -1220,6 +1226,27 @@ export class RepositoryManager {
                 num_comments: 0,
                 post: undefined
             });
+
+
+            const availableTags = archiveChannel.availableTags;
+
+            // Ensure all tags exist in the forum channel
+            const newTags = [];
+            for (const tag of entryData.tags) {
+                let match = availableTags.find(t => t.id === tag.id);
+                if (match && match.name === tag.name) {
+                    newTags.push(tag);
+                }
+
+                let nameMatch = availableTags.find(t => t.name === tag.name);
+                if (nameMatch) {
+                    newTags.push({ id: nameMatch.id, name: nameMatch.name });
+                }
+                // ignore if not found
+            }
+
+            entryData.tags = newTags;
+
 
             for (const ref of revision.references) {
                 if (ref.type === ReferenceType.DICTIONARY_TERM) {
@@ -1323,7 +1350,7 @@ export class RepositoryManager {
             if (oldEntryData) {
                 await this.commit(`${newEntryData.code}: ${generateCommitMessage(oldEntryData, newEntryData)}`);
             } else {
-                await this.commit(`Added entry ${newEntryData.name} (${newEntryData.code}) to channel ${archiveChannel.getData().name} (${archiveChannel.getData().code})`);
+                await this.commit(`Added entry ${newEntryData.name} (${newEntryData.code}) to channel ${archiveChannelData.getData().name} (${archiveChannelData.getData().code})`);
             }
             try {
                 await this.push();
