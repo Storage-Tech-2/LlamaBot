@@ -868,25 +868,30 @@ export class RepositoryManager {
                         const newIds = updatedTags.map(t => t.id);
                         const currentTags = thread.appliedTags;
                         const idsAreSame = newIds.length === currentTags.length && newIds.every(id => currentTags.includes(id));
-                        if (idsAreSame) {
-                            continue;
-                        }
+                        if (!idsAreSame) {
 
-                        const wasArchived = thread.archived;
 
-                        this.addToIgnoreUpdatesFrom(entryData.id);
-                        if (wasArchived) {
-                            await thread.setArchived(false);
-                        }
-                        await thread.setAppliedTags(newIds);
-                        if (wasArchived) {
-                            await thread.setArchived(true);
-                        }
-                        this.removeFromIgnoreUpdatesFrom(entryData.id);
+                            const wasArchived = thread.archived;
 
-                        // update submission
-                        const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entryData.id);
-                        if (submission) {
+                            this.addToIgnoreUpdatesFrom(entryData.id);
+                            if (wasArchived) {
+                                await thread.setArchived(false);
+                            }
+                            await thread.setAppliedTags(newIds);
+                            if (wasArchived) {
+                                await thread.setArchived(true);
+                            }
+                            this.removeFromIgnoreUpdatesFrom(entryData.id);
+                        }
+                    }
+
+                    // update submission
+                    const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entryData.id);
+                    if (submission) {
+                        const pastSubmissionTags = submission.getConfigManager().getConfig(SubmissionConfigs.TAGS) || [];
+                        const submissionTagsAreSame = pastSubmissionTags.length === updatedTags.length &&
+                            pastSubmissionTags.every(t => updatedTags.some(ut => ut.id === t.id && ut.name === t.name));
+                        if (!submissionTagsAreSame) {
                             // set tags
                             submission.getConfigManager().setConfig(SubmissionConfigs.TAGS, entryData.tags);
                             await submission.save();
