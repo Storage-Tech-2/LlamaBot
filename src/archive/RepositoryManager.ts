@@ -755,7 +755,7 @@ export class RepositoryManager {
 
                 const globalNames = new Set(globalTags.map(t => t.name.toLowerCase()));
                 const remaining = available
-                    .filter(t => !globalNames.has(t.name.toLowerCase()))
+                    .filter(t => !globalNames.has(t.name.toLowerCase()) && (!renamedFrom || t.name.toLowerCase() !== renamedFrom.toLowerCase()))
                     .map(t => ({
                         id: t.id,
                         name: t.name,
