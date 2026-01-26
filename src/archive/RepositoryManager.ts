@@ -744,7 +744,7 @@ export class RepositoryManager {
                 const globalTagData = globalTags.map(gt => {
                     const matchByName = available.find(t => t.name === gt.name);
                     const matchByOldName = renamedFrom && gt.name !== renamedFrom ? available.find(t => t.name === renamedFrom) : undefined;
-                    const existing = matchByName || matchByOldName;
+                    const existing = matchByOldName || matchByName;
                     return {
                         id: existing?.id,
                         name: gt.name,
