@@ -28,6 +28,7 @@ import { base64ToInt8Array, EmbeddingsEntry, EmbeddingsSearchResult as Embedding
 import { type HierarchicalNSW } from "hnswlib-node";
 import { TemporaryCache } from "./TemporaryCache.js";
 import { AttachmentSource } from "../submissions/Attachment.js";
+import { GlobalTag } from "./RepositoryConfigs.js";
 
 export class RepositoryManager {
     public folderPath: string;
@@ -712,6 +713,116 @@ export class RepositoryManager {
         await this.commit('Rebuilt persistent index and embeddings').catch(() => { });
         await this.push().catch(() => { });
         await this.lock.release();
+    }
+
+    /**
+     * Synchronize global tags to all archive forum channels in Discord, ensuring
+     * global tags appear first (preserving the order in config), then any
+     * channel-specific tags. Optionally preserve tag IDs when a single tag was
+     * renamed by passing renamedFrom.
+     */
+    public async applyGlobalTagChanges(globalTags: GlobalTag[], renamedFrom?: string): Promise<void> {
+        await this.lock.acquire();
+        try {
+            const archiveChannels = await this.guildHolder.getGuild().channels.fetch();
+            const archiveCategories = this.guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
+            const forumChannels = Array.from(
+                archiveChannels
+                    .filter(c => c?.type === ChannelType.GuildForum && c.parentId && archiveCategories.includes(c.parentId))
+                    .values()
+            ) as ForumChannel[];
+
+            const channelRefs = await this.getChannelReferences();
+            const changedEntryPaths: string[] = [];
+
+            for (const forum of forumChannels) {
+                const channelRef = channelRefs.find(r => r.id === forum.id);
+                if (!channelRef) continue;
+
+                const available = forum.availableTags;
+
+                const globalTagData = globalTags.map(gt => {
+                    const matchByName = available.find(t => t.name === gt.name);
+                    const matchByOldName = renamedFrom && gt.name !== renamedFrom ? available.find(t => t.name === renamedFrom) : undefined;
+                    const existing = matchByName || matchByOldName;
+                    return {
+                        id: existing?.id,
+                        name: gt.name,
+                        moderated: !!gt.moderated,
+                        emoji: gt.emoji ? { id: null, name: gt.emoji } : null,
+                    };
+                });
+
+                const globalNames = new Set(globalTags.map(t => t.name.toLowerCase()));
+                const remaining = available
+                    .filter(t => !globalNames.has(t.name.toLowerCase()))
+                    .map(t => ({
+                        id: t.id,
+                        name: t.name,
+                        moderated: t.moderated,
+                        emoji: t.emoji ? { id: t.emoji.id, name: t.emoji.name } : null,
+                    }));
+
+                const newTags = [...globalTagData, ...remaining];
+
+                // Only update if changed
+                const changed = newTags.length !== available.length || newTags.some((t, i) => {
+                    const cur = available[i];
+                    return !cur || cur.id !== t.id || cur.name !== t.name || cur.moderated !== t.moderated || (cur.emoji?.name || null) !== (t.emoji?.name || null);
+                });
+
+                if (changed) {
+                    await forum.setAvailableTags(newTags);
+                }
+
+                // Update stored entries for this channel based on tag IDs
+                const channelPath = Path.join(this.folderPath, channelRef.path);
+                const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
+                if (!archiveChannel) continue;
+                const entries = archiveChannel.getData().entries;
+                let channelChanged = false;
+
+                for (const entryRef of entries) {
+                    const entryPath = Path.join(channelPath, entryRef.path);
+                    const entry = await ArchiveEntry.fromFolder(entryPath);
+                    if (!entry) continue;
+                    const entryData = entry.getData();
+                    const updatedTags = entryData.tags
+                        .map(tag => {
+                            const match = newTags.find(t => t.id === tag.id);
+                            if (!match) return null;
+                            return { id: match.id!, name: match.name };
+                        })
+                        .filter(Boolean) as { id: string, name: string }[];
+
+                    const needsUpdate = updatedTags.length !== entryData.tags.length ||
+                        updatedTags.some((t, idx) => t.name !== entryData.tags[idx]?.name);
+
+                    if (needsUpdate) {
+                        entryData.tags = updatedTags;
+                        await entry.savePrivate();
+                        await this.git?.add(entry.getDataPath()).catch(() => { });
+                        await this.git?.add(await this.updateEntryReadme(entry)).catch(() => { });
+                        channelChanged = true;
+                        changedEntryPaths.push(entry.getDataPath());
+                    }
+                }
+
+                if (channelChanged) {
+                    await archiveChannel.savePrivate();
+                    await this.git?.add(archiveChannel.getDataPath()).catch(() => { });
+                }
+            }
+
+            if (changedEntryPaths.length > 0) {
+                await this.buildPersistentIndexAndEmbeddings().catch(() => { });
+                await this.dictionaryManager.rebuildIndexAndEmbeddings().catch(() => { });
+                await this.commit('Synced archive tags after global tag change', changedEntryPaths).catch(() => { });
+                await this.push().catch(() => { });
+            }
+        } finally {
+            await this.lock.release();
+        }
     }
 
     async findEntryBySubmissionId(submissionId: string): Promise<null | {

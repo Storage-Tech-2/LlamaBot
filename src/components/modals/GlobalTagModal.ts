@@ -163,13 +163,16 @@ export class GlobalTagModal implements Modal {
             if (colorWebResult.provided && colorWebResult.value) newTag.colorWeb = colorWebResult.value;
             if (colorModResult.provided && colorModResult.value !== undefined) newTag.colorMod = colorModResult.value ?? undefined;
 
-            configManager.setConfig(RepositoryConfigs.GLOBAL_TAGS, [...tags, newTag]);
+            const newGlobalTags = [...tags, newTag];
+            configManager.setConfig(RepositoryConfigs.GLOBAL_TAGS, newGlobalTags);
             try {
                 await guildHolder.getRepositoryManager().configChanged();
             } catch (error: any) {
                 await replyEphemeral(interaction, `Failed to save global tag: ${error?.message || error}`);
                 return;
             }
+
+            await guildHolder.getRepositoryManager().applyGlobalTagChanges(newGlobalTags);
 
             await interaction.reply({
                 content: `Added global tag "${newTag.name}"${newTag.emoji ? ` (${newTag.emoji})` : ''}.`,
@@ -224,6 +227,8 @@ export class GlobalTagModal implements Modal {
             await replyEphemeral(interaction, `Failed to save tag changes: ${error?.message || error}`);
             return;
         }
+
+        await guildHolder.getRepositoryManager().applyGlobalTagChanges(updatedTags, currentTag!.name);
 
         await interaction.reply({
             content: `Updated global tag "${currentTag!.name}" to "${updatedTag.name}".`,

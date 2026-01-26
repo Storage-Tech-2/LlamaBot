@@ -63,6 +63,8 @@ export class GlobalTagSelectMenu implements Menu {
                 return;
             }
 
+            await guildHolder.getRepositoryManager().applyGlobalTagChanges(updatedTags, removedTag.name);
+
             await interaction.update({
                 content: `Removed global tag "${removedTag.name}".`,
                 components: []
