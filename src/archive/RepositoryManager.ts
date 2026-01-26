@@ -923,7 +923,7 @@ export class RepositoryManager {
      * channel-specific tags. Optionally preserve tag IDs when a single tag was
      * renamed by passing renamedFrom.
      */
-    public async applyGlobalTagChanges(globalTags: GlobalTag[], renamedFrom?: string): Promise<void> {
+    public async applyGlobalTagChanges(oldGlobalTags: GlobalTag[], newGlobalTags: GlobalTag[], renamedFromMap?: Map<string, string>): Promise<void> {
         await this.lock.acquire();
         try {
             const archiveChannels = await this.guildHolder.getGuild().channels.fetch();
@@ -941,57 +941,65 @@ export class RepositoryManager {
                 const channelRef = channelRefs.find(r => r.id === forum.id);
                 if (!channelRef) continue;
 
-                const available = forum.availableTags;
-
-                const globalTagData: GuildForumTag[] = globalTags.map(gt => {
-                    const matchByName = available.find(t => t.name === gt.name);
-                    const matchByOldName = renamedFrom && gt.name !== renamedFrom ? available.find(t => t.name === renamedFrom) : undefined;
-                    const existing = matchByOldName ?? matchByName;
-                    if (existing) {
-                        existing.name = gt.name; // update name in case of rename
-                        existing.moderated = !!gt.moderated;
-                        if (gt.emoji) {
-                            existing.emoji = { id: null, name: gt.emoji };
-                        }
-                        return existing;
+                const availableForReuse = deepClone(forum.availableTags);
+                const oldGlobalTagsAvailable = oldGlobalTags.map(gt => {
+                    const foundIndex = availableForReuse.findIndex(t => t.name === gt.name);
+                    if (foundIndex !== -1) {
+                        const tag = availableForReuse[foundIndex];
+                        availableForReuse.splice(foundIndex, 1);
+                        return tag;
                     }
+                    return null;
+                }).filter(Boolean) as GuildForumTag[];
+
+                const globalTagData = newGlobalTags.map(gt => {
+                    // check if renamed
+                    const renamedFrom = renamedFromMap?.get(gt.name);
+                    if (renamedFrom) {
+                        const oldTagIndex = oldGlobalTagsAvailable.findIndex(ogt => ogt.name === renamedFrom);
+                        if (oldTagIndex !== -1) {
+                            const oldTag = oldGlobalTagsAvailable[oldTagIndex];
+                            oldTag.name = gt.name;
+                            oldTag.moderated = !!gt.moderated;
+                            oldTag.emoji = gt.emoji ? { id: null, name: gt.emoji } : null;
+                            oldGlobalTagsAvailable.splice(oldTagIndex, 1);
+                            return oldTag;
+                        }
+                    }
+
+                    const matchByNameAvailableIndex = availableForReuse.findIndex(t => t.name === gt.name);
+                    if (matchByNameAvailableIndex !== -1) {
+                        const tag = availableForReuse[matchByNameAvailableIndex];
+                        availableForReuse.splice(matchByNameAvailableIndex, 1);
+                        tag.moderated = !!gt.moderated;
+                        tag.emoji = gt.emoji ? { id: null, name: gt.emoji } : null;
+                        return tag;
+                    }
+
                     return {
+                        id: null,
                         name: gt.name,
                         moderated: !!gt.moderated,
                         emoji: gt.emoji ? { id: null, name: gt.emoji } : null,
-                    } as GuildForumTag;
-                });
-
-                const remaining: GuildForumTag[] = [];
-                
-                available.forEach(tag => {
-                    const isExisting = globalTagData.find(t => t.id && t.id === tag.id);
-                    if (isExisting) {
-                        return;
                     }
+                }) as GuildForumTag[];
 
-                    const existing = remaining.find(t => t.id === tag.id);
-                    if (existing) {
-                        return;
-                    }
-                    
-                    remaining.push(tag);                   
-                });
-
-                let newTags = [...globalTagData, ...remaining];
+                let newTags = [...globalTagData, ...availableForReuse];
 
                 // Only update if changed
-                const changed = newTags.length !== available.length || newTags.some((t, i) => {
-                    const cur = available[i];
+                const changed = newTags.length !== forum.availableTags.length || newTags.some((t, i) => {
+                    const cur = forum.availableTags[i];
                     return !cur || cur.id !== t.id || cur.name !== t.name || cur.moderated !== t.moderated || (cur.emoji?.name || null) !== (t.emoji?.name || null);
                 });
 
-                if (changed) {
-                    await forum.setAvailableTags(newTags);
-                    // get new available tags
-                    await forum.fetch();
-                    newTags = forum.availableTags;
+                if (!changed) {
+                    continue;
                 }
+
+                await forum.setAvailableTags(newTags);
+                // get new available tags
+                await forum.fetch();
+                newTags = forum.availableTags;
 
                 // Update stored entries for this channel based on tag IDs
                 const channelPath = Path.join(this.folderPath, channelRef.path);
