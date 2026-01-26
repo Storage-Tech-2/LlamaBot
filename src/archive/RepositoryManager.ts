@@ -959,20 +959,31 @@ export class RepositoryManager {
                         const oldTagIndex = oldGlobalTagsAvailable.findIndex(ogt => ogt.name === renamedFrom);
                         if (oldTagIndex !== -1) {
                             const oldTag = oldGlobalTagsAvailable[oldTagIndex];
+                            oldGlobalTagsAvailable.splice(oldTagIndex, 1);
                             oldTag.name = gt.name;
                             oldTag.moderated = !!gt.moderated;
                             oldTag.emoji = gt.emoji ? { id: null, name: gt.emoji } : null;
-                            oldGlobalTagsAvailable.splice(oldTagIndex, 1);
                             return oldTag;
                         }
                     }
 
+                    // unchanged global tag: reuse the existing tag object so the ID is preserved
+                    const existingIdx = oldGlobalTagsAvailable.findIndex(ogt => ogt.name === gt.name);
+                    if (existingIdx !== -1) {
+                        const tag = oldGlobalTagsAvailable[existingIdx];
+                        oldGlobalTagsAvailable.splice(existingIdx, 1);
+                        tag.moderated = !!gt.moderated;
+                        tag.emoji = gt.emoji ? { id: null, name: gt.emoji } : null;
+                        return tag;
+                    }
+
+                    // brand new global tag: try to reuse any remaining tag object (unlikely) else create fresh
                     const matchByNameAvailableIndex = availableForReuse.findIndex(t => t.name === gt.name);
                     if (matchByNameAvailableIndex !== -1) {
                         const tag = availableForReuse[matchByNameAvailableIndex];
                         availableForReuse.splice(matchByNameAvailableIndex, 1);
                         tag.moderated = !!gt.moderated;
-                        tag.emoji = gt.emoji ? { id: null, name: gt.emoji } : null;
+                        tag.emoji = gt.emoji ? { id: null, name: gt.emoji } : tag.emoji ?? null;
                         return tag;
                     }
 
@@ -1052,7 +1063,7 @@ export class RepositoryManager {
             if (changedEntryPaths.length > 0) {
                 await this.buildPersistentIndexAndEmbeddings().catch(() => { });
                 await this.dictionaryManager.rebuildIndexAndEmbeddings().catch(() => { });
-                await this.commit('Synced archive tags after global tag change', changedEntryPaths).catch(() => { });
+                await this.commit('Synced archive tags after global tag change').catch(() => { });
                 await this.push().catch(() => { });
             }
         } finally {
