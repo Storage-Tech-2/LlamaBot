@@ -917,6 +917,35 @@ export class RepositoryManager {
         }
     }
 
+    public async deleteTag(name: string): Promise<void> {
+        await this.lock.acquire();
+
+        try {
+            const archiveChannels = await this.guildHolder.getGuild().channels.fetch();
+            const archiveCategories = this.guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
+            const forumChannels = Array.from(
+                archiveChannels
+                    .filter(c => c?.type === ChannelType.GuildForum && c.parentId && archiveCategories.includes(c.parentId))
+                    .values()
+            ) as ForumChannel[];
+            const channelRefs = await this.getChannelReferences();
+            for (const forum of forumChannels) {
+                const channelRef = channelRefs.find(r => r.id === forum.id);
+                if (!channelRef) continue;
+
+                const newAvailableTags = forum.availableTags.filter(t => t.name !== name);
+                if (newAvailableTags.length === forum.availableTags.length) {
+                    continue;
+                }
+
+                await forum.setAvailableTags(newAvailableTags);
+            }
+
+        } finally {
+            await this.lock.release();
+        }
+
+    }
     /**
      * Synchronize global tags to all archive forum channels in Discord, ensuring
      * global tags appear first (preserving the order in config), then any

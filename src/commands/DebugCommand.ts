@@ -154,7 +154,18 @@ export class DebugCommand implements Command {
                 sub
                     .setName('restoretags')
                     .setDescription('Restore forum tags on all dictionary entries based from the Github repository')
-            );
+            )
+            .addSubcommand(sub =>
+                sub
+                    .setName('deletetag')
+                    .setDescription('Delete a specific tag from all archive channels')
+                    .addStringOption(opt => 
+                        opt
+                            .setName('tag')
+                            .setDescription('Name of the tag to delete')
+                            .setRequired(true)
+                    )
+            )
 
         return data;
     }
@@ -213,6 +224,9 @@ export class DebugCommand implements Command {
                 break;
             case 'restoretags':
                 await this.handleRestoreTags(guildHolder, interaction);
+                break;
+            case 'deletetag':
+                await this.handleDeleteTag(guildHolder, interaction);
                 break;
             default:
                 await replyEphemeral(interaction, 'Unknown subcommand.');
@@ -893,5 +907,13 @@ export class DebugCommand implements Command {
 
         await interaction.editReply({ content: 'Global tags restored to archive entries and Discord threads.' } );
 
+    }
+
+    private async handleDeleteTag(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const tagName = interaction.options.getString('name', true);
+        
+        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+        await guildHolder.getRepositoryManager().deleteTag(tagName);
+        await interaction.editReply({ content: `Tag "${tagName}" has been deleted from archive entries and Discord threads.` } );
     }
 }
