@@ -76,10 +76,11 @@ export const DEFAULT_GLOBAL_TAGS: GlobalTag[] = [
     {
         name: 'Recommended',
         emoji: '⭐',
-        colorWeb: '#60a5fa',
+        colorWeb: '#29b0ff',
         moderated: true
     }
 ];
+
 
 export const RepositoryConfigs = {
     /**
