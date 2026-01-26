@@ -910,7 +910,7 @@ export class DebugCommand implements Command {
     }
 
     private async handleDeleteTag(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
-        const tagName = interaction.options.getString('name', true);
+        const tagName = interaction.options.getString('tag', true);
         
         await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
         await guildHolder.getRepositoryManager().deleteTag(tagName);
