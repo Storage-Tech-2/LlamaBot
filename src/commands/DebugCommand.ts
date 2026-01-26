@@ -1,14 +1,16 @@
-import { AttachmentBuilder, ChatInputCommandInteraction, ChannelType, Collection, ForumChannel, GuildMember, InteractionContextType, MessageFlags, SlashCommandBuilder, Snowflake } from "discord.js";
+import { AttachmentBuilder, ChatInputCommandInteraction, ChannelType, Collection, ForumChannel, GuildForumTag, GuildMember, InteractionContextType, MessageFlags, SlashCommandBuilder, Snowflake } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { SysAdmin } from "../Bot.js";
-import { getAuthorKey, getAuthorName, replyEphemeral } from "../utils/Util.js";
+import { getAuthorKey, getAuthorName, replyEphemeral, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
 import { deleteACAImportThreadsTask, importACAChannelTask } from "../archive/Tasks.js";
 import { SetTemplateModal } from "../components/modals/SetTemplateModal.js";
 import { Reference, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
 import { RevisionEmbed } from "../embed/RevisionEmbed.js";
 import { AuthorType, DiscordAuthor } from "../submissions/Author.js";
 import { findWorldsInZip, optimizeWorldsInZip } from "../utils/WDLUtils.js";
+import { GuildConfigs } from "../config/GuildConfigs.js";
+import { DictionaryEntryStatus } from "../archive/DictionaryManager.js";
 import got from "got";
 import Path from "path";
 import fs from "fs/promises";
@@ -45,6 +47,22 @@ export class DebugCommand implements Command {
                 sub
                     .setName('settemplate')
                     .setDescription('Open the post template modal')
+            )
+            .addSubcommand(sub =>
+                sub
+                    .setName('importdictionary')
+                    .setDescription('Import dictionary entries from a JSON attachment')
+                    .addAttachmentOption(option =>
+                        option
+                            .setName('file')
+                            .setDescription('JSON file to import')
+                            .setRequired(true)
+                    )
+            )
+            .addSubcommand(sub =>
+                sub
+                    .setName('updatesubmissionsstatus')
+                    .setDescription('Update the status of all submissions based on their archive status')
             )
             .addSubcommand(sub =>
                 sub
@@ -158,6 +176,12 @@ export class DebugCommand implements Command {
             case 'settemplate':
                 await this.handleSetTemplate(guildHolder, interaction);
                 break;
+            case 'importdictionary':
+                await this.handleImportDictionary(guildHolder, interaction);
+                break;
+            case 'updatesubmissionsstatus':
+                await this.handleUpdateSubmissionsStatus(guildHolder, interaction);
+                break;
             case 'reextract':
                 await this.handleReextract(guildHolder, interaction);
                 break;
@@ -230,6 +254,198 @@ export class DebugCommand implements Command {
     private async handleSetTemplate(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         const modal = new SetTemplateModal().getBuilder(guildHolder);
         await interaction.showModal(modal);
+    }
+
+    private async handleImportDictionary(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const attachment = interaction.options.getAttachment('file');
+        if (!attachment) {
+            await replyEphemeral(interaction, 'Attach a JSON file to import.');
+            return;
+        }
+
+        const dictionaryChannelId = guildHolder.getConfigManager().getConfig(GuildConfigs.DICTIONARY_CHANNEL_ID);
+        if (!dictionaryChannelId) {
+            await replyEphemeral(interaction, 'Dictionary channel is not configured.');
+            return;
+        }
+
+        const dictionaryChannel = await guildHolder.getGuild().channels.fetch(dictionaryChannelId).catch(() => null);
+        if (!dictionaryChannel || dictionaryChannel.type !== ChannelType.GuildForum) {
+            await replyEphemeral(interaction, 'Dictionary channel is not a forum.');
+            return;
+        }
+
+        const dictionaryStatusTags: GuildForumTag[] = [
+            { name: 'Pending', emoji: { name: '🕒' }, moderated: true },
+            { name: 'Approved', emoji: { name: '✅' }, moderated: true },
+            { name: 'Rejected', emoji: { name: '🚫' }, moderated: true },
+        ] as GuildForumTag[];
+
+        const existingDictionaryTags = dictionaryChannel.availableTags.filter(tag => {
+            return !dictionaryStatusTags.some(t => t.name === tag.name);
+        });
+
+        const mergedDictionaryTags = dictionaryStatusTags.map(t => {
+            const existing = dictionaryChannel.availableTags.find(tag => tag.name === t.name);
+            return existing || t;
+        }).concat(existingDictionaryTags);
+
+        await dictionaryChannel.setAvailableTags(mergedDictionaryTags).catch(() => { });
+
+        await interaction.deferReply();
+
+        let payload: any;
+        try {
+            const response = await got(attachment.url, { responseType: 'text' });
+            payload = JSON.parse(response.body);
+        } catch (e: any) {
+            await interaction.editReply(`Failed to load or parse the JSON file: ${e.message || e}`);
+            return;
+        }
+
+        if (!Array.isArray(payload)) {
+            await interaction.editReply('Invalid JSON format. Expected an array of entries.');
+            return;
+        }
+
+        const dictionaryManager = guildHolder.getDictionaryManager();
+        const normalizeTerm = (term: string) => term.trim().toLowerCase();
+
+        const existingEntries = await dictionaryManager.listEntries();
+        const existingTerms = new Map<string, Snowflake>();
+        for (const entry of existingEntries) {
+            for (const term of entry.terms || []) {
+                const normalized = normalizeTerm(term);
+                if (normalized) {
+                    existingTerms.set(normalized, entry.id);
+                }
+            }
+        }
+
+        const repositoryManager = guildHolder.getRepositoryManager();
+        await repositoryManager.getLock().acquire();
+
+        const results: string[] = [];
+        let created = 0;
+        let skipped = 0;
+
+        try {
+            for (let i = 0; i < payload.length; i++) {
+                const rawEntry = payload[i];
+                if (!rawEntry || typeof rawEntry !== 'object') {
+                    results.push(`Entry #${i + 1}: skipped (not an object).`);
+                    skipped++;
+                    continue;
+                }
+
+                const termSource = Array.isArray(rawEntry.terms) ? rawEntry.terms : [];
+                if (typeof rawEntry.term === 'string') {
+                    termSource.push(rawEntry.term);
+                }
+                if (typeof rawEntry.id === 'string' && termSource.length === 0) {
+                    termSource.push(rawEntry.id);
+                }
+
+                const terms = termSource.map((t: any) => String(t).trim()).filter(Boolean);
+                if (terms.length === 0) {
+                    results.push(`Entry #${i + 1}: skipped (no terms).`);
+                    skipped++;
+                    continue;
+                }
+
+                const normalizedTerms = terms.map(normalizeTerm).filter(Boolean) as string[];
+                const duplicateTerm = normalizedTerms.find(t => existingTerms.has(t));
+                if (duplicateTerm) {
+                    results.push(`Entry "${terms[0]}": skipped (term already exists).`);
+                    skipped++;
+                    continue;
+                }
+
+                const definition = (rawEntry.definition ?? '').toString().trim();
+                if (!definition) {
+                    results.push(`Entry "${terms[0]}": skipped (no definition).`);
+                    skipped++;
+                    continue;
+                }
+
+                const threadName = truncateStringWithEllipsis(terms.join(', '), 100);
+
+                try {
+                    const thread = await dictionaryChannel.threads.create({
+                        name: threadName,
+                        message: {
+                            content: definition,
+                            allowedMentions: { parse: [] },
+                        },
+                    }).catch(() => null);
+
+                    if (!thread) {
+                        results.push(`Entry "${terms[0]}": failed to create a thread.`);
+                        skipped++;
+                        continue;
+                    }
+
+                    const entry = await dictionaryManager.ensureEntryForThread(thread).catch(() => null);
+                    if (!entry) {
+                        results.push(`Entry "${terms[0]}": failed to record dictionary entry.`);
+                        skipped++;
+                        continue;
+                    }
+
+                    entry.terms = terms;
+                    entry.definition = definition;
+                    entry.status = DictionaryEntryStatus.APPROVED;
+                    entry.updatedAt = Date.now();
+                    entry.references = [];
+
+                    await dictionaryManager.saveEntry(entry);
+                    await dictionaryManager.updateStatusMessage(entry, thread);
+
+                    for (const term of normalizedTerms) {
+                        existingTerms.set(term, entry.id);
+                    }
+
+                    created++;
+                    results.push(`Entry "${terms[0]}": created at ${thread.url}`);
+                } catch (e: any) {
+                    results.push(`Entry "${terms[0]}": failed (${e.message || e}).`);
+                    skipped++;
+                }
+            }
+
+            if (created > 0) {
+                let commitError: string | null = null;
+                await repositoryManager.commit(`Imported ${created} dictionary ${created === 1 ? 'entry' : 'entries'}`).catch((e: any) => {
+                    commitError = e.message || String(e);
+                });
+                if (commitError) {
+                    results.push(`Warning: changes were staged but commit failed: ${commitError}`);
+                } else {
+                    await repositoryManager.push().catch((e: any) => {
+                        results.push(`Warning: commit succeeded but push failed: ${e.message || e}`);
+                    });
+                }
+            }
+        } finally {
+            repositoryManager.getLock().release();
+        }
+
+        if (results.length === 0) {
+            results.push('No entries were imported.');
+        } else {
+            results.unshift(`Import complete: created ${created}, skipped ${skipped}.`);
+        }
+
+        const chunks = splitIntoChunks(results.join('\\n'), 2000);
+        if (chunks.length === 0) {
+            await interaction.editReply('Import complete.');
+            return;
+        }
+
+        await interaction.editReply({ content: chunks[0] });
+        for (let i = 1; i < chunks.length; i++) {
+            await interaction.followUp({ content: chunks[i], flags: MessageFlags.SuppressNotifications });
+        }
     }
 
     private async handleReextract(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
@@ -353,6 +569,45 @@ export class DebugCommand implements Command {
 
         const errorText = errors > 0 ? ` with ${errors} error${errors === 1 ? '' : 's'} (see logs)` : '';
         await interaction.editReply({ content: `Updated ${revisionsUpdated} revision${revisionsUpdated === 1 ? '' : 's'} across ${submissionsTouched} submission${submissionsTouched === 1 ? '' : 's'}${errorText}.` });
+    }
+
+    private async handleUpdateSubmissionsStatus(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        await interaction.reply('Starting to update status of all submissions. This may take a while depending on the number of submissions. You will be notified when it is complete.');
+
+        const submissionsById = await guildHolder.getSubmissionsManager().getSubmissionsList();
+        for (const submissionID of submissionsById) {
+            const submission = await guildHolder.getSubmissionsManager().getSubmission(submissionID);
+            if (!submission) {
+                await interaction.followUp(`Submission with ID ${submissionID} not found, skipping.`);
+                continue;
+            }
+
+            const channel = await submission.getSubmissionChannel(true);
+            if (!channel) {
+                console.error(`Submission channel for submission ${submissionID} not found.`);
+                await interaction.followUp(`Submission channel for submission ${submissionID} not found, skipping.`);
+                continue;
+            }
+            const isArchived = channel.archived;
+
+            const entry = await guildHolder.getRepositoryManager().findEntryBySubmissionId(submissionID);
+            if (entry) {
+                guildHolder.getRepositoryManager().updateSubmissionFromEntryData(submission, entry.entry.getData());
+            }
+
+            try {
+                await submission.statusUpdated();
+            } catch (error) {
+                console.error(`Error updating status for submission ${submissionID}:`, error);
+                await interaction.followUp(`Error updating status for submission ${submissionID}, check console for details.`);
+            }
+
+            if (isArchived) {
+                await channel.setArchived(true, 'Re-archiving channel after status update');
+            }
+        }
+
+        await interaction.followUp(`<@${interaction.user.id}> Updating status of all submissions complete!`);
     }
 
     private async handleAddThanks(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {

@@ -5,6 +5,8 @@ import { getCodeAndDescriptionFromTopic, isEditor, isEndorser, isModerator, repl
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
+import { SetTemplateModal } from "../components/modals/SetTemplateModal.js";
+import { retagEverythingTask } from "../archive/Tasks.js";
 
 export class EditorPowersCommand implements Command {
     getID(): string {
@@ -99,6 +101,16 @@ export class EditorPowersCommand implements Command {
                 subcommand
                     .setName('makeindex')
                     .setDescription('Make an index of all archive channels')
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('settemplate')
+                    .setDescription('Set the post template for the archive')
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName('forceretag')
+                    .setDescription('Force retagging of all archive and dictionary entries')
             );
 
         return data;
@@ -133,6 +145,16 @@ export class EditorPowersCommand implements Command {
 
         if (subcommand === 'makeindex') {
             await this.makeIndex(guildHolder, interaction);
+            return;
+        }
+
+        if (subcommand === 'settemplate') {
+            await this.setTemplate(guildHolder, interaction);
+            return;
+        }
+
+        if (subcommand === 'forceretag') {
+            await this.forceRetag(guildHolder, interaction);
             return;
         }
 
@@ -285,6 +307,19 @@ export class EditorPowersCommand implements Command {
                 replyEphemeral(interaction, 'Invalid subcommand. Please use one of the available subcommands.');
                 return;
         }
+    }
+
+    async setTemplate(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const modal = new SetTemplateModal().getBuilder(guildHolder);
+        await interaction.showModal(modal);
+    }
+
+    async forceRetag(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        await interaction.reply('Starting retagging of all archive and dictionary entries. This may take a while...');
+        await retagEverythingTask(guildHolder).catch(async (e) => {
+            await interaction.followUp('Error during retagging: ' + e.message);
+        });
+        await interaction.followUp('<@' + interaction.user.id + '> Retagging of all archive and dictionary entries completed.');
     }
 
     async closeEverythingPosts(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {

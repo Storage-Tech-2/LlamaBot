@@ -1,19 +1,16 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, InteractionContextType, ChannelType, ActionRowBuilder, ForumChannel, GuildForumTag, SortOrderType, Snowflake, MessageFlags } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
-import { areAuthorsSame, getAuthorFromIdentifier, getAuthorsString, getCodeAndDescriptionFromTopic, replyEphemeral, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
+import { areAuthorsSame, getAuthorFromIdentifier, getAuthorsString, getCodeAndDescriptionFromTopic, replyEphemeral, splitIntoChunks } from "../utils/Util.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { SetArchiveCategoriesMenu } from "../components/menus/SetArchiveCategoriesMenu.js";
 import { SetEndorseRolesMenu } from "../components/menus/SetEndorseRolesMenu.js";
 import { SubmissionTags } from "../submissions/SubmissionTags.js";
 import { SetEditorRolesMenu } from "../components/menus/SetEditorRolesMenu.js";
 import { SetHelperRoleMenu } from "../components/menus/SetHelperRoleMenu.js";
-import { SetTemplateModal } from "../components/modals/SetTemplateModal.js";
 import { SetDesignerRoleMenu } from "../components/menus/SetDesignerRoleMenu.js";
 import { SetScriptModal } from "../components/modals/SetScriptModal.js";
-import { republishAllEntries, retagEverythingTask } from "../archive/Tasks.js";
-import got from "got";
-import { DictionaryEntryStatus } from "../archive/DictionaryManager.js";
+import { republishAllEntries } from "../archive/Tasks.js";
 import { GlobalTag, RepositoryConfigs } from "../archive/RepositoryConfigs.js";
 
 export class Mwa implements Command {
@@ -150,12 +147,6 @@ export class Mwa implements Command {
                             .setRequired(true)
                     )
             )
-
-            .addSubcommand(subcommand =>
-                subcommand
-                    .setName('settemplate')
-                    .setDescription('Set the post template for the archive')
-            )
             .addSubcommand(subcommand =>
                 subcommand
                     .setName('setdictionary')
@@ -168,37 +159,6 @@ export class Mwa implements Command {
                             .addChannelTypes(ChannelType.GuildForum)
                     )
             )
-            .addSubcommand(subcommand =>
-                subcommand
-                    .setName('importdictionary')
-                    .setDescription('Import dictionary entries from a JSON attachment')
-                    .addAttachmentOption(option =>
-                        option
-                            .setName('file')
-                            .setDescription('JSON file to import')
-                            .setRequired(true)
-                    )
-            )
-
-            .addSubcommand(subcommand =>
-                subcommand
-                    .setName('togglellm')
-                    .setDescription('Toggle conversational LLM features on or off')
-                    .addBooleanOption(option =>
-                        option
-                            .setName('enabled')
-                            .setDescription('Enable or disable conversational LLM features')
-                            .setRequired(false)
-                    )
-                    .addChannelOption(option =>
-                        option
-                            .setName('channel')
-                            .setDescription('Channel for conversational LLM features')
-                            .setRequired(false)
-                            .addChannelTypes(ChannelType.GuildText)
-                    )
-            )
-
             .addSubcommand(subcommand =>
                 subcommand
                     .setName('republisheverything')
@@ -231,11 +191,6 @@ export class Mwa implements Command {
             )
             .addSubcommand(subcommand =>
                 subcommand
-                    .setName('updatesubmissionsstatus')
-                    .setDescription('Update the status of all submissions based on their archive status')
-            )
-            .addSubcommand(subcommand =>
-                subcommand
                     .setName('setdesignerrole')
                     .setDescription('Set the designer role for the archive')
             )
@@ -263,19 +218,16 @@ export class Mwa implements Command {
                                 { name: 'Auto-lookup post codes', value: 'autolookup' },
                                 { name: 'Minimum endorsements required', value: 'minendorsements' },
                                 { name: 'Helper role threshold', value: 'helperrolethreshold' },
+                                { name: 'Conversational LLM enabled', value: 'llmenabled' },
+                                { name: 'Conversational LLM channel', value: 'llmchannel' },
                             )
                     )
                     .addStringOption(option =>
                         option
                             .setName('value')
-                            .setDescription('Value for the config (true/false or number)')
+                            .setDescription('Value for the config (boolean, number, or channel id/mention)')
                             .setRequired(true)
                     )
-            )
-            .addSubcommand(subcommand =>
-                subcommand
-                    .setName('forceretag')
-                    .setDescription('Force retagging of all archive and dictionary entries')
             )
         return data;
     }
@@ -299,8 +251,6 @@ export class Mwa implements Command {
             this.setRepo(guildHolder, interaction)
         } else if (interaction.options.getSubcommand() === 'setdictionary') {
             this.setDictionary(guildHolder, interaction);
-        } else if (interaction.options.getSubcommand() === 'importdictionary') {
-            this.importDictionary(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'blacklistadd') {
             this.addToBlacklist(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'blacklistremove') {
@@ -309,38 +259,22 @@ export class Mwa implements Command {
             this.listBlacklist(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'republisheverything') {
             this.republishEverything(guildHolder, interaction);
-        } else if (interaction.options.getSubcommand() === 'updatesubmissionsstatus') {
-            this.updateAllSubmissionsStatus(guildHolder, interaction);
-        } else if (interaction.options.getSubcommand() === 'settemplate') {
-            this.setTemplate(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'setdesignerrole') {
             this.setDesignerRole(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'refreshdesignerroles') {
             this.refreshDesignerRoles(guildHolder, interaction);
-        } else if (interaction.options.getSubcommand() === 'togglellm') {
-            this.toggleLlm(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'setwebsite') {
             this.setWebsite(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'setscript') {
             this.setScript(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'setconfig') {
             this.setConfig(guildHolder, interaction);
-        } else if (interaction.options.getSubcommand() === 'forceretag') {
-            this.forceRetag(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'alias') {
             this.setAlias(guildHolder, interaction);
         } else {
             await replyEphemeral(interaction, 'Invalid subcommand. Use `/mwa setsubmissions`, `/mwa setlogs`, `/mwa setarchives`, `/mwa setuparchives`, `/mwa setendorseroles`, `/mwa seteditorroles`, `/mwa sethelperrole` or `/mwa setrepo`.');
             return;
         }
-    }
-
-    async forceRetag(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
-        await interaction.reply('Starting retagging of all archive and dictionary entries. This may take a while...');
-        await retagEverythingTask(guildHolder).catch(async (e) => {
-            await interaction.followUp('Error during retagging: ' + e.message);
-        });
-        await interaction.followUp('<@' + interaction.user.id + '> Retagging of all archive and dictionary entries completed.');
     }
 
     async setWebsite(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
@@ -493,25 +427,6 @@ export class Mwa implements Command {
         }
     }
 
-    async toggleLlm(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
-        const enabled = interaction.options.getBoolean('enabled');
-        const channel = interaction.options.getChannel('channel');
-
-        if (enabled !== null) {
-            guildHolder.getConfigManager().setConfig(GuildConfigs.CONVERSATIONAL_LLM_ENABLED, enabled);
-            await interaction.reply(`Conversational LLM features have been ${enabled ? 'enabled' : 'disabled'}.`);
-            return;
-        }
-
-        if (channel !== null) {
-            guildHolder.getConfigManager().setConfig(GuildConfigs.CONVERSATIONAL_LLM_CHANNEL, channel.id);
-            await interaction.reply(`Conversational LLM channel has been set to <#${channel.id}>.`);
-        } else {
-            guildHolder.getConfigManager().setConfig(GuildConfigs.CONVERSATIONAL_LLM_CHANNEL, '');
-            await interaction.reply(`Conversational LLM channel has been cleared.`);
-        }
-    }
-
     async setSubmissions(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         const channel = interaction.options.getChannel('channel')
         if (!channel) {
@@ -530,11 +445,6 @@ export class Mwa implements Command {
         const row = new ActionRowBuilder()
             .addComponents(dt);
         await replyEphemeral(interaction, 'Select archive categories', { components: [row] })
-    }
-
-    async setTemplate(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
-        const modal = new SetTemplateModal().getBuilder(guildHolder);
-        await interaction.showModal(modal);
     }
 
     async setDictionary(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
@@ -557,7 +467,7 @@ export class Mwa implements Command {
             return;
         }
 
-        if (configName === 'autojoin' || configName === 'autolookup' || configName === 'acknowledgethanks') {
+        if (configName === 'autojoin' || configName === 'autolookup' || configName === 'acknowledgethanks' || configName === 'llmenabled') {
             const normalized = rawValue.toLowerCase();
             if (normalized !== 'true' && normalized !== 'false') {
                 await replyEphemeral(interaction, 'Provide a boolean value (true/false) for this config.');
@@ -569,10 +479,41 @@ export class Mwa implements Command {
                 autojoin: GuildConfigs.AUTOJOIN_ENABLED,
                 autolookup: GuildConfigs.AUTOLOOKUP_ENABLED,
                 acknowledgethanks: GuildConfigs.ACKNOWLEDGE_THANKS,
+                llmenabled: GuildConfigs.CONVERSATIONAL_LLM_ENABLED,
             } as const;
 
             guildHolder.getConfigManager().setConfig(configMap[configName], value);
             await interaction.reply(`Set \`${configName}\` to ${value ? 'enabled' : 'disabled'}.`);
+            return;
+        }
+
+        if (configName === 'llmchannel') {
+            const normalized = rawValue.trim();
+            const lower = normalized.toLowerCase();
+            const clear = lower === 'clear' || lower === 'none';
+
+            if (clear || normalized === '') {
+                guildHolder.getConfigManager().setConfig(GuildConfigs.CONVERSATIONAL_LLM_CHANNEL, '');
+                await interaction.reply('Cleared the conversational LLM channel.');
+                return;
+            }
+
+            const mentionMatch = normalized.match(/^<#(\d+)>$/);
+            const channelId = mentionMatch ? mentionMatch[1] : normalized;
+
+            if (!/^[0-9]{17,20}$/.test(channelId)) {
+                await replyEphemeral(interaction, 'Provide a valid text channel mention or ID for this config.');
+                return;
+            }
+
+            const channel = await guildHolder.getGuild().channels.fetch(channelId).catch(() => null);
+            if (!channel || channel.type !== ChannelType.GuildText) {
+                await replyEphemeral(interaction, 'Conversational LLM channel must be a text channel.');
+                return;
+            }
+
+            guildHolder.getConfigManager().setConfig(GuildConfigs.CONVERSATIONAL_LLM_CHANNEL, channel.id);
+            await interaction.reply(`Set conversational LLM channel to <#${channel.id}>.`);
             return;
         }
 
@@ -600,199 +541,7 @@ export class Mwa implements Command {
             return;
         }
 
-        await replyEphemeral(interaction, 'Invalid config name. Valid options: autojoin, autolookup, minendorsements, helperrolethreshold.');
-    }
-
-    async importDictionary(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
-        const attachment = interaction.options.getAttachment('file');
-        if (!attachment) {
-            await replyEphemeral(interaction, 'Attach a JSON file to import.');
-            return;
-        }
-
-        const dictionaryChannelId = guildHolder.getConfigManager().getConfig(GuildConfigs.DICTIONARY_CHANNEL_ID);
-        if (!dictionaryChannelId) {
-            await replyEphemeral(interaction, 'Dictionary channel is not configured.');
-            return;
-        }
-
-        const dictionaryChannel = await guildHolder.getGuild().channels.fetch(dictionaryChannelId).catch(() => null);
-        if (!dictionaryChannel || dictionaryChannel.type !== ChannelType.GuildForum) {
-            await replyEphemeral(interaction, 'Dictionary channel is not a forum.');
-            return;
-        }
-
-        const dictionaryStatusTags: GuildForumTag[] = [
-            { name: 'Pending', emoji: { name: '🕒' }, moderated: true },
-            { name: 'Approved', emoji: { name: '✅' }, moderated: true },
-            { name: 'Rejected', emoji: { name: '🚫' }, moderated: true },
-        ] as GuildForumTag[];
-
-        const existingDictionaryTags = dictionaryChannel.availableTags.filter(tag => {
-            return !dictionaryStatusTags.some(t => t.name === tag.name);
-        });
-
-        const mergedDictionaryTags = dictionaryStatusTags.map(t => {
-            const existing = dictionaryChannel.availableTags.find(tag => tag.name === t.name);
-            return existing || t;
-        }).concat(existingDictionaryTags);
-
-        await dictionaryChannel.setAvailableTags(mergedDictionaryTags).catch(() => { });
-
-        await interaction.deferReply();
-
-        let payload: any;
-        try {
-            const response = await got(attachment.url, { responseType: 'text' });
-            payload = JSON.parse(response.body);
-        } catch (e: any) {
-            await interaction.editReply(`Failed to load or parse the JSON file: ${e.message || e}`);
-            return;
-        }
-
-        if (!Array.isArray(payload)) {
-            await interaction.editReply('Invalid JSON format. Expected an array of entries.');
-            return;
-        }
-
-        const dictionaryManager = guildHolder.getDictionaryManager();
-        const normalizeTerm = (term: string) => term.trim().toLowerCase();
-
-        const existingEntries = await dictionaryManager.listEntries();
-        const existingTerms = new Map<string, Snowflake>();
-        for (const entry of existingEntries) {
-            for (const term of entry.terms || []) {
-                const normalized = normalizeTerm(term);
-                if (normalized) {
-                    existingTerms.set(normalized, entry.id);
-                }
-            }
-        }
-
-        const repositoryManager = guildHolder.getRepositoryManager();
-        await repositoryManager.getLock().acquire();
-
-        const results: string[] = [];
-        let created = 0;
-        let skipped = 0;
-
-        try {
-            for (let i = 0; i < payload.length; i++) {
-                const rawEntry = payload[i];
-                if (!rawEntry || typeof rawEntry !== 'object') {
-                    results.push(`Entry #${i + 1}: skipped (not an object).`);
-                    skipped++;
-                    continue;
-                }
-
-                const termSource = Array.isArray(rawEntry.terms) ? rawEntry.terms : [];
-                if (typeof rawEntry.term === 'string') {
-                    termSource.push(rawEntry.term);
-                }
-                if (typeof rawEntry.id === 'string' && termSource.length === 0) {
-                    termSource.push(rawEntry.id);
-                }
-
-                const terms = termSource.map((t: any) => String(t).trim()).filter(Boolean);
-                if (terms.length === 0) {
-                    results.push(`Entry #${i + 1}: skipped (no terms).`);
-                    skipped++;
-                    continue;
-                }
-
-                const normalizedTerms = terms.map(normalizeTerm).filter(Boolean) as string[];
-                const duplicateTerm = normalizedTerms.find(t => existingTerms.has(t));
-                if (duplicateTerm) {
-                    results.push(`Entry "${terms[0]}": skipped (term already exists).`);
-                    skipped++;
-                    continue;
-                }
-
-                const definition = (rawEntry.definition ?? '').toString().trim();
-                if (!definition) {
-                    results.push(`Entry "${terms[0]}": skipped (no definition).`);
-                    skipped++;
-                    continue;
-                }
-
-                let threadName = truncateStringWithEllipsis(terms.join(', '), 100);
-
-                try {
-                    const thread = await dictionaryChannel.threads.create({
-                        name: threadName,
-                        message: {
-                            content: definition,
-                            allowedMentions: { parse: [] },
-                        },
-                    }).catch(() => null);
-
-                    if (!thread) {
-                        results.push(`Entry "${terms[0]}": failed to create a thread.`);
-                        skipped++;
-                        continue;
-                    }
-
-                    const entry = await dictionaryManager.ensureEntryForThread(thread).catch(() => null);
-                    if (!entry) {
-                        results.push(`Entry "${terms[0]}": failed to record dictionary entry.`);
-                        skipped++;
-                        continue;
-                    }
-
-                    entry.terms = terms;
-                    entry.definition = definition;
-                    entry.status = DictionaryEntryStatus.APPROVED;
-                    entry.updatedAt = Date.now();
-                    entry.references = [];
-
-                    await dictionaryManager.saveEntry(entry);
-                    await dictionaryManager.updateStatusMessage(entry, thread);
-
-                    for (const term of normalizedTerms) {
-                        existingTerms.set(term, entry.id);
-                    }
-
-                    created++;
-                    results.push(`Entry "${terms[0]}": created at ${thread.url}`);
-                } catch (e: any) {
-                    results.push(`Entry "${terms[0]}": failed (${e.message || e}).`);
-                    skipped++;
-                }
-            }
-
-            if (created > 0) {
-                let commitError: string | null = null;
-                await repositoryManager.commit(`Imported ${created} dictionary ${created === 1 ? 'entry' : 'entries'}`).catch((e: any) => {
-                    commitError = e.message || String(e);
-                });
-                if (commitError) {
-                    results.push(`Warning: changes were staged but commit failed: ${commitError}`);
-                } else {
-                    await repositoryManager.push().catch((e: any) => {
-                        results.push(`Warning: commit succeeded but push failed: ${e.message || e}`);
-                    });
-                }
-            }
-        } finally {
-            repositoryManager.getLock().release();
-        }
-
-        if (results.length === 0) {
-            results.push('No entries were imported.');
-        } else {
-            results.unshift(`Import complete: created ${created}, skipped ${skipped}.`);
-        }
-
-        const chunks = splitIntoChunks(results.join('\n'), 2000);
-        if (chunks.length === 0) {
-            await interaction.editReply('Import complete.');
-            return;
-        }
-
-        await interaction.editReply({ content: chunks[0] });
-        for (let i = 1; i < chunks.length; i++) {
-            await interaction.followUp({ content: chunks[i], flags: MessageFlags.SuppressNotifications });
-        }
+        await replyEphemeral(interaction, 'Invalid config name. Valid options: autojoin, autolookup, minendorsements, helperrolethreshold, llmenabled, llmchannel.');
     }
 
     async setScript(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
@@ -1098,48 +847,6 @@ export class Mwa implements Command {
         }
 
         await interaction.followUp(`<@${interaction.user.id}> Republishing all entries complete!`);
-    }
-
-    async updateAllSubmissionsStatus(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
-        await interaction.reply('Starting to update status of all submissions. This may take a while depending on the number of submissions. You will be notified when it is complete.');
-
-        const submissionsById = await guildHolder.getSubmissionsManager().getSubmissionsList();
-        for (const submissionID of submissionsById) {
-            const submission = await guildHolder.getSubmissionsManager().getSubmission(submissionID);
-            if (!submission) {
-                await interaction.followUp(`Submission with ID ${submissionID} not found, skipping.`);
-                continue;
-            }
-
-            const channel = await submission.getSubmissionChannel(true);
-            if (!channel) {
-                console.error(`Submission channel for submission ${submissionID} not found.`);
-                await interaction.followUp(`Submission channel for submission ${submissionID} not found, skipping.`);
-                continue;
-            }
-            const isArchived = channel.archived;
-
-            // try get post entry
-            const entry = await guildHolder.getRepositoryManager().findEntryBySubmissionId(submissionID);
-            if (entry) {
-                guildHolder.getRepositoryManager().updateSubmissionFromEntryData(submission, entry.entry.getData());
-            }
-
-            try {
-                await submission.statusUpdated();
-            } catch (error) {
-                console.error(`Error updating status for submission ${submissionID}:`, error);
-                await interaction.followUp(`Error updating status for submission ${submissionID}, check console for details.`);
-            }
-
-            if (isArchived) {
-                // rearchive the channel
-                await channel.setArchived(true, 'Re-archiving channel after status update');
-            }
-        }
-
-        await interaction.followUp(`<@${interaction.user.id}> Updating status of all submissions complete!`);
-
     }
 
     async setAlias(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
