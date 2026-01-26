@@ -772,7 +772,7 @@ export class RepositoryManager {
                     const matchByNameAvailable = available.find(t => t.name === gt.name);
                     const matchByNameEntries = Array.from(tagsInEntries.values()).find(t => t.name === gt.name);
                     return {
-                        id: matchByNameEntries ? matchByNameEntries.id : matchByNameAvailable?.id,
+                        id: matchByNameAvailable ? matchByNameAvailable.id : matchByNameEntries?.id,
                         name: gt.name,
                         moderated: !!gt.moderated,
                         emoji: gt.emoji ? { id: null, name: gt.emoji } : null,
@@ -780,7 +780,7 @@ export class RepositoryManager {
                 });
 
                 const otherTags = Array.from(tagsInEntries.values()).filter((tag) => {
-                    if (globalTagData.some(gt => gt.id === tag.id)) {
+                    if (globalTagData.some(gt => gt.name === tag.name)) {
                         return false;
                     }
                     return true;
@@ -788,7 +788,7 @@ export class RepositoryManager {
                     const matchByIDAvailable = available.find(t => t.id === tag.id);
                     const matchByNameAvailable = available.find(t => t.name === tag.name);
 
-                    if (matchByIDAvailable) {
+                    if (matchByIDAvailable && matchByNameAvailable?.name === tag.name) {
                         return matchByIDAvailable;
                     }
 
@@ -842,12 +842,13 @@ export class RepositoryManager {
                     // update tags
                     const updatedTags = entryData.tags
                         .map(tag => {
+                            if (byNameMap.has(tag.name)) {
+                                return { id: byNameMap.get(tag.name)!, name: tag.name };
+                            }
+
                             const byIdName = byIdMap.get(tag.id);
                             if (byIdName) {
                                 return { id: tag.id, name: byIdName };
-                            }
-                            if (byNameMap.has(tag.name)) {
-                                return { id: byNameMap.get(tag.name)!, name: tag.name };
                             }
                             return tag;
                         });
