@@ -60,19 +60,23 @@ const DEFAULT_SCHEMA: JSONSchema7 = {
 export const DEFAULT_GLOBAL_TAGS: GlobalTag[] = [
     {
         name: 'Untested',
-        emoji: '⁉️'
+        emoji: '⁉️',
+        colorWeb: '#fcd34d',
     },
     {
         name: 'Broken',
-        emoji: '💔'
+        emoji: '💔',
+        colorWeb: '#ff6969',
     },
     {
         name: 'Tested & Functional',
-        emoji: '✅'
+        emoji: '✅',
+        colorWeb: '#34d399',
     },
     {
         name: 'Recommended',
         emoji: '⭐',
+        colorWeb: '#60a5fa',
         moderated: true
     }
 ];
