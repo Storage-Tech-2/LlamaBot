@@ -2,7 +2,7 @@ import { GuildHolder } from "../GuildHolder.js";
 import fs from "fs/promises";
 import { ConfigManager } from "../config/ConfigManager.js";
 import Path from "path";
-import { AnyThreadChannel, AttachmentBuilder, ChannelType, EmbedBuilder, ForumChannel, ForumLayoutType, GuildTextBasedChannel, Message, MessageFlags, PartialMessage, Snowflake } from "discord.js";
+import { AnyThreadChannel, AttachmentBuilder, ChannelType, EmbedBuilder, ForumChannel, ForumLayoutType, GuildForumTag, GuildTextBasedChannel, Message, MessageFlags, PartialMessage, Snowflake } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
 import { areAuthorsSame, chunkArray, deepClone, escapeString, generateCommitMessage, getAuthorIconURL, getAuthorName, hasAttachmentNameChanged, getCodeAndDescriptionFromTopic, getGithubOwnerAndProject, mergeTwoArraysUnique, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
 import { ArchiveEntry, ArchiveEntryData } from "./ArchiveEntry.js";
@@ -29,6 +29,7 @@ import { type HierarchicalNSW } from "hnswlib-node";
 import { TemporaryCache } from "./TemporaryCache.js";
 import { AttachmentSource } from "../submissions/Attachment.js";
 import { GlobalTag } from "./RepositoryConfigs.js";
+import { Tag } from "../submissions/Tag.js";
 
 export class RepositoryManager {
     public folderPath: string;
@@ -713,6 +714,180 @@ export class RepositoryManager {
         await this.commit('Rebuilt persistent index and embeddings').catch(() => { });
         await this.push().catch(() => { });
         await this.lock.release();
+    }
+
+    public async restoreTags(): Promise<void> {
+
+        await this.lock.acquire();
+        try {
+            const globalTags = this.getConfigManager().getConfig(RepositoryConfigs.GLOBAL_TAGS);
+            const archiveChannels = await this.guildHolder.getGuild().channels.fetch();
+            const archiveCategories = this.guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
+            const forumChannels = Array.from(
+                archiveChannels
+                    .filter(c => c?.type === ChannelType.GuildForum && c.parentId && archiveCategories.includes(c.parentId))
+                    .values()
+            ) as ForumChannel[];
+
+            const channelRefs = await this.getChannelReferences();
+            const changedEntryPaths: string[] = [];
+
+            for (const forum of forumChannels) {
+                const channelRef = channelRefs.find(r => r.id === forum.id);
+                if (!channelRef) continue;
+
+                const channelPath = Path.join(this.folderPath, channelRef.path);
+                const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
+                if (!archiveChannel) continue;
+
+                const tagsInEntries = new Map<string, Tag>();
+
+
+                const entries = archiveChannel.getData().entries;
+
+                for (const entryRef of entries) {
+                    const entryPath = Path.join(channelPath, entryRef.path);
+                    const entry = await ArchiveEntry.fromFolder(entryPath);
+                    if (!entry) continue;
+
+                    const entryData = entry.getData();
+                    for (const tag of entryData.tags) {
+                        const tagExisting = tagsInEntries.get(tag.id);
+                        if (!tagExisting) {
+                            tagsInEntries.set(tag.id, tag);
+                        } else {
+                            // check if id is same
+                            if (tagExisting.name !== tag.name) {
+                                throw new Error(`Conflicting tag names for ID ${tag.id}: ${tagExisting.name} and ${tag.name}`);
+                            }
+                        }
+                    }
+                }
+
+
+                const available = forum.availableTags;
+
+
+                const globalTagData = globalTags.map(gt => {
+                    const matchByNameAvailable = available.find(t => t.name === gt.name);
+                    const matchByNameEntries = Array.from(tagsInEntries.values()).find(t => t.name === gt.name);
+                    return {
+                        id: matchByNameEntries ? matchByNameEntries.id : matchByNameAvailable?.id,
+                        name: gt.name,
+                        moderated: !!gt.moderated,
+                        emoji: gt.emoji ? { id: null, name: gt.emoji } : null,
+                    };
+                });
+
+                const otherTags = Array.from(tagsInEntries.values()).filter((tag) => {
+                    if (globalTagData.some(gt => gt.id === tag.id)) {
+                        return false;
+                    }
+                    return true;
+                }).map((tag) => {
+                    const matchByIDAvailable = available.find(t => t.id === tag.id);
+                    const matchByNameAvailable = available.find(t => t.name === tag.name);
+
+                    if (matchByIDAvailable) {
+                        return matchByIDAvailable;
+                    }
+
+                    if (matchByNameAvailable) {
+                        return matchByNameAvailable;
+                    }
+
+                    return {
+                        id: tag.id,
+                        name: tag.name,
+                        moderated: false,
+                        emoji: null,
+                    };
+                });
+
+                const newTags = [...globalTagData, ...otherTags];
+
+                // Only update if changed
+                const changed = newTags.length !== available.length || newTags.some((t, i) => {
+                    const cur = available[i];
+                    return !cur || cur.id !== t.id || cur.name !== t.name || cur.moderated !== t.moderated || (cur.emoji?.name || null) !== (t.emoji?.name || null);
+                });
+
+                if (changed) {
+                    await forum.setAvailableTags(newTags);
+                }
+
+                // get new available tags
+                await forum.fetch();
+
+                const newAvailable = forum.availableTags;
+
+                const byIdMap = new Map<string, string>();
+                const byNameMap = new Map<string, string>();
+                for (const tag of newAvailable) {
+                    byIdMap.set(tag.id, tag.name);
+                    byNameMap.set(tag.name, tag.id);
+                }
+
+                // Update stored entries for this channel based on tag IDs
+
+                let channelChanged = false;
+
+                const threadsActive = await forum.threads.fetchActive();
+                const threadsArchived = await forum.threads.fetchArchived();
+                const threads = [...threadsActive.threads, ...threadsArchived.threads];
+
+                for (const entryRef of entries) {
+                    const entryPath = Path.join(channelPath, entryRef.path);
+                    const entry = await ArchiveEntry.fromFolder(entryPath);
+                    if (!entry) continue;
+                    const entryData = entry.getData();
+
+                    // update tags
+                    const updatedTags = entryData.tags
+                        .map(tag => {
+                            const byIdName = byIdMap.get(tag.id);
+                            if (byIdName) {
+                                return { id: tag.id, name: byIdName };
+                            }
+                            if (byNameMap.has(tag.name)) {
+                                return { id: byNameMap.get(tag.name)!, name: tag.name };
+                            }
+                            return tag;
+                        });
+
+                    entryData.tags = updatedTags;
+                    await entry.savePrivate();
+                    await this.git?.add(entry.getDataPath()).catch(() => { });
+                    await this.git?.add(await this.updateEntryReadme(entry)).catch(() => { });
+                    channelChanged = true;
+                    changedEntryPaths.push(entry.getDataPath());
+
+                    // update discord thread
+                    const thread = threads.find(([id, _thread]) =>{
+                        return id === entryData.post?.threadId;
+                    });
+
+                    if (thread) {
+                        const threadInstance = thread[1];
+                        await threadInstance.setAppliedTags(updatedTags.map(t => {return t.id;}));
+                    }
+                }
+
+                if (channelChanged) {
+                    await archiveChannel.savePrivate();
+                    await this.git?.add(archiveChannel.getDataPath()).catch(() => { });
+                }
+            }
+
+            if (changedEntryPaths.length > 0) {
+                await this.buildPersistentIndexAndEmbeddings().catch(() => { });
+                await this.dictionaryManager.rebuildIndexAndEmbeddings().catch(() => { });
+                await this.commit('Synced archive tags after global tag restore', changedEntryPaths).catch(() => { });
+                await this.push().catch(() => { });
+            }
+        } finally {
+            await this.lock.release();
+        }
     }
 
     /**

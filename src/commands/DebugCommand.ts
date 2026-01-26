@@ -149,6 +149,11 @@ export class DebugCommand implements Command {
                             .setDescription('Zip containing one or more world downloads')
                             .setRequired(true)
                     )
+            )
+            .addSubcommand(sub =>
+                sub
+                    .setName('restoretags')
+                    .setDescription('Restore forum tags on all dictionary entries based from the Github repository')
             );
 
         return data;
@@ -205,6 +210,9 @@ export class DebugCommand implements Command {
                 break;
             case 'analyzewdl':
                 await this.handleAnalyzeWdl(guildHolder, interaction);
+                break;
+            case 'restoretags':
+                await this.handleRestoreTags(guildHolder, interaction);
                 break;
             default:
                 await replyEphemeral(interaction, 'Unknown subcommand.');
@@ -804,7 +812,7 @@ export class DebugCommand implements Command {
         await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
         const workRoot = process.cwd();
-        const session = Path.join(workRoot, 'debug' , `${Date.now().toString(36)}-${attachment.id}`);
+        const session = Path.join(workRoot, 'debug', `${Date.now().toString(36)}-${attachment.id}`);
         const inputPath = Path.join(session, 'input.zip');
 
         try {
@@ -853,7 +861,7 @@ export class DebugCommand implements Command {
 
             const res = await got(attachment.url, { responseType: 'buffer' });
             await fs.writeFile(inputPath, res.body);
-            
+
             const worlds = await findWorldsInZip(inputPath);
 
             const summaryLines = worlds.map((w, idx) => {
@@ -876,5 +884,12 @@ export class DebugCommand implements Command {
         } catch (error: any) {
             await interaction.editReply({ content: `Analysis failed: ${error?.message || 'Unknown error'}` });
         }
+    }
+
+    private async handleRestoreTags(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
+        await guildHolder.getRepositoryManager().restoreTags();
+
     }
 }
