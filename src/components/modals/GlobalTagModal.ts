@@ -228,7 +228,7 @@ export class GlobalTagModal implements Modal {
             return;
         }
 
-        await ensureDeferred();
+        await interaction.deferReply();
         await guildHolder.getRepositoryManager().applyGlobalTagChanges(updatedTags, currentTag!.name);
 
         await interaction.editReply({
