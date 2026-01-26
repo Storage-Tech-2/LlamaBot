@@ -96,7 +96,6 @@ export class GlobalTagModal implements Modal {
 
         const configManager = guildHolder.getRepositoryManager().getConfigManager();
         const tags = configManager.getConfig(RepositoryConfigs.GLOBAL_TAGS);
-
         let currentTag: GlobalTag | undefined;
         let tagIndex = -1;
         if (mode === 'edit') {
@@ -172,9 +171,10 @@ export class GlobalTagModal implements Modal {
                 return;
             }
 
+            await interaction.deferReply();
             await guildHolder.getRepositoryManager().applyGlobalTagChanges(newGlobalTags);
 
-            await interaction.reply({
+            await interaction.editReply({
                 content: `Added global tag "${newTag.name}"${newTag.emoji ? ` (${newTag.emoji})` : ''}.`,
             });
             return;
@@ -228,9 +228,10 @@ export class GlobalTagModal implements Modal {
             return;
         }
 
+        await ensureDeferred();
         await guildHolder.getRepositoryManager().applyGlobalTagChanges(updatedTags, currentTag!.name);
 
-        await interaction.reply({
+        await interaction.editReply({
             content: `Updated global tag "${currentTag!.name}" to "${updatedTag.name}".`,
         });
     }
