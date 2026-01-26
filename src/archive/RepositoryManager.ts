@@ -883,6 +883,15 @@ export class RepositoryManager {
                             await thread.setArchived(true);
                         }
                         this.removeFromIgnoreUpdatesFrom(entryData.id);
+
+                        // update submission
+                        const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entryData.id);
+                        if (submission) {
+                            // set tags
+                            submission.getConfigManager().setConfig(SubmissionConfigs.TAGS, entryData.tags);
+                            await submission.save();
+                            await submission.statusUpdated();
+                        }
                     }
                 }
 
@@ -993,15 +1002,15 @@ export class RepositoryManager {
                         await this.git?.add(await this.updateEntryReadme(entry)).catch(() => { });
                         channelChanged = true;
                         changedEntryPaths.push(entry.getDataPath());
-                    }
 
-                    // update submission
-                    const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entryData.id);
-                    if (submission) {
-                        // set tags
-                        submission.getConfigManager().setConfig(SubmissionConfigs.TAGS, entryData.tags);
-                        await submission.save();
-                        await submission.statusUpdated();
+                        // update submission
+                        const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entryData.id);
+                        if (submission) {
+                            // set tags
+                            submission.getConfigManager().setConfig(SubmissionConfigs.TAGS, entryData.tags);
+                            await submission.save();
+                            await submission.statusUpdated();
+                        }
                     }
                 }
 
