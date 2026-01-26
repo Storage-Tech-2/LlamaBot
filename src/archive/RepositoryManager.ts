@@ -832,15 +832,12 @@ export class RepositoryManager {
 
                 let channelChanged = false;
 
-                const threadsActive = await forum.threads.fetchActive();
-                const threadsArchived = await forum.threads.fetchArchived();
-                const threads = [...threadsActive.threads, ...threadsArchived.threads];
-
                 for (const entryRef of entries) {
                     const entryPath = Path.join(channelPath, entryRef.path);
                     const entry = await ArchiveEntry.fromFolder(entryPath);
                     if (!entry) continue;
                     const entryData = entry.getData();
+                    if (!entryData.post) continue;
 
                     // update tags
                     const updatedTags = entryData.tags
@@ -863,21 +860,28 @@ export class RepositoryManager {
                     changedEntryPaths.push(entry.getDataPath());
 
                     // update discord thread
-                    const thread = threads.find(([id, _thread]) =>{
-                        return id === entryData.post?.threadId;
-                    });
+                    const thread = await forum.threads.fetch(entryData.post.threadId)
 
                     if (thread) {
-                        const threadInstance = thread[1];
 
-                        const wasArchived = threadInstance.archived;
-                        if (wasArchived) {
-                            await threadInstance.setArchived(false);
+                        const newIds = updatedTags.map(t => t.id);
+                        const currentTags = thread.appliedTags;
+                        const idsAreSame = newIds.length === currentTags.length && newIds.every(id => currentTags.includes(id));
+                        if (idsAreSame) {
+                            continue;
                         }
-                        await threadInstance.setAppliedTags(updatedTags.map(t => {return t.id;}));
+
+                        const wasArchived = thread.archived;
+
+                        this.addToIgnoreUpdatesFrom(entryData.id);
                         if (wasArchived) {
-                            await threadInstance.setArchived(true);
+                            await thread.setArchived(false);
                         }
+                        await thread.setAppliedTags(newIds);
+                        if (wasArchived) {
+                            await thread.setArchived(true);
+                        }
+                        this.removeFromIgnoreUpdatesFrom(entryData.id);
                     }
                 }
 
