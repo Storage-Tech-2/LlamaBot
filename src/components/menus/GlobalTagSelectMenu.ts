@@ -66,11 +66,13 @@ export class GlobalTagSelectMenu implements Menu {
                 return;
             }
 
+            const deleteRemovedTagNames = deleteTag ? [removedTag.name] : [];
+            guildHolder.setPendingGlobalTagChange(oldTags, updatedTags, { deleteRemovedTagNames });
+
             await interaction.deferUpdate();
-            await guildHolder.getRepositoryManager().applyGlobalTagChanges(oldTags, updatedTags, { deleteRemovedTags: deleteTag });
 
             await interaction.editReply({
-                content: `Removed global tag "${removedTag.name}".${deleteTag ? '' : ' Existing archive tags were kept.'}`,
+                content: `Removed global tag "${removedTag.name}".${deleteTag ? '' : ' Existing archive tags were kept.'} Run /mwa applyglobaltags to sync forums.\n${guildHolder.getPendingGlobalTagSummary()}`,
                 components: []
             });
             return;

@@ -172,11 +172,10 @@ export class GlobalTagModal implements Modal {
                 return;
             }
 
-            await interaction.deferReply();
-            await guildHolder.getRepositoryManager().applyGlobalTagChanges(oldTags, newGlobalTags);
+            guildHolder.setPendingGlobalTagChange(oldTags, newGlobalTags);
 
-            await interaction.editReply({
-                content: `Added global tag "${newTag.name}"${newTag.emoji ? ` (${newTag.emoji})` : ''}.`,
+            await interaction.reply({
+                content: `Added global tag "${newTag.name}"${newTag.emoji ? ` (${newTag.emoji})` : ''}. Run /mwa applyglobaltags to sync forums.\n${guildHolder.getPendingGlobalTagSummary()}`,
             });
             return;
         }
@@ -229,15 +228,20 @@ export class GlobalTagModal implements Modal {
             return;
         }
 
-        await interaction.deferReply();
         const renamedFromMap = new Map<string, string>();
         if (currentTag!.name !== updatedTag.name) {
             renamedFromMap.set(updatedTag.name, currentTag!.name);
         }
-        await guildHolder.getRepositoryManager().applyGlobalTagChanges(oldTags, updatedTags, { renamedFromMap });
 
-        await interaction.editReply({
-            content: `Updated global tag "${currentTag!.name}" to "${updatedTag.name}".`,
+        try {
+            guildHolder.setPendingGlobalTagChange(oldTags, updatedTags, { renamedFromMap });
+        } catch (error: any) {
+            await interaction.reply(`Failed to queue tag changes: ${error?.message || error}`);
+            return;
+        }
+
+        await interaction.reply({
+            content: `Updated global tag "${currentTag!.name}" to "${updatedTag.name}". Run /mwa applyglobaltags to sync forums.\n${guildHolder.getPendingGlobalTagSummary()}`,
         });
     }
 }

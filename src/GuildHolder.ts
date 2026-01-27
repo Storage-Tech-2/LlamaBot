@@ -23,7 +23,7 @@ import { DictionaryManager } from "./archive/DictionaryManager.js";
 import { DiscordServersDictionary } from "./archive/DiscordServersDictionary.js";
 import { getDiscordLinksInText, getDiscordServersFromReferences, getPostCodesInText, populateDiscordServerInfoInReferences, Reference, ReferenceType, tagReferences, transformOutputWithReferencesForDiscord, transformOutputWithReferencesForEmbeddings } from "./utils/ReferenceUtils.js";
 import { retagEverythingTask, updateMetadataTask } from "./archive/Tasks.js";
-import { RepositoryConfigs } from "./archive/RepositoryConfigs.js";
+import { GlobalTag, RepositoryConfigs } from "./archive/RepositoryConfigs.js";
 import z from "zod";
 import { base64ToInt8Array, generateQueryEmbeddings } from "./llm/EmbeddingUtils.js";
 import { PrivateFactBase } from "./archive/PrivateFactBase.js";
@@ -79,6 +79,12 @@ export class GuildHolder {
     private retaggingRequested: boolean = true;
 
     private llmResponseLock: boolean = false;
+
+    private pendingGlobalTagChange?: {
+        oldTags: GlobalTag[];
+        newTags: GlobalTag[];
+        options?: { renamedFromMap?: Map<string, string>, deleteRemovedTagNames?: Set<string> };
+    };
 
     private privateFactBase: PrivateFactBase;
     private aliasManager: AliasManager;
@@ -1421,6 +1427,95 @@ export class GuildHolder {
 
     public requestRetagging(value: boolean = true) {
         this.retaggingRequested = value;
+    }
+
+    private cloneGlobalTags(tags: GlobalTag[]): GlobalTag[] {
+        return tags.map(tag => ({ ...tag }));
+    }
+
+    public setPendingGlobalTagChange(oldTags: GlobalTag[], newTags: GlobalTag[], options?: { renamedFromMap?: Map<string, string>, deleteRemovedTagNames?: Iterable<string> }) {
+        const mergedOptions = {
+            deleteRemovedTagNames: options?.deleteRemovedTagNames ? new Set(options.deleteRemovedTagNames) : undefined,
+            renamedFromMap: options?.renamedFromMap ? new Map(options.renamedFromMap) : undefined
+        } as { renamedFromMap?: Map<string, string>, deleteRemovedTagNames?: Set<string> };
+
+        if (this.pendingGlobalTagChange) {
+            // Preserve the earliest oldTags so we apply all outstanding changes in one run.
+            const existing = this.pendingGlobalTagChange;
+            if (existing.options?.renamedFromMap) {
+                mergedOptions.renamedFromMap = mergedOptions.renamedFromMap
+                    ? new Map([...existing.options.renamedFromMap, ...mergedOptions.renamedFromMap])
+                    : new Map(existing.options.renamedFromMap);
+            }
+            if (existing.options?.deleteRemovedTagNames) {
+                mergedOptions.deleteRemovedTagNames = mergedOptions.deleteRemovedTagNames
+                    ? new Set([...existing.options.deleteRemovedTagNames, ...mergedOptions.deleteRemovedTagNames])
+                    : new Set(existing.options.deleteRemovedTagNames);
+            }
+            this.pendingGlobalTagChange = {
+                oldTags: existing.oldTags,
+                newTags: this.cloneGlobalTags(newTags),
+                options: mergedOptions
+            };
+        } else {
+            this.pendingGlobalTagChange = {
+                oldTags: this.cloneGlobalTags(oldTags),
+                newTags: this.cloneGlobalTags(newTags),
+                options: mergedOptions
+            };
+        }
+    }
+
+    public getPendingGlobalTagChange() {
+        return this.pendingGlobalTagChange;
+    }
+
+    public clearPendingGlobalTagChange() {
+        this.pendingGlobalTagChange = undefined;
+    }
+
+    public getPendingGlobalTagSummary(): string {
+        if (!this.pendingGlobalTagChange) {
+            return 'Pending global tag changes: none.';
+        }
+
+        const { oldTags, newTags, options } = this.pendingGlobalTagChange;
+        const oldNames = new Set(oldTags.map(t => t.name));
+        const newNames = new Set(newTags.map(t => t.name));
+
+        const added = newTags.filter(t => !oldNames.has(t.name)).map(t => t.name);
+        const removed = oldTags.filter(t => !newNames.has(t.name)).map(t => t.name);
+        const deleteSet = options?.deleteRemovedTagNames ?? new Set<string>();
+        const removeDelete = removed.filter(n => deleteSet.has(n));
+        const removeKeep = removed.filter(n => !deleteSet.has(n));
+
+        const renames: string[] = [];
+        if (options?.renamedFromMap) {
+            for (const [newName, oldName] of options.renamedFromMap.entries()) {
+                renames.push(`${oldName} → ${newName}`);
+            }
+        }
+
+        const fmt = (arr: string[]) => arr.length ? arr.join(', ') : 'None';
+
+        return [
+            'Pending global tag changes:',
+            `- Add: ${fmt(added)}`,
+            `- Rename: ${fmt(renames)}`,
+            `- Remove (delete): ${fmt(removeDelete)}`,
+            `- Remove (keep on forums): ${fmt(removeKeep)}`
+        ].join('\n');
+    }
+
+    public async applyPendingGlobalTagChange(): Promise<boolean> {
+        if (!this.pendingGlobalTagChange) {
+            return false;
+        }
+
+        const { oldTags, newTags, options } = this.pendingGlobalTagChange;
+        await this.repositoryManager.applyGlobalTagChanges(oldTags, newTags, options);
+        this.clearPendingGlobalTagChange();
+        return true;
     }
 
     public async onPostAdd(entryData: ArchiveEntryData) {

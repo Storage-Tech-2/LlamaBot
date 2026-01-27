@@ -950,17 +950,17 @@ export class RepositoryManager {
      * Synchronize global tags to all archive forum channels in Discord, ensuring
      * global tags appear first (preserving the order in config), then any
      * channel-specific tags. Options allow preserving tag IDs on rename and
-     * keeping removed globals as channel tags instead of deleting them.
+     * choosing which removed globals should also be deleted from forums.
      */
     public async applyGlobalTagChanges(
         oldGlobalTags: GlobalTag[],
         newGlobalTags: GlobalTag[],
-        options?: { renamedFromMap?: Map<string, string>, deleteRemovedTags?: boolean }
+        options?: { renamedFromMap?: Map<string, string>, deleteRemovedTagNames?: Iterable<string> }
     ): Promise<void> {
         await this.lock.acquire();
         try {
             const renamedFromMap = options?.renamedFromMap;
-            const deleteRemovedTags = options?.deleteRemovedTags ?? true;
+            const deleteRemovedTagNames = new Set(options?.deleteRemovedTagNames ?? []);
             const newGlobalTagNames = new Set(newGlobalTags.map(t => t.name));
             const renameSources = new Set<string>(renamedFromMap ? Array.from(renamedFromMap.values()) : []);
 
@@ -986,8 +986,8 @@ export class RepositoryManager {
                         return null;
                     }
 
-                    // Remove from the pool if it stays global, is being renamed, or we intend to delete removed globals.
-                    const shouldConsume = newGlobalTagNames.has(gt.name) || renameSources.has(gt.name) || deleteRemovedTags;
+                    // Remove from the pool if it stays global, is being renamed, or we intend to delete this removed global.
+                    const shouldConsume = newGlobalTagNames.has(gt.name) || renameSources.has(gt.name) || deleteRemovedTagNames.has(gt.name);
                     if (shouldConsume) {
                         const tag = availableForReuse[foundIndex];
                         availableForReuse.splice(foundIndex, 1);

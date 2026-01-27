@@ -184,6 +184,11 @@ export class Mwa implements Command {
             )
             .addSubcommand(subcommand =>
                 subcommand
+                    .setName('applyglobaltags')
+                    .setDescription('Apply pending global tag changes to archive forums')
+            )
+            .addSubcommand(subcommand =>
+                subcommand
                     .setName('republisheverything')
                     .setDescription('Republish all posts in the archive')
                     .addChannelOption(option =>
@@ -280,6 +285,8 @@ export class Mwa implements Command {
             this.editGlobalTag(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'globaltagremove') {
             this.removeGlobalTag(guildHolder, interaction);
+        } else if (interaction.options.getSubcommand() === 'applyglobaltags') {
+            this.applyGlobalTags(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'blacklistadd') {
             this.addToBlacklist(guildHolder, interaction);
         } else if (interaction.options.getSubcommand() === 'blacklistremove') {
@@ -884,6 +891,25 @@ export class Mwa implements Command {
         await replyEphemeral(interaction, prompt, {
             components: [row]
         });
+    }
+
+    async applyGlobalTags(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const pending = guildHolder.getPendingGlobalTagChange();
+        if (!pending) {
+            await replyEphemeral(interaction, 'No pending global tag changes to apply.');
+            return;
+        }
+
+        await interaction.reply('Applying pending global tag changes. This may take a moment...');
+        try {
+            await guildHolder.applyPendingGlobalTagChange();
+        } catch (error: any) {
+            console.error('Error applying global tag changes:', error);
+            await interaction.editReply(`Failed to apply global tag changes: ${error?.message || error}`);
+            return;
+        }
+
+        await interaction.editReply('Applied pending global tag changes to archive forums.');
     }
 
     async republishEverything(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
