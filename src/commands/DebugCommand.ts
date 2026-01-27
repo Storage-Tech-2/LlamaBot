@@ -159,7 +159,7 @@ export class DebugCommand implements Command {
                 sub
                     .setName('deletetag')
                     .setDescription('Delete a specific tag from all archive channels')
-                    .addStringOption(opt => 
+                    .addStringOption(opt =>
                         opt
                             .setName('tag')
                             .setDescription('Name of the tag to delete')
@@ -851,7 +851,7 @@ export class DebugCommand implements Command {
         } catch (error: any) {
             await interaction.editReply({ content: `Optimization failed: ${error?.message || 'Unknown error'}` });
         } finally {
-            // await fs.rm(session, { recursive: true, force: true }).catch(() => null);
+            await fs.rm(session, { recursive: true, force: true }).catch(() => null);
         }
     }
 
@@ -864,12 +864,13 @@ export class DebugCommand implements Command {
         }
 
         await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+        const workRoot = process.cwd();
+        const session = Path.join(workRoot, 'debug', `${Date.now().toString(36)}-${attachment.id}`);
+        const inputPath = Path.join(session, 'input.zip');
 
 
         try {
-            const workRoot = process.cwd();
-            const session = Path.join(workRoot, 'debug', `${Date.now().toString(36)}-${attachment.id}`);
-            const inputPath = Path.join(session, 'input.zip');
+
 
             await fs.mkdir(session, { recursive: true });
 
@@ -897,6 +898,8 @@ export class DebugCommand implements Command {
             });
         } catch (error: any) {
             await interaction.editReply({ content: `Analysis failed: ${error?.message || 'Unknown error'}` });
+        } finally {
+            await fs.rm(session, { recursive: true, force: true }).catch(() => null);
         }
     }
 
@@ -905,15 +908,15 @@ export class DebugCommand implements Command {
 
         await guildHolder.getRepositoryManager().restoreTags();
 
-        await interaction.editReply({ content: 'Global tags restored to archive entries and Discord threads.' } );
+        await interaction.editReply({ content: 'Global tags restored to archive entries and Discord threads.' });
 
     }
 
     private async handleDeleteTag(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
         const tagName = interaction.options.getString('tag', true);
-        
+
         await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
         await guildHolder.getRepositoryManager().deleteTag(tagName);
-        await interaction.editReply({ content: `Tag "${tagName}" has been deleted from archive entries and Discord threads.` } );
+        await interaction.editReply({ content: `Tag "${tagName}" has been deleted from archive entries and Discord threads.` });
     }
 }
