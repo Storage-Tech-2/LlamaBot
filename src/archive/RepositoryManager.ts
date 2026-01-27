@@ -1686,7 +1686,9 @@ export class RepositoryManager {
         if (postData && postData.uploadMessageId && postData.uploadMessageId !== newEntryData.post.uploadMessageId) {
             const oldUploadMessage = await uploadChannel.messages.fetch(postData.uploadMessageId).catch(() => null);
             if (oldUploadMessage) {
-                await oldUploadMessage.delete().catch(() => { });
+                await oldUploadMessage.delete().catch((e) => {
+                    console.error("Failed to delete old upload message:", e);
+                });
             }
         }
 
