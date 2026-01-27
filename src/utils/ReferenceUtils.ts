@@ -761,7 +761,7 @@ export function transformOutputWithReferencesForDiscord(
                     }
                 } else {
                     // create markdown link with code as text
-                    return `[${reference.code} (${reference.name})](${reference.url})`;
+                    return `[${reference.code} ${reference.name}](${reference.url})`;
                 }
             } else if (reference.type === ReferenceType.DISCORD_LINK) {
                 if (!reference.serverName || !reference.serverJoinURL) {
