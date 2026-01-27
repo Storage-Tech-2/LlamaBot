@@ -1322,6 +1322,7 @@ export class RepositoryManager {
                 let match = availableTags.find(t => t.id === tag.id);
                 if (match && match.name === tag.name) {
                     newTags.push(tag);
+                    continue;
                 }
 
                 let nameMatch = availableTags.find(t => t.name === tag.name);
