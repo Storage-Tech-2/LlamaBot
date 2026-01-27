@@ -39,6 +39,37 @@ export async function changeAttachmentName(attachments_folder: string, oldAttach
     }
 }
 
+export async function optimizeImage(path: string, processedPath: string): Promise<{
+    width: number;
+    height: number;
+    size: number;
+}> {
+    let simage = sharp(path);
+    const stats = await simage.stats();
+    if (!stats.isOpaque) {
+        simage = simage.trim();
+    }
+
+    const s = await simage
+        .resize({
+            width: 1600,
+            height: 1600,
+            fit: 'inside',
+            withoutEnlargement: true,
+        })
+        .png({
+            compressionLevel: 9,
+            palette: true,
+            effort: 8
+        })
+        .toFile(processedPath);
+    return {
+        width: s.width,
+        height: s.height,
+        size: s.size,
+    };
+}
+
 export async function processImages(images: Image[], download_folder: string, processed_folder: string, bot: Bot): Promise<Image[]> {
     if (images.length > 0) {
         // Check if the folders exist, if not, create them
@@ -83,30 +114,10 @@ export async function processImages(images: Image[], download_folder: string, pr
             throw new Error(`Failed to download image ${image.name} at ${refreshedURLs[i]}, try reuploading the file directly to the thread.`);
         }
         await fs.writeFile(downloadPath, imageData.body);
-        let simage = sharp(downloadPath);
-        const stats = await simage.stats();
-        if (!stats.isOpaque) {
-            simage = simage.trim();
-        }
-
-        const s = await simage
-            .resize({
-                width: 1600,
-                height: 1600,
-                fit: 'inside',
-                withoutEnlargement: true,
-            })
-            .png({
-                compressionLevel: 9,
-                palette: true,
-                effort: 8
-            })
-            .toFile(processedPath);
-
-
-        image.width = s.width;
-        image.height = s.height;
-        image.size = imageData.rawBody.length;
+        const metadata = await optimizeImage(downloadPath, processedPath);
+        image.width = metadata.width;
+        image.height = metadata.height;
+        image.size = metadata.size;
 
         await fs.unlink(downloadPath); // Remove the original file after processing
     }));
