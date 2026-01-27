@@ -1,6 +1,50 @@
 export type ParsedStringOption = { provided: boolean, value?: string | null, error?: string };
 export type ParsedNumberOption = { provided: boolean, value?: number | null, error?: string };
 
+const SHORTCODE_TO_UNICODE: Record<string, string> = {
+    green_circle: '🟢',
+    red_circle: '🔴',
+    orange_circle: '🟠',
+    yellow_circle: '🟡',
+    blue_circle: '🔵',
+    purple_circle: '🟣',
+    brown_circle: '🟤',
+    black_circle: '⚫',
+    white_circle: '⚪',
+    green_square: '🟩',
+    red_square: '🟥',
+    orange_square: '🟧',
+    yellow_square: '🟨',
+    blue_square: '🟦',
+    purple_square: '🟪',
+    brown_square: '🟫',
+    white_square: '⬜',
+    black_square: '⬛',
+    white_check_mark: '✅',
+    check_mark_button: '✅',
+    heavy_check_mark: '✔️',
+    x: '❌',
+    cross_mark: '❌',
+    warning: '⚠️',
+    exclamation: '❗',
+    question: '❓',
+    sparkles: '✨',
+    star: '⭐',
+    star2: '🌟',
+    fire: '🔥',
+    zap: '⚡️',
+    heart: '❤️',
+    green_heart: '💚',
+    blue_heart: '💙',
+    purple_heart: '💜',
+    yellow_heart: '💛',
+    orange_heart: '🧡',
+    black_heart: '🖤',
+    white_heart: '🤍',
+    brown_heart: '🤎',
+    recycle: '♻️'
+};
+
 export function parseEmojiOption(raw: string | null, allowClear: boolean): ParsedStringOption {
     if (raw === null) {
         return { provided: false };
@@ -16,6 +60,28 @@ export function parseEmojiOption(raw: string | null, allowClear: boolean): Parse
     if (trimmed.length > 50) {
         return { provided: true, error: 'Emoji value is too long.' };
     }
+
+    // Reject Discord custom emoji markup
+    if (/^<a?:\w+:\d+>$/.test(trimmed)) {
+        return { provided: true, error: 'Custom server emojis are not supported. Use a Unicode emoji like ✅.' };
+    }
+
+    // Try to resolve shortcode formats like :green_circle:
+    const shortcodeMatch = trimmed.match(/^:([a-z0-9_+.-]+):$/i);
+    if (shortcodeMatch) {
+        const key = shortcodeMatch[1].toLowerCase();
+        const mapped = SHORTCODE_TO_UNICODE[key];
+        if (mapped) {
+            return { provided: true, value: mapped };
+        }
+        return { provided: true, error: `Unknown emoji shortcode "${shortcodeMatch[0]}". Please use a Unicode emoji like ✅.` };
+    }
+
+    // Validate that it contains a Unicode emoji
+    if (!/\p{Extended_Pictographic}/u.test(trimmed)) {
+        return { provided: true, error: 'Emoji must be a Unicode emoji (e.g., ✅).' };
+    }
+
     return { provided: true, value: trimmed };
 }
 
