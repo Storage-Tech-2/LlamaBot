@@ -1563,7 +1563,10 @@ export class RepositoryManager {
                 const existingImages = existing.entry.getData().images;
                 const newImages = newEntryData.images;
                 if (!hasAttachmentNameChanged(existingImages, newImages) && !forceNew) { // no problem
-                    newEntryData.post = existing.entry.getData().post || newEntryData.post;
+                    const post = existing.entry.getData().post;
+                    if (post) {
+                        newEntryData.post = deepClone(post);
+                    }
                 } else {
                     // If images are different, we need to delete the thread
                     const post = existing.entry.getData().post;
@@ -1683,7 +1686,6 @@ export class RepositoryManager {
 
         // Remove old attachment message
         const postData = existing ? existing.entry.getData().post : null;
-        console.log("Old upload message ID:", postData ? postData.uploadMessageId : 'N/A', "New upload message ID:", newEntryData.post.uploadMessageId, existing ? "Existing entry" : "No existing entry");
         if (postData && postData.uploadMessageId && postData.uploadMessageId !== newEntryData.post.uploadMessageId) {
             const oldUploadMessage = await uploadChannel.messages.fetch(postData.uploadMessageId).catch(() => null);
             if (oldUploadMessage) {
