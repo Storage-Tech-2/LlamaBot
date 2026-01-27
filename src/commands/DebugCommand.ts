@@ -838,7 +838,7 @@ export class DebugCommand implements Command {
             return;
         }
 
-        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+        await interaction.deferReply();
 
         const workRoot = process.cwd();
         const session = Path.join(workRoot, 'debug', `${Date.now().toString(36)}-${attachment.id}`);
@@ -878,7 +878,7 @@ export class DebugCommand implements Command {
             return;
         }
 
-        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+        await interaction.deferReply();
         const workRoot = process.cwd();
         const session = Path.join(workRoot, 'debug', `${Date.now().toString(36)}-${attachment.id}`);
         const inputPath = Path.join(session, 'input.zip');
@@ -936,7 +936,7 @@ export class DebugCommand implements Command {
             return;
         }
 
-        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+        await interaction.deferReply();
 
         const workRoot = process.cwd();
         const session = Path.join(workRoot, 'debug', `${Date.now().toString(36)}-${attachment.id}`);
