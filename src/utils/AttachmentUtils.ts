@@ -91,13 +91,15 @@ export async function processImages(images: Image[], download_folder: string, pr
 
         const s = await simage
             .resize({
-                width: 800,
-                height: 800,
+                width: 1600,
+                height: 1200,
                 fit: 'inside',
                 withoutEnlargement: true,
             })
             .png({
-                compressionLevel: 9
+                compressionLevel: 9,
+                palette: true,
+                effort: 8
             })
             .toFile(processedPath);
 
@@ -229,7 +231,10 @@ export async function processImageForDiscord(file_path: string, num_images: numb
             bottom: padding,
             background: { r: 0, g: 0, b: 0, alpha: 0 }
         })
-        .toFormat('png')
+        .png({
+            compressionLevel: 9,
+            palette: true,
+        })
         .toFile(output_path);
 
     return output_path;
@@ -321,12 +326,12 @@ export async function optimizeAttachments(
     let tempIndex = 0;
     await fs.mkdir(optimized_folder, { recursive: true });
     await fs.mkdir(temp_folder, { recursive: true });
-    
+
     await Promise.all(attachments.map(async (attachment) => {
         if (attachment.wdl && attachment.path) {
             const attachmentPath = Path.join(attachments_folder, attachment.path);
             const optimizedPath = Path.join(optimized_folder, attachment.path);
-            
+
             const existsInOptimized = await fs.access(optimizedPath).then(() => true).catch(() => false);
             if (existsInOptimized) { // do nothing if already optimized
                 return;
@@ -355,7 +360,7 @@ export async function optimizeAttachments(
     }));
 
     // Remove temp folder
-    await fs.rm(temp_folder, { recursive: true, force: true }).catch(() => {});
+    await fs.rm(temp_folder, { recursive: true, force: true }).catch(() => { });
 
     return attachments;
 }
