@@ -234,7 +234,7 @@ export class GlobalTagModal implements Modal {
         if (currentTag!.name !== updatedTag.name) {
             renamedFromMap.set(updatedTag.name, currentTag!.name);
         }
-        await guildHolder.getRepositoryManager().applyGlobalTagChanges(oldTags, updatedTags, renamedFromMap);
+        await guildHolder.getRepositoryManager().applyGlobalTagChanges(oldTags, updatedTags, { renamedFromMap });
 
         await interaction.editReply({
             content: `Updated global tag "${currentTag!.name}" to "${updatedTag.name}".`,

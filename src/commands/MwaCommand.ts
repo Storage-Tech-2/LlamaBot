@@ -175,6 +175,12 @@ export class Mwa implements Command {
                 subcommand
                     .setName('globaltagremove')
                     .setDescription('Remove a global archive tag')
+                    .addBooleanOption(option =>
+                        option
+                            .setName('deletetag')
+                            .setDescription('Also delete the tag from archive forums (default: true)')
+                            .setRequired(false)
+                    )
             )
             .addSubcommand(subcommand =>
                 subcommand
@@ -866,10 +872,16 @@ export class Mwa implements Command {
             return;
         }
 
-        const row = new ActionRowBuilder()
-            .addComponents(await new GlobalTagSelectMenu().getBuilder(guildHolder, 'remove'));
+        const deleteTag = interaction.options.getBoolean('deletetag') ?? true;
 
-        await replyEphemeral(interaction, 'Select a global tag to remove. It will also be removed from archive forums.', {
+        const row = new ActionRowBuilder()
+            .addComponents(await new GlobalTagSelectMenu().getBuilder(guildHolder, 'remove', deleteTag));
+
+        const prompt = deleteTag
+            ? 'Select a global tag to remove. It will also be removed from archive forums.'
+            : 'Select a global tag to remove. The tag will stay on archive forums/posts but will no longer be global.';
+
+        await replyEphemeral(interaction, prompt, {
             components: [row]
         });
     }

@@ -10,10 +10,11 @@ export class GlobalTagSelectMenu implements Menu {
         return "global-tag-select";
     }
 
-    async getBuilder(guildHolder: GuildHolder, action: 'edit' | 'remove'): Promise<StringSelectMenuBuilder> {
+    async getBuilder(guildHolder: GuildHolder, action: 'edit' | 'remove', deleteTag: boolean = true): Promise<StringSelectMenuBuilder> {
         const tags = guildHolder.getRepositoryManager().getConfigManager().getConfig(RepositoryConfigs.GLOBAL_TAGS);
+        const deleteSuffix = action === 'remove' ? `|${deleteTag ? 'delete' : 'keep'}` : '';
         return new StringSelectMenuBuilder()
-            .setCustomId(`${this.getID()}|${action}`)
+            .setCustomId(`${this.getID()}|${action}${deleteSuffix}`)
             .setMinValues(1)
             .setMaxValues(1)
             .setPlaceholder('Select a global tag')
@@ -34,7 +35,7 @@ export class GlobalTagSelectMenu implements Menu {
             }));
     }
 
-    async execute(guildHolder: GuildHolder, interaction: StringSelectMenuInteraction, action: string): Promise<void> {
+    async execute(guildHolder: GuildHolder, interaction: StringSelectMenuInteraction, action: string, deleteMode?: string): Promise<void> {
         if (!isAdmin(interaction)) {
             replyEphemeral(interaction, 'You do not have permission to manage global tags.');
             return;
@@ -52,6 +53,7 @@ export class GlobalTagSelectMenu implements Menu {
         }
 
         if (action === 'remove') {
+            const deleteTag = deleteMode !== 'keep'; // default to deleting for legacy custom IDs
             const removedTag = tags[tagIndex];
             const updatedTags = [...tags];
             updatedTags.splice(tagIndex, 1);
@@ -65,10 +67,10 @@ export class GlobalTagSelectMenu implements Menu {
             }
 
             await interaction.deferUpdate();
-            await guildHolder.getRepositoryManager().applyGlobalTagChanges(oldTags, updatedTags);
+            await guildHolder.getRepositoryManager().applyGlobalTagChanges(oldTags, updatedTags, { deleteRemovedTags: deleteTag });
 
             await interaction.editReply({
-                content: `Removed global tag "${removedTag.name}".`,
+                content: `Removed global tag "${removedTag.name}".${deleteTag ? '' : ' Existing archive tags were kept.'}`,
                 components: []
             });
             return;

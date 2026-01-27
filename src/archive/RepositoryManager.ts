@@ -949,12 +949,21 @@ export class RepositoryManager {
     /**
      * Synchronize global tags to all archive forum channels in Discord, ensuring
      * global tags appear first (preserving the order in config), then any
-     * channel-specific tags. Optionally preserve tag IDs when a single tag was
-     * renamed by passing renamedFrom.
+     * channel-specific tags. Options allow preserving tag IDs on rename and
+     * keeping removed globals as channel tags instead of deleting them.
      */
-    public async applyGlobalTagChanges(oldGlobalTags: GlobalTag[], newGlobalTags: GlobalTag[], renamedFromMap?: Map<string, string>): Promise<void> {
+    public async applyGlobalTagChanges(
+        oldGlobalTags: GlobalTag[],
+        newGlobalTags: GlobalTag[],
+        options?: { renamedFromMap?: Map<string, string>, deleteRemovedTags?: boolean }
+    ): Promise<void> {
         await this.lock.acquire();
         try {
+            const renamedFromMap = options?.renamedFromMap;
+            const deleteRemovedTags = options?.deleteRemovedTags ?? true;
+            const newGlobalTagNames = new Set(newGlobalTags.map(t => t.name));
+            const renameSources = new Set<string>(renamedFromMap ? Array.from(renamedFromMap.values()) : []);
+
             const archiveChannels = await this.guildHolder.getGuild().channels.fetch();
             const archiveCategories = this.guildHolder.getConfigManager().getConfig(GuildConfigs.ARCHIVE_CATEGORY_IDS);
             const forumChannels = Array.from(
@@ -973,7 +982,13 @@ export class RepositoryManager {
                 const availableForReuse = deepClone(forum.availableTags);
                 const oldGlobalTagsAvailable = oldGlobalTags.map(gt => {
                     const foundIndex = availableForReuse.findIndex(t => t.name === gt.name);
-                    if (foundIndex !== -1) {
+                    if (foundIndex === -1) {
+                        return null;
+                    }
+
+                    // Remove from the pool if it stays global, is being renamed, or we intend to delete removed globals.
+                    const shouldConsume = newGlobalTagNames.has(gt.name) || renameSources.has(gt.name) || deleteRemovedTags;
+                    if (shouldConsume) {
                         const tag = availableForReuse[foundIndex];
                         availableForReuse.splice(foundIndex, 1);
                         return tag;
