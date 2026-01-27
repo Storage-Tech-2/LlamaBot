@@ -55,7 +55,7 @@ export class EditInfoMultipleButton implements Button {
 
         currentAttachments.forEach(attachment => {
             const currentRow = rows[rows.length - 1];
-            const editDescriptionButton = new SetDescriptionButton().getBuilder(attachment.name, false, attachment.id, '');
+            const editDescriptionButton = new SetDescriptionButton().getBuilder(attachment.name, isImage, attachment.id, '');
             if (currentRow.components.length >= 5) {
                 const newRow = new ActionRowBuilder().addComponents(editDescriptionButton);
                 rows.push(newRow);
