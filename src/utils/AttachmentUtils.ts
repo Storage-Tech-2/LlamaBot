@@ -109,7 +109,7 @@ export async function processImages(images: Image[], download_folder: string, pr
 
     // Remove the download folder if it was created
     try {
-        await fs.rmdir(download_folder);
+        await fs.rm(download_folder, { recursive: true, force: true });
     } catch (err) {
 
     }
@@ -353,7 +353,7 @@ export async function optimizeAttachments(
     }));
 
     // Remove temp folder
-    await fs.rmdir(temp_folder, { recursive: true }).catch(() => {});
+    await fs.rm(temp_folder, { recursive: true, force: true }).catch(() => {});
 
     return attachments;
 }
