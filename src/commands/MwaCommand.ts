@@ -853,12 +853,14 @@ export class Mwa implements Command {
     }
 
     async addGlobalTag(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        guildHolder.beginGlobalTagQueue();
         const modal = new GlobalTagModal().getBuilder('add');
         await interaction.showModal(modal);
     }
 
     async editGlobalTag(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
-        const tags = guildHolder.getRepositoryManager().getConfigManager().getConfig(RepositoryConfigs.GLOBAL_TAGS);
+        guildHolder.beginGlobalTagQueue();
+        const tags = guildHolder.getGlobalTagSnapshot();
         if (!tags.length) {
             await replyEphemeral(interaction, 'No global tags have been configured yet.');
             return;
@@ -873,7 +875,8 @@ export class Mwa implements Command {
     }
 
     async removeGlobalTag(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
-        const tags = guildHolder.getRepositoryManager().getConfigManager().getConfig(RepositoryConfigs.GLOBAL_TAGS);
+        guildHolder.beginGlobalTagQueue();
+        const tags = guildHolder.getGlobalTagSnapshot();
         if (!tags.length) {
             await replyEphemeral(interaction, 'No global tags are configured.');
             return;
@@ -894,15 +897,18 @@ export class Mwa implements Command {
     }
 
     async applyGlobalTags(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
-        const pending = guildHolder.getPendingGlobalTagChange();
-        if (!pending) {
+        if (!guildHolder.hasGlobalTagQueue()) {
             await replyEphemeral(interaction, 'No pending global tag changes to apply.');
             return;
         }
 
         await interaction.reply('Applying pending global tag changes. This may take a moment...');
         try {
-            await guildHolder.applyPendingGlobalTagChange();
+            const applied = await guildHolder.applyGlobalTagQueue();
+            if (!applied) {
+                await interaction.editReply('No global tag changes to apply.');
+                return;
+            }
         } catch (error: any) {
             console.error('Error applying global tag changes:', error);
             await interaction.editReply(`Failed to apply global tag changes: ${error?.message || error}`);

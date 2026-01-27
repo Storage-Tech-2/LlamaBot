@@ -1,8 +1,7 @@
 import { StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
-import { RepositoryConfigs } from "../../archive/RepositoryConfigs.js";
 import { Menu } from "../../interface/Menu.js";
-import { deepClone, isAdmin, replyEphemeral } from "../../utils/Util.js";
+import { isAdmin, replyEphemeral } from "../../utils/Util.js";
 import { GlobalTagModal } from "../modals/GlobalTagModal.js";
 
 export class GlobalTagSelectMenu implements Menu {
@@ -11,7 +10,8 @@ export class GlobalTagSelectMenu implements Menu {
     }
 
     async getBuilder(guildHolder: GuildHolder, action: 'edit' | 'remove', deleteTag: boolean = true): Promise<StringSelectMenuBuilder> {
-        const tags = guildHolder.getRepositoryManager().getConfigManager().getConfig(RepositoryConfigs.GLOBAL_TAGS);
+        guildHolder.beginGlobalTagQueue();
+        const tags = guildHolder.getGlobalTagSnapshot();
         const deleteSuffix = action === 'remove' ? `|${deleteTag ? 'delete' : 'keep'}` : '';
         return new StringSelectMenuBuilder()
             .setCustomId(`${this.getID()}|${action}${deleteSuffix}`)
@@ -41,38 +41,29 @@ export class GlobalTagSelectMenu implements Menu {
             return;
         }
 
+        guildHolder.beginGlobalTagQueue();
         const tagName = interaction.values[0];
-        const configManager = guildHolder.getRepositoryManager().getConfigManager();
-        const tags = configManager.getConfig(RepositoryConfigs.GLOBAL_TAGS);
-        const oldTags = deepClone(tags);
+        const tags = guildHolder.getGlobalTagSnapshot();
         const tagIndex = tags.findIndex(tag => tag.name === tagName);
-
         if (tagIndex === -1) {
-            replyEphemeral(interaction, 'Selected tag could not be found. Please try again.');
+            replyEphemeral(interaction, 'Selected tag could not be found. Please refresh and try again.');
             return;
         }
 
         if (action === 'remove') {
             const deleteTag = deleteMode !== 'keep'; // default to deleting for legacy custom IDs
             const removedTag = tags[tagIndex];
-            const updatedTags = [...tags];
-            updatedTags.splice(tagIndex, 1);
-
-            configManager.setConfig(RepositoryConfigs.GLOBAL_TAGS, updatedTags);
             try {
-                await guildHolder.getRepositoryManager().configChanged();
+                guildHolder.queueGlobalTagRemove(removedTag.name, deleteTag);
             } catch (error: any) {
-                replyEphemeral(interaction, `Failed to save tag changes: ${error?.message || error}`);
+                replyEphemeral(interaction, `Failed to queue tag removal: ${error?.message || error}`);
                 return;
             }
-
-            const deleteRemovedTagNames = deleteTag ? [removedTag.name] : [];
-            guildHolder.setPendingGlobalTagChange(oldTags, updatedTags, { deleteRemovedTagNames });
 
             await interaction.deferUpdate();
 
             await interaction.editReply({
-                content: `Removed global tag "${removedTag.name}".${deleteTag ? '' : ' Existing archive tags were kept.'} Run /mwa applyglobaltags to sync forums.\n${guildHolder.getPendingGlobalTagSummary()}`,
+                content: `Removed global tag "${removedTag.name}".${deleteTag ? '' : ' Existing archive tags were kept.'} Run /mwa applyglobaltags to sync forums.\n${guildHolder.getGlobalTagQueueSummary()}`,
                 components: []
             });
             return;

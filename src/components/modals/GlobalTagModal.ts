@@ -1,8 +1,8 @@
 import { LabelBuilder, ModalBuilder, ModalSubmitInteraction, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
-import { deepClone, isAdmin, replyEphemeral } from "../../utils/Util.js";
-import { GlobalTag, RepositoryConfigs } from "../../archive/RepositoryConfigs.js";
+import { isAdmin, replyEphemeral } from "../../utils/Util.js";
+import { GlobalTag } from "../../archive/RepositoryConfigs.js";
 import { findTagNameConflict, getArchiveForumChannels } from "../../utils/GlobalTagUtils.js";
 import { parseColorModOption, parseColorWebOption, parseEmojiOption } from "../../utils/TagValidation.js";
 
@@ -94,9 +94,8 @@ export class GlobalTagModal implements Modal {
             return;
         }
 
-        const configManager = guildHolder.getRepositoryManager().getConfigManager();
-        const tags = configManager.getConfig(RepositoryConfigs.GLOBAL_TAGS);
-        const oldTags = deepClone(tags);
+        guildHolder.beginGlobalTagQueue();
+        const tags = guildHolder.getGlobalTagSnapshot();
         let currentTag: GlobalTag | undefined;
         let tagIndex = -1;
         if (mode === 'edit') {
@@ -163,19 +162,15 @@ export class GlobalTagModal implements Modal {
             if (colorWebResult.provided && colorWebResult.value) newTag.colorWeb = colorWebResult.value;
             if (colorModResult.provided && colorModResult.value !== undefined) newTag.colorMod = colorModResult.value ?? undefined;
 
-            const newGlobalTags = [...tags, newTag];
-            configManager.setConfig(RepositoryConfigs.GLOBAL_TAGS, newGlobalTags);
             try {
-                await guildHolder.getRepositoryManager().configChanged();
+                guildHolder.queueGlobalTagAdd(newTag);
             } catch (error: any) {
-                await replyEphemeral(interaction, `Failed to save global tag: ${error?.message || error}`);
+                await replyEphemeral(interaction, `Failed to queue global tag: ${error?.message || error}`);
                 return;
             }
 
-            guildHolder.setPendingGlobalTagChange(oldTags, newGlobalTags);
-
             await interaction.reply({
-                content: `Added global tag "${newTag.name}"${newTag.emoji ? ` (${newTag.emoji})` : ''}. Run /mwa applyglobaltags to sync forums.\n${guildHolder.getPendingGlobalTagSummary()}`,
+                content: `Added global tag "${newTag.name}"${newTag.emoji ? ` (${newTag.emoji})` : ''}. Run /mwa applyglobaltags to sync forums.\n${guildHolder.getGlobalTagQueueSummary()}`,
             });
             return;
         }
@@ -217,31 +212,15 @@ export class GlobalTagModal implements Modal {
             }
         }
 
-        const updatedTags = [...tags];
-        updatedTags[tagIndex] = updatedTag;
-
-        configManager.setConfig(RepositoryConfigs.GLOBAL_TAGS, updatedTags);
         try {
-            await guildHolder.getRepositoryManager().configChanged();
-        } catch (error: any) {
-            await replyEphemeral(interaction, `Failed to save tag changes: ${error?.message || error}`);
-            return;
-        }
-
-        const renamedFromMap = new Map<string, string>();
-        if (currentTag!.name !== updatedTag.name) {
-            renamedFromMap.set(updatedTag.name, currentTag!.name);
-        }
-
-        try {
-            guildHolder.setPendingGlobalTagChange(oldTags, updatedTags, { renamedFromMap });
+            guildHolder.queueGlobalTagEdit(currentTag!.name, updatedTag);
         } catch (error: any) {
             await interaction.reply(`Failed to queue tag changes: ${error?.message || error}`);
             return;
         }
 
         await interaction.reply({
-            content: `Updated global tag "${currentTag!.name}" to "${updatedTag.name}". Run /mwa applyglobaltags to sync forums.\n${guildHolder.getPendingGlobalTagSummary()}`,
+            content: `Updated global tag "${currentTag!.name}" to "${updatedTag.name}". Run /mwa applyglobaltags to sync forums.\n${guildHolder.getGlobalTagQueueSummary()}`,
         });
     }
 }
