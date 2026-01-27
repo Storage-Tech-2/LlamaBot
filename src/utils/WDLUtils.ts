@@ -498,6 +498,15 @@ async function optimizeWorlds(worlds: WorldMetadata[], contexts: ArchiveContext[
 async function optimizeWorld(worldDir: string): Promise<void> {
     await runMcSelector(worldDir);
 
+    // if there is a DIM-1 or DIM1 folder, run runMcSelector on those as well
+    for (const dim of ['DIM-1', 'DIM1']) {
+        const dimPath = Path.join(worldDir, dim);
+        const stat = await fs.stat(dimPath).catch(() => null);
+        if (stat && stat.isDirectory()) {
+            await runMcSelector(dimPath);
+        }
+    }
+
     // const pathsToDelete = [
     //     'stats',
     //     'scripts',
