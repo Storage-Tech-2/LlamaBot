@@ -72,6 +72,8 @@ export class PostEmbed {
         attachments.forEach(attachment => {
             if (attachment.contentType === 'youtube' || attachment.contentType === 'bilibili') {
                 videos.push(attachment);
+            } else if (attachment.contentType === 'video/mp4') {
+                videos.push(attachment);
             } else if (attachment.litematic) {
                 litematics.push(attachment)
             } else if (attachment.wdl) {
@@ -85,7 +87,8 @@ export class PostEmbed {
         // parse the URL to get the repo name and owner
         const { owner, project } = getGithubOwnerAndProject(githubURL);
         // construct a raw URL
-        const rawURL = `https://media.githubusercontent.com/media/${owner}/${project}/refs/heads/${branchName}/${entryPathPart}`;
+        const rawURL = `https://raw.githubusercontent.com/${owner}/${project}/refs/heads/${branchName}/${entryPathPart}`;
+        const mediaURL = `https://media.githubusercontent.com/media/${owner}/${project}/refs/heads/${branchName}/${entryPathPart}`;
 
         if (litematics.length) {
             description += '### Litematics\n'
@@ -110,7 +113,12 @@ export class PostEmbed {
         if (videos.length) {
             description += '### Videos\n'
             videos.forEach(attachment => {
-                if (attachment.contentType === 'bilibili') {
+                if (attachment.contentType === 'video/mp4') {
+                    const url = attachmentURLs.get(attachment.name) || attachment.url;
+                    description += `- ${url} [[Github Mirror]](${mediaURL}/${attachment.path}): MP4 video, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
+                    if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
+                    return;
+                } else if (attachment.contentType === 'bilibili') {
                     description += `- [${attachment.name}](${attachment.url}): Bilibili video\n`
                     if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
                     return;
