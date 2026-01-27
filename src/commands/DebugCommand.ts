@@ -849,6 +849,7 @@ export class DebugCommand implements Command {
 
             const res = await got(attachment.url, { responseType: 'buffer' });
             await fs.writeFile(inputPath, res.body);
+            const inputStats = await fs.stat(inputPath).catch(() => null);
 
             const outputTarget = Path.join(session, 'optimized.zip');
             const { zipPath, worlds } = await optimizeWorldsInZip(inputPath, session, outputTarget);
@@ -859,8 +860,22 @@ export class DebugCommand implements Command {
             const worldSummary = worlds.map(w => `${Path.basename(w.path)}: ${w.version || w.error || 'Unknown'}`).join('\n');
             const analysisJson = Buffer.from(JSON.stringify(worlds, null, 2));
             const analysisAttachment = new AttachmentBuilder(analysisJson, { name: 'wdl-analysis.json' });
+
+            const formatSize = (bytes: number | null | undefined) => {
+                if (!bytes && bytes !== 0) {
+                    return 'Unknown';
+                }
+                const mb = bytes / (1024 * 1024);
+                if (mb >= 1) {
+                    return `${mb.toFixed(2)} MB`;
+                }
+                return `${(bytes / 1024).toFixed(1)} KB`;
+            };
+            const beforeSize = formatSize(inputStats?.size ?? attachment.size);
+            const afterSize = formatSize(optimizedBuffer.length);
+
             await interaction.editReply({
-                content: `Optimized WDL created (${outName}).\n${worldSummary ? `Worlds:\n${worldSummary}` : ''}`,
+                content: `Optimized WDL created (${outName}).\nSize: ${beforeSize} → ${afterSize}.\n${worldSummary ? `Worlds:\n${worldSummary}` : ''}`,
                 files: [file, analysisAttachment]
             });
         } catch (error: any) {
