@@ -9,6 +9,7 @@ import { Reference, tagReferencesInSubmissionRecords } from "../utils/ReferenceU
 import { RevisionEmbed } from "../embed/RevisionEmbed.js";
 import { AuthorType, DiscordAuthor } from "../submissions/Author.js";
 import { findWorldsInZip, optimizeWorldsInZip } from "../utils/WDLUtils.js";
+import { optimizeImage } from "../utils/AttachmentUtils.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { DictionaryEntryStatus } from "../archive/DictionaryManager.js";
 import got from "got";
@@ -152,6 +153,17 @@ export class DebugCommand implements Command {
             )
             .addSubcommand(sub =>
                 sub
+                    .setName('optimizeimage')
+                    .setDescription('Optimize an image attachment and return the processed PNG')
+                    .addAttachmentOption(opt =>
+                        opt
+                            .setName('image')
+                            .setDescription('Image attachment to optimize')
+                            .setRequired(true)
+                    )
+            )
+            .addSubcommand(sub =>
+                sub
                     .setName('restoretags')
                     .setDescription('Restore forum tags on all dictionary entries based from the Github repository')
             )
@@ -221,6 +233,9 @@ export class DebugCommand implements Command {
                 break;
             case 'analyzewdl':
                 await this.handleAnalyzeWdl(guildHolder, interaction);
+                break;
+            case 'optimizeimage':
+                await this.handleOptimizeImage(interaction);
                 break;
             case 'restoretags':
                 await this.handleRestoreTags(guildHolder, interaction);
@@ -898,6 +913,59 @@ export class DebugCommand implements Command {
             });
         } catch (error: any) {
             await interaction.editReply({ content: `Analysis failed: ${error?.message || 'Unknown error'}` });
+        } finally {
+            await fs.rm(session, { recursive: true, force: true }).catch(() => null);
+        }
+    }
+
+    private async handleOptimizeImage(interaction: ChatInputCommandInteraction) {
+        const attachment = interaction.options.getAttachment('image', true);
+        const nameLower = (attachment.name || '').toLowerCase();
+        const isLikelyImage = (attachment.contentType && attachment.contentType.startsWith('image/'))
+            || nameLower.endsWith('.png')
+            || nameLower.endsWith('.jpg')
+            || nameLower.endsWith('.jpeg')
+            || nameLower.endsWith('.webp')
+            || nameLower.endsWith('.gif')
+            || nameLower.endsWith('.bmp')
+            || nameLower.endsWith('.tif')
+            || nameLower.endsWith('.tiff');
+
+        if (!isLikelyImage) {
+            await replyEphemeral(interaction, 'Please provide an image attachment.');
+            return;
+        }
+
+        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
+        const workRoot = process.cwd();
+        const session = Path.join(workRoot, 'debug', `${Date.now().toString(36)}-${attachment.id}`);
+        const safeName = Path.basename(attachment.name || `image-${attachment.id}`);
+        const ext = Path.extname(safeName);
+        const inputPath = Path.join(session, `input${ext || ''}`);
+        const outputName = `${Path.parse(safeName).name || 'image'}-optimized.png`;
+        const outputPath = Path.join(session, outputName);
+
+        try {
+            await fs.mkdir(session, { recursive: true });
+
+            const res = await got(attachment.url, { responseType: 'buffer' });
+            await fs.writeFile(inputPath, res.body);
+
+            const metadata = await optimizeImage(inputPath, outputPath);
+            const optimizedBuffer = await fs.readFile(outputPath);
+            const file = new AttachmentBuilder(optimizedBuffer, { name: outputName });
+
+            const sizeKb = (metadata.size / 1024).toFixed(1);
+            const originalSizeKb = attachment.size ? (attachment.size / 1024).toFixed(1) : null;
+            const originalSummary = originalSizeKb ? `Original: ${originalSizeKb} KB.` : '';
+
+            await interaction.editReply({
+                content: `Optimized image: ${metadata.width}x${metadata.height}, ${sizeKb} KB. ${originalSummary}`.trim(),
+                files: [file]
+            });
+        } catch (error: any) {
+            await interaction.editReply({ content: `Image optimization failed: ${error?.message || 'Unknown error'}` });
         } finally {
             await fs.rm(session, { recursive: true, force: true }).catch(() => null);
         }
