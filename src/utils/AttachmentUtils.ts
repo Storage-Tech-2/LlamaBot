@@ -97,8 +97,7 @@ export async function processImages(images: Image[], download_folder: string, pr
                 withoutEnlargement: true,
             })
             .png({
-                compressionLevel: 9,
-                palette: true,
+                compressionLevel: 9
             })
             .toFile(processedPath);
 
