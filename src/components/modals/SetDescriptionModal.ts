@@ -97,7 +97,7 @@ export class SetDescriptionModal implements Modal {
             return;
         }
 
-        const name = getFileNameWithoutExtension(interaction.fields.getTextInputValue('nameInput'));
+        const name = interaction.fields.getTextInputValue('nameInput');
         const description = (interaction.fields.getTextInputValue('descriptionInput') || '').replace(/\n/g, ' ').trim();
 
         if (description.length > 300) {
