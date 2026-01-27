@@ -338,19 +338,19 @@ export async function optimizeAttachments(
     await fs.mkdir(optimized_folder, { recursive: true });
     await fs.mkdir(temp_folder, { recursive: true });
 
-    await Promise.all(attachments.map(async (attachment) => {
+    for (const attachment of attachments) {
         if (attachment.wdl && attachment.path) {
             const attachmentPath = Path.join(attachments_folder, attachment.path);
             const optimizedPath = Path.join(optimized_folder, attachment.path);
 
             const existsInOptimized = await fs.access(optimizedPath).then(() => true).catch(() => false);
             if (existsInOptimized) { // do nothing if already optimized
-                return;
+                continue;
             }
 
             const existsInOriginal = await fs.access(attachmentPath).then(() => true).catch(() => false);
             if (!existsInOriginal) {
-                return;
+                continue;
             }
 
             await progressCallback(`Optimizing attachment ${attachment.name}...`);
@@ -368,7 +368,7 @@ export async function optimizeAttachments(
                 console.error('Error optimizing WDL file:', error);
             }
         }
-    }));
+    }
 
     // Remove temp folder
     await fs.rm(temp_folder, { recursive: true, force: true }).catch(() => { });
