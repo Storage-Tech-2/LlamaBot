@@ -171,7 +171,7 @@ export class GlobalTagModal implements Modal {
             }
 
             await interaction.reply({
-                content: `Added global tag "${newTag.name}"${newTag.emoji ? ` (${newTag.emoji})` : ''}. Run /mwa applyglobaltags to sync forums.\n${guildHolder.getGlobalTagQueueSummary()}`,
+                content: `Added global tag "${newTag.name}"${newTag.emoji ? ` (${newTag.emoji})` : ''}. Run /mwa applyglobaltags to apply.`,
             });
             return;
         }
@@ -221,7 +221,7 @@ export class GlobalTagModal implements Modal {
         }
 
         await interaction.reply({
-            content: `Updated global tag "${currentTag!.name}" to "${updatedTag.name}". Run /mwa applyglobaltags to sync forums.\n${guildHolder.getGlobalTagQueueSummary()}`,
+            content: `Updated global tag "${currentTag!.name}" to "${updatedTag.name}". Run /mwa applyglobaltags to apply.`,
         });
     }
 }

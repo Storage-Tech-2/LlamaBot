@@ -953,12 +953,14 @@ export class RepositoryManager {
      * choosing which removed globals should also be deleted from forums.
      */
     public async applyGlobalTagChanges(
-        oldGlobalTags: GlobalTag[],
         newGlobalTags: GlobalTag[],
         options?: { renamedFromMap?: Map<string, string>, deleteRemovedTagNames?: Iterable<string> }
     ): Promise<void> {
         await this.lock.acquire();
         try {
+
+            const oldGlobalTags = this.getConfigManager().getConfig(RepositoryConfigs.GLOBAL_TAGS);
+
             const renamedFromMap = options?.renamedFromMap;
             const deleteRemovedTagNames = new Set(options?.deleteRemovedTagNames ?? []);
             const newGlobalTagNames = new Set(newGlobalTags.map(t => t.name));
@@ -1104,12 +1106,12 @@ export class RepositoryManager {
                 }
             }
 
-            if (changedEntryPaths.length > 0) {
-                await this.buildPersistentIndexAndEmbeddings().catch(() => { });
-                await this.dictionaryManager.rebuildIndexAndEmbeddings().catch(() => { });
-                await this.commit('Synced archive tags after global tag change').catch(() => { });
-                await this.push().catch(() => { });
-            }
+            this.configManager.setConfig(RepositoryConfigs.GLOBAL_TAGS, deepClone(newGlobalTags));
+            await this.configManager.saveConfig();
+            await this.add(this.getConfigFilePath());
+            await this.buildPersistentIndexAndEmbeddings().catch(() => { });
+            await this.commit('Synced archive tags after global tag change').catch(() => { });
+            await this.push().catch(() => { });
         } finally {
             await this.lock.release();
         }

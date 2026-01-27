@@ -6,7 +6,7 @@ import { GuildConfigs } from "./config/GuildConfigs.js";
 import { SubmissionsManager } from "./submissions/SubmissionsManager.js";
 import { RepositoryManager } from "./archive/RepositoryManager.js";
 import { ArchiveEntry, ArchiveEntryData } from "./archive/ArchiveEntry.js";
-import { escapeDiscordString, getAuthorName, getAuthorsString, getChanges, getCodeAndDescriptionFromTopic, splitIntoChunks, truncateStringWithEllipsis } from "./utils/Util.js";
+import { deepClone, escapeDiscordString, getAuthorName, getAuthorsString, getChanges, getCodeAndDescriptionFromTopic, splitIntoChunks, truncateStringWithEllipsis } from "./utils/Util.js";
 import { UserManager } from "./support/UserManager.js";
 import { AttachmentsState, UserData } from "./support/UserData.js";
 import { SubmissionConfigs } from "./submissions/SubmissionConfigs.js";
@@ -1430,10 +1430,6 @@ export class GuildHolder {
         this.retaggingRequested = value;
     }
 
-    private cloneGlobalTags(tags: GlobalTag[]): GlobalTag[] {
-        return tags.map(tag => ({ ...tag }));
-    }
-
     private resolveOriginalName(name: string, renameMap: Map<string, string>): string {
         let cur = name;
         const seen = new Set<string>();
@@ -1448,8 +1444,8 @@ export class GuildHolder {
         if (!this.globalTagQueue) {
             const current = this.repositoryManager.getConfigManager().getConfig(RepositoryConfigs.GLOBAL_TAGS);
             this.globalTagQueue = {
-                snapshot: this.cloneGlobalTags(current),
-                working: this.cloneGlobalTags(current),
+                snapshot: deepClone(current),
+                working: deepClone(current),
                 renameMap: new Map<string, string>(),
                 deleteRequests: new Set<string>()
             };
@@ -1468,9 +1464,9 @@ export class GuildHolder {
     public getGlobalTagSnapshot(): GlobalTag[] {
         if (!this.globalTagQueue) {
             const current = this.repositoryManager.getConfigManager().getConfig(RepositoryConfigs.GLOBAL_TAGS);
-            return this.cloneGlobalTags(current);
+            return deepClone(current);
         }
-        return this.cloneGlobalTags(this.globalTagQueue.working);
+        return deepClone(this.globalTagQueue.working);
     }
 
     public queueGlobalTagAdd(tag: GlobalTag) {
@@ -1590,10 +1586,7 @@ export class GuildHolder {
             }
         });
 
-        const configManager = this.repositoryManager.getConfigManager();
-        configManager.setConfig(RepositoryConfigs.GLOBAL_TAGS, this.cloneGlobalTags(working));
-        await this.repositoryManager.configChanged();
-        await this.repositoryManager.applyGlobalTagChanges(snapshot, working, { renamedFromMap: filteredRenames, deleteRemovedTagNames: filteredDeletes });
+        await this.repositoryManager.applyGlobalTagChanges( working, { renamedFromMap: filteredRenames, deleteRemovedTagNames: filteredDeletes });
         this.clearGlobalTagQueue();
         return true;
     }

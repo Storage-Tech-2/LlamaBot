@@ -63,7 +63,7 @@ export class GlobalTagSelectMenu implements Menu {
             await interaction.deferUpdate();
 
             await interaction.editReply({
-                content: `Removed global tag "${removedTag.name}".${deleteTag ? '' : ' Existing archive tags were kept.'} Run /mwa applyglobaltags to sync forums.\n${guildHolder.getGlobalTagQueueSummary()}`,
+                content: `Removed global tag "${removedTag.name}".${deleteTag ? '' : ' Existing archive tags were kept.'} Run /mwa applyglobaltags to apply.`,
                 components: []
             });
             return;
