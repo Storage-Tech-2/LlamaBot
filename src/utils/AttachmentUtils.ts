@@ -92,7 +92,7 @@ export async function processImages(images: Image[], download_folder: string, pr
         const s = await simage
             .resize({
                 width: 1600,
-                height: 1200,
+                height: 1600,
                 fit: 'inside',
                 withoutEnlargement: true,
             })
