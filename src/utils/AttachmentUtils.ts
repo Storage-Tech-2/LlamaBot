@@ -96,7 +96,9 @@ export async function processImages(images: Image[], download_folder: string, pr
                 fit: 'inside',
                 withoutEnlargement: true,
             })
-            .toFormat('png')
+            .toFormat('png',{
+                compressionLevel: 9,
+            })
             .toFile(processedPath);
 
 
