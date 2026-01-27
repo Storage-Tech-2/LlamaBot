@@ -69,7 +69,8 @@ export class GlobalTagModal implements Modal {
             .setStyle(TextInputStyle.Short)
             .setRequired(false);
         if (tag?.colorMod !== undefined) {
-            colorModInput.setValue(`${tag.colorMod}`);
+            const hex = tag.colorMod.toString(16).padStart(8, '0').toUpperCase();
+            colorModInput.setValue(`0x${hex}`);
         }
 
         modal.addLabelComponents(
@@ -77,7 +78,7 @@ export class GlobalTagModal implements Modal {
             new LabelBuilder().setLabel('Emoji').setTextInputComponent(emojiInput),
             new LabelBuilder().setLabel('Moderated').setStringSelectMenuComponent(moderatedSelect),
             new LabelBuilder().setLabel('Website color').setTextInputComponent(colorWebInput),
-            new LabelBuilder().setLabel('Embed color').setTextInputComponent(colorModInput),
+            new LabelBuilder().setLabel('Mod color').setTextInputComponent(colorModInput),
         );
 
         return modal;
