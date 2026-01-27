@@ -195,7 +195,7 @@ export class SetDescriptionModal implements Modal {
 
             const message = [`<@${interaction.user.id}> updated info for ${isImage ? 'image' : 'attachment'} **${escapeDiscordString(foundAttachment.name)}**:`];
             if (oldFileNameWithoutExt !== name) {
-                message.push(`- Name changed to: ${escapeDiscordString(foundAttachment.name)} from ${escapeDiscordString(oldFile.name)}`);
+                message.push(`- Name changed: ${escapeDiscordString(oldFile.name)} → ${escapeDiscordString(foundAttachment.name)}`);
             }
             if (oldFile.description !== description) {
                 message.push(`- Description ${description.length > 0 ? `set to: ${description}` : 'removed'}`);
