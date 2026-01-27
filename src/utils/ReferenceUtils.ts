@@ -830,7 +830,7 @@ export function transformOutputWithReferencesForGithub(
                         }
                     } else {
                         // create markdown link with code as text
-                        return `[${reference.code}](${githubURL})`;
+                        return `[${reference.code} ${reference.name}](${reference.url})`;
                     }
                 }
             } else if (reference.type === ReferenceType.DISCORD_LINK) {
