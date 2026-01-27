@@ -1110,7 +1110,7 @@ export class RepositoryManager {
             await this.configManager.saveConfig();
             await this.add(this.getConfigFilePath());
             await this.buildPersistentIndexAndEmbeddings().catch(() => { });
-            await this.commit('Synced archive tags after global tag change').catch(() => { });
+            await this.commit('Adjusted global tags').catch(() => { });
             await this.push().catch(() => { });
         } finally {
             await this.lock.release();
