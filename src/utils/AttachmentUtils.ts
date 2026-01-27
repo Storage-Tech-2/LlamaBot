@@ -204,16 +204,16 @@ export async function processImageForDiscord(file_path: string, num_images: numb
         newHeight = 800;
     }
 
-    // Scale so that largest dimension is 800px
+    // Scale so that largest dimension is 1600px
     if (newWidth > newHeight) {
-        const scale = 800 / newWidth;
-        newWidth = 800;
+        const scale = 1600 / newWidth;
+        newWidth = 1600;
         newHeight = Math.floor(newHeight * scale);
         // also scale padding
         padding = Math.floor(padding * scale);
     } else {
-        const scale = 800 / newHeight;
-        newHeight = 800;
+        const scale = 1600 / newHeight;
+        newHeight = 1600;
         newWidth = Math.floor(newWidth * scale);
         // also scale padding
         padding = Math.floor(padding * scale);
