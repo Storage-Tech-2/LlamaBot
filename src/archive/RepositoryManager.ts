@@ -1684,6 +1684,7 @@ export class RepositoryManager {
         // Remove old attachment message
         const postData = existing ? existing.entry.getData().post : null;
         if (postData && postData.uploadMessageId && postData.uploadMessageId !== newEntryData.post.uploadMessageId) {
+            console.log(`Deleting old upload message ${postData.uploadMessageId}`);
             const oldUploadMessage = await uploadChannel.messages.fetch(postData.uploadMessageId).catch(() => null);
             if (oldUploadMessage) {
                 await oldUploadMessage.delete().catch((e) => {
