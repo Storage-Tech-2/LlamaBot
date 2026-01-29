@@ -910,7 +910,7 @@ export function areReferencesIdentical(a: Reference, b: Reference): boolean {
     } else if (a.type === ReferenceType.DISCORD_LINK && b.type === ReferenceType.DISCORD_LINK) {
         return a.server === b.server && a.channel === b.channel && a.message === b.message && a.url === b.url && a.serverName === b.serverName && a.serverJoinURL === b.serverJoinURL;
     } else if (a.type === ReferenceType.DICTIONARY_TERM && b.type === ReferenceType.DICTIONARY_TERM) {
-        return a.id === b.id && a.term === b.term && a.url === b.url;
+        return a.id === b.id && a.term === b.term && a.url === b.url && a.matches.length === b.matches.length && a.matches.every((val, index) => val === b.matches[index]);
     } else if (a.type === ReferenceType.USER_MENTION && b.type === ReferenceType.USER_MENTION) {
         return areAuthorsSameStrict(a.user, b.user);
     } else if (a.type === ReferenceType.CHANNEL_MENTION && b.type === ReferenceType.CHANNEL_MENTION) {
