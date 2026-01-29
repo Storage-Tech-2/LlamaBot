@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import Path from "path";
 import { ChannelType, Snowflake } from "discord.js";
-import { buildDictionaryIndex, DictionaryIndexEntry, DictionaryTermIndex, MarkdownCharacterRegex } from "../utils/ReferenceUtils.js";
+import { buildDictionaryIndex, DictionaryAhoIndexEntry, DictionaryIndexEntry, DictionaryTermIndex, MarkdownCharacterRegex } from "../utils/ReferenceUtils.js";
 import { ArchiveChannel, ArchiveEntryReference } from "./ArchiveChannel.js";
 import { ArchiveEntry } from "./ArchiveEntry.js";
 import { DictionaryManager, DictionaryEntryStatus } from "./DictionaryManager.js";
@@ -167,12 +167,20 @@ export class IndexManager {
 
     public async buildDictionaryTermIndex(): Promise<DictionaryTermIndex> {
         const dictionaryEntries = await this.dictionaryManager.listEntries();
-        const termToData: Map<string, DictionaryIndexEntry[]> = new Map();
+        const termToData: Map<string, DictionaryAhoIndexEntry[]> = new Map();
 
+        const idToEntry = new Map<Snowflake, DictionaryIndexEntry>();
         for (const entry of dictionaryEntries) {
             if (entry.status !== DictionaryEntryStatus.APPROVED) {
                 continue;
             }
+
+            idToEntry.set(entry.id, {
+                term: entry.terms[0],
+                id: entry.id,
+                url: entry.statusURL || entry.threadURL,
+            });
+
             for (const rawTerm of entry.terms || []) {
                 const normalized = rawTerm.toLowerCase().replace(MarkdownCharacterRegex, '');
                 if (!normalized) {
@@ -185,9 +193,8 @@ export class IndexManager {
                 const arr = termToData.get(normalized)!;
                 if (!arr.find(e => e.id === entry.id)) {
                     arr.push({
-                        term: rawTerm,
+                        matchedTerm: rawTerm,
                         id: entry.id,
-                        url: entry.statusURL || entry.threadURL,
                     });
                 }
             }
@@ -195,6 +202,7 @@ export class IndexManager {
 
         const termIndex: DictionaryTermIndex = {
             aho: buildDictionaryIndex(termToData),
+            idToEntry,
         };
         return termIndex;
     }

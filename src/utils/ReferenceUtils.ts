@@ -17,7 +17,7 @@ export const UserMentionPattern = /<@!?(\d+)>/g;
 export const ChannelMentionPattern = /<#(\d+)>/g;
 
 export type AhoNodeOutput = {
-    term: string;
+    matchedTerm: string;
 };
 
 type AhoNode<T extends AhoNodeOutput> = {
@@ -36,6 +36,11 @@ export type DictionaryIndex<T extends AhoNodeOutput> = {
     nodes: AhoNode<T>[];
 };
 
+export type DictionaryAhoIndexEntry = {
+    matchedTerm: string;
+    id: Snowflake;
+}
+
 export type DictionaryIndexEntry = {
     term: string;
     id: Snowflake;
@@ -43,7 +48,8 @@ export type DictionaryIndexEntry = {
 }
 
 export type DictionaryTermIndex = {
-    aho: DictionaryIndex<DictionaryIndexEntry>;
+    aho: DictionaryIndex<DictionaryAhoIndexEntry>;
+    idToEntry: Map<Snowflake, DictionaryIndexEntry>;
 };
 
 export enum ReferenceType {
@@ -183,11 +189,11 @@ export function findDictionaryMatches<T extends AhoNodeOutput>(text: string, ind
         }
 
         for (const output of index.nodes[state].outputs) {
-            const start = i - output.term.length + 1;
+            const start = i - output.matchedTerm.length + 1;
             const end = i + 1;
             if (start < 0) continue;
 
-            if (!shouldIncludeMatch(text, output.term, start, end)) {
+            if (!shouldIncludeMatch(text, output.matchedTerm, start, end)) {
                 continue;
             }
 
@@ -202,13 +208,13 @@ export function findDictionaryMatches<T extends AhoNodeOutput>(text: string, ind
     return matches;
 }
 
-function shouldIncludeMatch(text: string, term: string, start: number, end: number): boolean {
+function shouldIncludeMatch(text: string, matchedTerm: string, start: number, end: number): boolean {
 
 
-    const isTermAllCaps = term.toUpperCase() === term;
+    const isTermAllCaps = matchedTerm.toUpperCase() === matchedTerm;
     const matchedText = text.slice(start, end);
 
-    if (isTermAllCaps && matchedText !== term) { // case-sensitive match required
+    if (isTermAllCaps && matchedText !== matchedTerm) { // case-sensitive match required
         return false;
     }
 
@@ -217,7 +223,7 @@ function shouldIncludeMatch(text: string, term: string, start: number, end: numb
     const after = end < text.length ? text[end] : undefined;
 
     // check if term starts with leading number
-    if (/^[0-9]/.test(term)) {
+    if (/^[0-9]/.test(matchedTerm)) {
 
         // prev char must not be a number or decimal point
         if (before && (/[0-9.]/.test(before))) {
@@ -226,7 +232,7 @@ function shouldIncludeMatch(text: string, term: string, start: number, end: numb
     }
 
     // check if term ends with trailing number
-    if (/[0-9x.]$/.test(term)) {
+    if (/[0-9x.]$/.test(matchedTerm)) {
         // next char must not be a number
         if (after && /[0-9]/.test(after)) {
             return false;
@@ -245,7 +251,7 @@ function shouldIncludeMatch(text: string, term: string, start: number, end: numb
         return true;
     }
 
-    const lastWord = term.split(" ").pop() || "";
+    const lastWord = matchedTerm.split(" ").pop() || "";
     const hasNoNumbers = !/[0-9]/.test(lastWord);
 
     if (hasNoNumbers && startSatisfied && !endingSatisfied) { // just some words
@@ -395,14 +401,18 @@ export function tagReferencesInText(text: string, dictionaryIndex?: DictionaryTe
         const dictMatches = findDictionaryMatches(text, dictionaryIndex.aho);
         for (const match of dictMatches) {
             const matchedText = text.slice(match.start, match.end);
+            const indexEntry = dictionaryIndex.idToEntry.get(match.output.id);
+            if (!indexEntry) {
+                continue;
+            }
             references.push({
                 start: match.start,
                 end: match.end,
                 ref: {
                     type: ReferenceType.DICTIONARY_TERM,
-                    term: match.output.term,
+                    term: indexEntry.term,
                     id: match.output.id,
-                    url: match.output.url,
+                    url: indexEntry.url,
                     matches: [matchedText],
                 }
             });
