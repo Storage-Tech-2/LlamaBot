@@ -1755,7 +1755,7 @@ export class RepositoryManager {
 
             const filtered = filterAttachmentsForViewer(newEntryData.attachments);
             if (filtered.length > 0) {
-                const viewerChunks = splitIntoChunks(PostEmbed.createAttachmentViewerMessage(filtered, uploadMessage), 2000);
+                const viewerChunks = PostEmbed.createAttachmentViewerMessages(filtered, uploadMessage);
                 viewerChunks.forEach(c => {
                     messageChunks.push({
                         content: c,

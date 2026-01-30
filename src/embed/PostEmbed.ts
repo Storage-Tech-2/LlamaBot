@@ -1,5 +1,5 @@
 import { ActionRowBuilder, AttachmentBuilder, EmbedBuilder, Message } from "discord.js";
-import { areObjectsIdentical, escapeDiscordString, escapeString, getAuthorsString, getGithubOwnerAndProject } from "../utils/Util.js";
+import { areObjectsIdentical, escapeDiscordString, escapeString, getAuthorsString, getGithubOwnerAndProject, splitIntoChunks } from "../utils/Util.js";
 import Path from "path";
 import { Attachment } from "../submissions/Attachment.js";
 import { ArchiveEntryData } from "../archive/ArchiveEntry.js";
@@ -160,7 +160,7 @@ export class PostEmbed {
         return description;
     }
 
-    public static createAttachmentViewerMessage(viewerAttachments: Attachment[], uploadMessage: Message | null): string {
+    public static createAttachmentViewerMessages(viewerAttachments: Attachment[], uploadMessage: Message | null): string[] {
         const attachmentURLs = new Map();
         if (uploadMessage) {
             uploadMessage.attachments.forEach(attachment => {
@@ -168,13 +168,14 @@ export class PostEmbed {
             });
         }
 
-        let description =`### Attachment Embeds\n`;
-
-        viewerAttachments.forEach((attachment)=>{
-            description += (attachmentURLs.get(attachment.name) || attachment.url) + '\n';
+        let messages: string[] = [];
+        viewerAttachments.forEach((attachment, i)=>{
+            const message = (i === 0 ? "### Attachment Embeds\n" : "") + (attachmentURLs.get(attachment.name) || attachment.url) + (attachment.description.length ? ` - ${attachment.description}` : '') + '\n';
+            const split = splitIntoChunks(message, 2000);
+            messages.push(...split);
         });
 
-        return description;
+        return messages;
     }
 
 
