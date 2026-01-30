@@ -36,7 +36,6 @@ export class LiftTimeoutButton implements Button {
 
         await interaction.reply({
             content: `Removed timeout for <@${userId}>.`,
-            flags: MessageFlags.Ephemeral,
         });
     }
 }

@@ -30,7 +30,6 @@ export class BanUserButton implements Button {
 
         await interaction.reply({
             content: `Banned <@${userId}>.`,
-            flags: MessageFlags.Ephemeral,
         });
     }
 }
