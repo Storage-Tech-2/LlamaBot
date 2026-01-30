@@ -632,6 +632,13 @@ export class DebugCommand implements Command {
                 guildHolder.getRepositoryManager().updateSubmissionFromEntryData(submission, entry.entry.getData());
             }
 
+            // update submission images
+            await submission.processImages().catch((error) => {
+                console.error(`Error processing images for submission ${submissionID}:`, error);
+            });
+
+            await submission.save();
+
             try {
                 await submission.statusUpdated();
             } catch (error) {

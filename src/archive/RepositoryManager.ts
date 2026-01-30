@@ -17,7 +17,7 @@ import { ArchiveComment } from "./ArchiveComments.js";
 import { Author, AuthorType } from "../submissions/Author.js";
 import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
 import { makeEntryReadMe } from "./ReadMeMaker.js";
-import { analyzeAttachments, filterAttachmentsForViewer, getAttachmentsFromMessage, getFileKey, optimizeAttachments, processAttachments } from "../utils/AttachmentUtils.js";
+import { analyzeAttachments, deduplicateAttachmentNames, filterAttachmentsForViewer, getAttachmentsFromMessage, getFileKey, optimizeAttachments, processAttachments, splitFileName } from "../utils/AttachmentUtils.js";
 import { DictionaryManager } from "./DictionaryManager.js";
 import { IndexManager } from "./IndexManager.js";
 import { DiscordServersDictionary } from "./DiscordServersDictionary.js";
@@ -27,7 +27,7 @@ import { postToMarkdown } from "../utils/MarkdownUtils.js";
 import { base64ToInt8Array, EmbeddingsEntry, EmbeddingsSearchResult as EmbeddingsSearchResult, generateDocumentEmbeddings, getClosestWithIndex, loadHNSWIndex, makeHNSWIndex } from "../llm/EmbeddingUtils.js";
 import { type HierarchicalNSW } from "hnswlib-node";
 import { TemporaryCache } from "./TemporaryCache.js";
-import { AttachmentSource } from "../submissions/Attachment.js";
+import { AttachmentSource, BaseAttachment } from "../submissions/Attachment.js";
 import { GlobalTag } from "./RepositoryConfigs.js";
 import { Tag } from "../submissions/Tag.js";
 
@@ -1301,8 +1301,8 @@ export class RepositoryManager {
                 authors: authors,
                 endorsers: await reclassifyAuthors(this.guildHolder, config.getConfig(SubmissionConfigs.ENDORSERS)),
                 tags: config.getConfig(SubmissionConfigs.TAGS) || [],
-                images: submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) || [],
-                attachments: submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) || [],
+                images: deduplicateAttachmentNames(submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) || [], '', 'png'),
+                attachments: deduplicateAttachmentNames(submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) || [], `${newCode}_`),
                 records: revision.records,
                 styles: revision.styles,
                 references: await tagReferencesInSubmissionRecords(revision.records, revision.references, this.guildHolder, submission.getId()),
@@ -1352,68 +1352,37 @@ export class RepositoryManager {
             }
             const result = await this.addOrUpdateEntryFromData(entryData, archiveChannelId, forceNew, false, async (entryData, imageFolder, attachmentFolder) => {
                 // remove all images and attachments that exist in the folder.
+
+                // remove existing files
+                await fs.rm(imageFolder, { recursive: true, force: true });
+                await fs.rm(attachmentFolder, { recursive: true, force: true });
+
                 await fs.mkdir(imageFolder, { recursive: true });
                 await fs.mkdir(attachmentFolder, { recursive: true });
 
-                for (const file of await fs.readdir(imageFolder)) {
-                    const filePath = Path.join(imageFolder, file);
-                    const stat = await fs.lstat(filePath);
-                    if (stat.isFile()) {
-                        await fs.unlink(filePath);
-                    }
-                }
-                for (const file of await fs.readdir(attachmentFolder)) {
-                    const filePath = Path.join(attachmentFolder, file);
-                    const stat = await fs.lstat(filePath);
-                    if (stat.isFile()) {
-                        await fs.unlink(filePath);
-                    }
-                }
-
                 // Copy over all attachments and images
                 for (const image of entryData.images) {
-                    const sourcePath = Path.join(submission.getProcessedImagesFolder(), getFileKey(image, 'png'));
-                    const dest = image.name.split('.');
-                    if (dest.length > 1) {
-                        dest.pop();
-                    }
-                    const destKeyOrig = escapeString(dest.join('.'));
-                    let destKey = destKeyOrig;
-
-                    // Check for duplicate file names
-                    for (let i = 1; i < 15; i++) {
-                        if (await fs.access(Path.join(imageFolder, `${destKey}.png`)).then(() => true).catch(() => false)) {
-                            destKey = `${destKeyOrig}_${i}`;
-                        }
-                    }
-
-                    const destPath = Path.join(imageFolder, `${destKey}.png`);
+                    if (!image.path) continue;
+                    const sourcePath = Path.join(submission.getProcessedImagesFolder(), image.path);
+                    const newBaseName = escapeString(splitFileName(image.name).basename);
+                    const destPath = Path.join(imageFolder, `${newBaseName}.png`);
                     await fs.copyFile(sourcePath, destPath);
-                    image.path = `images/${destKey}.png`;
-                    image.name = destKey + '.png'; // Update the name to the new key
+                    image.path = `images/${newBaseName}.png`;
                 }
 
                 for (const attachment of entryData.attachments) {
-                    const dest = attachment.name.split('.');
-                    let ext = dest.length > 1 ? escapeString(dest.pop() || '') : '';
-                    if (!attachment.canDownload) {
-                        ext = 'url';
-                    }
+                    if (!attachment.path) continue;
+                    const sourcePath = Path.join(submission.getAttachmentFolder(), attachment.path);
+                    const sourcePathOptimized = Path.join(submission.getOptimizedAttachmentFolder(), attachment.path);
 
-                    const destKeyOrig = entryData.code + '_' + escapeString(dest.join('.'));
-                    let destKey = destKeyOrig;
-                    for (let i = 1; i < 15; i++) {
-                        if (await fs.access(Path.join(attachmentFolder, `${destKey}${ext ? '.' + ext : ''}`)).then(() => true).catch(() => false)) {
-                            destKey = `${destKeyOrig}_${i}`;
-                        }
-                    }
+                    const { basename, ext } = splitFileName(attachment.name);
 
-                    const newKey = `${destKey}${ext ? '.' + ext : ''}`;
-                    const sourcePath = Path.join(submission.getAttachmentFolder(), getFileKey(attachment));
-                    const sourcePathOptimized = Path.join(submission.getOptimizedAttachmentFolder(), getFileKey(attachment));
+                    const escapedName = escapeString(basename);
+                    const escapedExt = ext ? `.${escapeString(ext)}` : '';
+                    const newKey = `${escapedName}${escapedExt}`;
+
                     const destPath = Path.join(attachmentFolder, newKey);
                     attachment.path = `attachments/${newKey}`;
-                    attachment.name = newKey; // Update the name to the new key
 
                     if (!attachment.canDownload) {
                         await fs.writeFile(destPath, attachment.url || '', 'utf-8');
@@ -1451,7 +1420,6 @@ export class RepositoryManager {
             throw e;
         }
     }
-
 
     async addOrUpdateEntryFromData(
         newEntryData: ArchiveEntryData,

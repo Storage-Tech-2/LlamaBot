@@ -7,7 +7,7 @@ import fs from 'fs/promises'
 import got from 'got'
 import sharp from 'sharp'
 import { MCMeta } from './MCMeta.js'
-import { escapeDiscordString, escapeString, getMessageAuthor, truncateStringWithEllipsis } from './Util.js'
+import { deepClone, escapeDiscordString, escapeString, getMessageAuthor, truncateStringWithEllipsis } from './Util.js'
 import { Litematic } from '../lib/litematic-reader/main.js'
 import { Author } from '../submissions/Author.js'
 import { findWorldsInZip, optimizeWorldsInZip } from './WDLUtils.js'
@@ -100,9 +100,12 @@ export async function processImages(images: Image[], download_folder: string, pr
     const refreshedURLs = await refreshAttachments(imageURLs, bot);
 
     await Promise.all(images.map(async (image, i) => {
-        const processedPath = Path.join(processed_folder, getFileKey(image, 'png'));
+        const processedKey = getFileKey(image, 'png');
+        const processedPath = Path.join(processed_folder, processedKey);
         // If the processed image already exists, skip processing
         if (await fs.access(processedPath).then(() => true).catch(() => false)) {
+            // set path though
+            image.path = processedKey;
             return;
         }
 
@@ -118,6 +121,7 @@ export async function processImages(images: Image[], download_folder: string, pr
         image.width = metadata.width;
         image.height = metadata.height;
         image.size = metadata.size;
+        image.path = processedKey;
 
         await fs.unlink(downloadPath); // Remove the original file after processing
     }));
@@ -741,6 +745,42 @@ export async function refreshAttachments(
     return attachmentObjects.map(obj => obj.url);
 }
 
+export function deduplicateAttachmentNames<T extends BaseAttachment>(attachments: T[], prefix: string, forceExtension?: string): T[] {
+    const results: T[] = [];
+    for (const attachment of attachments) {
+        const dest = attachment.name.split('.');
+        let ext = dest.length > 1 ? escapeString(dest.pop() || '') : '';
+        if (!attachment.canDownload) {
+            ext = 'url';
+        }
+
+        if (forceExtension) {
+            ext = forceExtension;
+        }
+
+        const baseName = prefix + escapeString(dest.join('.'));
+        let chosenBaseName = baseName;
+        for (let i = 0; i < 15; i++) {
+            const newBaseName = i === 0 ? baseName : `${baseName}_${i}`;
+            const fullName = `${newBaseName}${ext ? '.' + ext : ''}`;
+            if (!results.find(a => a.name === fullName)) {
+                chosenBaseName = newBaseName;
+                break;
+            }
+        }
+        const newAttachment = deepClone(attachment);
+        newAttachment.name = `${chosenBaseName}${ext ? '.' + ext : ''}`;
+        results.push(newAttachment);
+    }
+    return results;
+}
+
+export function splitFileName(fileName: string): { basename: string; ext: string } {
+    const split = fileName.split('.');
+    let ext = split.length > 1 ? split.pop() || '' : '';
+    const basename = split.join('.');
+    return { basename, ext };
+}
 
 export function getFileKey(file: Attachment | Image, new_ext: string = '') {
     const name = `${file.id}-${escapeString(file.name)}`.toLowerCase();
