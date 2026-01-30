@@ -72,7 +72,7 @@ export class PostEmbed {
         attachments.forEach(attachment => {
             if (attachment.contentType === 'youtube' || attachment.contentType === 'bilibili') {
                 videos.push(attachment);
-            } else if (attachment.contentType === 'video/mp4') {
+            } else if (attachment.contentType === 'video/mp4' || attachment.name.endsWith('.mp4')) {
                 videos.push(attachment);
             } else if (attachment.litematic) {
                 litematics.push(attachment)
@@ -113,7 +113,7 @@ export class PostEmbed {
         if (videos.length) {
             description += '### Videos\n'
             videos.forEach(attachment => {
-                if (attachment.contentType === 'video/mp4') {
+                if (attachment.contentType === 'video/mp4' || attachment.name.endsWith('.mp4')) {
                     const url = attachmentURLs.get(attachment.name) || attachment.url;
                     description += `- ${url} [[Github Mirror]](${mediaURL}/${attachment.path}): MP4 video, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
                     if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
