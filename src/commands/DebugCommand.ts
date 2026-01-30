@@ -637,9 +637,12 @@ export class DebugCommand implements Command {
             }
 
             // update submission images
-            await submission.processImages().catch((error) => {
-                console.error(`Error processing images for submission ${submissionID}:`, error);
-            });
+            // check if there are images
+            if (submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES)?.length) {
+                await submission.processImages().catch((error) => {
+                    console.error(`Error processing images for submission ${submissionID}:`, error);
+                });
+            }
 
             await submission.save();
 
