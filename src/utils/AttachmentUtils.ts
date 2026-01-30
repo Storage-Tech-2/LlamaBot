@@ -787,6 +787,8 @@ export function getAttachmentsSetMessage(attachments: Attachment[]): string {
     attachments.forEach(attachment => {
         if (attachment.contentType === 'youtube' || attachment.contentType === 'bilibili') {
             videos.push(attachment)
+        } else if (attachment.contentType === 'video/mp4' || attachment.name.endsWith('.mp4')) {
+            videos.push(attachment)
         } else if (attachment.wdl) {
             wdls.push(attachment)
         } else if (attachment.litematic) {
@@ -818,6 +820,11 @@ export function getAttachmentsSetMessage(attachments: Attachment[]): string {
         videos.forEach(attachment => {
             if (attachment.contentType === 'bilibili') {
                 description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Bilibili video\n`
+                if (attachment.description) description += `  - ${attachment.description}\n`
+                return;
+            }
+            if (attachment.contentType === 'video/mp4' || attachment.name.endsWith('.mp4')) {
+                description += `- ${attachment.canDownload ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: MP4 video, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
                 if (attachment.description) description += `  - ${attachment.description}\n`
                 return;
             }
