@@ -203,6 +203,8 @@ export class RepositoryManager {
         const seenCodes = new Set<string>();
         const toRefreshEmbeddings = new Set<string>();
 
+        let latestUpdate = 0;
+
         for (const channelRef of channelReferences) {
             const channelPath = Path.join(this.folderPath, channelRef.path);
             const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
@@ -255,6 +257,10 @@ export class RepositoryManager {
                     main_image_path: entryData.images.length > 0 ? entryData.images[0].path || null : null
                 });
 
+                if (entryData.updatedAt > latestUpdate) {
+                    latestUpdate = entryData.updatedAt;
+                }
+                
                 seenCodes.add(currentCode);
 
                 const embeddingEntry = embeddingsMap.get(currentCode);
@@ -282,7 +288,7 @@ export class RepositoryManager {
 
         const persistentIndex: PersistentIndex = {
             schemaStyles: this.configManager.getConfig(RepositoryConfigs.POST_STYLE),
-            updated_at: 0, // unused
+            updated_at: latestUpdate,
             all_authors: Array.from(authors.keys()),
             all_tags: Array.from(tags.keys()),
             all_categories: Array.from(categories.keys()),
