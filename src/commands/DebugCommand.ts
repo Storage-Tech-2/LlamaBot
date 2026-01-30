@@ -15,6 +15,7 @@ import { DictionaryEntryStatus } from "../archive/DictionaryManager.js";
 import got from "got";
 import Path from "path";
 import fs from "fs/promises";
+import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 
 export class DebugCommand implements Command {
     getID(): string {
@@ -630,6 +631,9 @@ export class DebugCommand implements Command {
             const entry = await guildHolder.getRepositoryManager().findEntryBySubmissionId(submissionID);
             if (entry) {
                 guildHolder.getRepositoryManager().updateSubmissionFromEntryData(submission, entry.entry.getData());
+
+                const tags = entry.entry.getData().tags || [];
+                submission.getConfigManager().setConfig(SubmissionConfigs.TAGS, tags);
             }
 
             // update submission images
