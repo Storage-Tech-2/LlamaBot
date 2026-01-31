@@ -260,7 +260,7 @@ export class RepositoryManager {
                 if (entryData.updatedAt > latestUpdate) {
                     latestUpdate = entryData.updatedAt;
                 }
-                
+
                 seenCodes.add(currentCode);
 
                 const embeddingEntry = embeddingsMap.get(currentCode);
@@ -328,7 +328,17 @@ export class RepositoryManager {
 
             // get text
             const texts = entries.map(entryData => {
-                return 'Name: ' + entryData.name + '\n\n' + transformOutputWithReferencesForEmbeddings(postToMarkdown(entryData.records, entryData.styles, persistentIndex.schemaStyles), entryData.references);
+                const channelRef = channelReferences.find(c => c.code === splitCode(entryData.code).channelCode);
+                const lines = [];
+                lines.push('Name: ' + entryData.name);
+                if (channelRef) {
+                    lines.push('Category: ' + channelRef.category + ' > ' + channelRef.name);
+                }
+                lines.push('Tags: ' + entryData.tags.map(t => t.name).join(', '));
+                lines.push('Authors: ' + entryData.authors.map(a => getAuthorName(a)).join(','));
+                lines.push('')
+                lines.push(transformOutputWithReferencesForEmbeddings(postToMarkdown(entryData.records, entryData.styles, persistentIndex.schemaStyles), entryData.references));
+                return lines.join('\n');
             });
 
             const result = await generateDocumentEmbeddings(texts).catch((e) => {
