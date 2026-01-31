@@ -314,7 +314,7 @@ export class RepositoryManager {
             embeddingsMap.delete(code);
         }
 
-        const toRefreshEmbeddingsChunked = chunkArray(Array.from(toRefreshEmbeddings), 20);
+        const toRefreshEmbeddingsChunked = chunkArray(Array.from(toRefreshEmbeddings), 60);
         for (const chunk of toRefreshEmbeddingsChunked) {
             const entries = (await Promise.all(chunk.map(async entryPath => {
                 const archiveEntry = await ArchiveEntry.fromFolder(entryPath);

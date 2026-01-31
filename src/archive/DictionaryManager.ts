@@ -142,7 +142,7 @@ export class DictionaryManager {
             embeddingsMap.delete(code);
         }
 
-        const toRefreshEmbeddingsChunked = chunkArray(Array.from(toRefreshEmbeddings), 20);
+        const toRefreshEmbeddingsChunked = chunkArray(Array.from(toRefreshEmbeddings), 100);
         for (const chunk of toRefreshEmbeddingsChunked) {
             const entries = (await Promise.all(chunk.map(async entryPath => {
                 const entryData = await this.getEntry(entryPath);
