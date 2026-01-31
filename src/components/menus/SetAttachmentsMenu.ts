@@ -137,27 +137,27 @@ export class SetAttachmentsMenu implements Menu {
                 embeds: [embed]
             });
         } else {
-            await SetAttachmentsMenu.setAttachmentsAndSetResponse(true, submission, newAttachments, interaction);
+            await SetAttachmentsMenu.setAttachmentsAndSetResponse(submission, newAttachments, interaction);
         }
     }
 
-    public static async setAttachmentsAndSetResponse(replace: boolean, submission: Submission, newAttachments: Attachment[], interaction: StringSelectMenuInteraction | ModalSubmitInteraction | ButtonInteraction): Promise<void> {
+    public static async setAttachmentsAndSetResponse(submission: Submission, newAttachments: Attachment[], interaction: StringSelectMenuInteraction | ModalSubmitInteraction | ButtonInteraction): Promise<void> {
+        await interaction.editReply({
+            content: 'Processing attachments...',
+            embeds: [],
+            components: [],
+            files: [],
+        }).catch(() => { });
+
         submission.getConfigManager().setConfig(SubmissionConfigs.ATTACHMENTS, newAttachments);
         try {
             await submission.processAttachments()
         } catch (error: any) {
             console.error('Error processing attachments:', error)
-            if (interaction.deferred) {
-                await interaction.editReply({
-                    content: 'Failed to process attachments: ' + error.message,
-                    flags: MessageFlags.SuppressEmbeds
-                });
-            } else {
-                await interaction.reply({
-                    content: 'Failed to process attachments: ' + error.message,
-                    flags: [MessageFlags.Ephemeral, MessageFlags.SuppressEmbeds]
-                });
-            }
+            await interaction.editReply({
+                content: 'Failed to process attachments: ' + error.message,
+                flags: MessageFlags.SuppressEmbeds
+            });
             return;
         }
 
@@ -175,33 +175,14 @@ export class SetAttachmentsMenu implements Menu {
 
         const split = splitIntoChunks(description, 2000);
 
-        if (replace) {
-            await this.sendAttachmentsMenuAndButton(submission, interaction, true);
-        }
+        await this.sendAttachmentsMenuAndButton(submission, interaction, true);
 
-
-        if (!replace && interaction.deferred) {
-            await interaction.editReply({
-                content: split[0],
-                flags: [MessageFlags.SuppressEmbeds],
-                allowedMentions: { parse: [] },
-                components: split.length === 1 ? rows : []
-            })
-        } else if (interaction.replied) {
-            await interaction.followUp({
-                content: split[0],
-                flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications],
-                allowedMentions: { parse: [] },
-                components: split.length === 1 ? rows : []
-            })
-        } else {
-            await interaction.reply({
-                content: split[0],
-                flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications],
-                allowedMentions: { parse: [] },
-                components: split.length === 1 ? rows : []
-            })
-        }
+        await interaction.followUp({
+            content: split[0],
+            flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications],
+            allowedMentions: { parse: [] },
+            components: split.length === 1 ? rows : []
+        });
 
 
         for (let i = 1; i < split.length; i++) {

@@ -175,11 +175,17 @@ export class SetImagesMenu implements Menu {
                 embeds: [embed],
             });
         } else {
-            await SetImagesMenu.setAndReply(true, submission, interaction, newImages);
+            await SetImagesMenu.setAndReply(submission, interaction, newImages);
         }
     }
 
-    public static async setAndReply(replace: boolean, submission: Submission, interaction: StringSelectMenuInteraction | ModalSubmitInteraction | ButtonInteraction, newImages: BaseAttachment[]) {
+    public static async setAndReply(submission: Submission, interaction: StringSelectMenuInteraction | ModalSubmitInteraction | ButtonInteraction, newImages: BaseAttachment[]) {
+        await interaction.editReply({
+            content: 'Processing images...',
+            embeds: [],
+            components: [],
+            files: [],
+        }).catch(() => { });
 
         const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null;
         submission.getConfigManager().setConfig(SubmissionConfigs.IMAGES, newImages);
@@ -191,12 +197,8 @@ export class SetImagesMenu implements Menu {
             await interaction.editReply('Error processing image: ' + error.message);
             return
         }
-
         await submission.save();
-
-        if (replace) {
-            await this.sendImagesMenuAndButton(submission, interaction, true);
-        }
+        await this.sendImagesMenuAndButton(submission, interaction, true);
 
         const files = [];
         const embeds = [];
@@ -220,33 +222,14 @@ export class SetImagesMenu implements Menu {
 
         const row = newImages.length ? new ActionRowBuilder().addComponents(new EditInfoMultipleButton().getBuilder(true)) : null;
 
-        if (!replace && interaction.deferred) {
-            await interaction.editReply({
-                content: newImages.length === 0 ? `<@${interaction.user.id}> marked this submission as containing no images` : `<@${interaction.user.id}> set main image${newImages.length > 1 ? 's' : ''} for submission`,
-                embeds,
-                files,
-                allowedMentions: { parse: [] },
-                components: row ? [row as any] : [],
-            })
-        } else if (interaction.replied) {
-            await interaction.followUp({
-                content: newImages.length === 0 ? `<@${interaction.user.id}> marked this submission as containing no images` : `<@${interaction.user.id}> set main image${newImages.length > 1 ? 's' : ''} for submission`,
-                embeds,
-                files,
-                flags: [MessageFlags.SuppressNotifications],
-                allowedMentions: { parse: [] },
-                components: row ? [row as any] : [],
-            })
-        } else {
-            await interaction.reply({
-                content: newImages.length === 0 ? `<@${interaction.user.id}> marked this submission as containing no images` : `<@${interaction.user.id}> set main image${newImages.length > 1 ? 's' : ''} for submission`,
-                embeds,
-                files,
-                flags: [MessageFlags.SuppressNotifications],
-                allowedMentions: { parse: [] },
-                components: row ? [row as any] : [],
-            })
-        }
+        await interaction.followUp({
+            content: newImages.length === 0 ? `<@${interaction.user.id}> marked this submission as containing no images` : `<@${interaction.user.id}> set main image${newImages.length > 1 ? 's' : ''} for submission`,
+            embeds,
+            files,
+            flags: [MessageFlags.SuppressNotifications],
+            allowedMentions: { parse: [] },
+            components: row ? [row as any] : [],
+        }).catch(() => { });
 
         await submission.statusUpdated();
 
