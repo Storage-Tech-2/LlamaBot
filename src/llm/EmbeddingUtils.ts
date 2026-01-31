@@ -2,7 +2,7 @@ import got from "got";
 import HNSW from "hnswlib-node";
 
 const URL = 'http://localhost:8000/embed'
-const NUM_DIMENSIONS = 256;
+const NUM_DIMENSIONS = 512;
 
 export type EmbeddingsEntry = {
     identifier: string;
