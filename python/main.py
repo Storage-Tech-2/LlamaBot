@@ -178,9 +178,9 @@ def embed(req: EmbedRequest, request: Request):
 
         try:
             if req.model_type == "document":
-                embeddings = model.encode(req.texts, truncate_dim=512)
+                embeddings = model.encode(req.texts, truncate_dim=512, normalize_embeddings=True)
             else:
-                embeddings = model.encode(req.texts, truncate_dim=512, prompt_name="query")
+                embeddings = model.encode(req.texts, truncate_dim=512, normalize_embeddings=True, prompt_name="query")
 
             ranges = torch.tensor([[-0.3], [+0.3]]).expand(2, embeddings.shape[1]).cpu().numpy()
             quantized = quantize_embeddings(embeddings, "int8", ranges=ranges)

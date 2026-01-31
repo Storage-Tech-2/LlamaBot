@@ -27,7 +27,7 @@ import { postToMarkdown } from "../utils/MarkdownUtils.js";
 import { base64ToInt8Array, EmbeddingsEntry, EmbeddingsSearchResult as EmbeddingsSearchResult, generateDocumentEmbeddings, getClosestWithIndex, loadHNSWIndex, makeHNSWIndex } from "../llm/EmbeddingUtils.js";
 import { type HierarchicalNSW } from "hnswlib-node";
 import { TemporaryCache } from "./TemporaryCache.js";
-import { AttachmentSource, BaseAttachment } from "../submissions/Attachment.js";
+import { AttachmentSource } from "../submissions/Attachment.js";
 import { GlobalTag } from "./RepositoryConfigs.js";
 import { Tag } from "../submissions/Tag.js";
 
