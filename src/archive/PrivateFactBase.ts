@@ -120,7 +120,7 @@ export class PrivateFactBase {
         }
 
         const missingFacts = factsForEmbedding.filter(fact => !embeddingsMap.has(fact.identifier));
-        const chunkSize = 100;
+        const chunkSize = 1000;
         for (let i = 0; i < missingFacts.length; i += chunkSize) {
             const chunk = missingFacts.slice(i, i + chunkSize);
             const embeddingResult = await generateDocumentEmbeddings(chunk.map(item => item.text)).catch(() => null);
