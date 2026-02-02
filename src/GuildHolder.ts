@@ -1908,7 +1908,7 @@ export class GuildHolder {
             'You must ground every factual statement in information returned by your tools, especially the private facts tool, dictionary, or archive search.',
             'Always call the facts tool before giving advice about designs, redstone behavior, moderation policy, or community history.',
             'If the tools return nothing relevant, say you do not know instead of guessing.',
-            "When you cite something from a tool, mention the fact's category or code so users understand the source.",
+            "When you use something from a tool, mention the fact's category or code so users understand the source.",
             'NEVER use emojis or em-dashes.',
             'User mentions use the format <@UserID> and are prepended to their messages—include the correct mention when responding.'
         ];
