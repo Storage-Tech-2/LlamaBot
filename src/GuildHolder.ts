@@ -2190,7 +2190,7 @@ export class GuildHolder {
                     }
                     try {
                         const queryEmbeddingVector = base64ToInt8Array(queryEmbeddings.embeddings[0]);
-                        const results = await this.privateFactBase.getClosest(queryEmbeddingVector, 10);
+                        const results = await this.privateFactBase.getClosest(queryEmbeddingVector, 5);
                         const data = [];
                         for (const result of results) {
                             const sheet = await this.privateFactBase.getFact(result.identifier);
