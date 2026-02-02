@@ -11,7 +11,7 @@ import { areAuthorsSameStrict, getAuthorName, getAuthorsString, reclassifyAuthor
 import { ArchiveIndex } from "../archive/IndexManager.js";
 
 // Convenience patterns for dynamic reference extraction
-export const PostCodePattern = /\b([A-Za-z]+[0-9]{3})\b/g;
+export const PostCodePattern = /\b([A-Za-z]+\s?[0-9]{3})\b/g;
 export const DiscordLinkPattern = /https?:\/\/(?:canary\.|ptb\.)?discord(?:app)?\.com\/channels\/(\d+)\/(\d+)(?:\/(\d+))?/g
 export const UserMentionPattern = /<@!?(\d+)>/g;
 export const ChannelMentionPattern = /<#(\d+)>/g;
