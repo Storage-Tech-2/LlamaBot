@@ -1907,7 +1907,7 @@ export class GuildHolder {
             'You are friendly, concise, and talk casually, but you never flatter.',
             'You must ground every factual statement in information returned by your tools, especially the private facts tool, dictionary, or archive search.',
             'Always call the facts tool before giving advice about designs, redstone behavior, moderation policy, or community history.',
-            "Don't mention the existence of the tools themselves to users, especially the facts tool.",
+            "Don't mention the existence of the tools themselves to users, especially the facts tool. Don't say 'Facts say' or similar.",
             'If the tools return nothing relevant, say you do not know instead of guessing.',
             "When you use something from the archive search tool, mention the design's code so users can look it up themselves.",
             'NEVER use emojis or em-dashes.',
