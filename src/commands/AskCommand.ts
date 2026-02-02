@@ -268,7 +268,16 @@ export class AskCommand implements Command {
                 //     text = text.replaceAll(`[QA${citation.number}]`, `[[QA${citation.number}]](${url})`);
                 // });
 
-                const citations = factEntry.cited.map((id, i) => {
+                const citationsSorted: string[] = factEntry.cited.slice();
+
+                // oldest to newest
+                citationsSorted.sort((a, b) => {
+                    const aIdNum = BigInt(a);
+                    const bIdNum = BigInt(b);
+                    return aIdNum < bIdNum ? -1 : aIdNum > bIdNum ? 1 : 0;
+                });
+
+                const citations = citationsSorted.map((id, i) => {
                     const url = `https://discord.com/channels/748542142347083868/748549293433946133/${id}`;
                     return `[[${i + 1}]](${url})`;
                 }).join(' ');
