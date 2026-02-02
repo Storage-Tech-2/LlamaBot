@@ -12,6 +12,9 @@ import { Litematic } from '../lib/litematic-reader/main.js'
 import { Author } from '../submissions/Author.js'
 import { findWorldsInZip, optimizeWorldsInZip } from './WDLUtils.js'
 
+// Matches both cdn.discordapp.com and media.discordapp.net attachment URLs
+const DISCORD_ATTACHMENT_REGEX = /^https:\/\/(?:cdn\.discordapp\.com|media\.discordapp\.net)\/attachments\//;
+
 export async function changeImageName(processed_folder: string, oldImage: BaseAttachment, newImage: BaseAttachment): Promise<void> {
 
     const oldPath = Path.join(processed_folder, getFileKey(oldImage, 'png'));
@@ -580,7 +583,7 @@ export function getAttachmentsFromText(text: string, attachments: BaseAttachment
                     description: description || '',
                     canDownload: false // YouTube links cannot be downloaded directly
                 })
-            } else if (url.startsWith('https://cdn.discordapp.com/attachments/')) {
+            } else if (DISCORD_ATTACHMENT_REGEX.test(url)) {
                 // https://cdn.discordapp.com/attachments/749137321710059542/912059917106548746/Unbreakable_8gt_reset_6gt_box_replacement.litematic?ex=6832c4bd&is=6831733d&hm=1e5ff51ca94199d70f26ad2611715c86afbb095e3da120416e55352ccf43f7a4&
                 const id = url.split('/')[5]
                 const name = url.split('/')[6].split('?')[0]
@@ -699,8 +702,8 @@ export async function refreshAttachments(
         const url = obj.url;
         if (!url) return false; // No URL provided
 
-        // Check if discord cdn
-        if (!url.startsWith('https://cdn.discordapp.com/attachments/')) {
+        // Check if discord cdn (supports both cdn.discordapp.com and media.discordapp.net)
+        if (!DISCORD_ATTACHMENT_REGEX.test(url)) {
             return false; // Not a Discord CDN URL
         }
         // get the `ex` parameter from the URL
