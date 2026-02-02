@@ -9,6 +9,7 @@ import { AddImageModal } from "./AddImageModal.js";
 import { FactEditModal } from "./FactEditModal.js";
 import { SetDescriptionModal } from "./SetDescriptionModal.js";
 import { GlobalTagModal } from "./GlobalTagModal.js";
+import { PublishAddSummaryModal } from "./PublishAddSummaryModal.js";
 
 export function getModals(): Modal[] {
     const Modals: Modal[] = [
@@ -22,6 +23,7 @@ export function getModals(): Modal[] {
         new FactEditModal(),
         new SetDescriptionModal(),
         new GlobalTagModal(),
+        new PublishAddSummaryModal(),
     ];
     return Modals;
 }
