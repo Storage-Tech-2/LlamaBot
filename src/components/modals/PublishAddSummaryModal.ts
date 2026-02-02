@@ -1,7 +1,7 @@
 import { LabelBuilder, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
-import { canPublishSubmission, replyEphemeral } from "../../utils/Util.js";
+import { canPublishSubmission, replyEphemeral, truncateStringWithEllipsis } from "../../utils/Util.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { PublishCommitMessage } from "../../submissions/Publish.js";
 
@@ -114,7 +114,7 @@ export class PublishAddSummaryModal implements Modal {
         const detailedMessage = publishMessage.detailedDescription ? `\nDetails:\n${publishMessage.detailedDescription}` : '';
         
         await interaction.followUp({
-            content: message + lockNote + commitMessage + detailedMessage,
+            content: truncateStringWithEllipsis(message + lockNote + commitMessage + detailedMessage, 2000),
         });
 
     }
