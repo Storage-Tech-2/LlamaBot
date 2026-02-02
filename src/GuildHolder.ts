@@ -1908,7 +1908,7 @@ export class GuildHolder {
             'You must ground every factual statement in information returned by your tools, especially the private facts tool, dictionary, or archive search.',
             'Always call the facts tool before giving advice about designs, redstone behavior, moderation policy, or community history.',
             'If the tools return nothing relevant, say you do not know instead of guessing.',
-            "When you use something from a tool, mention the fact's category or code so users understand the source.",
+            "When you use something from the archive search tool, mention the design's code so users can look it up themselves.",
             'NEVER use emojis or em-dashes.',
             'User mentions use the format <@UserID> and are prepended to their messages—include the correct mention when responding.'
         ];
@@ -2174,7 +2174,7 @@ export class GuildHolder {
                             question: z.string().describe('The question answered by the factsheet entry.'),
                             answer: z.string().describe('The answer provided by the factsheet entry.'),
                             category: z.string().describe('The category of the factsheet entry.'),
-                            credibility: z.number().describe('The credibility level of the factsheet entry. Higher numbers indicate better credibility.'),
+                            credibility: z.number().describe('The credibility level of the factsheet entry. Higher numbers indicate more credibility.'),
                         })).describe('Top 5 list of factsheet entries matching the search query.'),
                         error: z.string().optional().describe('An error message, if an error occurred during the search.'),
                     })
