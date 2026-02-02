@@ -52,17 +52,8 @@ export class PrivateFactBase {
             return;
         }
 
-        console.log(`[PrivateFactBase] Found ${factCategories.length} fact categories.`);
 
-        // check if embeddings file exists
-        const embeddings = await this.getEmbeddings();
-        if (!embeddings) {
-            // make embeddings for all facts
-            await this.buildEmbeddingsIndex();
-            this.isEnabled = true;
-            return;
-        }
-
+        await this.buildEmbeddingsIndex();
         this.isEnabled = true;
     }
 
@@ -223,7 +214,7 @@ export class PrivateFactBase {
         }
 
         const path = Path.join(this.folderPath, `${category}.json`);
-        
+
         const data = await fs.readFile(path, 'utf-8').then(content => JSON.parse(content) as QAFactSheet[]).catch(() => null);
         if (!data) {
             return null;
@@ -244,7 +235,7 @@ export class PrivateFactBase {
         }
 
         const path = Path.join(this.folderPath, `${category}.json`);
-        
+
         // read existing file
         const data = await fs.readFile(path, 'utf-8').then(content => JSON.parse(content) as QAFactSheet[]).catch(() => null);
         if (!data) {
@@ -279,7 +270,7 @@ export class PrivateFactBase {
         // save embeddings
         const embeddingsPath = this.getEmbeddingsPath();
         await fs.writeFile(embeddingsPath, JSON.stringify(embeddings, null, 2), 'utf-8');
-        
+
         // rebuild index
         await this.buildEmbeddingsIndex();
     }
