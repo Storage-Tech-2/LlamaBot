@@ -532,6 +532,11 @@ export function getAttachmentsFromText(text: string, attachments: BaseAttachment
                 // then get whole line before that
                 const lineStart = text.lastIndexOf('\n', index - 2) + 1;
                 description = text.substring(lineStart, index - 2).trim();
+
+                // make sure description doesn't start with a dash, or star (used for lists)
+                if (description.startsWith('- ') || description.startsWith('* ')) {
+                    description = description.substring(2).trim();
+                }
             }
 
             // if description is too long, truncate it
