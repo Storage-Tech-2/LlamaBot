@@ -79,11 +79,11 @@ export class EditorPowersCommand implements Command {
                     .setName('publish')
                     .setDescription('Publish a submission directly')
                     .addStringOption(option =>
-                        option.setName('commitMessage')
+                        option.setName('message')
                             .setDescription('One line summary of changes made')
                     )
                     .addStringOption(option =>
-                        option.setName('detailedMessage')
+                        option.setName('details')
                             .setDescription('Optional detailed description of changes made')
                     )
                     .addBooleanOption(option =>
@@ -289,8 +289,8 @@ export class EditorPowersCommand implements Command {
                     replyEphemeral(interaction, 'Submission is not publishable yet!');
                     return;
                 }
-                const commitMessageRaw = interaction.options.getString('commitMessage') || undefined;
-                const detailedMessageRaw = interaction.options.getString('detailedMessage') || undefined;
+                const commitMessageRaw = interaction.options.getString('message') || undefined;
+                const detailedMessageRaw = interaction.options.getString('details') || undefined;
                 const silent = interaction.options.getBoolean('silent') || false;
                 const refresh = interaction.options.getBoolean('refresh') || false;
 
