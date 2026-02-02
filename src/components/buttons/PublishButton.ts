@@ -3,6 +3,7 @@ import { GuildHolder } from "../../GuildHolder.js";
 import { Button } from "../../interface/Button.js";
 import { canPublishSubmission, replyEphemeral } from "../../utils/Util.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
+import { PublishAddSummaryModal } from "../modals/PublishAddSummaryModal.js";
 
 export class PublishButton implements Button {
     getID(): string {
@@ -35,12 +36,18 @@ export class PublishButton implements Button {
             return;
         }
 
+        const existing = await guildHolder.getRepositoryManager().findEntryBySubmissionId(submission.getId());
+        if (existing) {
+            await interaction.showModal(new PublishAddSummaryModal().getBuilder())
+            return;
+        }
+        
         const msg = await interaction.reply({
             content: `<@${interaction.user.id}> initiated publishing!`,
         });
 
         try {
-            await submission.publish(false, false, async (status: string) => {
+            await submission.publish(false, false,undefined, async (status: string) => {
                 await msg.edit({ content: `<@${interaction.user.id}> initiated publishing!\nStatus: ${status}` });
             });
         } catch(e: any) {
@@ -51,12 +58,12 @@ export class PublishButton implements Button {
             return;
         }
 
-        msg.edit({ content: `<@${interaction.user.id}> published the submission!` });
+        await msg.delete().catch(() => { });
 
         const url = submission.getConfigManager().getConfig(SubmissionConfigs.POST)?.threadURL;
         const isLocked = submission.getConfigManager().getConfig(SubmissionConfigs.IS_LOCKED);
         await interaction.followUp({
-            content: `Submission published successfully! ${url}` + (isLocked ? `\nNote: The submission has been locked to prevent further edits. Please contact an editor/endorser if you need to make changes.` : ''),
+            content: `<@!${interaction.user.id}> published the submission! ${url}` + (isLocked ? `\nNote: The submission has been locked to prevent further edits. Please contact an editor/endorser if you need to make changes.` : ''),
         });
     }
 

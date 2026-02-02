@@ -23,6 +23,7 @@ import { GuildConfigs } from "../config/GuildConfigs.js";
 import { processImages, processAttachments, getAllAttachments, optimizeAttachments } from "../utils/AttachmentUtils.js";
 import { RuleMatcher } from "../utils/RuleMatcher.js";
 import { tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
+import { PublishCommitMessage } from "./Publish.js";
 
 export class Submission {
     private guildHolder: GuildHolder;
@@ -872,7 +873,7 @@ export class Submission {
         return found || null;
     }
 
-    public async publish(silent: boolean = false, force: boolean = false, statusCallback?: (status: string) => Promise<void>) {
+    public async publish(silent: boolean = false, force: boolean = false, details?: PublishCommitMessage, statusCallback?: (status: string) => Promise<void>) {
         if (this.publishLock) {
             throw new Error('Publish is already in progress');
         }
@@ -885,7 +886,7 @@ export class Submission {
         await this.optimizeAttachments(statusCallback);
 
         try {
-            const dt = await this.guildHolder.getRepositoryManager().addOrUpdateEntryFromSubmission(this, force, statusCallback);
+            const dt = await this.guildHolder.getRepositoryManager().addOrUpdateEntryFromSubmission(this, force, details, statusCallback);
             oldEntryData = dt.oldEntryData;
             newEntryData = dt.newEntryData;
         } catch (error) {
@@ -899,7 +900,7 @@ export class Submission {
 
         if (!silent) {
             try {
-                await this.guildHolder.logUpdate(oldEntryData, newEntryData);
+                await this.guildHolder.logUpdate(oldEntryData, newEntryData, details);
             } catch (error) {
                 this.publishLock = false;
                 throw error;

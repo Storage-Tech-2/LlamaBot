@@ -30,6 +30,7 @@ import { TemporaryCache } from "./TemporaryCache.js";
 import { AttachmentSource } from "../submissions/Attachment.js";
 import { GlobalTag } from "./RepositoryConfigs.js";
 import { Tag } from "../submissions/Tag.js";
+import { PublishCommitMessage } from "../submissions/Publish.js";
 
 export class RepositoryManager {
     public folderPath: string;
@@ -1210,6 +1211,7 @@ export class RepositoryManager {
     async addOrUpdateEntryFromSubmission(
         submission: Submission,
         forceNew: boolean,
+        details?: PublishCommitMessage,
         statusCallback?: (status: string) => Promise<void>
     ): Promise<{ oldEntryData?: ArchiveEntryData, newEntryData: ArchiveEntryData }> {
 
@@ -1419,11 +1421,24 @@ export class RepositoryManager {
 
             await this.buildPersistentIndexAndEmbeddings();
 
+            let commitMessage = '';
             if (oldEntryData) {
-                await this.commit(`${newEntryData.code}: ${generateCommitMessage(oldEntryData, newEntryData)}`);
+                commitMessage = `${newEntryData.code}: ${generateCommitMessage(oldEntryData, newEntryData)}`;
             } else {
-                await this.commit(`Added entry ${newEntryData.name} (${newEntryData.code}) to channel ${archiveChannelData.getData().name} (${archiveChannelData.getData().code})`);
+                commitMessage = `Added entry ${newEntryData.name} (${newEntryData.code}) to channel ${archiveChannelData.getData().name} (${archiveChannelData.getData().code})`;
             }
+            
+            if (details) {
+                if (details.message) {
+                    commitMessage = details.message;
+                }
+
+                if (details.detailedDescription) {
+                    commitMessage += `\n\n${details.detailedDescription}`;
+                }
+            }
+
+            await this.commit(commitMessage);
             try {
                 await this.push();
             } catch (e: any) {

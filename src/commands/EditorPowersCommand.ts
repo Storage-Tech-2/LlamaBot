@@ -279,7 +279,7 @@ export class EditorPowersCommand implements Command {
                 const refresh = interaction.options.getBoolean('refresh') || false;
                 await interaction.deferReply();
                 try {
-                    await submission.publish(true, refresh, async (status: string) => {
+                    await submission.publish(true, refresh, undefined, async (status: string) => {
                         await interaction.editReply(status).catch(() => { });
                     });
                 } catch (e: any) {

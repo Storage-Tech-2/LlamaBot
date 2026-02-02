@@ -30,6 +30,7 @@ import { PrivateFactBase } from "./archive/PrivateFactBase.js";
 import { AliasManager } from "./support/AliasManager.js";
 import { LiftTimeoutButton } from "./components/buttons/LiftTimeoutButton.js";
 import { BanUserButton } from "./components/buttons/BanUserButton.js";
+import { PublishCommitMessage } from "./submissions/Publish.js";
 /**
  * GuildHolder is a class that manages guild-related data.
  */
@@ -452,7 +453,7 @@ export class GuildHolder {
     }
 
     public async getReferenceEmbedsFromMessage(content: string, autoLookupEnabled: boolean, autoJoinEnabled: boolean, maxEmbeds: number = 3) {
-      
+
         let discordServerMatches = getDiscordLinksInText(content);
         const aliasCodes = new Set<string>();
         if (discordServerMatches.length > 0) {
@@ -1308,7 +1309,7 @@ export class GuildHolder {
 
 
 
-    public async logUpdate(oldEntryData: ArchiveEntryData | undefined, newEntryData: ArchiveEntryData) {
+    public async logUpdate(oldEntryData: ArchiveEntryData | undefined, newEntryData: ArchiveEntryData, details?: PublishCommitMessage) {
 
         const logChannelId = this.getConfigManager().getConfig(GuildConfigs.LOGS_CHANNEL_ID);
         if (!logChannelId) {
@@ -1347,14 +1348,27 @@ export class GuildHolder {
             embed.setThumbnail(newEntryData.images[0].url);
         }
 
+        let messageTitle = null;
+        let messageDescription = null;
+
+        if (details?.message) {
+            messageTitle = truncateStringWithEllipsis(`${newEntryData.code}: ${details.message}`, 256);
+        }
+
+        if (details?.detailedDescription) {
+            messageDescription = truncateStringWithEllipsis(`**Name:** ${newEntryData.name}\n${details.detailedDescription}\n[Submission Thread](${submissionThread.url})`, 4000);
+        }
+
         if (!oldEntryData) {
-            embed.setTitle(`Added ${newEntryData.code} to ${forumChannel.name}`)
-            embed.setDescription(`**Name:** ${newEntryData.name}\n[Submission Thread](${submissionThread.url})`);
+            embed.setTitle(messageTitle ?? `Added ${newEntryData.code} to ${forumChannel.name}`)
+            embed.setDescription(messageDescription ?? `**Name:** ${newEntryData.name}\n[Submission Thread](${submissionThread.url})`);
             embed.setURL(newEntryData.post?.threadURL || '');
             embed.setColor(0x00FF00); // Green for new entry
         } else {
             const changes = getChanges(oldEntryData, newEntryData);
-            if (changes.code) {
+            if (messageTitle) {
+                embed.setTitle(messageTitle);
+            } else if (changes.code) {
                 embed.setTitle(`Moved ${oldEntryData.code} to ${forumChannel.name}`);
             } else if (changes.name) {
                 embed.setTitle(`Updated name for ${newEntryData.code} in ${forumChannel.name}`);
@@ -1390,7 +1404,7 @@ export class GuildHolder {
                 }
             }
 
-            embed.setDescription(`**Name:** ${newEntryData.name}\n[Submission Thread](${submissionThread.url})`);
+            embed.setDescription(messageDescription ?? `**Name:** ${newEntryData.name}\n[Submission Thread](${submissionThread.url})`);
             embed.setURL(newEntryData.post?.threadURL || '');
 
             const fields = [];
@@ -1414,7 +1428,9 @@ export class GuildHolder {
 
             if (changes.images) fields.push({ name: 'Images', value: `*${oldEntryData.images.length} images* → *${newEntryData.images.length} images*` });
             if (changes.attachments) fields.push({ name: 'Attachments', value: `*${oldEntryData.attachments.map(o => escapeDiscordString(o.name)).join(", ")} attachments* → *${newEntryData.attachments.map(o => escapeDiscordString(o.name)).join(", ")} attachments*` });
-            embed.addFields(fields);
+            if (!messageDescription) {
+                embed.addFields(fields);
+            }
             embed.setColor(0xFFFF00); // Yellow for update
         }
 
@@ -1586,7 +1602,7 @@ export class GuildHolder {
             }
         });
 
-        await this.repositoryManager.applyGlobalTagChanges( working, { renamedFromMap: filteredRenames, deleteRemovedTagNames: filteredDeletes });
+        await this.repositoryManager.applyGlobalTagChanges(working, { renamedFromMap: filteredRenames, deleteRemovedTagNames: filteredDeletes });
         this.clearGlobalTagQueue();
         return true;
     }
@@ -1963,7 +1979,7 @@ export class GuildHolder {
         const relevantMessages = messages.filter(msg => msg.createdTimestamp >= tenMinutesAgo);
         // Sort messages so that newest is last
         const sortedMessages = relevantMessages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
-        
+
 
         const messagesIn: { mid: Snowflake, id: number, obj: ModelMessage }[] = [];
 
@@ -2273,7 +2289,7 @@ export class GuildHolder {
 
         responseText = responseText.trim();
 
-    
+
 
         const inTextReferences: Reference[] = await tagReferences(responseText, [], this, '', false);
         const filteredReferences = inTextReferences.filter(ref => {
