@@ -1,12 +1,13 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType, ChannelType, ForumChannel, CategoryChannel } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
-import { getCodeAndDescriptionFromTopic, isEditor, isEndorser, isModerator, replyEphemeral } from "../utils/Util.js";
+import { getCodeAndDescriptionFromTopic, isEditor, isEndorser, isModerator, replyEphemeral, truncateStringWithEllipsis } from "../utils/Util.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
 import { SetTemplateModal } from "../components/modals/SetTemplateModal.js";
 import { retagEverythingTask } from "../archive/Tasks.js";
+import { PublishCommitMessage } from "../submissions/Publish.js";
 
 export class EditorPowersCommand implements Command {
     getID(): string {
@@ -75,11 +76,23 @@ export class EditorPowersCommand implements Command {
             )
             .addSubcommand(subcommand =>
                 subcommand
-                    .setName('publishsilently')
-                    .setDescription('Publish a submission without an archive-updates message')
+                    .setName('publish')
+                    .setDescription('Publish a submission directly')
+                    .addStringOption(option =>
+                        option.setName('commitMessage')
+                            .setDescription('One-line summary of changes made')
+                    )
+                    .addStringOption(option =>
+                        option.setName('detailedMessage')
+                            .setDescription('Optional detailed description of changes made')
+                    )
                     .addBooleanOption(option =>
                         option.setName('refresh')
                             .setDescription('Force remaking the post thread entirely')
+                    )
+                    .addBooleanOption(option =>
+                        option.setName('silent')
+                            .setDescription('Publish without notifications')
                     )
             )
             .addSubcommand(subcommand =>
@@ -271,15 +284,27 @@ export class EditorPowersCommand implements Command {
                 });
                 break;
             }
-            case 'publishsilently':
+            case 'publish':
                 if (!submission.isPublishable()) {
                     replyEphemeral(interaction, 'Submission is not publishable yet!');
                     return;
                 }
+                const commitMessageRaw = interaction.options.getString('commitMessage') || undefined;
+                const detailedMessageRaw = interaction.options.getString('detailedMessage') || undefined;
+                const silent = interaction.options.getBoolean('silent') || false;
                 const refresh = interaction.options.getBoolean('refresh') || false;
-                await interaction.deferReply();
+
+                const messageDetails: PublishCommitMessage = {
+                    message: commitMessageRaw,
+                    detailedDescription: detailedMessageRaw,
+                };
+
+                const publishMessage = await interaction.reply({
+                    content: `<@${interaction.user.id}> has initiated publishing this submission...`,
+                });
+
                 try {
-                    await submission.publish(true, refresh, undefined, async (status: string) => {
+                    await submission.publish(silent, refresh, messageDetails, async (status: string) => {
                         await interaction.editReply(status).catch(() => { });
                     });
                 } catch (e: any) {
@@ -289,8 +314,21 @@ export class EditorPowersCommand implements Command {
                 }
                 const url = submission.getConfigManager().getConfig(SubmissionConfigs.POST)?.threadURL;
 
-                await interaction.editReply({
-                    content: `<@${interaction.user.id}> has published this submission silently! ${url}\nNote that the submission has been locked to prevent further edits. Contact an editor/endorser if you need to make changes.`,
+                await publishMessage.delete().catch(() => { });
+
+                // await interaction.editReply({
+                //     content: `<@${interaction.user.id}> has published this submission silently! ${url}\nNote that the submission has been locked to prevent further edits. Contact an editor/endorser if you need to make changes.`,
+                // });
+                const isLocked = submission.getConfigManager().getConfig(SubmissionConfigs.IS_LOCKED);
+
+                const message = `<@${interaction.user.id}> published the submission${silent ? ' silently' : ''}! ${url}`;
+                const lockNote = isLocked ? `\nNote: The submission has been locked to prevent further edits. Please contact an editor/endorser if you need to make changes.` : '';
+
+                const commitMessage = messageDetails.message ? `\nSummary: ${messageDetails.message}` : '';
+                const detailedMessage = messageDetails.detailedDescription ? `\nDetails:\n${messageDetails.detailedDescription}` : '';
+
+                await interaction.followUp({
+                    content: truncateStringWithEllipsis(message + lockNote + commitMessage + detailedMessage, 2000),
                 });
                 break;
             case 'announce':
