@@ -2,40 +2,39 @@ import { LabelBuilder, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, T
 import { Modal } from "../../interface/Modal.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { isAdmin, isEditor, isModerator, replyEphemeral } from "../../utils/Util.js";
-import { FactSheet } from "../../archive/PrivateFactBase.js";
+import { QAFactSheet } from "../../archive/PrivateFactBase.js";
 
 export class FactEditModal implements Modal {
     getID(): string {
         return "facteditmodal";
     }
 
-    async getBuilder(identifier: string, entry: FactSheet): Promise<ModalBuilder> {
+    async getBuilder(identifier: string, entry: QAFactSheet): Promise<ModalBuilder> {
         const modal = new ModalBuilder()
             .setCustomId(`${this.getID()}|${identifier}`)
             .setTitle('Edit Fact Entry');
 
-        const termsInput = new TextInputBuilder()
-            .setCustomId('title')
+        const questionInput = new TextInputBuilder()
+            .setCustomId('question')
             .setRequired(true)
-            .setStyle(TextInputStyle.Short)
-            .setValue(entry.page_title || '');
+            .setStyle(TextInputStyle.Paragraph)
+            .setValue(entry.question || '');
 
-        const termsLabel = new LabelBuilder()
-            .setLabel('Page Title:')
-            .setTextInputComponent(termsInput);
+        const questionLabel = new LabelBuilder()
+            .setLabel('Question:')
+            .setTextInputComponent(questionInput);
 
-        const definitionInput = new TextInputBuilder()
-            .setCustomId('text')
+        const answerInput = new TextInputBuilder()
+            .setCustomId('answer')
             .setRequired(false)
             .setStyle(TextInputStyle.Paragraph)
-            .setValue(entry.text || '');
+            .setValue(entry.answer || '');
 
-        const definitionLabel = new LabelBuilder()
-            .setLabel('Page Text:')
-            .setTextInputComponent(definitionInput);
+        const answerLabel = new LabelBuilder()
+            .setLabel('Answer:')
+            .setTextInputComponent(answerInput);
 
-        modal.addLabelComponents(termsLabel, definitionLabel);
-
+        modal.addLabelComponents(questionLabel, answerLabel);
         return modal;
     }
 
@@ -55,15 +54,14 @@ export class FactEditModal implements Modal {
 
         await interaction.deferReply();
 
-        const newTitle = interaction.fields.getTextInputValue('title').trim();
-        const newText = interaction.fields.getTextInputValue('text').trim();
-        const oldTitle = entry.page_title || '';
-        entry.page_title = newTitle;
-        entry.text = newText;
+        const newQuestion = interaction.fields.getTextInputValue('question').trim();
+        const newAnswer = interaction.fields.getTextInputValue('answer').trim();
+        const oldQuestion = entry.question || '';
+        entry.question = newQuestion;
+        entry.answer = newAnswer;
 
         await factManager.updateFact(entryId, entry);
 
-        await interaction.editReply(`<@${interaction.user.id}> updated fact entry ${oldTitle !== newTitle ? ` ${oldTitle} -> ${newTitle}` : newTitle}.`);
-
+        await interaction.editReply(`<@${interaction.user.id}> updated fact entry ${oldQuestion !== newQuestion ? ` ${oldQuestion} -> ${newQuestion}` : newQuestion}.`);
     }
 }

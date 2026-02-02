@@ -3,22 +3,16 @@ import fs from "fs/promises";
 import { EmbeddingsEntry, base64ToInt8Array, makeHNSWIndex, EmbeddingsSearchResult, loadHNSWIndex, generateDocumentEmbeddings } from "../llm/EmbeddingUtils.js";
 import { TemporaryCache } from "./TemporaryCache.js";
 import { HierarchicalNSW } from "hnswlib-node";
+import { Snowflake } from "discord.js";
 
-export type Citation = {
-    number: number;
+export type QAFactSheet = {
+    identifier: string;
     question: string;
     answer: string;
-    timestamp: number;
-    message_ids: string[];
+    category: string;
+    cited: Array<Snowflake>;
 }
 
-export type FactSheet = {
-    index: number;
-    cluster_id: number;
-    page_title?: string;
-    text: string;
-    cited: Array<Citation>;
-}
 
 export class PrivateFactBase {
     private isEnabled: boolean = false;
@@ -32,19 +26,39 @@ export class PrivateFactBase {
         this.init();
     }
 
+    private async getJSONFileList(): Promise<string[]> {
+        try {
+            const files = await fs.readdir(this.folderPath);
+            return files.filter(file => file.endsWith('.json'));
+        } catch (e) {
+            return [];
+        }
+    }
+
+    private async getFactsCategories(): Promise<string[]> {
+        const jsonFiles = await this.getJSONFileList();
+        // every file except embeddings.json and embeddings_lookup.json is a fact category
+        const categories = jsonFiles.filter(file => file !== 'embeddings.json' && file !== 'embeddings_lookup.json')
+            .map(file => file.replace('.json', ''));
+        return categories;
+    }
+
     private async init() {
-        // first, check if embeddings file exists
-        const embeddings = await this.getEmbeddings();
-        if (!embeddings || embeddings.length === 0) {
+
+        // first, check if JSON files exist in the folder
+        const factCategories = await this.getFactsCategories();
+        if (factCategories.length === 0) {
             this.isEnabled = false;
             return;
         }
 
-        // next, check if index file exists, if it doesnt make it
-        try {
-            await fs.access(this.getEmbeddingsIndexPath());
-        } catch (e) {
+        // check if embeddings file exists
+        const embeddings = await this.getEmbeddings();
+        if (!embeddings) {
+            // make embeddings for all facts
             await this.buildEmbeddingsIndex();
+            this.isEnabled = true;
+            return;
         }
 
         this.isEnabled = true;
@@ -70,11 +84,86 @@ export class PrivateFactBase {
     }
 
     async buildEmbeddingsIndex(): Promise<void> {
-        const embeddings = await this.getEmbeddings();
-        const embeddingVectors: Int8Array[] = embeddings.map(entry => {
-            return base64ToInt8Array(entry.embedding);
-        });
-        const lookupFile = embeddings.map(entry => entry.identifier);
+        const factCategories = await this.getFactsCategories();
+        const factsForEmbedding: Array<{ identifier: string; text: string; }> = [];
+
+        for (const category of factCategories) {
+            const categoryPath = Path.join(this.folderPath, `${category}.json`);
+            const fileContents = await fs.readFile(categoryPath, 'utf-8').catch(() => null);
+            if (!fileContents) {
+                continue;
+            }
+
+            let facts: QAFactSheet[] = [];
+            try {
+                facts = JSON.parse(fileContents) as QAFactSheet[];
+            } catch (e) {
+                continue;
+            }
+
+            for (const fact of facts) {
+                const identifier = `${category}::${fact.identifier}`;
+                const text = `Q: ${fact.question}\nA: ${fact.answer}`;
+                factsForEmbedding.push({ identifier, text });
+            }
+        }
+
+        if (factsForEmbedding.length === 0) {
+            await fs.writeFile(this.getEmbeddingsPath(), JSON.stringify([], null, 2), 'utf-8').catch(() => null);
+            await fs.writeFile(Path.join(this.folderPath, 'embeddings_lookup.json'), JSON.stringify([], null, 2), 'utf-8').catch(() => null);
+            await fs.unlink(this.getEmbeddingsIndexPath()).catch(() => null);
+            this.hnswIndexCache.clear();
+            return;
+        }
+
+        const existingEmbeddings = await this.getEmbeddings();
+        const embeddingsMap = new Map<string, EmbeddingsEntry>(existingEmbeddings.map(entry => [entry.identifier, entry]));
+        const validIdentifiers = new Set(factsForEmbedding.map(fact => fact.identifier));
+
+        for (const identifier of Array.from(embeddingsMap.keys())) {
+            if (!validIdentifiers.has(identifier)) {
+                embeddingsMap.delete(identifier);
+            }
+        }
+
+        const missingFacts = factsForEmbedding.filter(fact => !embeddingsMap.has(fact.identifier));
+        const chunkSize = 100;
+        for (let i = 0; i < missingFacts.length; i += chunkSize) {
+            const chunk = missingFacts.slice(i, i + chunkSize);
+            const embeddingResult = await generateDocumentEmbeddings(chunk.map(item => item.text)).catch(() => null);
+            if (!embeddingResult || embeddingResult.embeddings.length === 0) {
+                continue;
+            }
+
+            for (let j = 0; j < chunk.length && j < embeddingResult.embeddings.length; j++) {
+                const chunkItem = chunk[j];
+                embeddingsMap.set(chunkItem.identifier, {
+                    identifier: chunkItem.identifier,
+                    embedding: embeddingResult.embeddings[j],
+                    updated_at: Date.now(),
+                });
+            }
+        }
+
+        const orderedEmbeddings: EmbeddingsEntry[] = [];
+        for (const fact of factsForEmbedding) {
+            const entry = embeddingsMap.get(fact.identifier);
+            if (entry) {
+                orderedEmbeddings.push(entry);
+            }
+        }
+
+        await fs.writeFile(this.getEmbeddingsPath(), JSON.stringify(orderedEmbeddings, null, 2), 'utf-8');
+
+        if (orderedEmbeddings.length === 0) {
+            await fs.writeFile(Path.join(this.folderPath, 'embeddings_lookup.json'), JSON.stringify([], null, 2), 'utf-8');
+            await fs.unlink(this.getEmbeddingsIndexPath()).catch(() => null);
+            this.hnswIndexCache.clear();
+            return;
+        }
+
+        const embeddingVectors: Int8Array[] = orderedEmbeddings.map(entry => base64ToInt8Array(entry.embedding));
+        const lookupFile = orderedEmbeddings.map(entry => entry.identifier);
         await fs.writeFile(Path.join(this.folderPath, 'embeddings_lookup.json'), JSON.stringify(lookupFile, null, 2), 'utf-8');
         await makeHNSWIndex(embeddingVectors, this.getEmbeddingsIndexPath());
         this.hnswIndexCache.clear();
@@ -122,32 +211,50 @@ export class PrivateFactBase {
         return closestEntries;
     }
 
-    async getFact(identifier: string): Promise<FactSheet | null> {
+    async getFact(identifier: string): Promise<QAFactSheet | null> {
         if (!this.isEnabled) {
             return null;
         }
-        const path = Path.join(this.folderPath, 'facts', `${identifier}.json`);
-        try {
-            const data = await fs.readFile(path, 'utf-8');
-            return JSON.parse(data) as FactSheet;
-        } catch (e) {
+        const [category, factId] = identifier.split('::');
+        if (!category || !factId) {
             return null;
         }
+
+        const path = Path.join(this.folderPath, `${category}.json`);
+        
+        const data = await fs.readFile(path, 'utf-8').then(content => JSON.parse(content) as QAFactSheet[]).catch(() => null);
+        if (!data) {
+            return null;
+        }
+
+        const fact = data.find(f => f.identifier === factId);
+        return fact || null;
     }
 
 
-    async updateFact(identifier: string, entry: FactSheet): Promise<void> {
+    async updateFact(identifier: string, entry: QAFactSheet): Promise<void> {
         if (!this.isEnabled) {
             return;
         }
-
-        const path = Path.join(this.folderPath, 'facts', `${identifier}.json`);
-        // check if exists
-        try {
-            await fs.access(path);
-        } catch (e) {
+        const [category, factId] = identifier.split('::');
+        if (!category || !factId) {
             return;
         }
+
+        const path = Path.join(this.folderPath, `${category}.json`);
+        
+        // read existing file
+        const data = await fs.readFile(path, 'utf-8').then(content => JSON.parse(content) as QAFactSheet[]).catch(() => null);
+        if (!data) {
+            return;
+        }
+
+        // find and update entry
+        const index = data.findIndex(f => f.identifier === factId);
+        if (index === -1) {
+            return;
+        }
+        data[index] = entry;
 
         // write updated entry
         await fs.writeFile(path, JSON.stringify(entry, null, 2), 'utf-8');
@@ -160,7 +267,7 @@ export class PrivateFactBase {
         }
 
         // re-embed text
-        const text = `# ${entry.page_title || ''}\n${entry.text}`;
+        const text = `Q: ${entry.question}\nA: ${entry.answer}`;
         const newEmbedding = await generateDocumentEmbeddings([text]).catch(() => null);
         if (!newEmbedding || newEmbedding.embeddings.length === 0) {
             return;

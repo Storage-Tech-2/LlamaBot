@@ -2138,14 +2138,17 @@ export class GuildHolder {
 
         if (this.privateFactBase.isFactBaseEnabled()) {
             tools.facts = {
-                description: 'Lookup information from the private fact database. This is the largest resource. Use this resource frequently to understand comprehensive knowledge about Minecraft, redstone, and common community practices. Always check this before making recommendations.',
+                description: 'Lookup information from the private question-answer database. This is the largest resource. Use this resource frequently to understand comprehensive knowledge about Minecraft, redstone, and common community practices. Always check this before making recommendations.',
                 inputSchema: z.object({
                     query: z.string().min(1).max(256).describe('The search query to find relevant factsheet information.'),
                 }),
                 outputSchema: zodSchema(
                     z.object({
                         results: z.array(z.object({
-                            content: z.string().describe('The content of the factsheet.'),
+                            question: z.string().describe('The question answered by the factsheet entry.'),
+                            answer: z.string().describe('The answer provided by the factsheet entry.'),
+                            category: z.string().describe('The category of the factsheet entry.'),
+                            credibility: z.number().describe('The credibility level of the factsheet entry. Higher numbers indicate more citations.'),
                         })).describe('Top 5 list of factsheet entries matching the search query.'),
                         error: z.string().optional().describe('An error message, if an error occurred during the search.'),
                     })
@@ -2161,14 +2164,16 @@ export class GuildHolder {
                     }
                     try {
                         const queryEmbeddingVector = base64ToInt8Array(queryEmbeddings.embeddings[0]);
-                        const results = await this.privateFactBase.getClosest(queryEmbeddingVector, 5);
+                        const results = await this.privateFactBase.getClosest(queryEmbeddingVector, 10);
                         const data = [];
                         for (const result of results) {
                             const sheet = await this.privateFactBase.getFact(result.identifier);
                             if (sheet) {
-                                const text = sheet.text.replace(/\[QA\d+\]/g, '').trim();
                                 data.push({
-                                    content: sheet.page_title ? `# ${sheet.page_title}\n\n${text}` : text,
+                                    question: sheet.question,
+                                    answer: sheet.answer,
+                                    category: sheet.category,
+                                    credibility: sheet.cited.length,
                                 });
                             }
                         }

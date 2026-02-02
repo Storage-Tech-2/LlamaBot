@@ -261,17 +261,25 @@ export class AskCommand implements Command {
                 const factEntry = await guildHolder.getFactManager().getFact(entry.identifier);
                 if (!factEntry) continue;
 
-                // first parse citations [QAxx]
-                let text = factEntry.text;
-                factEntry.cited.forEach(citation => {
-                    const url = `https://discord.com/channels/748542142347083868/748549293433946133/${citation.message_ids[0]}`;
-                    text = text.replaceAll(`[QA${citation.number}]`, `[[QA${citation.number}]](${url})`);
-                });
+                // // first parse citations [QAxx]
+                // let text = factEntry.text;
+                // factEntry.cited.forEach(citation => {
+                //     const url = `https://discord.com/channels/748542142347083868/748549293433946133/${citation.message_ids[0]}`;
+                //     text = text.replaceAll(`[QA${citation.number}]`, `[[QA${citation.number}]](${url})`);
+                // });
+
+                const citations = factEntry.cited.map((id, i) => {
+                    const url = `https://discord.com/channels/748542142347083868/748549293433946133/${id}`;
+                    return `[[${i + 1}]](${url})`;
+                }).join(' ');
+
+                let text = `**Category:** ${factEntry.category || 'Uncategorized'}\n**Credibility:** ${factEntry.cited.length} citations ${citations}\n\n` +
+                    factEntry.answer;
 
                 const textSplit = splitIntoChunks(text, 4000);
                 for (let i = 0; i < textSplit.length; i++) {
                     const embed = new EmbedBuilder()
-                        .setTitle(truncateStringWithEllipsis(`Fact: ` + factEntry.page_title, 256))
+                        .setTitle(truncateStringWithEllipsis(`Q: ` + factEntry.question, 256))
                         .setDescription(textSplit[i])
                         .setColor(0x8B4513);
 
