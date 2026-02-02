@@ -6,7 +6,7 @@ import { AttachmentAskDescriptionData } from "../../submissions/Attachment.js";
 import { SetDescriptionButton } from "./SetDescriptionButton.js";
 import { SetImagesMenu } from "../menus/SetImagesMenu.js";
 import { SetAttachmentsMenu } from "../menus/SetAttachmentsMenu.js";
-import { getAttachmentDescriptionForMenus } from "../../utils/AttachmentUtils.js";
+import { getAttachmentDescriptionForMenus, isAttachmentImage } from "../../utils/AttachmentUtils.js";
 
 export class SkipDescriptionButton implements Button {
     getID(): string {
@@ -80,25 +80,20 @@ export class SkipDescriptionButton implements Button {
                 throw new Error('Skipped attachment is null when it should not be.');
             }
 
-            const embeds = [];
-            if (isImage) {
-                const embed = new EmbedBuilder()
-                    .setTitle(truncateFileName(escapeDiscordString(nextAttachment.name), 256))
-                    .setDescription(getAttachmentDescriptionForMenus(nextAttachment) || 'No description')
-                    .setThumbnail(nextAttachment.url);
-                embeds.push(embed);
-            } else {
-                const embed = new EmbedBuilder()
-                    .setTitle(truncateFileName(escapeDiscordString(nextAttachment.name), 256))
-                    .setDescription(getAttachmentDescriptionForMenus(nextAttachment) || 'No description');
-                embeds.push(embed);
+            const embed = new EmbedBuilder();
+
+            embed.setTitle(truncateFileName(escapeDiscordString(nextAttachment.name), 256))
+                .setDescription(getAttachmentDescriptionForMenus(nextAttachment) || 'No description');
+
+            if (isAttachmentImage(nextAttachment)) {
+                embed.setThumbnail(nextAttachment.url);
             }
 
             await interaction.update({
                 content: `Skipped description for **${escapeDiscordString(skippedAttachment.name)}**.` +
                     `\n\nSet a description for the next ${isImage ? 'image' : 'attachment'} **${escapeDiscordString(nextAttachment.name)}**?`,
                 components: [row as any],
-                embeds: embeds,
+                embeds: [embed]
             });
         } else {
             // all done, set attachments

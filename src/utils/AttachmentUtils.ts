@@ -160,31 +160,9 @@ export function filterAttachments<T>(attachments: (T & {
     });
 }
 
-export function filterImages<T>(attachments: (T & {
-    contentType: string;
-    name: string;
-})[]): T[] {
+export function filterImages<T extends BaseAttachment>(attachments: T[]): T[] {
     return attachments.filter(attachment => {
-        if (!attachment.contentType) {
-            return false;
-        }
-        if (attachment.contentType === 'application/x-msdos-program') {
-            return false;
-        }
-        // make sure .exe files are excluded
-        if (attachment.name.endsWith('.exe')) {
-            return false;
-        }
-
-        if (attachment.name.endsWith('.png') || attachment.name.endsWith('.jpg') || attachment.name.endsWith('.jpeg')) {
-            return true;
-        }
-
-        if (attachment.contentType.startsWith('image/png') || attachment.contentType.startsWith('image/jpeg')) {
-            return true;
-        }
-
-        return false;
+        return isAttachmentImage(attachment);
     });
 }
 
@@ -693,6 +671,22 @@ export async function getAllAttachments(channel: TextThreadChannel, selfID: Snow
     return attachments;
 }
 
+
+export function isAttachmentImage(attachment: BaseAttachment): boolean {
+    // check content type
+    if (attachment.contentType.startsWith('image/')) {
+        return true;
+    }
+
+    // check file name, the extension
+    const ext = getFileExtension(attachment.name);
+    const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'];
+    if (imageExts.includes(ext)) {
+        return true;
+    }
+
+    return false;
+}
 
 export async function refreshAttachments(
     attachmentURLs: string[],

@@ -6,7 +6,7 @@ import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Attachment, AttachmentAskDescriptionData } from "../../submissions/Attachment.js";
 import { SkipAttachmentsButton } from "../buttons/SkipAttachmentsButton.js";
-import { filterAttachments, getAttachmentDescriptionForMenus, getAttachmentsSetMessage } from "../../utils/AttachmentUtils.js";
+import { filterAttachments, getAttachmentDescriptionForMenus, getAttachmentsSetMessage, isAttachmentImage } from "../../utils/AttachmentUtils.js";
 import { AddAttachmentButton } from "../buttons/AddAttachmentButton.js";
 import { RefreshListButton } from "../buttons/RefreshListButton.js";
 import { SetDescriptionButton } from "../buttons/SetDescriptionButton.js";
@@ -129,6 +129,11 @@ export class SetAttachmentsMenu implements Menu {
             const embed = new EmbedBuilder()
                 .setTitle(truncateFileName(escapeDiscordString(nextAttachment.name), 256))
                 .setDescription(getAttachmentDescriptionForMenus(nextAttachment) || 'No description');
+
+            // check if image is a png/jpg/jpeg/gif and add as embed image
+            if (isAttachmentImage(nextAttachment)) {
+                embed.setThumbnail(nextAttachment.url);
+            }
 
             await interaction.editReply({
                 content: `We've detected that you added ${addedAttachmentsWithoutDescriptions.length} attachment${addedAttachmentsWithoutDescriptions.length > 1 ? 's' : ''} without descriptions.` +

@@ -8,7 +8,7 @@ import { SetDescriptionButton } from "../buttons/SetDescriptionButton.js";
 import { SkipDescriptionButton } from "../buttons/SkipDescriptionButton.js";
 import { SetAttachmentsMenu } from "../menus/SetAttachmentsMenu.js";
 import { SetImagesMenu } from "../menus/SetImagesMenu.js";
-import { changeAttachmentName, changeImageName, getAttachmentDescriptionForMenus, getFileExtension, getFileNameWithoutExtension } from "../../utils/AttachmentUtils.js";
+import { changeAttachmentName, changeImageName, getAttachmentDescriptionForMenus, getFileExtension, getFileNameWithoutExtension, isAttachmentImage } from "../../utils/AttachmentUtils.js";
 
 export class SetDescriptionModal implements Modal {
     getID(): string {
@@ -138,18 +138,13 @@ export class SetDescriptionModal implements Modal {
                 const row = new ActionRowBuilder().addComponents(askButton, skipButton);
 
 
-                const embeds = [];
-                if (isImage) {
-                    const embed = new EmbedBuilder()
-                        .setTitle(truncateFileName(escapeDiscordString(nextAttachment.name), 256))
-                        .setDescription(getAttachmentDescriptionForMenus(nextAttachment) || 'No description')
-                        .setThumbnail(nextAttachment.url);
-                    embeds.push(embed);
-                } else {
-                    const embed = new EmbedBuilder()
-                        .setTitle(truncateFileName(escapeDiscordString(nextAttachment.name), 256))
-                        .setDescription(getAttachmentDescriptionForMenus(nextAttachment) || 'No description');
-                    embeds.push(embed);
+                const embed = new EmbedBuilder();
+                
+                embed.setTitle(truncateFileName(escapeDiscordString(nextAttachment.name), 256))
+                    .setDescription(getAttachmentDescriptionForMenus(nextAttachment) || 'No description');
+
+                if (isAttachmentImage(nextAttachment)) {
+                    embed.setThumbnail(nextAttachment.url);
                 }
 
                 if (interaction.isFromMessage()) {
@@ -157,7 +152,7 @@ export class SetDescriptionModal implements Modal {
                         content: `Set info for ${isImage ? 'image' : 'attachment'} **${escapeDiscordString(foundAttachment.name)}**:\n${foundAttachment.description ? `Description: ${foundAttachment.description}` : 'No description set.'}` +
                             `\n\nSet a description for the next ${isImage ? 'image' : 'attachment'} **${escapeDiscordString(nextAttachment.name)}**?`,
                         components: [row as any],
-                        embeds: embeds
+                        embeds: [embed]
                     });
                 }
             } else {
