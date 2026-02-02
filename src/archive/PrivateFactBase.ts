@@ -52,6 +52,8 @@ export class PrivateFactBase {
             return;
         }
 
+        console.log(`[PrivateFactBase] Found ${factCategories.length} fact categories.`);
+
         // check if embeddings file exists
         const embeddings = await this.getEmbeddings();
         if (!embeddings) {
