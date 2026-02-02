@@ -80,7 +80,7 @@ export class EditorPowersCommand implements Command {
                     .setDescription('Publish a submission directly')
                     .addStringOption(option =>
                         option.setName('commitMessage')
-                            .setDescription('One-line summary of changes made')
+                            .setDescription('One line summary of changes made')
                     )
                     .addStringOption(option =>
                         option.setName('detailedMessage')
