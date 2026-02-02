@@ -9,7 +9,7 @@ export type QAFactSheet = {
     question: string;
     answer: string;
     category: string;
-    cited: Array<Snowflake>;
+    citations: Array<Snowflake>;
 }
 
 

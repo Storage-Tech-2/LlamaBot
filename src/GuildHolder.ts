@@ -2199,7 +2199,7 @@ export class GuildHolder {
                                     question: sheet.question,
                                     answer: sheet.answer,
                                     category: sheet.category,
-                                    credibility: sheet.cited.length,
+                                    credibility: sheet.citations.length,
                                 });
                             }
                         }

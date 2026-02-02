@@ -268,7 +268,7 @@ export class AskCommand implements Command {
                 //     text = text.replaceAll(`[QA${citation.number}]`, `[[QA${citation.number}]](${url})`);
                 // });
 
-                const citationsSorted: string[] = factEntry.cited.slice();
+                const citationsSorted: string[] = factEntry.citations.slice();
 
                 // oldest to newest
                 citationsSorted.sort((a, b) => {
@@ -282,7 +282,7 @@ export class AskCommand implements Command {
                     return `[[${i + 1}]](${url})`;
                 }).join(' ');
 
-                let text = `**Category:** ${factEntry.category || 'Uncategorized'}\n**Credibility:** ${factEntry.cited.length} citations ${citations}\n\n` +
+                let text = `**Category:** ${factEntry.category || 'Uncategorized'}\n**Credibility:** ${factEntry.citations.length} citations ${citations}\n\n` +
                     factEntry.answer;
 
                 const textSplit = splitIntoChunks(text, 4000);
