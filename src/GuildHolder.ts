@@ -2174,7 +2174,7 @@ export class GuildHolder {
                             question: z.string().describe('The question answered by the factsheet entry.'),
                             answer: z.string().describe('The answer provided by the factsheet entry.'),
                             category: z.string().describe('The category of the factsheet entry.'),
-                            credibility: z.number().describe('The credibility level of the factsheet entry. Higher numbers indicate more citations.'),
+                            credibility: z.number().describe('The credibility level of the factsheet entry. Higher numbers indicate better credibility.'),
                         })).describe('Top 5 list of factsheet entries matching the search query.'),
                         error: z.string().optional().describe('An error message, if an error occurred during the search.'),
                     })
