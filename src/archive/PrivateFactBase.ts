@@ -6,7 +6,6 @@ import { HierarchicalNSW } from "hnswlib-node";
 import { Snowflake } from "discord.js";
 
 export type QAFactSheet = {
-    identifier: string;
     question: string;
     answer: string;
     category: string;
@@ -94,8 +93,9 @@ export class PrivateFactBase {
                 continue;
             }
 
-            for (const fact of facts) {
-                const identifier = `${category}::${fact.identifier}`;
+            for (let i = 0; i < facts.length; i++) {
+                const fact = facts[i];
+                const identifier = `${category}::${i}`;
                 const text = `Q: ${fact.question}\nA: ${fact.answer}`;
                 factsForEmbedding.push({ identifier, text });
             }
@@ -219,8 +219,7 @@ export class PrivateFactBase {
         if (!data) {
             return null;
         }
-
-        const fact = data.find(f => f.identifier === factId);
+        const fact = data[parseInt(factId)];
         return fact || null;
     }
 
@@ -241,10 +240,8 @@ export class PrivateFactBase {
         if (!data) {
             return;
         }
-
-        // find and update entry
-        const index = data.findIndex(f => f.identifier === factId);
-        if (index === -1) {
+        const index = parseInt(factId);
+        if (isNaN(index) || index < 0 || index >= data.length) {
             return;
         }
         data[index] = entry;
