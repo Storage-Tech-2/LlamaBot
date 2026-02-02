@@ -1971,14 +1971,14 @@ export class GuildHolder {
             const isBot = msg.author.id === this.getBot().client.user?.id;
             const role = isBot ? 'assistant' : 'user';
             const content = msg.content;
-            // replace mentions with @username
-            // const mentionRegex = /<@!?(\d+)>/g;
-            const contentWithMentions = content;
+
+            // replace hyperlinks with the link text
+            const linkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+            const contentWithoutLinks = content.replace(linkRegex, '$1');
 
             // if content length is greater than 1000, truncate it
             const maxLength = 1000;
-            const truncatedContent = contentWithMentions.length > maxLength ? contentWithMentions.slice(0, maxLength) + '... (truncated)' : contentWithMentions;
-
+            const truncatedContent = contentWithoutLinks.length > maxLength ? contentWithoutLinks.slice(0, maxLength) + '... (truncated)' : contentWithoutLinks;
             // check reply
             let replyTo = null;
             if (msg.reference && msg.reference.messageId) {

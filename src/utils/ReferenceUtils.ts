@@ -209,8 +209,6 @@ export function findDictionaryMatches<T extends AhoNodeOutput>(text: string, ind
 }
 
 function shouldIncludeMatch(text: string, matchedTerm: string, start: number, end: number): boolean {
-
-
     const isTermAllCaps = matchedTerm.toUpperCase() === matchedTerm;
     const matchedText = text.slice(start, end);
 
