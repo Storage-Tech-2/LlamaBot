@@ -13,6 +13,7 @@ export type BaseAttachment = {
     id: Snowflake,
     name: string,
     url: string,
+    downloadUrl?: string, // URL to download the file if different
     description: string,
     timestamp: number, // Timestamp when the attachment was added
     author: Author,
