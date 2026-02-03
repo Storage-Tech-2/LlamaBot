@@ -1,4 +1,4 @@
-import { ActionRowBuilder, AnyThreadChannel, ButtonBuilder, ChannelType, EmbedBuilder, Guild, GuildAuditLogsEntry, GuildMember, Message, MessageFlags, Role, PartialGuildMember, Snowflake, Attachment, GuildChannel, PartialMessage, TextChannel, TextThreadChannel } from "discord.js";
+import { ActionRowBuilder, AnyThreadChannel, ButtonBuilder, ChannelType, EmbedBuilder, Guild, GuildAuditLogsEntry, GuildMember, Message, MessageFlags, Role, PartialGuildMember, Snowflake, Attachment, GuildChannel, PartialMessage, TextChannel, TextThreadChannel, PermissionFlagsBits } from "discord.js";
 import { Bot, SysAdmin } from "./Bot.js";
 import { ConfigManager } from "./config/ConfigManager.js";
 import Path from "path";
@@ -365,7 +365,10 @@ export class GuildHolder {
 
         const llmEnabled = this.getConfigManager().getConfig(GuildConfigs.CONVERSATIONAL_LLM_ENABLED);
         const llmChannel = this.getConfigManager().getConfig(GuildConfigs.CONVERSATIONAL_LLM_CHANNEL);
-        const canConverse = this.canConverse() && (llmEnabled || (llmChannel && llmChannel === message.channel.id) || SysAdmin === message.author.id);
+       
+        const member = message.member;
+        const canUserMentionOutsideChannel = member ? await this.isMemberAllowedToUseBotOutsideChannel(member) : false;
+        const canConverse = this.canConverse() && (llmEnabled || (llmChannel && llmChannel === message.channel.id) || canUserMentionOutsideChannel);
         if (!canConverse) {
             return;
         }
@@ -422,6 +425,29 @@ export class GuildHolder {
             clearInterval(typingInterval);
 
         }
+    }
+
+    async isMemberAllowedToUseBotOutsideChannel(member: GuildMember): Promise<boolean> {
+        if (SysAdmin === member.id) {
+            return true;
+        }
+
+        // check if admin
+        if (member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return true;
+        }
+
+        // check if mod
+        if (member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+            return true;
+        }
+
+        const helperRoleId = this.getConfigManager().getConfig(GuildConfigs.HELPER_ROLE_ID);
+        if (helperRoleId && member.roles.cache.has(helperRoleId)) {
+            return true;
+        }
+       
+        return false;
     }
 
     public async handleThanks(message: Message) {
