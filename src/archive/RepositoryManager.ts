@@ -105,6 +105,16 @@ export class RepositoryManager {
             await this.commit('Initial commit: add .gitignore');
         }
 
+        // check if gitattributes exists, create it if it doesn't
+        const gitattributesPath = Path.join(this.folderPath, '.gitattributes');
+        if (!await fs.access(gitattributesPath).then(() => true).catch(() =>
+            false)) {
+            const lfsExtensions = this.configManager.getConfig(RepositoryConfigs.LFS_EXTENSIONS);
+            const lfsLines = lfsExtensions.map(ext => `*.${ext} filter=lfs diff=lfs merge=lfs -text`);
+            await fs.writeFile(gitattributesPath, lfsLines.join('\n') + '\n', 'utf-8');
+            await this.git.add('.gitattributes');
+            await this.commit('Initial commit: add .gitattributes for LFS');
+        }
 
         // Load the config manager
         await this.configManager.loadConfig();

@@ -105,4 +105,6 @@ export const RepositoryConfigs = {
         name: '👍'
     } as Emoji),
 
+    LFS_EXTENSIONS: new Config<string[]>("lfsExtensions", ['zip', 'bin', 'mp4']),
+
 }

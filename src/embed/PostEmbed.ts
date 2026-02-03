@@ -6,10 +6,11 @@ import { ArchiveEntryData } from "../archive/ArchiveEntry.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { GuildHolder } from "../GuildHolder.js";
 import fs from "fs/promises";
-import { processImageForDiscord } from "../utils/AttachmentUtils.js";
+import { getFileExtension, processImageForDiscord } from "../utils/AttachmentUtils.js";
 import { postToMarkdown } from "../utils/MarkdownUtils.js";
 import { transformOutputWithReferencesForDiscord } from "../utils/ReferenceUtils.js";
 import { buildEntrySlug } from "../utils/SlugUtils.js";
+import { RepositoryConfigs } from "../archive/RepositoryConfigs.js";
 
 export class PostEmbed {
     private embed: EmbedBuilder;
@@ -90,11 +91,22 @@ export class PostEmbed {
         const rawURL = `https://raw.githubusercontent.com/${owner}/${project}/refs/heads/${branchName}/${entryPathPart}`;
         const mediaURL = `https://media.githubusercontent.com/media/${owner}/${project}/refs/heads/${branchName}/${entryPathPart}`;
 
+        const lfsExtensions = guildHolder.getRepositoryManager().getConfigManager().getConfig(RepositoryConfigs.LFS_EXTENSIONS);
+        const getAttachmentGithubURL = (attachment: Attachment) => {
+            if (!attachment.path) return null;
+            const ext = getFileExtension(attachment.name).toLowerCase();
+            if (lfsExtensions.includes(ext)) {
+                return `${mediaURL}/${attachment.path}`;
+            }
+            return `${rawURL}/${attachment.path}`;
+        }
+        
+
         if (litematics.length) {
             description += '### Litematics\n'
             litematics.forEach(attachment => {
                 const url = attachmentURLs.get(attachment.name) || attachment.url;
-                const githubLink = `${rawURL}/${attachment.path}`;
+                const githubLink = getAttachmentGithubURL(attachment);
                 const viewerURL = `https://storagetech2.org/renderer?url=${githubLink}`;
                 description += `- ${url} [[View Schematic]](${viewerURL}): ` + (attachment.litematic?.error || `MC ${attachment.litematic?.version}, Size ${attachment.litematic?.size}`) + `, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`;
                 if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
@@ -105,7 +117,8 @@ export class PostEmbed {
             description += '### WDLs\n'
             wdls.forEach(attachment => {
                 const url = attachmentURLs.get(attachment.name) || attachment.url;
-                description += `- ${url} [[Github Mirror]](${rawURL}/${attachment.path}): ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
+                const githubLink = getAttachmentGithubURL(attachment);
+                description += `- ${url} [[Github Mirror]](${githubLink}): ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
                 if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
             })
         }
@@ -115,7 +128,8 @@ export class PostEmbed {
             videos.forEach(attachment => {
                 if (attachment.contentType === 'video/mp4' || attachment.name.endsWith('.mp4')) {
                     const url = attachmentURLs.get(attachment.name) || attachment.url;
-                    description += `- ${url} [[Github Mirror]](${mediaURL}/${attachment.path}): MP4 video, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
+                    const githubLink = getAttachmentGithubURL(attachment);
+                    description += `- ${url} [[Github Mirror]](${githubLink}): MP4 video, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
                     if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
                     return;
                 } else if (attachment.contentType === 'bilibili') {
@@ -146,7 +160,8 @@ export class PostEmbed {
                     return;
                 } else if (attachment.canDownload) {
                     const url = attachmentURLs.get(attachment.name) || attachment.url;
-                    description += `- ${url} [[Github Mirror]](${rawURL}/${attachment.path}): Discord attachment, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
+                    const githubLink = getAttachmentGithubURL(attachment);
+                    description += `- ${url} [[Github Mirror]](${githubLink}): Discord attachment, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
                     if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
                     return;
                 } else {
