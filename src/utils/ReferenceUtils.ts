@@ -660,15 +660,37 @@ export function transformOutputWithReferencesWrapper(
 
     filteredMatches.sort((a, b) => a.start - b.start);
 
-    // remove overlapping matches, prefer earlier matches
-    const dedupedMatches: typeof matches = [];
+    // collect duplicate/overlapping matches
+    const groupedMatches: typeof matches[] = [];
+    let currentGroup: typeof matches = [];
     let lastEnd = -1;
     for (const match of filteredMatches) {
         if (match.start >= lastEnd) {
-            dedupedMatches.push(match);
-            lastEnd = match.end;
+            if (currentGroup.length > 0) {
+                groupedMatches.push(currentGroup);
+            }
+            currentGroup = [match];
+        } else {
+            currentGroup.push(match);
         }
+        lastEnd = Math.max(lastEnd, match.end);
     }
+    if (currentGroup.length > 0) {
+        groupedMatches.push(currentGroup);
+    }
+
+    // from each group, pick the longest match
+    const dedupedMatches: typeof matches = groupedMatches.map(group => {
+        return group.reduce((prev, current) => {
+            const prevLength = prev.end - prev.start;
+            const currentLength = current.end - current.start;
+            if (currentLength > prevLength) {
+                return current;
+            }
+            return prev;
+        });
+    });
+
 
     const hyperlinkRegex = /\[([^\]]+)\]\(([^)\s]+)(?:\s+"([^"]+)")?\)/g;
     const hyperlinks = findRegexMatches(text, [hyperlinkRegex]);
