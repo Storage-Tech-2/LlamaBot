@@ -227,7 +227,7 @@ export class SetAttachmentsMenu implements Menu {
             largeAttachments.forEach(att => {
                 warningMessage += `- ${escapeDiscordString(att.name)} (${formatSize(att.size || 0)})\n`;
             });
-            warningMessage += `\nLarge attachments may contribute to rate limits. Consider optimizing them or using external hosting services for very large files.`;
+            warningMessage += `\nLarge attachments may contribute to Github's rate limits. Consider optimizing them or using external hosting services for very large files (EG mediafire or YouTube).`;
             await interaction.followUp({
                 content: warningMessage,
                 flags: [MessageFlags.SuppressEmbeds],

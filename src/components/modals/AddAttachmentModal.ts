@@ -254,7 +254,7 @@ export class AddAttachmentModal implements Modal {
         if (attachmentObj.size && attachmentObj.size >= sizeWarningThreshold) {
             let warningMessage = `⚠️ **Warning:** The attachment you just added is quite large (over ${formatSize(sizeWarningThreshold)}):\n`;
             warningMessage += `- ${escapeDiscordString(attachmentObj.name)} (${formatSize(attachmentObj.size)})\n`;
-            warningMessage += `\nLarge attachments may contribute to rate limits. Consider optimizing them or using external hosting services for very large files.`;
+            warningMessage += `\nLarge attachments may contribute to Github's rate limits. Consider optimizing them or using external hosting services for very large files (EG mediafire or YouTube).`;
             await interaction.followUp({
                 content: warningMessage,
                 flags: [MessageFlags.SuppressEmbeds],
