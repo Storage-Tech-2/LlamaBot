@@ -25,6 +25,10 @@ export type BaseAttachment = {
 }
 
 export type Attachment = BaseAttachment & {
+    image?: { // For images
+        width: number,
+        height: number,
+    },
 
     // For litematics
     litematic?: {

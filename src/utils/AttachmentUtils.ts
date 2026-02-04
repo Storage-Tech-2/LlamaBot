@@ -7,7 +7,7 @@ import fs from 'fs/promises'
 import got from 'got'
 import sharp from 'sharp'
 import { MCMeta } from './MCMeta.js'
-import { deepClone, escapeDiscordString, escapeString, getMessageAuthor, truncateStringWithEllipsis } from './Util.js'
+import { deepClone, escapeDiscordString, escapeString, formatSize, getMessageAuthor, truncateStringWithEllipsis } from './Util.js'
 import { Litematic } from '../lib/litematic-reader/main.js'
 import { Author } from '../submissions/Author.js'
 import { findWorldsInZip, optimizeWorldsInZip } from './WDLUtils.js'
@@ -236,7 +236,7 @@ export async function processImageForDiscord(file_path: string, num_images: numb
     return output_path;
 }
 
-export async function handleYoutubeLink(attachment: Attachment) {
+export async function analyzeYoutube(attachment: Attachment) {
     // https://noembed.com/embed?dataType=json&
     const url = attachment.url;
     const noEmbedAPI = 'https://noembed.com/embed?dataType=json&url=' + encodeURIComponent(url);
@@ -314,6 +314,73 @@ export async function processAttachments(attachments: Attachment[], attachments_
     return attachments;
 }
 
+export async function analyzeAttachments(attachments: Attachment[], attachments_folder: string): Promise<Attachment[]> {
+    const mcMeta = new MCMeta();
+    await mcMeta.fetchVersionData();
+
+    await Promise.all(attachments.map(async (attachment) => {
+        if (attachment.canDownload && attachment.path) {
+            const attachmentPath = Path.join(attachments_folder, attachment.path);
+            const fileMetadata = await fs.stat(attachmentPath).catch(() => null);
+            if (fileMetadata) {
+                attachment.size = fileMetadata.size;
+            }
+            if (isAttachmentLitematic(attachment)) {
+                // Process litematic files
+                await analyzeLitematic(attachment, attachmentPath, mcMeta);
+            } else if (isAttachmentZip(attachment)) {
+                // Process zip files
+                await analyzeWDL(attachment, attachmentPath);
+            } else if (isAttachmentImage(attachment)) {
+                // Process image files
+                await analyzeImage(attachment, attachmentPath);
+            }
+        } else if (attachment.contentType === 'youtube') {
+            // Process YouTube links
+            await analyzeYoutube(attachment);
+        }
+    }));
+    return attachments;
+}
+
+async function analyzeImage(attachment: Attachment, attachmentPath: string): Promise<void> {
+    try {
+        const image = sharp(attachmentPath);
+        const metadata = await image.metadata();
+        if (metadata.width && metadata.height) {
+            attachment.image = {
+                width: metadata.width,
+                height: metadata.height,
+            }
+        }
+    } catch (error) {
+        console.error('Error processing image file:', error)
+    }
+}
+
+async function analyzeLitematic(attachment: Attachment, attachmentPath: string, mcMeta: MCMeta): Promise<void> {
+    try {
+        const litematicFile = await fs.readFile(attachmentPath);
+        const litematic = new Litematic(litematicFile as any)
+        await litematic.read()
+
+        const dataVersion = litematic.litematic?.nbtData.MinecraftDataVersion ?? 0;
+        const version = mcMeta.getByDataVersion(dataVersion);
+        const size = litematic.litematic?.blocks ?? { minx: 0, miny: 0, minz: 0, maxx: 0, maxy: 0, maxz: 0 };
+        const sizeString = `${size.maxx - size.minx + 1}x${size.maxy - size.miny + 1}x${size.maxz - size.minz + 1}`
+        attachment.litematic = {
+            size: sizeString,
+            version: version ? version.id : 'Unknown',
+        }
+    } catch (error) {
+        console.error('Error processing litematic file:', error)
+        attachment.litematic = {
+            error: 'Error processing litematic file'
+        }
+    }
+}
+
+
 export async function optimizeAttachments(
     attachments: Attachment[],
     attachments_folder: string, optimized_folder: string, temp_folder: string,
@@ -367,55 +434,6 @@ export async function optimizeAttachments(
     return attachments;
 }
 
-export async function analyzeAttachments(attachments: Attachment[], attachments_folder: string): Promise<Attachment[]> {
-    const mcMeta = new MCMeta();
-    await mcMeta.fetchVersionData();
-
-    await Promise.all(attachments.map(async (attachment) => {
-        const ext = attachment.name.split('.').pop();
-        if (attachment.canDownload && attachment.path) {
-            const attachmentPath = Path.join(attachments_folder, attachment.path);
-            const fileMetadata = await fs.stat(attachmentPath).catch(() => null);
-            if (fileMetadata) {
-                attachment.size = fileMetadata.size;
-            }
-            if (ext === 'litematic') {
-                // Process litematic files
-                await processLitematic(attachment, attachmentPath, mcMeta);
-            } else if (ext === 'zip') {
-                // Process zip files
-                await processWDLs(attachment, attachmentPath);
-            }
-        } else if (attachment.contentType === 'youtube') {
-            // Process YouTube links
-            await handleYoutubeLink(attachment);
-        }
-    }));
-    return attachments;
-}
-
-async function processLitematic(attachment: Attachment, attachmentPath: string, mcMeta: MCMeta): Promise<void> {
-    try {
-        const litematicFile = await fs.readFile(attachmentPath);
-        const litematic = new Litematic(litematicFile as any)
-        await litematic.read()
-
-        const dataVersion = litematic.litematic?.nbtData.MinecraftDataVersion ?? 0;
-        const version = mcMeta.getByDataVersion(dataVersion);
-        const size = litematic.litematic?.blocks ?? { minx: 0, miny: 0, minz: 0, maxx: 0, maxy: 0, maxz: 0 };
-        const sizeString = `${size.maxx - size.minx + 1}x${size.maxy - size.miny + 1}x${size.maxz - size.minz + 1}`
-        attachment.litematic = {
-            size: sizeString,
-            version: version ? version.id : 'Unknown',
-        }
-    } catch (error) {
-        console.error('Error processing litematic file:', error)
-        attachment.litematic = {
-            error: 'Error processing litematic file'
-        }
-    }
-}
-
 export function filterAttachmentsForViewer(attachments: Attachment[]): Attachment[] {
     return attachments.filter((attachment) => {
         if (attachment.contentType.startsWith("image") || attachment.contentType.startsWith("video")) {
@@ -460,7 +478,7 @@ function compareSemver(a: string, b: string): number {
     return 0;
 }
 
-async function processWDLs(attachment: Attachment, attachmentPath: string): Promise<void> {
+async function analyzeWDL(attachment: Attachment, attachmentPath: string): Promise<void> {
     try {
         const analysis = await findWorldsInZip(attachmentPath);
 
@@ -694,6 +712,16 @@ export function isAttachmentImage(attachment: BaseAttachment): boolean {
     return false;
 }
 
+export function isAttachmentLitematic(attachment: BaseAttachment): boolean {
+    const ext = getFileExtension(attachment.name);
+    return ext === 'litematic';
+}
+
+export function isAttachmentZip(attachment: BaseAttachment): boolean {
+    const ext = getFileExtension(attachment.name);
+    return ext === 'zip';
+}
+
 export function isAttachmentVideo(attachment: BaseAttachment): boolean {
     // check content type
     if (attachment.contentType.startsWith('video/')) {
@@ -856,7 +884,7 @@ function getAttachmentCategory(attachment: Attachment): AttachmentCategory {
     if (attachment.wdl) {
         return 'wdl';
     }
-    if (attachment.litematic) {
+    if (attachment.litematic || isAttachmentLitematic(attachment)) {
         return 'litematic';
     }
     return 'other';
@@ -864,25 +892,28 @@ function getAttachmentCategory(attachment: Attachment): AttachmentCategory {
 
 export function getAttachmentSetMessage(attachment: Attachment): string {
     const timestamp = `<t:${Math.floor(attachment.timestamp / 1000)}:s>`;
+    const sizeSuffix = typeof attachment.size === 'number' ? `, ${formatSize(attachment.size)}` : '';
     const linkOrName = attachment.canDownload
         ? `${attachment.url} `
         : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`;
 
     let message = '';
     if (attachment.contentType === 'bilibili') {
-        message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Bilibili video\n`;
-    } else if (attachment.contentType === 'video/mp4' || attachment.name.endsWith('.mp4')) {
-        message = `- ${linkOrName}: MP4 video, ${timestamp}\n`;
+        message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Bilibili video${sizeSuffix}\n`;
     } else if (attachment.contentType === 'youtube') {
         if (!attachment.youtube) {
-            message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link\n`;
+            message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link${sizeSuffix}\n`;
         } else {
-            message = `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})\n`;
+            message = `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})${sizeSuffix}\n`;
         }
     } else if (attachment.wdl) {
-        message = `- ${linkOrName}: ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}, ${timestamp}\n`;
+        message = `- ${linkOrName}: ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}${sizeSuffix}, ${timestamp}\n`;
     } else if (attachment.litematic) {
-        message = `- ${linkOrName}: ${attachment.litematic?.error || `MC ${attachment.litematic?.version}, ${attachment.litematic?.size}`}, ${timestamp}\n`;
+        message = `- ${linkOrName}: ${attachment.litematic?.error || `MC ${attachment.litematic?.version}, ${attachment.litematic?.size}`}${sizeSuffix}, ${timestamp}\n`;
+    } else if (attachment.image) {
+        message = `- ${linkOrName}: Image ${attachment.image.width}x${attachment.image.height}${sizeSuffix}, ${timestamp}\n`;
+    } else if (isAttachmentVideo(attachment)) {
+        message = `- ${linkOrName}: Video${sizeSuffix}, ${timestamp}\n`;
     } else {
         let type = attachment.contentType;
         switch (attachment.contentType) {
@@ -890,10 +921,10 @@ export function getAttachmentSetMessage(attachment: Attachment): string {
                 type = 'Mediafire link';
                 break;
             case 'discord':
-                type = 'Discord link';
+                type = 'Discord attachment';
                 break;
         }
-        message = `- ${attachment.contentType === 'discord' ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${type}, ${timestamp}\n`;
+        message = `- ${attachment.contentType === 'discord' ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${type}${sizeSuffix}, ${timestamp}\n`;
     }
 
     if (attachment.description) {
