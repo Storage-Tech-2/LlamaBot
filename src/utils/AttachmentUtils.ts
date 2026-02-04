@@ -694,6 +694,22 @@ export function isAttachmentImage(attachment: BaseAttachment): boolean {
     return false;
 }
 
+export function isAttachmentVideo(attachment: BaseAttachment): boolean {
+    // check content type
+    if (attachment.contentType.startsWith('video/')) {
+        return true;
+    }
+
+    // check file name, the extension
+    const ext = getFileExtension(attachment.name);
+    const videoExts = ['mp4', 'mov', 'wmv', 'flv', 'avi', 'mkv', 'webm'];
+    if (videoExts.includes(ext)) {
+        return true;
+    }
+
+    return false;
+}
+
 export async function refreshAttachments(
     attachmentURLs: string[],
     bot: Bot
@@ -824,6 +840,69 @@ export function getAttachmentDescriptionForMenus(attachment: BaseAttachment): st
     return `${dateTime} - No description`;
 }
 
+export type AttachmentCategory = 'video' | 'image' | 'wdl' | 'litematic' | 'other';
+
+function getAttachmentCategory(attachment: Attachment): AttachmentCategory {
+    if (
+        attachment.contentType === 'youtube' ||
+        attachment.contentType === 'bilibili' ||
+        isAttachmentVideo(attachment)
+    ) {
+        return 'video';
+    }
+    if (isAttachmentImage(attachment)) {
+        return 'image';
+    }
+    if (attachment.wdl) {
+        return 'wdl';
+    }
+    if (attachment.litematic) {
+        return 'litematic';
+    }
+    return 'other';
+}
+
+export function getAttachmentSetMessage(attachment: Attachment): string {
+    const timestamp = `<t:${Math.floor(attachment.timestamp / 1000)}:s>`;
+    const linkOrName = attachment.canDownload
+        ? `${attachment.url} `
+        : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`;
+
+    let message = '';
+    if (attachment.contentType === 'bilibili') {
+        message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Bilibili video\n`;
+    } else if (attachment.contentType === 'video/mp4' || attachment.name.endsWith('.mp4')) {
+        message = `- ${linkOrName}: MP4 video, ${timestamp}\n`;
+    } else if (attachment.contentType === 'youtube') {
+        if (!attachment.youtube) {
+            message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link\n`;
+        } else {
+            message = `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})\n`;
+        }
+    } else if (attachment.wdl) {
+        message = `- ${linkOrName}: ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}, ${timestamp}\n`;
+    } else if (attachment.litematic) {
+        message = `- ${linkOrName}: ${attachment.litematic?.error || `MC ${attachment.litematic?.version}, ${attachment.litematic?.size}`}, ${timestamp}\n`;
+    } else {
+        let type = attachment.contentType;
+        switch (attachment.contentType) {
+            case 'mediafire':
+                type = 'Mediafire link';
+                break;
+            case 'discord':
+                type = 'Discord link';
+                break;
+        }
+        message = `- ${attachment.contentType === 'discord' ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${type}, ${timestamp}\n`;
+    }
+
+    if (attachment.description) {
+        message += `  - ${attachment.description}\n`;
+    }
+
+    return message;
+}
+
 export function getAttachmentsSetMessage(attachments: Attachment[]): string {
     if (attachments.length === 0) {
         return 'No attachments set.';
@@ -831,18 +910,25 @@ export function getAttachmentsSetMessage(attachments: Attachment[]): string {
     const litematics: Attachment[] = []
     const wdls: Attachment[] = []
     const videos: Attachment[] = []
+    const images: Attachment[] = []
     const others: Attachment[] = []
     attachments.forEach(attachment => {
-        if (attachment.contentType === 'youtube' || attachment.contentType === 'bilibili') {
-            videos.push(attachment)
-        } else if (attachment.contentType === 'video/mp4' || attachment.name.endsWith('.mp4')) {
-            videos.push(attachment)
-        } else if (attachment.wdl) {
-            wdls.push(attachment)
-        } else if (attachment.litematic) {
-            litematics.push(attachment)
-        } else {
-            others.push(attachment)
+        switch (getAttachmentCategory(attachment)) {
+            case 'litematic':
+                litematics.push(attachment);
+                break;
+            case 'wdl':
+                wdls.push(attachment);
+                break;
+            case 'video':
+                videos.push(attachment);
+                break;
+            case 'image':
+                images.push(attachment);
+                break;
+            case 'other':
+                others.push(attachment);
+                break;
         }
     })
 
@@ -850,56 +936,35 @@ export function getAttachmentsSetMessage(attachments: Attachment[]): string {
     if (litematics.length) {
         description += '**Litematics:**\n'
         litematics.forEach(attachment => {
-            description += `- ${attachment.canDownload ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${attachment.litematic?.error || `MC ${attachment.litematic?.version}, ${attachment.litematic?.size}`}, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
-            if (attachment.description) description += `  - ${attachment.description}\n`
+            description += getAttachmentSetMessage(attachment);
         })
     }
 
     if (wdls.length) {
         description += '**WDLs:**\n'
         wdls.forEach(attachment => {
-            description += `- ${attachment.canDownload ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
-            if (attachment.description) description += `  - ${attachment.description}\n`
+            description += getAttachmentSetMessage(attachment);
         })
     }
 
     if (videos.length) {
         description += '**Videos:**\n'
         videos.forEach(attachment => {
-            if (attachment.contentType === 'bilibili') {
-                description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Bilibili video\n`
-                if (attachment.description) description += `  - ${attachment.description}\n`
-                return;
-            }
-            if (attachment.contentType === 'video/mp4' || attachment.name.endsWith('.mp4')) {
-                description += `- ${attachment.canDownload ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: MP4 video, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
-                if (attachment.description) description += `  - ${attachment.description}\n`
-                return;
-            }
-            if (!attachment.youtube) {
-                description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link\n`
-                if (attachment.description) description += `  - ${attachment.description}`
-                return;
-            }
-            description += `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): by [${escapeDiscordString(attachment.youtube?.author_name)}](${attachment.youtube?.author_url})\n`
-            if (attachment.description) description += `  - ${attachment.description}\n`
+            description += getAttachmentSetMessage(attachment);
+        })
+    }
+
+    if (images.length) {
+        description += '**Images:**\n'
+        images.forEach(attachment => {
+            description += getAttachmentSetMessage(attachment);
         })
     }
 
     if (others.length) {
         description += '**Other files:**\n'
         others.forEach(attachment => {
-            let type = attachment.contentType;
-            switch (attachment.contentType) {
-                case 'mediafire':
-                    type = 'Mediafire link';
-                    break;
-                case 'discord':
-                    type = 'Discord link';
-                    break;
-            }
-            description += `- ${attachment.contentType == 'discord' ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${type}, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
-            if (attachment.description) description += `  - ${attachment.description}\n`
+            description += getAttachmentSetMessage(attachment);
         })
     }
     return description;
