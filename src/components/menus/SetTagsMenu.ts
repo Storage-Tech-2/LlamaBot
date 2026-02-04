@@ -10,7 +10,7 @@ export class SetTagsMenu implements Menu {
         return "set-tags-menu";
     }
 
-    async getBuilder(guildHolder: GuildHolder, isMod: boolean, submission: Submission): Promise<StringSelectMenuBuilder> {
+    async getBuilder(guildHolder: GuildHolder, isMod: boolean, submission: Submission): Promise<StringSelectMenuBuilder> { 
         const archiveChannelId = submission.getConfigManager().getConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID);
         const channel = await guildHolder.getGuild().channels.fetch(archiveChannelId) as ForumChannel;
         const currentTags = submission.getConfigManager().getConfig(SubmissionConfigs.TAGS) || [];
