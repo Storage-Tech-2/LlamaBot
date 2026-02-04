@@ -2188,7 +2188,19 @@ export class RepositoryManager {
 
 
     public sanitizeGit(message: string): string {
-        return message.replace(/"/g, '').replace(/'/g, '');
+        const fallback = "Updated archive data";
+
+        // simple-git forwards this directly to git, so strip shell/meta control chars
+        const sanitized = (typeof message === "string" ? message : "")
+            .replace(/[\u0000-\u001F\u007F]/g, " ")
+            .replace(/[\\`$|&;<>]/g, "")
+            .replace(/["']/g, "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 500);
+
+        const withoutLeadingDashes = sanitized.replace(/^-+/, "").trim();
+        return withoutLeadingDashes.length > 0 ? withoutLeadingDashes : fallback;
     }
 
     public async commit(message: string, files?: string | string[]) {
