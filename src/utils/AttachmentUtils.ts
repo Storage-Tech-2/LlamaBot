@@ -913,7 +913,7 @@ export function getAttachmentPostMessage(
         if (!attachment.youtube) {
             message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link\n`;
         } else {
-            message = `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})\n`;
+            message = `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): YouTube video by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})\n`;
         }
     } else if (attachment.contentType === 'mediafire') {
         message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Mediafire link, ${timestamp}\n`;
@@ -959,7 +959,7 @@ export function getAttachmentSetMessage(attachment: Attachment): string {
         if (!attachment.youtube) {
             message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link\n`;
         } else {
-            message = `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})\n`;
+            message = `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): YouTube video by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})\n`;
         }
     } else if (attachment.wdl) {
         message = `- ${linkOrName}: ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}${sizeSuffix}, ${timestamp}\n`;
