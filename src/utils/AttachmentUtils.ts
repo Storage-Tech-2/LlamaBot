@@ -55,8 +55,8 @@ export async function optimizeImage(path: string, processedPath: string): Promis
 
     const s = await simage
         .resize({
-            width: 1600,
-            height: 1600,
+            width: 1200,
+            height: 1200,
             fit: 'inside',
             withoutEnlargement: true,
         })
@@ -200,16 +200,16 @@ export async function processImageForDiscord(file_path: string, num_images: numb
         newHeight = 800;
     }
 
-    // Scale so that largest dimension is 1600px
+    // Scale so that largest dimension is 1200px
     if (newWidth > newHeight) {
-        const scale = 1600 / newWidth;
-        newWidth = 1600;
+        const scale = 1200 / newWidth;
+        newWidth = 1200;
         newHeight = Math.floor(newHeight * scale);
         // also scale padding
         padding = Math.floor(padding * scale);
     } else {
-        const scale = 1600 / newHeight;
-        newHeight = 1600;
+        const scale = 1200 / newHeight;
+        newHeight = 1200;
         newWidth = Math.floor(newWidth * scale);
         // also scale padding
         padding = Math.floor(padding * scale);
