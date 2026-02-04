@@ -1,7 +1,7 @@
 import { ActionRowBuilder, FileUploadBuilder, LabelBuilder, MessageFlags, ModalBuilder, ModalSubmitInteraction, TextInputBuilder, TextInputStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Modal } from "../../interface/Modal.js";
-import { canEditSubmission, escapeDiscordString, replyEphemeral, truncateStringWithEllipsis } from "../../utils/Util.js";
+import { canEditSubmission, escapeDiscordString, formatSize, replyEphemeral, truncateStringWithEllipsis } from "../../utils/Util.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Attachment, AttachmentSource } from "../../submissions/Attachment.js";
 import { filterAttachments, getAttachmentsFromText } from "../../utils/AttachmentUtils.js";
@@ -157,7 +157,12 @@ export class AddAttachmentModal implements Modal {
             return; // should not happen
         }
 
-        await interaction.deferUpdate();
+        await interaction.update({
+            content: 'Adding attachment...',
+            embeds: [],
+            components: [],
+            files: [],
+        });
 
         if (uploadedAttachment) {
             const webhook = await submissionChannel.parent.createWebhook({
@@ -208,6 +213,25 @@ export class AddAttachmentModal implements Modal {
             return;
         }
 
+         if (submission.shouldOptimizeAttachments()) {
+            await interaction.editReply({
+                content: 'Optimizing WDLs, this may take a while...',
+                embeds: [],
+                components: [],
+                files: [],
+            }).catch(() => { });
+            try {
+                await submission.optimizeAttachments()
+            } catch (error: any) {
+                console.error('Error optimizing attachments:', error)
+                await interaction.editReply({
+                    content: 'Failed to optimize attachments: ' + error.message,
+                    flags: MessageFlags.SuppressEmbeds
+                });
+                return;
+            }
+        }
+
         await submission.save();
 
         await SetAttachmentsMenu.sendAttachmentsMenuAndButton(submission, interaction, true);
@@ -234,8 +258,12 @@ export class AddAttachmentModal implements Modal {
             message += `attachment: [${escapeDiscordString(attachmentObj.name)}](${attachmentObj.url})`;
         }
 
+        if (attachmentObj.size) {
+            message += ` (${formatSize(attachmentObj.size)})`;
+        }
+
         if (description.length > 0) {
-            message += ` with description: ${description}`;
+            message += `\n**Description:** ${description}`;
         }
 
         const editDescriptionButton = new EditInfoMultipleButton().getBuilder(false);

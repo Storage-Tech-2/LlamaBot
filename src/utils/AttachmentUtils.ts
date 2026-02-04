@@ -348,6 +348,12 @@ export async function optimizeAttachments(
                 const result = await optimizeWorldsInZip(attachmentPath, tempAttachmentPath, optimizedPath);
                 if (result.zipPath) {
                     attachment.wdl.optimized = true;
+
+                    // update size
+                    const fileStats = await fs.stat(result.zipPath).catch(() => null);
+                    if (fileStats) {
+                        attachment.size = fileStats.size;
+                    }
                 }
             } catch (error) {
                 console.error('Error optimizing WDL file:', error);

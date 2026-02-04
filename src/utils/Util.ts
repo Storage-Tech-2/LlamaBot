@@ -420,6 +420,18 @@ export function getGithubOwnerAndProject(url: string): { owner: string, project:
     return { owner, project };
 }
 
+export function formatSize(sizeInBytes: number): string {
+    if (sizeInBytes < 1024) {
+        return `${sizeInBytes} B`;
+    } else if (sizeInBytes < 1024 * 1024) {
+        return `${(sizeInBytes / 1024).toFixed(2)} KB`;
+    } else if (sizeInBytes < 1024 * 1024 * 1024) {
+        return `${(sizeInBytes / (1024 * 1024)).toFixed(2)} MB`;
+    } else {
+        return `${(sizeInBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+    }
+}
+
 /**
  * Checks if the interaction has admin permissions.
  */

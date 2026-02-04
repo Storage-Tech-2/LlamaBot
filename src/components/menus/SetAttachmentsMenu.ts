@@ -166,6 +166,25 @@ export class SetAttachmentsMenu implements Menu {
             return;
         }
 
+        if (submission.shouldOptimizeAttachments()) {
+            await interaction.editReply({
+                content: 'Optimizing WDLs, this may take a while...',
+                embeds: [],
+                components: [],
+                files: [],
+            }).catch(() => { });
+            try {
+                await submission.optimizeAttachments()
+            } catch (error: any) {
+                console.error('Error optimizing attachments:', error)
+                await interaction.editReply({
+                    content: 'Failed to optimize attachments: ' + error.message,
+                    flags: MessageFlags.SuppressEmbeds
+                });
+                return;
+            }
+        }
+
         const newAttachmentsProcessed = submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) ?? [];
 
         submission.save()

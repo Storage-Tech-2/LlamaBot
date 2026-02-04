@@ -425,6 +425,12 @@ export class Submission {
         }
     }
 
+    public shouldOptimizeAttachments(): boolean {
+        const attachments = this.config.getConfig(SubmissionConfigs.ATTACHMENTS) || [];
+        return attachments.some((att: Attachment) => {
+            return att.wdl && !att.wdl.optimized;
+        });
+    }
     public async optimizeAttachments(progressCallback?: (message: string) => Promise<void>) {
         try {
             const attachments = this.config.getConfig(SubmissionConfigs.ATTACHMENTS) || [];
@@ -883,7 +889,9 @@ export class Submission {
 
         let oldEntryData, newEntryData;
 
-        await this.optimizeAttachments(statusCallback);
+        if (this.shouldOptimizeAttachments()) {
+            await this.optimizeAttachments(statusCallback);
+        }
 
         try {
             const dt = await this.guildHolder.getRepositoryManager().addOrUpdateEntryFromSubmission(this, force, details, statusCallback);
