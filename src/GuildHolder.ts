@@ -2333,6 +2333,23 @@ export class GuildHolder {
         const references = await this.getReferenceEmbedsFromMessage(responseText, true, true, 10);
         const split = splitIntoChunks(responseText, 2000);
 
+        const embedSplit = [];
+        const currentChunkEmbeds = [];
+        let currentChunkLength = 0;
+        for (const embed of references) {
+            const embedLength = embed.length;
+            if (currentChunkLength + embedLength > 5000) {
+                embedSplit.push([...currentChunkEmbeds]);
+                currentChunkEmbeds.length = 0;
+                currentChunkLength = 0;
+            }
+            currentChunkEmbeds.push(embed);
+            currentChunkLength += embedLength;
+        }
+        if (currentChunkEmbeds.length > 0) {
+            embedSplit.push([...currentChunkEmbeds]);
+        }
+
         for (let i = 0; i < split.length; i++) {
             if (i === 0) {
                 await message.reply({ content: split[i], allowedMentions: { parse: [] }, flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds] }).catch(console.error);
@@ -2341,9 +2358,9 @@ export class GuildHolder {
             }
         }
         if (references.length > 0) {
-            for (const embed of references) {
+            for (const embedChunk of embedSplit) {
                 await channel.send({
-                    embeds: [embed],
+                    embeds: embedChunk,
                     flags: [MessageFlags.SuppressNotifications],
                     allowedMentions: { parse: [] },
                 }).catch(console.error);
