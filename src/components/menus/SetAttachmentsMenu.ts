@@ -230,7 +230,7 @@ export class SetAttachmentsMenu implements Menu {
             warningMessage += `\nLarge attachments may contribute to rate limits. Consider optimizing them or using external hosting services for very large files.`;
             await interaction.followUp({
                 content: warningMessage,
-                flags: [MessageFlags.SuppressEmbeds, MessageFlags.Ephemeral],
+                flags: [MessageFlags.SuppressEmbeds],
                 allowedMentions: { parse: [] },
             });
         }
