@@ -870,7 +870,7 @@ export function getAttachmentDescriptionForMenus(attachment: BaseAttachment): st
 
 export type AttachmentCategory = 'video' | 'image' | 'wdl' | 'litematic' | 'other';
 
-function getAttachmentCategory(attachment: Attachment): AttachmentCategory {
+export function getAttachmentCategory(attachment: Attachment): AttachmentCategory {
     if (
         attachment.contentType === 'youtube' ||
         attachment.contentType === 'bilibili' ||

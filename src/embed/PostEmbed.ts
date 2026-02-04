@@ -6,7 +6,7 @@ import { ArchiveEntryData } from "../archive/ArchiveEntry.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { GuildHolder } from "../GuildHolder.js";
 import fs from "fs/promises";
-import { getFileExtension, processImageForDiscord } from "../utils/AttachmentUtils.js";
+import { getAttachmentCategory, getFileExtension, processImageForDiscord } from "../utils/AttachmentUtils.js";
 import { postToMarkdown } from "../utils/MarkdownUtils.js";
 import { transformOutputWithReferencesForDiscord } from "../utils/ReferenceUtils.js";
 import { buildEntrySlug } from "../utils/SlugUtils.js";
@@ -67,22 +67,29 @@ export class PostEmbed {
         const litematics: Attachment[] = []
         const wdls: Attachment[] = []
         const videos: Attachment[] = []
+        const images: Attachment[] = []
         const others: Attachment[] = []
         const attachments = entryData.attachments;
         let description = `## Files for ${entryData.name}\n`;
         attachments.forEach(attachment => {
-            if (attachment.contentType === 'youtube' || attachment.contentType === 'bilibili') {
-                videos.push(attachment);
-            } else if (attachment.contentType === 'video/mp4' || attachment.name.endsWith('.mp4')) {
-                videos.push(attachment);
-            } else if (attachment.litematic) {
-                litematics.push(attachment)
-            } else if (attachment.wdl) {
-                wdls.push(attachment)
-            } else {
-                others.push(attachment)
+            switch (getAttachmentCategory(attachment)) {
+                case 'image':
+                    images.push(attachment);
+                    break;
+                case 'video':
+                    videos.push(attachment);
+                    break;
+                case 'litematic':
+                    litematics.push(attachment);
+                    break;
+                case 'wdl':
+                    wdls.push(attachment);
+                    break;
+                default:
+                    others.push(attachment);
+                    break;
             }
-        })
+        });
 
         const githubURL = guildHolder.getConfigManager().getConfig(GuildConfigs.GITHUB_REPO_URL);
         // parse the URL to get the repo name and owner
@@ -126,23 +133,36 @@ export class PostEmbed {
         if (videos.length) {
             description += '### Videos\n'
             videos.forEach(attachment => {
-                if (attachment.contentType === 'video/mp4' || attachment.name.endsWith('.mp4')) {
-                    const url = attachmentURLs.get(attachment.name) || attachment.url;
-                    const githubLink = getAttachmentGithubURL(attachment);
-                    description += `- ${url} [[Github Mirror]](${githubLink}): MP4 video, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
-                    if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
-                    return;
-                } else if (attachment.contentType === 'bilibili') {
+                if (attachment.contentType === 'bilibili') {
                     description += `- [${attachment.name}](${attachment.url}): Bilibili video\n`
                     if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
                     return;
                 }
-                if (!attachment.youtube) {
-                    description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link\n`
+
+                if (attachment.contentType === 'youtube') {
+                    if (!attachment.youtube) {
+                        description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link\n`
+                        if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
+                        return;
+                    }
+
+                    description += `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})\n`
                     if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
                     return;
                 }
-                description += `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})\n`
+
+                if (attachment.canDownload) {
+                    const url = attachmentURLs.get(attachment.name) || attachment.url;
+                    const githubLink = getAttachmentGithubURL(attachment);
+                    const videoType = attachment.contentType === 'video/mp4' || attachment.name.endsWith('.mp4')
+                        ? 'MP4 video'
+                        : 'Video file';
+                    description += `- ${url} [[Github Mirror]](${githubLink}): ${videoType}, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
+                    if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
+                    return;
+                }
+
+                description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Video link\n`
                 if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
             })
         }
@@ -295,4 +315,3 @@ export class PostEmbed {
         }
     }
 }
-
