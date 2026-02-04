@@ -113,4 +113,9 @@ export const GuildConfigs = {
      * Minimum endorsements required before publishing
      */
     MIN_ENDORSEMENTS_REQUIRED: new Config<number>("minEndorsementsRequired", 1),
+
+    /**
+     * Attachments size warning threshold in bytes
+     */
+    ATTACHMENT_SIZE_WARNING_THRESHOLD: new Config<number>("attachmentSizeWarningThreshold", 10 * 1024 * 1024), // 10 MB
 }

@@ -21,6 +21,7 @@ export type BaseAttachment = {
     contentType: string,
     path?: string, // Local path if downloaded
     size?: number, // Size in bytes if known
+    unoptimizedSize?: number, // Original size in bytes if optimized
     canDownload: boolean, // Whether the file can be downloaded
 }
 

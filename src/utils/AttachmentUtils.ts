@@ -405,6 +405,8 @@ export async function optimizeAttachments(
                 continue;
             }
 
+            const originalFileStats = await fs.stat(attachmentPath).catch(() => null);
+
             await progressCallback(`Optimizing attachment ${attachment.name}...`);
             // make temp folder
 
@@ -417,9 +419,10 @@ export async function optimizeAttachments(
                     attachment.wdl.optimized = true;
 
                     // update size
-                    const fileStats = await fs.stat(result.zipPath).catch(() => null);
-                    if (fileStats) {
-                        attachment.size = fileStats.size;
+                    const optimizedFileStats = await fs.stat(result.zipPath).catch(() => null);
+                    if (optimizedFileStats) {
+                        attachment.unoptimizedSize = originalFileStats?.size;
+                        attachment.size = optimizedFileStats.size;
                     }
                 }
             } catch (error) {
@@ -944,19 +947,19 @@ export function getAttachmentPostMessage(
 
 export function getAttachmentSetMessage(attachment: Attachment): string {
     const timestamp = `<t:${Math.floor(attachment.timestamp / 1000)}:s>`;
-    const sizeSuffix = typeof attachment.size === 'number' ? `, ${formatSize(attachment.size)}` : '';
+    const sizeSuffix = typeof attachment.size === 'number' ? `, ${formatSize(attachment.size)}${attachment.unoptimizedSize && attachment.unoptimizedSize !== attachment.size ? ` (originally ${formatSize(attachment.unoptimizedSize)})` : ''}` : '';
     const linkOrName = attachment.canDownload
         ? `${attachment.url} `
         : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`;
 
     let message = '';
     if (attachment.contentType === 'bilibili') {
-        message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Bilibili video${sizeSuffix}\n`;
+        message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Bilibili video\n`;
     } else if (attachment.contentType === 'youtube') {
         if (!attachment.youtube) {
-            message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link${sizeSuffix}\n`;
+            message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link\n`;
         } else {
-            message = `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})${sizeSuffix}\n`;
+            message = `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})\n`;
         }
     } else if (attachment.wdl) {
         message = `- ${linkOrName}: ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}${sizeSuffix}, ${timestamp}\n`;
@@ -966,17 +969,12 @@ export function getAttachmentSetMessage(attachment: Attachment): string {
         message = `- ${linkOrName}: Image ${attachment.image.width}x${attachment.image.height}${sizeSuffix}, ${timestamp}\n`;
     } else if (isAttachmentVideo(attachment)) {
         message = `- ${linkOrName}: Video${sizeSuffix}, ${timestamp}\n`;
+    } else if (attachment.contentType === 'mediafire') {
+        message = `- [${escapeDiscordString(escapeString(attachment.name))}](${attachment.url}): Mediafire link, ${timestamp}\n`;
+    } else if (attachment.contentType === 'discord') {
+        message = `- ${attachment.url} : Discord attachment${sizeSuffix}, ${timestamp}\n`;
     } else {
-        let type = attachment.contentType;
-        switch (attachment.contentType) {
-            case 'mediafire':
-                type = 'Mediafire link';
-                break;
-            case 'discord':
-                type = 'Discord attachment';
-                break;
-        }
-        message = `- ${attachment.contentType === 'discord' ? `${attachment.url} ` : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`}: ${type}${sizeSuffix}, ${timestamp}\n`;
+        message = `- [${escapeDiscordString(escapeString(attachment.name))}](${attachment.url}): ContentType ${attachment.contentType}${sizeSuffix}, ${timestamp}\n`;
     }
 
     if (attachment.description) {

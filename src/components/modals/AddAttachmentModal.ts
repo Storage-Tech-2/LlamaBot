@@ -4,10 +4,11 @@ import { Modal } from "../../interface/Modal.js";
 import { canEditSubmission, escapeDiscordString, formatSize, replyEphemeral, truncateStringWithEllipsis } from "../../utils/Util.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Attachment, AttachmentSource } from "../../submissions/Attachment.js";
-import { filterAttachments, getAttachmentsFromText } from "../../utils/AttachmentUtils.js";
+import { filterAttachments, getAttachmentSetMessage, getAttachmentsFromText } from "../../utils/AttachmentUtils.js";
 import { AuthorType } from "../../submissions/Author.js";
 import { SetAttachmentsMenu } from "../menus/SetAttachmentsMenu.js";
 import { EditInfoMultipleButton } from "../buttons/EditInfoMultipleButton.js";
+import { GuildConfigs } from "../../config/GuildConfigs.js";
 
 export class AddAttachmentModal implements Modal {
     getID(): string {
@@ -237,38 +238,10 @@ export class AddAttachmentModal implements Modal {
         await SetAttachmentsMenu.sendAttachmentsMenuAndButton(submission, interaction, true);
 
 
-        let message = `<@${interaction.user.id}> added `;
-        if (attachmentObj.youtube || attachmentObj.contentType === 'youtube' || attachmentObj.contentType === 'bilibili') {
-            if (attachmentObj.youtube) {
-                message += `YouTube video: [${escapeDiscordString(attachmentObj.youtube.title)}](${attachmentObj.url}): by [${escapeDiscordString(attachmentObj.youtube?.author_name)}](${attachmentObj.youtube?.author_url})`;
-            } else {
-                message += `YouTube video: [${escapeDiscordString(attachmentObj.name)}](${attachmentObj.url})`;
-            }
-        } else if (attachmentObj.contentType === 'bilibili') {
-            message += `Bilibili video: [${escapeDiscordString(attachmentObj.name)}](${attachmentObj.url})`;
-        } else if (attachmentObj.wdl) {
-            message += `WDL: ${attachmentObj.url} : ${attachmentObj.wdl?.error || `MC ${attachmentObj.wdl?.version}`}`;
-        } else if (attachmentObj.litematic) {
-            message += `Litematic: ${attachmentObj.url} : ${attachmentObj.litematic?.error || `MC ${attachmentObj.litematic?.version}, ${attachmentObj.litematic?.size}`}`;
-        } else if (attachmentObj.contentType === 'mediafire') {
-            message += `Mediafire link: [${escapeDiscordString(attachmentObj.name)}](${attachmentObj.url})`;
-        } else if (attachmentObj.contentType === 'discord') {
-            message += `Discord attachment: ${attachmentObj.url} `;
-        } else {
-            message += `attachment: [${escapeDiscordString(attachmentObj.name)}](${attachmentObj.url})`;
-        }
-
-        if (attachmentObj.size) {
-            message += ` (${formatSize(attachmentObj.size)})`;
-        }
-
-        if (description.length > 0) {
-            message += `\n**Description:** ${description}`;
-        }
+        let message = `<@${interaction.user.id}> added attachment:\n${getAttachmentSetMessage(attachmentObj)}`;
 
         const editDescriptionButton = new EditInfoMultipleButton().getBuilder(false);
         const row = new ActionRowBuilder().addComponents(editDescriptionButton);
-
 
         await interaction.followUp({
             content: truncateStringWithEllipsis(message, 2000),
@@ -277,6 +250,18 @@ export class AddAttachmentModal implements Modal {
             components: [row as any],
         })
 
+        const sizeWarningThreshold = guildHolder.getConfigManager().getConfig(GuildConfigs.ATTACHMENT_SIZE_WARNING_THRESHOLD);
+        if (attachmentObj.size && attachmentObj.size >= sizeWarningThreshold) {
+            let warningMessage = `⚠️ **Warning:** The attachment you just added is quite large (over ${formatSize(sizeWarningThreshold)}):\n`;
+            warningMessage += `- ${escapeDiscordString(attachmentObj.name)} (${formatSize(attachmentObj.size)})\n`;
+            warningMessage += `\nLarge attachments may contribute to rate limits. Consider optimizing them or using external hosting services for very large files.`;
+            await interaction.followUp({
+                content: warningMessage,
+                flags: [MessageFlags.SuppressEmbeds, MessageFlags.Ephemeral],
+                allowedMentions: { parse: [] },
+            });
+        }
+        
         await submission.statusUpdated();
         submission.checkReview();
     }

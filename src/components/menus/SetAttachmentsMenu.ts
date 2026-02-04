@@ -1,7 +1,7 @@
 import { ActionRowBuilder, ButtonInteraction, EmbedBuilder, Interaction, MessageFlags, ModalSubmitInteraction, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { canEditSubmission, escapeDiscordString, replyEphemeral, replyReplace, splitIntoChunks, truncateFileName, truncateStringWithEllipsis } from "../../utils/Util.js";
+import { canEditSubmission, escapeDiscordString, formatSize, replyEphemeral, replyReplace, splitIntoChunks, truncateFileName, truncateStringWithEllipsis } from "../../utils/Util.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Attachment, AttachmentAskDescriptionData } from "../../submissions/Attachment.js";
@@ -12,6 +12,7 @@ import { RefreshListButton } from "../buttons/RefreshListButton.js";
 import { SetDescriptionButton } from "../buttons/SetDescriptionButton.js";
 import { SkipDescriptionButton } from "../buttons/SkipDescriptionButton.js";
 import { EditInfoMultipleButton } from "../buttons/EditInfoMultipleButton.js";
+import { GuildConfigs } from "../../config/GuildConfigs.js";
 
 export class SetAttachmentsMenu implements Menu {
     getID(): string {
@@ -217,6 +218,21 @@ export class SetAttachmentsMenu implements Menu {
                 allowedMentions: { parse: [] },
                 components: i === split.length - 1 ? rows : []
             })
+        }
+
+        const sizeWarningThreshold = submission.getGuildHolder().getConfigManager().getConfig(GuildConfigs.ATTACHMENT_SIZE_WARNING_THRESHOLD);
+        const largeAttachments = newAttachmentsProcessed.filter(att => att.size && att.size >= sizeWarningThreshold);
+        if (largeAttachments.length > 0) {
+            let warningMessage = `⚠️ **Warning:** The following attachment${largeAttachments.length > 1 ? 's are' : ' is'} quite large (over ${formatSize(sizeWarningThreshold)}):\n`;
+            largeAttachments.forEach(att => {
+                warningMessage += `- ${escapeDiscordString(att.name)} (${formatSize(att.size || 0)})\n`;
+            });
+            warningMessage += `\nLarge attachments may contribute to rate limits. Consider optimizing them or using external hosting services for very large files.`;
+            await interaction.followUp({
+                content: warningMessage,
+                flags: [MessageFlags.SuppressEmbeds, MessageFlags.Ephemeral],
+                allowedMentions: { parse: [] },
+            });
         }
 
         await submission.statusUpdated();
