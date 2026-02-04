@@ -1,12 +1,12 @@
 import { ActionRowBuilder, AttachmentBuilder, EmbedBuilder, Message } from "discord.js";
-import { areObjectsIdentical, escapeDiscordString, escapeString, getAuthorsString, getGithubOwnerAndProject, splitIntoChunks } from "../utils/Util.js";
+import { areObjectsIdentical, escapeString, getAuthorsString, getGithubOwnerAndProject, splitIntoChunks } from "../utils/Util.js";
 import Path from "path";
 import { Attachment } from "../submissions/Attachment.js";
 import { ArchiveEntryData } from "../archive/ArchiveEntry.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { GuildHolder } from "../GuildHolder.js";
 import fs from "fs/promises";
-import { getAttachmentCategory, getFileExtension, processImageForDiscord } from "../utils/AttachmentUtils.js";
+import { getAttachmentCategory, getAttachmentPostMessage, getFileExtension, processImageForDiscord } from "../utils/AttachmentUtils.js";
 import { postToMarkdown } from "../utils/MarkdownUtils.js";
 import { transformOutputWithReferencesForDiscord } from "../utils/ReferenceUtils.js";
 import { buildEntrySlug } from "../utils/SlugUtils.js";
@@ -73,9 +73,6 @@ export class PostEmbed {
         let description = `## Files for ${entryData.name}\n`;
         attachments.forEach(attachment => {
             switch (getAttachmentCategory(attachment)) {
-                case 'image':
-                    images.push(attachment);
-                    break;
                 case 'video':
                     videos.push(attachment);
                     break;
@@ -84,6 +81,9 @@ export class PostEmbed {
                     break;
                 case 'wdl':
                     wdls.push(attachment);
+                    break;
+                case 'image':
+                    images.push(attachment);
                     break;
                 default:
                     others.push(attachment);
@@ -108,87 +108,58 @@ export class PostEmbed {
             return `${rawURL}/${attachment.path}`;
         }
         
-
         if (litematics.length) {
             description += '### Litematics\n'
             litematics.forEach(attachment => {
-                const url = attachmentURLs.get(attachment.name) || attachment.url;
                 const githubLink = getAttachmentGithubURL(attachment);
-                const viewerURL = `https://storagetech2.org/renderer?url=${githubLink}`;
-                description += `- ${url} [[View Schematic]](${viewerURL}): ` + (attachment.litematic?.error || `MC ${attachment.litematic?.version}, Size ${attachment.litematic?.size}`) + `, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`;
-                if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
+                description += getAttachmentPostMessage(attachment, {
+                    uploadedURL: attachmentURLs.get(attachment.name) || attachment.url,
+                    githubLink
+                });
             })
         }
 
         if (wdls.length) {
             description += '### WDLs\n'
             wdls.forEach(attachment => {
-                const url = attachmentURLs.get(attachment.name) || attachment.url;
                 const githubLink = getAttachmentGithubURL(attachment);
-                description += `- ${url} [[Github Mirror]](${githubLink}): ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
-                if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
+                description += getAttachmentPostMessage(attachment, {
+                    uploadedURL: attachmentURLs.get(attachment.name) || attachment.url,
+                    githubLink
+                });
             })
         }
 
         if (videos.length) {
             description += '### Videos\n'
             videos.forEach(attachment => {
-                if (attachment.contentType === 'bilibili') {
-                    description += `- [${attachment.name}](${attachment.url}): Bilibili video\n`
-                    if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
-                    return;
-                }
+                const githubLink = getAttachmentGithubURL(attachment);
+                description += getAttachmentPostMessage(attachment, {
+                    uploadedURL: attachmentURLs.get(attachment.name) || attachment.url,
+                    githubLink
+                });
+            })
+        }
 
-                if (attachment.contentType === 'youtube') {
-                    if (!attachment.youtube) {
-                        description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link\n`
-                        if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
-                        return;
-                    }
-
-                    description += `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})\n`
-                    if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
-                    return;
-                }
-
-                if (attachment.canDownload) {
-                    const url = attachmentURLs.get(attachment.name) || attachment.url;
-                    const githubLink = getAttachmentGithubURL(attachment);
-                    const videoType = attachment.contentType === 'video/mp4' || attachment.name.endsWith('.mp4')
-                        ? 'MP4 video'
-                        : 'Video file';
-                    description += `- ${url} [[Github Mirror]](${githubLink}): ${videoType}, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
-                    if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
-                    return;
-                }
-
-                description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Video link\n`
-                if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
+        if (images.length) {
+            description += '### Images\n'
+            images.forEach(attachment => {
+                const githubLink = getAttachmentGithubURL(attachment);
+                description += getAttachmentPostMessage(attachment, {
+                    uploadedURL: attachmentURLs.get(attachment.name) || attachment.url,
+                    githubLink
+                });
             })
         }
 
         if (others.length) {
             description += '### Other files\n'
             others.forEach(attachment => {
-                if (attachment.contentType === 'mediafire') {
-                    description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Mediafire link, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
-                    if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
-                    return;
-                } else if (attachment.contentType === 'youtube') {
-                    description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube video\n`
-                    if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
-                    return;
-                } else if (attachment.canDownload) {
-                    const url = attachmentURLs.get(attachment.name) || attachment.url;
-                    const githubLink = getAttachmentGithubURL(attachment);
-                    description += `- ${url} [[Github Mirror]](${githubLink}): Discord attachment, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
-                    if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
-                    return;
-                } else {
-                    description += `- [${escapeDiscordString(attachment.name)}](${attachment.url}): ContentType ${attachment.contentType}, <t:${Math.floor(attachment.timestamp / 1000)}:s>\n`
-                    if (attachment.description) description += `  - ${attachment.description.trim()}\n`;
-                    return;
-                }
+                const githubLink = getAttachmentGithubURL(attachment);
+                description += getAttachmentPostMessage(attachment, {
+                    uploadedURL: attachmentURLs.get(attachment.name) || attachment.url,
+                    githubLink
+                });
             })
         }
 

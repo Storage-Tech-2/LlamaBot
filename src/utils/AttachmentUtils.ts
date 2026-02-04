@@ -890,6 +890,58 @@ export function getAttachmentCategory(attachment: Attachment): AttachmentCategor
     return 'other';
 }
 
+export type AttachmentPostMessageOptions = {
+    uploadedURL?: string;
+    githubLink?: string | null;
+};
+
+export function getAttachmentPostMessage(
+    attachment: Attachment,
+    options: AttachmentPostMessageOptions = {}
+): string {
+    const timestamp = `<t:${Math.floor(attachment.timestamp / 1000)}:s>`;
+    const uploadedURL = options.uploadedURL || attachment.url;
+    const githubMirror = options.githubLink ? ` [[Github Mirror]](${options.githubLink})` : '';
+
+    let message = '';
+    if (attachment.contentType === 'bilibili') {
+        message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Bilibili video\n`;
+    } else if (attachment.contentType === 'youtube') {
+        if (!attachment.youtube) {
+            message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link\n`;
+        } else {
+            message = `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})\n`;
+        }
+    } else if (attachment.contentType === 'mediafire') {
+        message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Mediafire link, ${timestamp}\n`;
+    } else if (attachment.litematic) {
+        const viewerLink = options.githubLink
+            ? ` [[View Schematic]](https://storagetech2.org/renderer?url=${options.githubLink})`
+            : '';
+        message = `- ${uploadedURL}${viewerLink}: MC ${attachment.litematic?.version || "Version Unknown"}, Size ${attachment.litematic?.size || "Unknown"}, ${timestamp}\n`;
+    } else if (attachment.wdl) {
+        message = `- ${uploadedURL}${githubMirror}: MC ${attachment.wdl?.version || "Version Unknown"}, ${timestamp}\n`;
+    } else if (attachment.image) {
+        message = `- ${uploadedURL}${githubMirror}: Image, ${attachment.image.width}x${attachment.image.height}, ${timestamp}\n`;
+    } else if (isAttachmentVideo(attachment)) {
+        if (attachment.canDownload) {
+            message = `- ${uploadedURL}${githubMirror}: Video, ${timestamp}\n`;
+        } else {
+            message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Video link\n`;
+        }
+    } else if (attachment.contentType === 'discord') {
+        message = `- ${uploadedURL}${githubMirror}: Discord attachment, ${timestamp}\n`;
+    } else {
+        message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): ContentType ${attachment.contentType}, ${timestamp}\n`;
+    }
+
+    if (attachment.description) {
+        message += `  - ${attachment.description.trim()}\n`;
+    }
+
+    return message;
+}
+
 export function getAttachmentSetMessage(attachment: Attachment): string {
     const timestamp = `<t:${Math.floor(attachment.timestamp / 1000)}:s>`;
     const sizeSuffix = typeof attachment.size === 'number' ? `, ${formatSize(attachment.size)}` : '';
