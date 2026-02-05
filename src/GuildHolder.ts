@@ -12,7 +12,7 @@ import { AttachmentsState, UserData } from "./support/UserData.js";
 import { SubmissionConfigs } from "./submissions/SubmissionConfigs.js";
 import { SubmissionStatus } from "./submissions/SubmissionStatus.js";
 import fs from "fs/promises";
-import { countCharactersInRecord, postToMarkdown, StyleInfo } from "./utils/MarkdownUtils.js";
+import { countCharactersInRecord, getEffectiveStyle, postToMarkdown, StyleInfo } from "./utils/MarkdownUtils.js";
 import { Author, AuthorType, DiscordAuthor } from "./submissions/Author.js";
 import { NotABotButton } from "./components/buttons/NotABotButton.js";
 import { generateText, JSONSchema7, ModelMessage, Output, stepCountIs, Tool, zodSchema } from "ai";
@@ -1413,12 +1413,13 @@ export class GuildHolder {
                 let changed = false;
                 if (changes.records) {
                     for (const [key, change] of Object.entries(changes.records)) {
+                        const style = getEffectiveStyle(key, this.getSchemaStyles(), newEntryData.styles);
                         if (change.old && change.new) {
-                            embed.setTitle(`Updated ${key} for ${newEntryData.code} in ${forumChannel.name}`);
+                            embed.setTitle(`Updated ${style.headerText} for ${newEntryData.code} in ${forumChannel.name}`);
                         } else if (change.old) {
-                            embed.setTitle(`Removed ${key} for ${newEntryData.code} in ${forumChannel.name}`);
+                            embed.setTitle(`Removed ${style.headerText} for ${newEntryData.code} in ${forumChannel.name}`);
                         } else if (change.new) {
-                            embed.setTitle(`Added ${key} for ${newEntryData.code} in ${forumChannel.name}`);
+                            embed.setTitle(`Added ${style.headerText} for ${newEntryData.code} in ${forumChannel.name}`);
                         }
                         changed = true;
                         break;
