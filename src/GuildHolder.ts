@@ -1443,12 +1443,13 @@ export class GuildHolder {
 
             if (changes.records) {
                 for (const [key, change] of Object.entries(changes.records)) {
+                    const style = getEffectiveStyle(key, this.getSchemaStyles(), newEntryData.styles);
                     if (change.old && change.new) {
-                        fields.push({ name: key, value: `*${countCharactersInRecord(change.old)} characters* → *${countCharactersInRecord(change.new)} characters*` });
+                        fields.push({ name: style.headerText, value: `*${countCharactersInRecord(change.old)} characters* → *${countCharactersInRecord(change.new)} characters*` });
                     } else if (change.old) {
-                        fields.push({ name: key, value: `Removed ${countCharactersInRecord(change.old)} characters` });
+                        fields.push({ name: style.headerText, value: `Removed ${countCharactersInRecord(change.old)} characters` });
                     } else if (change.new) {
-                        fields.push({ name: key, value: `Added ${countCharactersInRecord(change.new)} characters` });
+                        fields.push({ name: style.headerText, value: `Added ${countCharactersInRecord(change.new)} characters` });
                     }
                 }
             }
