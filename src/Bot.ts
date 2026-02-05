@@ -1,4 +1,4 @@
-import { AutocompleteInteraction, ChatInputCommandInteraction, Client, ContextMenuCommandInteraction, Events, GatewayIntentBits, Message, Partials, SelectMenuInteraction } from "discord.js";
+import { AutocompleteInteraction, ChatInputCommandInteraction, Client, ContextMenuCommandInteraction, Events, GatewayIntentBits, Message, Partials, SelectMenuInteraction, Snowflake } from "discord.js";
 import { GuildHolder } from "./GuildHolder.js";
 import { LLMQueue } from "./llm/LLMQueue.js";
 import path from "path";
@@ -7,7 +7,7 @@ import { Command } from "./interface/Command.js";
 import { Button } from "./interface/Button.js";
 import { Menu } from "./interface/Menu.js";
 import { Modal } from "./interface/Modal.js";
-import { deployCommands, getItemsFromArray, replyEphemeral } from "./utils/Util.js";
+import { deployCommands, getItemsFromArray, replyEphemeral, splitIntoChunks } from "./utils/Util.js";
 import { getButtons } from "./components/buttons/index.js";
 import { getCommands } from "./commands/index.js";
 import { getMenus } from "./components/menus/index.js";
@@ -18,6 +18,7 @@ import { createXai, XaiProvider } from "@ai-sdk/xai";
 import { ContextMenuCommand } from "./interface/ContextMenuCommand.js";
 import { DiscordServersDictionary } from "./archive/DiscordServersDictionary.js";
 import { createOpenAI, OpenAIProvider } from "@ai-sdk/openai";
+import { GuildWhitelistManager } from "./config/GuildWhitelistManager.js";
 
 export const SysAdmin = '239078039831445504';
 
@@ -97,6 +98,7 @@ export class Bot {
      * Global Discord servers dictionary, shared across guilds.
      */
     globalDiscordServersDictionary: DiscordServersDictionary;
+    private guildWhitelistManager: GuildWhitelistManager;
 
     
     dayTaskTimestamps: Map<string, number> = new Map();
@@ -110,6 +112,7 @@ export class Bot {
         this.modals = new Map()
         this.tempData = new TempDataStore();
         this.globalDiscordServersDictionary = new DiscordServersDictionary(path.join(process.cwd(), 'config', 'global'));
+        this.guildWhitelistManager = new GuildWhitelistManager(path.join(process.cwd(), 'config', 'global', 'guild_whitelist.json'));
 
         this.client = new Client({
             intents: [
@@ -138,6 +141,8 @@ export class Bot {
         if (!secrets.token || !secrets.clientId) {
             throw new Error('Missing token or clientId in secrets.json')
         }
+
+        await this.guildWhitelistManager.load();
 
         this.commands = getItemsFromArray(getCommands())
         this.buttons = getItemsFromArray(getButtons())
@@ -172,14 +177,19 @@ export class Bot {
             this.client.once('clientReady', async () => {
                 this.ready = true
 
-                const guilds = await Promise.all((await this.client.guilds.fetch()).map((guild) => guild.fetch()))
-                guilds.forEach((guild, i) => {
+                const guilds = await Promise.all((await this.client.guilds.fetch()).map((guild) => guild.fetch()));
+                for (const [i, guild] of guilds.entries()) {
+                    if (!this.guildWhitelistManager.isGuildAllowed(guild.id)) {
+                        console.log(`Guild ${guild.name} (${guild.id}) is not whitelisted. Skipping setup (leave disabled).`);
+                        continue;
+                    }
+
                     const holder = new GuildHolder(this, guild, this.globalDiscordServersDictionary);
                     this.guilds.set(guild.id, holder);
                     const now = Date.now();
                     this.dayTaskTimestamps.set(guild.id, 24 * 60 * 60 * 1000 + now + i * 60 * 60 * 1000); // staggered by 1 hour
-                    deployCommands(this.commands, holder, secrets)
-                })
+                    deployCommands(this.commands, holder, secrets);
+                }
 
                 for (const guildHolder of this.guilds.values()) {
                     await guildHolder.dayTasks();
@@ -199,8 +209,14 @@ export class Bot {
     }
 
     setupListeners(secrets: Secrets) {
-        this.client.on(Events.GuildCreate, (guild) => {
+        this.client.on(Events.GuildCreate, async (guild) => {
             console.log(`Joined guild: ${guild.name} (${guild.id})`)
+
+            if (!this.guildWhitelistManager.isGuildAllowed(guild.id)) {
+                console.log(`Guild ${guild.name} (${guild.id}) is not whitelisted. Skipping setup (leave disabled).`);
+                return;
+            }
+
             const holder = this.guilds.get(guild.id) ?? new GuildHolder(this, guild, this.globalDiscordServersDictionary);
             this.guilds.set(guild.id, holder);
             this.dayTaskTimestamps.set(guild.id, Date.now() + 24 * 60 * 60 * 1000);
@@ -529,6 +545,131 @@ export class Bot {
         return response.data.token;
     }
 
+    private isValidSnowflake(input: string): input is Snowflake {
+        return /^\d{17,20}$/.test(input);
+    }
+
+    private getGuildLabel(guildId: Snowflake): string {
+        const guild = this.client.guilds.cache.get(guildId);
+        return guild ? `${guild.name} (${guild.id})` : guildId;
+    }
+
+    private getWhitelistMismatchSummary(nonWhitelistedGuilds: string[]): string {
+        if (nonWhitelistedGuilds.length === 0) {
+            return '';
+        }
+
+        const shown = nonWhitelistedGuilds.slice(0, 5);
+        const lines = shown.map(name => `- ${name}`);
+        const hiddenCount = nonWhitelistedGuilds.length - shown.length;
+        const hiddenText = hiddenCount > 0 ? `\n...and ${hiddenCount} more.` : '';
+        return `\nNon-whitelisted guild(s) still joined (leave disabled):\n${lines.join('\n')}${hiddenText}`;
+    }
+
+    private async enforceWhitelistForAllGuilds(): Promise<string[]> {
+        if (!this.guildWhitelistManager.isEnforced()) {
+            return [];
+        }
+
+        const nonWhitelistedGuilds: string[] = [];
+        for (const guild of this.client.guilds.cache.values()) {
+            if (this.guildWhitelistManager.isGuildAllowed(guild.id)) {
+                continue;
+            }
+
+            this.guilds.delete(guild.id);
+            this.dayTaskTimestamps.delete(guild.id);
+            nonWhitelistedGuilds.push(`${guild.name} (${guild.id})`);
+            console.log(`Guild ${guild.name} (${guild.id}) is not whitelisted. No leave action taken (leave disabled).`);
+        }
+
+        return nonWhitelistedGuilds;
+    }
+
+    private async handleWhitelistAdminMessage(message: Message, args: string[]): Promise<void> {
+        const subcommand = (args.shift() || 'list').toLowerCase();
+
+        if (subcommand === 'help') {
+            await message.reply(
+                'Whitelist commands:\n' +
+                '- `/whitelist list` (or `/whitelist status`)\n' +
+                '- `/whitelist add <guild_id>`\n' +
+                '- `/whitelist remove <guild_id>`\n' +
+                '- `/whitelist clear`\n' +
+                '\n' +
+                'When the whitelist has at least one guild ID, only those guilds are allowed.'
+            );
+            return;
+        }
+
+        if (subcommand === 'list' || subcommand === 'status') {
+            const guildIds = this.guildWhitelistManager.getGuildIds();
+            if (guildIds.length === 0) {
+                await message.reply('Whitelist is empty. Enforcement is OFF, so all guilds are currently allowed.\nUse `/whitelist add <guild_id>` to enable enforcement.');
+                return;
+            }
+
+            const lines = guildIds.map(id => {
+                const isJoined = this.client.guilds.cache.has(id);
+                return `- ${this.getGuildLabel(id)}${isJoined ? ' [joined]' : ''}`;
+            });
+            const chunks = splitIntoChunks(lines.join('\n'), 1800);
+            await message.reply(`Whitelist is ON (${guildIds.length} guild${guildIds.length === 1 ? '' : 's'}):\n${chunks[0]}`);
+            for (let i = 1; i < chunks.length; i++) {
+                await message.reply(chunks[i]);
+            }
+            return;
+        }
+
+        if (subcommand === 'add') {
+            const guildId = args[0];
+            if (!guildId || !this.isValidSnowflake(guildId)) {
+                await message.reply('Usage: `/whitelist add <guild_id>`');
+                return;
+            }
+
+            const added = await this.guildWhitelistManager.addGuild(guildId);
+            const nonWhitelistedGuilds = await this.enforceWhitelistForAllGuilds();
+            await message.reply(
+                `${added ? `Added ${this.getGuildLabel(guildId)} to the whitelist.` : `${guildId} is already in the whitelist.`}` +
+                this.getWhitelistMismatchSummary(nonWhitelistedGuilds)
+            );
+            return;
+        }
+
+        if (subcommand === 'remove') {
+            const guildId = args[0];
+            if (!guildId || !this.isValidSnowflake(guildId)) {
+                await message.reply('Usage: `/whitelist remove <guild_id>`');
+                return;
+            }
+
+            const removed = await this.guildWhitelistManager.removeGuild(guildId);
+            const nonWhitelistedGuilds = await this.enforceWhitelistForAllGuilds();
+            const disabledNotice = !this.guildWhitelistManager.isEnforced()
+                ? '\nWhitelist is now empty. Enforcement is OFF, so all guilds are allowed.'
+                : '';
+            await message.reply(
+                `${removed ? `Removed ${guildId} from the whitelist.` : `${guildId} was not in the whitelist.`}` +
+                disabledNotice +
+                this.getWhitelistMismatchSummary(nonWhitelistedGuilds)
+            );
+            return;
+        }
+
+        if (subcommand === 'clear') {
+            const cleared = await this.guildWhitelistManager.clear();
+            await message.reply(
+                cleared
+                    ? 'Whitelist cleared. Enforcement is OFF, so all guilds are allowed.'
+                    : 'Whitelist is already empty. Enforcement is OFF, so all guilds are allowed.'
+            );
+            return;
+        }
+
+        await message.reply('Unknown whitelist command. Use `/whitelist help`.');
+    }
+
     public async handleAdminMessage(message: Message) {
         console.log(`Received admin message: ${message.content} from ${message.author.tag} (${message.author.id})`);
         if (message.inGuild()) return;
@@ -565,6 +706,8 @@ export class Bot {
                 console.error('Not a git repository:', err);
                 return message.reply('Not a git repository. Cannot refresh.');
             }
+        } else if (commandName === 'whitelist' || commandName === 'wl') {
+            return this.handleWhitelistAdminMessage(message, args);
         } else {
             return message.reply(`Unknown command: ${commandName}`);
         }
