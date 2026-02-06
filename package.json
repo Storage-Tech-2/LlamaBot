@@ -2,9 +2,10 @@
   "name": "storage-tech-bot",
   "version": "1.0.0",
   "description": "Storage tech bot",
-  "main": "index.ts",
+  "main": "index.js",
   "type": "module",
   "scripts": {
+    "start": "node index.js",
     "dev": "tsx watch src/index.ts",
     "test": "jest",
     "lint": "eslint ."
