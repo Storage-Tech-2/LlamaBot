@@ -919,7 +919,7 @@ export function getAttachmentPostMessage(
         message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Mediafire link, ${timestamp}\n`;
     } else if (attachment.litematic) {
         const viewerLink = options.githubLink
-            ? ` [[View Schematic]](https://storagetech2.org/renderer?url=${options.githubLink})`
+            ? ` [[View Schematic]](https://llamamc.org/renderer?url=${options.githubLink})`
             : '';
         message = `- ${uploadedURL}${viewerLink}: MC ${attachment.litematic?.version || "Version Unknown"}, Size ${attachment.litematic?.size || "Unknown"}, ${timestamp}\n`;
     } else if (attachment.wdl) {
