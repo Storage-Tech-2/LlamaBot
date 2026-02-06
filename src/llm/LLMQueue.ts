@@ -124,7 +124,7 @@ export class LLMQueue {
         return this._llmQueue.shift();
     }
 
-    private async localModelProcess(request: LLMRequest): Promise<LLMResponse> {
+    private async localModelProcess(_request: LLMRequest): Promise<LLMResponse> {
         throw new Error('Local model processing is currently disabled.');
 
         // const prompt = request.prompt.generatePrompt();

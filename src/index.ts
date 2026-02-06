@@ -4,10 +4,16 @@ import path from "path";
 
 type ManagedPythonServer = {
 	stop: () => Promise<void>;
+	waitUntilReady: () => Promise<void>;
 };
 
 const SHUTDOWN_TIMEOUT_MS = 5_000;
 const PYTHON_DIR = path.join(process.cwd(), 'python');
+const READY_POLL_INTERVAL_MS = 1_000;
+
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function isTruthy(value: string | undefined): boolean {
 	if (!value) return false;
@@ -88,6 +94,25 @@ function buildPythonCommand(): { command: string; args: string[]; viaShell: bool
 	return null;
 }
 
+function getPythonHealthUrl(): string {
+	const customHealthUrl = process.env.PYTHON_SERVER_HEALTH_URL?.trim();
+	if (customHealthUrl) {
+		return customHealthUrl;
+	}
+
+	const host = process.env.PYTHON_SERVER_HOST || '127.0.0.1';
+	const port = process.env.PYTHON_SERVER_PORT || '8000';
+	return `http://${host}:${port}/healthz`;
+}
+
+function getReadyTimeoutMs(): number {
+	const value = process.env.PYTHON_SERVER_READY_TIMEOUT_MS?.trim();
+	if (!value) return 120_000;
+	const parsed = Number(value);
+	if (!Number.isFinite(parsed) || parsed <= 0) return 120_000;
+	return parsed;
+}
+
 function startPythonServer(): ManagedPythonServer | null {
 	if (isTruthy(process.env.PYTHON_SERVER_DISABLE)) {
 		console.log('Python server autostart disabled via PYTHON_SERVER_DISABLE.');
@@ -124,6 +149,35 @@ function startPythonServer(): ManagedPythonServer | null {
 	console.log(`Started Python server in ${PYTHON_DIR}`);
 
 	return {
+		waitUntilReady: async () => {
+			const healthUrl = getPythonHealthUrl();
+			const timeoutMs = getReadyTimeoutMs();
+			const startedAt = Date.now();
+			console.log(`Waiting for Python server readiness at ${healthUrl}...`);
+
+			while (Date.now() - startedAt < timeoutMs) {
+				if (child.exitCode !== null) {
+					throw new Error(`Python server exited before becoming ready (code=${child.exitCode}).`);
+				}
+
+				try {
+					const controller = new AbortController();
+					const timeout = setTimeout(() => controller.abort(), 2_000);
+					const response = await fetch(healthUrl, { signal: controller.signal });
+					clearTimeout(timeout);
+					if (response.ok) {
+						console.log('Python server is ready.');
+						return;
+					}
+				} catch {
+					// Keep polling until timeout.
+				}
+
+				await sleep(READY_POLL_INTERVAL_MS);
+			}
+
+			throw new Error(`Timed out waiting for Python server readiness after ${timeoutMs}ms.`);
+		},
 		stop: () =>
 			new Promise<void>((resolve) => {
 				if (stopping || child.killed || child.exitCode !== null) {
@@ -178,6 +232,7 @@ async function installPythonDependencies(): Promise<void> {
 async function bootstrap() {
 	await installPythonDependencies();
 	const pythonServer = startPythonServer();
+	await pythonServer?.waitUntilReady();
 	const bot = new Bot();
 
 	let shuttingDown = false;
