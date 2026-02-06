@@ -33,6 +33,7 @@ export type DiscordExternalAuthor = BaseAuthor & {
 export type DiscordDeletedAuthor = BaseAuthor & {
     type: AuthorType.DiscordDeleted,
     id: Snowflake, // Discord user ID
+    displayName?: string, // Display name if it used to be known
 }
 
 export type UnknownAuthor = BaseAuthor & {

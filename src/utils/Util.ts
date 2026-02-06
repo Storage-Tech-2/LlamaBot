@@ -644,7 +644,7 @@ export async function reclassifyAuthors<T extends (DiscordAuthor | Author)>(guil
             }
         } else {
             const user = await guildHolder.getBot().client.users.fetch(author.id).catch(() => null);
-            if (user) { // is a user but not a member of the guild
+            if (user && !user.username.startsWith("deleted_user_")) { // is a user but not a member of the guild
                 if (newAuthor.type === AuthorType.DiscordInGuild) {
                     // just change type
                     newAuthor.type = AuthorType.DiscordLeftGuild;
