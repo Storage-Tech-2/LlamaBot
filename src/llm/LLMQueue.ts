@@ -125,20 +125,22 @@ export class LLMQueue {
     }
 
     private async localModelProcess(request: LLMRequest): Promise<LLMResponse> {
-        const prompt = request.prompt.generatePrompt();
-        const res = await got.post(URL, {
-            json: {
-                schema_text: JSON.stringify(request.schema),
-                input_text: prompt
-            },
-            timeout: {
-                request: 60000 // 60 seconds
-            }
-        }).json() as LLMResponse;
-        if (res.error) {
-            throw new Error(res.error);
-        }
-        return res;
+        throw new Error('Local model processing is currently disabled.');
+
+        // const prompt = request.prompt.generatePrompt();
+        // const res = await got.post(URL, {
+        //     json: {
+        //         schema_text: JSON.stringify(request.schema),
+        //         input_text: prompt
+        //     },
+        //     timeout: {
+        //         request: 60000 // 60 seconds
+        //     }
+        // }).json() as LLMResponse;
+        // if (res.error) {
+        //     throw new Error(res.error);
+        // }
+        // return res;
     }
 
     private async paidModelProcess(request: LLMRequest): Promise<LLMResponse> {
