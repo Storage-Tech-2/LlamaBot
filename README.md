@@ -22,3 +22,5 @@ The bot can now launch the Python FastAPI server automatically on startup.
 - Override command: set `PYTHON_SERVER_CMD` (example: `PYTHON_SERVER_CMD="uv run uvicorn main:app --host 127.0.0.1 --port 8001"`).
 - Optional host/port overrides (when not using `PYTHON_SERVER_CMD`): `PYTHON_SERVER_HOST`, `PYTHON_SERVER_PORT`.
 - Optional readiness overrides: `PYTHON_SERVER_HEALTH_URL` and `PYTHON_SERVER_READY_TIMEOUT_MS` (default `120000`).
+- Install storage overrides for low-space temp mounts: `PYTHON_INSTALL_CACHE_ROOT`, `PYTHON_TMPDIR`, `PIP_CACHE_DIR`, `UV_CACHE_DIR`.
+- Pip cache behavior: cache is disabled by default during auto-install (`--no-cache-dir`); set `PYTHON_PIP_USE_CACHE=true` to re-enable.

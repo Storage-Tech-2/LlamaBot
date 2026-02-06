@@ -1,5 +1,6 @@
 import { Bot } from "./Bot.js";
 import { ChildProcess, spawn, spawnSync } from "child_process";
+import fs from "fs/promises";
 import path from "path";
 
 type ManagedPythonServer = {
@@ -26,11 +27,16 @@ function commandExists(command: string): boolean {
 }
 
 function runCommand(command: string, args: string[], cwd: string): Promise<void> {
+	return runCommandWithEnv(command, args, cwd, process.env);
+}
+
+function runCommandWithEnv(command: string, args: string[], cwd: string, env: NodeJS.ProcessEnv): Promise<void> {
 	return new Promise((resolve, reject) => {
 		const child = spawn(command, args, {
 			cwd,
 			stdio: ['ignore', 'pipe', 'pipe'],
-			shell: false
+			shell: false,
+			env
 		});
 
 		child.stdout?.on('data', (data: Buffer) => {
@@ -52,6 +58,31 @@ function runCommand(command: string, args: string[], cwd: string): Promise<void>
 			reject(new Error(`Command failed (${command} ${args.join(' ')}) with code=${code}, signal=${signal}`));
 		});
 	});
+}
+
+function buildInstallPaths() {
+	const cacheRoot = process.env.PYTHON_INSTALL_CACHE_ROOT?.trim() || path.join(process.cwd(), '.python-install-cache');
+	return {
+		tmpDir: process.env.PYTHON_TMPDIR?.trim() || path.join(cacheRoot, 'tmp'),
+		pipCacheDir: process.env.PIP_CACHE_DIR?.trim() || path.join(cacheRoot, 'pip-cache'),
+		uvCacheDir: process.env.UV_CACHE_DIR?.trim() || path.join(cacheRoot, 'uv-cache')
+	};
+}
+
+async function buildInstallEnv(): Promise<NodeJS.ProcessEnv> {
+	const installPaths = buildInstallPaths();
+	await Promise.all([
+		fs.mkdir(installPaths.tmpDir, { recursive: true }),
+		fs.mkdir(installPaths.pipCacheDir, { recursive: true }),
+		fs.mkdir(installPaths.uvCacheDir, { recursive: true })
+	]);
+
+	return {
+		...process.env,
+		TMPDIR: installPaths.tmpDir,
+		PIP_CACHE_DIR: installPaths.pipCacheDir,
+		UV_CACHE_DIR: installPaths.uvCacheDir
+	};
 }
 
 function buildPythonCommand(): { command: string; args: string[]; viaShell: boolean } | null {
@@ -208,21 +239,34 @@ async function installPythonDependencies(): Promise<void> {
 		return;
 	}
 
+	const installEnv = await buildInstallEnv();
+	console.log(`Python install TMPDIR=${installEnv.TMPDIR}`);
+	console.log(`Python install PIP_CACHE_DIR=${installEnv.PIP_CACHE_DIR}`);
+	console.log(`Python install UV_CACHE_DIR=${installEnv.UV_CACHE_DIR}`);
+
 	if (commandExists('uv')) {
 		console.log('Installing Python dependencies with uv...');
-		await runCommand('uv', ['sync'], PYTHON_DIR);
+		await runCommandWithEnv('uv', ['sync'], PYTHON_DIR, installEnv);
 		return;
 	}
 
 	if (commandExists('python3')) {
 		console.log('Installing Python dependencies with python3 -m pip...');
-		await runCommand('python3', ['-m', 'pip', 'install', '-e', '.'], PYTHON_DIR);
+		const pipArgs = ['-m', 'pip', 'install', '-e', '.'];
+		if (!isTruthy(process.env.PYTHON_PIP_USE_CACHE)) {
+			pipArgs.splice(3, 0, '--no-cache-dir');
+		}
+		await runCommandWithEnv('python3', pipArgs, PYTHON_DIR, installEnv);
 		return;
 	}
 
 	if (commandExists('python')) {
 		console.log('Installing Python dependencies with python -m pip...');
-		await runCommand('python', ['-m', 'pip', 'install', '-e', '.'], PYTHON_DIR);
+		const pipArgs = ['-m', 'pip', 'install', '-e', '.'];
+		if (!isTruthy(process.env.PYTHON_PIP_USE_CACHE)) {
+			pipArgs.splice(3, 0, '--no-cache-dir');
+		}
+		await runCommandWithEnv('python', pipArgs, PYTHON_DIR, installEnv);
 		return;
 	}
 
