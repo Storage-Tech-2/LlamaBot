@@ -123,6 +123,14 @@ export function getAuthorsString(authors: Author[] | null): string {
             return `${author.url ? `[${escapeDiscordString(author.displayName)}](${author.url})` : escapeDiscordString(author.displayName)} (<@${author.id}>)`;
         } else if (author.type === AuthorType.DiscordExternal) {
             return `${author.url ? `[${escapeDiscordString(author.username)}](${author.url})` : escapeDiscordString(author.username)} (<@${author.id}>)`;
+        } else if (author.type === AuthorType.DiscordDeleted) {
+            // check if username is deleted_user_*
+            if (author.username.startsWith('deleted_user_')) {
+                // then just return "Deleted User (<@id>)"
+                return `${author.url ? `[Deleted User](${author.url})` : 'Deleted User'} (<@${author.id}>)`;
+            } else {
+                return `${author.url ? `[${escapeDiscordString(author.displayName || author.username)}](${author.url})` : escapeDiscordString(author.displayName || author.username)} (<@${author.id}>)`;
+            }
         } else if (author.url) {
             return `[${escapeDiscordString(author.username)}](${author.url})`;
         } else {
