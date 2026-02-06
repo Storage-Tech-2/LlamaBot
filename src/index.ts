@@ -107,9 +107,9 @@ function getPythonHealthUrl(): string {
 
 function getReadyTimeoutMs(): number {
 	const value = process.env.PYTHON_SERVER_READY_TIMEOUT_MS?.trim();
-	if (!value) return 120_000;
+	if (!value) return 10 * 60_000;
 	const parsed = Number(value);
-	if (!Number.isFinite(parsed) || parsed <= 0) return 120_000;
+	if (!Number.isFinite(parsed) || parsed <= 0) return 10 * 60_000;
 	return parsed;
 }
 
