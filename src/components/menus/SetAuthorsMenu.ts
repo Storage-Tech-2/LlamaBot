@@ -167,7 +167,7 @@ export class SetAuthorsMenu implements Menu {
         const currentAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
 
         const newAuthors = interaction.values.map((name) => {
-            const existingAuthor = currentAuthors.find(a => a.type === AuthorType.Unknown && a.username === name);
+            const existingAuthor = currentAuthors.find(a => (a.type === AuthorType.Unknown || a.type === AuthorType.DiscordDeleted) && a.username === name);
             if (existingAuthor) {
                 return existingAuthor;
             }
@@ -184,13 +184,13 @@ export class SetAuthorsMenu implements Menu {
         const removed: Author[] = [];
 
         for (const author of newAuthors) {
-            if (!currentAuthors.some(a => a.type === AuthorType.Unknown && a.username === author.username)) {
+            if (!currentAuthors.some(a => (a.type === AuthorType.Unknown || a.type === AuthorType.DiscordDeleted) && a.username === author.username)) {
                 added.push(author);
             }
         }
 
         for (const author of currentAuthors) {
-            if (author.type === AuthorType.Unknown && !newAuthors.some(a => a.username === author.username)) {
+            if ((author.type === AuthorType.Unknown || author.type === AuthorType.DiscordDeleted) && !newAuthors.some(a => a.username === author.username)) {
                 removed.push(author);
             }
         }
@@ -204,7 +204,7 @@ export class SetAuthorsMenu implements Menu {
             currentAuthors.push(author);
         });
         removed.forEach(author => {
-            const index = currentAuthors.findIndex(a => a.type === AuthorType.Unknown && a.username === author.username);
+            const index = currentAuthors.findIndex(a => (a.type === AuthorType.Unknown || a.type === AuthorType.DiscordDeleted) && a.username === author.username);
             if (index !== -1) {
                 currentAuthors.splice(index, 1);
             }
