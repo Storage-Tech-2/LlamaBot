@@ -28,7 +28,7 @@ export async function changeImageName(processed_folder: string, oldImage: BaseAt
 }
 
 export async function changeAttachmentName(attachments_folder: string, oldAttachment: BaseAttachment, newAttachment: BaseAttachment): Promise<void> {
-    if (!newAttachment.canDownload) {
+    if (!newAttachment.canDownload || !newAttachment.path) {
         return;
     }
     const oldPath = Path.join(attachments_folder, getFileKey(oldAttachment));
@@ -293,14 +293,15 @@ export async function processAttachments(attachments: Attachment[], attachments_
     // Process each attachment
     await Promise.all(attachments.map(async (attachment, index) => {
         const key = getFileKey(attachment);
-        if (attachment.canDownload) {
+        if (attachment.canDownload && !attachment.path) {
             const attachmentPath = Path.join(attachments_folder, key);
-            attachment.path = key;
+            
             // If the attachment already exists, skip download
             if (!await fs.access(attachmentPath).then(() => true).catch(() => false)) {
                 try {
                     const attachmentData = await got(attachmentURLsRefreshed[index], { responseType: 'buffer' });
                     await fs.writeFile(attachmentPath, attachmentData.body);
+                    attachment.path = key;
                 } catch (error) {
                     throw new Error(`Failed to download attachment ${attachment.name} at ${attachmentURLsRefreshed[index]}, try reuploading the file directly to the thread.`);
                 }
@@ -383,12 +384,14 @@ async function analyzeLitematic(attachment: Attachment, attachmentPath: string, 
 
 export async function optimizeAttachments(
     attachments: Attachment[],
-    attachments_folder: string, optimized_folder: string, temp_folder: string,
+    attachments_folder: string, temp_folder: string,
     progressCallback: (message: string) => Promise<void>
 ): Promise<Attachment[]> {
     let tempIndex = 0;
-    await fs.mkdir(optimized_folder, { recursive: true });
     await fs.mkdir(temp_folder, { recursive: true });
+
+    const optimized_folder = Path.join(temp_folder, 'optimized');
+    await fs.mkdir(optimized_folder, { recursive: true });
 
     for (const attachment of attachments) {
         if (attachment.wdl && attachment.path) {
@@ -424,6 +427,9 @@ export async function optimizeAttachments(
                         attachment.unoptimizedSize = originalFileStats?.size;
                         attachment.size = optimizedFileStats.size;
                     }
+
+                    // overwrite attachment path to optimized file
+                    await fs.copyFile(result.zipPath, attachmentPath);
                 }
             } catch (error) {
                 console.error('Error optimizing WDL file:', error);

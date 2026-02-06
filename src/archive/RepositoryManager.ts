@@ -1401,8 +1401,7 @@ export class RepositoryManager {
                 for (const attachment of entryData.attachments) {
                     if (!attachment.path) continue;
                     const sourcePath = Path.join(submission.getAttachmentFolder(), attachment.path);
-                    const sourcePathOptimized = Path.join(submission.getOptimizedAttachmentFolder(), attachment.path);
-
+                  
                     const { basename, ext } = splitFileName(attachment.name);
 
                     const escapedName = escapeString(basename);
@@ -1415,12 +1414,7 @@ export class RepositoryManager {
                     if (!attachment.canDownload) {
                         await fs.writeFile(destPath, attachment.url || '', 'utf-8');
                     } else {
-                        // check if optimized file exists
-                        if (await fs.access(sourcePathOptimized).then(() => true).catch(() => false)) {
-                            await fs.copyFile(sourcePathOptimized, destPath);
-                        } else {
-                            await fs.copyFile(sourcePath, destPath);
-                        }
+                        await fs.copyFile(sourcePath, destPath);
                     }
                 }
 
@@ -1628,7 +1622,7 @@ export class RepositoryManager {
             const optimizedFolder = Path.join(this.folderPath, 'optimized_attachments');
             await fs.mkdir(optimizedFolder, { recursive: true });
 
-            await optimizeAttachments(newEntryData.attachments, entryFolderPath, optimizedFolder, tempFolder, reportStatus);
+            await optimizeAttachments(newEntryData.attachments, entryFolderPath, tempFolder, reportStatus);
 
             // remove temp folder
             await fs.rm(tempFolder, { recursive: true, force: true });

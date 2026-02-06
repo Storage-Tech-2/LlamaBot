@@ -435,9 +435,8 @@ export class Submission {
         try {
             const attachments = this.config.getConfig(SubmissionConfigs.ATTACHMENTS) || [];
             const attachmentsFolder = this.getAttachmentFolder();
-            const optimizedFolder = this.getOptimizedAttachmentFolder();
             await optimizeAttachments(
-                attachments, attachmentsFolder, optimizedFolder, this.getTempFolder(),
+                attachments, attachmentsFolder, this.getTempFolder(),
                 progressCallback || (async (_message: string) => { })
             );
             this.config.setConfig(SubmissionConfigs.ATTACHMENTS, attachments);
@@ -453,10 +452,6 @@ export class Submission {
 
     public getAttachmentFolder(): string {
         return Path.join(this.folderPath, 'attachments');
-    }
-
-    public getOptimizedAttachmentFolder(): string {
-        return Path.join(this.folderPath, 'optimized_attachments');
     }
 
     public getTempFolder(): string {

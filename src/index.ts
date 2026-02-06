@@ -26,10 +26,6 @@ function commandExists(command: string): boolean {
 	return !result.error;
 }
 
-function runCommand(command: string, args: string[], cwd: string): Promise<void> {
-	return runCommandWithEnv(command, args, cwd, process.env);
-}
-
 function runCommandWithEnv(command: string, args: string[], cwd: string, env: NodeJS.ProcessEnv): Promise<void> {
 	return new Promise((resolve, reject) => {
 		const child = spawn(command, args, {
