@@ -428,6 +428,22 @@ export function getGithubOwnerAndProject(url: string): { owner: string, project:
     return { owner, project };
 }
 
+function trimSlashes(path: string): string {
+    return path.replace(/^\/+|\/+$/g, '');
+}
+
+export function buildGithubRawContentURL(owner: string, project: string, branchName: string, path: string = ''): string {
+    const base = `https://raw.githubusercontent.com/${owner}/${project}/refs/heads/${branchName}`;
+    const cleanPath = trimSlashes(path);
+    return cleanPath ? `${base}/${cleanPath}` : base;
+}
+
+export function buildGithubMediaContentURL(owner: string, project: string, branchName: string, path: string = ''): string {
+    const base = `https://media.githubusercontent.com/media/${owner}/${project}/refs/heads/${branchName}`;
+    const cleanPath = trimSlashes(path);
+    return cleanPath ? `${base}/${cleanPath}` : base;
+}
+
 export function formatSize(sizeInBytes: number): string {
     if (sizeInBytes < 1024) {
         return `${sizeInBytes} B`;

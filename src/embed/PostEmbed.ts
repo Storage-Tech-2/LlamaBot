@@ -1,5 +1,5 @@
 import { ActionRowBuilder, AttachmentBuilder, EmbedBuilder, Message } from "discord.js";
-import { areObjectsIdentical, escapeString, getAuthorsString, getGithubOwnerAndProject, splitIntoChunks } from "../utils/Util.js";
+import { areObjectsIdentical, buildGithubMediaContentURL, buildGithubRawContentURL, escapeString, getAuthorsString, getGithubOwnerAndProject, splitIntoChunks } from "../utils/Util.js";
 import Path from "path";
 import { Attachment } from "../submissions/Attachment.js";
 import { ArchiveEntryData } from "../archive/ArchiveEntry.js";
@@ -95,8 +95,8 @@ export class PostEmbed {
         // parse the URL to get the repo name and owner
         const { owner, project } = getGithubOwnerAndProject(githubURL);
         // construct a raw URL
-        const rawURL = `https://raw.githubusercontent.com/${owner}/${project}/refs/heads/${branchName}/${entryPathPart}`;
-        const mediaURL = `https://media.githubusercontent.com/media/${owner}/${project}/refs/heads/${branchName}/${entryPathPart}`;
+        const rawURL = buildGithubRawContentURL(owner, project, branchName, entryPathPart);
+        const mediaURL = buildGithubMediaContentURL(owner, project, branchName, entryPathPart);
 
         const lfsExtensions = guildHolder.getRepositoryManager().getConfigManager().getConfig(RepositoryConfigs.LFS_EXTENSIONS);
         const getAttachmentGithubURL = (attachment: Attachment) => {

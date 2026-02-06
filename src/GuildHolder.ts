@@ -6,7 +6,7 @@ import { GuildConfigs } from "./config/GuildConfigs.js";
 import { SubmissionsManager } from "./submissions/SubmissionsManager.js";
 import { RepositoryManager } from "./archive/RepositoryManager.js";
 import { ArchiveEntry, ArchiveEntryData } from "./archive/ArchiveEntry.js";
-import { deepClone, escapeDiscordString, getAuthorName, getAuthorsString, getChanges, getCodeAndDescriptionFromTopic, splitIntoChunks, truncateStringWithEllipsis } from "./utils/Util.js";
+import { buildGithubRawContentURL, deepClone, escapeDiscordString, getAuthorName, getAuthorsString, getChanges, getCodeAndDescriptionFromTopic, getGithubOwnerAndProject, splitIntoChunks, truncateStringWithEllipsis } from "./utils/Util.js";
 import { UserManager } from "./support/UserManager.js";
 import { AttachmentsState, UserData } from "./support/UserData.js";
 import { SubmissionConfigs } from "./submissions/SubmissionConfigs.js";
@@ -365,7 +365,7 @@ export class GuildHolder {
 
         const llmEnabled = this.getConfigManager().getConfig(GuildConfigs.CONVERSATIONAL_LLM_ENABLED);
         const llmChannel = this.getConfigManager().getConfig(GuildConfigs.CONVERSATIONAL_LLM_CHANNEL);
-       
+
         const member = message.member;
         const canUserMentionOutsideChannel = member ? await this.isMemberAllowedToUseBotOutsideChannel(member) : false;
         const canConverse = this.canConverse() && (llmEnabled || (llmChannel && llmChannel === message.channel.id) || canUserMentionOutsideChannel);
@@ -446,7 +446,7 @@ export class GuildHolder {
         if (helperRoleId && member.roles.cache.has(helperRoleId)) {
             return true;
         }
-       
+
         return false;
     }
 
@@ -476,6 +476,35 @@ export class GuildHolder {
                 }
             }
         }
+    }
+
+    public async getPostThumbnailURL(entryData: ArchiveEntryData): Promise<string | null> {
+        if (entryData.images.length === 0) {
+            return null;
+        }
+
+        if (!entryData.post) {
+            // retracted post
+            const image = entryData.images[0];
+            return image.url;
+        }
+
+        // get path
+        const found = await this.repositoryManager.getEntryByPostCode(entryData.code);
+        if (!found) {
+            return null;
+        }
+
+        const githubURL = this.getConfigManager().getConfig(GuildConfigs.GITHUB_REPO_URL);
+        if (!githubURL) {
+            return null;
+        }
+
+        const { owner, project } = getGithubOwnerAndProject(githubURL);
+        const branchName = this.repositoryManager.getBranchName();
+        const imagePath = entryData.images[0].path;
+        const rawURL = buildGithubRawContentURL(owner, project, branchName, `${found.channelRef.path}/${found.entryRef.path}/${imagePath}`);
+        return rawURL;
     }
 
     public async getReferenceEmbedsFromMessage(content: string, autoLookupEnabled: boolean, autoJoinEnabled: boolean, maxEmbeds: number = 3) {
@@ -607,7 +636,8 @@ export class GuildHolder {
                     const authors = getAuthorsString(entryData.authors);
                     const tags = entryData.tags.map(tag => tag.name).join(', ');
                     const description = entryData.records.description as string || '';
-                    const image = entryData.images.length > 0 ? entryData.images[0].url : null;
+                    const imageURL = await this.getPostThumbnailURL(entryData);
+
 
                     const textArr = [
                         `**Authors:** ${authors}`,
@@ -621,8 +651,8 @@ export class GuildHolder {
                         .setDescription(truncateStringWithEllipsis(textArr.join('\n'), 500))
                         .setColor(0x00AE86)
                         .setURL(entryData.post.threadURL);
-                    if (image) {
-                        embed.setThumbnail(image);
+                    if (imageURL) {
+                        embed.setThumbnail(imageURL);
                     }
 
                     embeds.push(embed);
@@ -1370,8 +1400,9 @@ export class GuildHolder {
 
         const embed = new EmbedBuilder();
 
-        if (newEntryData.images.length > 0 && newEntryData.images[0].url) {
-            embed.setThumbnail(newEntryData.images[0].url);
+        const imageURL = await this.getPostThumbnailURL(newEntryData);
+        if (imageURL) {
+            embed.setThumbnail(imageURL);
         }
 
         let messageTitle = null;
@@ -1891,8 +1922,9 @@ export class GuildHolder {
 
         const embed = new EmbedBuilder();
 
-        if (oldEntryData.images.length > 0 && oldEntryData.images[0].url) {
-            embed.setThumbnail(oldEntryData.images[0].url);
+        const imageURL = await this.getPostThumbnailURL(oldEntryData);
+        if (imageURL) {
+            embed.setThumbnail(imageURL);
         }
 
         embed.setTitle(`Retracted ${oldEntryData.code} from ${forumChannel.name}`)

@@ -41,6 +41,7 @@ export class RepositoryManager {
     private guildHolder: GuildHolder;
     private dictionaryManager: DictionaryManager;
     private indexManager: IndexManager;
+    private branchName: string = 'main';
     private discordServersDictionary: DiscordServersDictionary;
     private hnswIndexCache: TemporaryCache<HierarchicalNSW | null>;
     private channelsCache: TemporaryCache<ArchiveChannelReference[]>;
@@ -118,6 +119,9 @@ export class RepositoryManager {
 
         // Load the config manager
         await this.configManager.loadConfig();
+
+        // set branch name
+        this.branchName = await this.fetchBranchName().catch(() => 'main');
 
         // try pull
         try {
@@ -439,8 +443,7 @@ export class RepositoryManager {
             throw new Error("Git not initialized");
         }
         await this.updateRemote();
-        const branchName = await this.git.branchLocal().then(branch => branch.current);
-        await this.git.pull('origin', branchName);
+        await this.git.pull('origin', this.branchName);
     }
 
     async updateRemote() {
@@ -1456,6 +1459,14 @@ export class RepositoryManager {
         }
     }
 
+    async fetchBranchName(): Promise<string> {
+        if (!this.git) {
+            throw new Error("Git not initialized");
+        }
+        const branchSummary = await this.git.branch();
+        return branchSummary.current;
+    }
+
     async addOrUpdateEntryFromData(
         newEntryData: ArchiveEntryData,
         archiveChannelId: Snowflake,
@@ -1713,7 +1724,7 @@ export class RepositoryManager {
 
         newEntryData.num_comments = comments.length;
 
-        const branchName = await this.git.branchLocal().then(branch => branch.current);
+        const branchName = this.branchName;
 
         // Next, create the post
         const message = PostEmbed.createInitialMessage(this.guildHolder, newEntryData, entryPathPart);
@@ -2213,9 +2224,12 @@ export class RepositoryManager {
             return;
         }
         await this.updateRemote();
-
-        const branchName = await this.git.branchLocal().then(branch => branch.current);
+        const branchName = this.branchName;
         await this.git.push(['-u', 'origin', branchName]);
+    }
+
+    public getBranchName(): string {
+        return this.branchName;
     }
 
     async save() {

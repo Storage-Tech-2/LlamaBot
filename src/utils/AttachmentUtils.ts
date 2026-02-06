@@ -953,7 +953,7 @@ export function getAttachmentPostMessage(
 
 export function getAttachmentSetMessage(attachment: Attachment): string {
     const timestamp = `<t:${Math.floor(attachment.timestamp / 1000)}:s>`;
-    const sizeSuffix = typeof attachment.size === 'number' ? `, ${formatSize(attachment.size)}${attachment.unoptimizedSize && attachment.unoptimizedSize !== attachment.size ? ` (originally ${formatSize(attachment.unoptimizedSize)})` : ''}` : '';
+    const sizeSuffix = typeof attachment.size === 'number' ? `, ${formatSize(attachment.size)}${attachment.unoptimizedSize && attachment.unoptimizedSize !== attachment.size ? ` (was ${formatSize(attachment.unoptimizedSize)})` : ''}` : '';
     const linkOrName = attachment.canDownload
         ? `${attachment.url} `
         : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`;
