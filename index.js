@@ -1,12 +1,12 @@
 import { spawn } from "child_process";
 import path from "path";
 
-const tsxPath = path.join(process.cwd(), "node_modules", ".bin", "tsx");
 const entryFile = path.join(process.cwd(), "src", "index.ts");
+const npxCommand = process.platform === "win32" ? "npx.cmd" : "npx";
 
-const child = spawn(tsxPath, [entryFile], {
+const child = spawn(npxCommand, ["tsx", entryFile], {
 	stdio: "inherit",
-	shell: process.platform === "win32",
+	shell: false,
 	env: process.env
 });
 
