@@ -1,33 +1,19 @@
 import { spawn } from "child_process";
-import { existsSync } from "fs";
 import { createRequire } from "module";
 import path from "path";
 
 const require = createRequire(import.meta.url);
 const entryFile = path.join(process.cwd(), "src", "index.ts");
 
-function resolveTsxCommand() {
-	const unixBin = path.join(process.cwd(), "node_modules", ".bin", "tsx");
-	const winBin = `${unixBin}.cmd`;
-
-	if (process.platform === "win32" && existsSync(winBin)) {
-		return { command: winBin, args: [] };
-	}
-
-	if (existsSync(unixBin)) {
-		return { command: unixBin, args: [] };
-	}
-
-	try {
-		const tsxCli = require.resolve("tsx/dist/cli.mjs");
-		return { command: process.execPath, args: [tsxCli] };
-	} catch {
-		throw new Error('Could not resolve tsx. Run "npm install" to install dependencies.');
-	}
+let tsxCli;
+try {
+	tsxCli = require.resolve("tsx/cli");
+} catch {
+	console.error('Could not resolve tsx CLI module. Run "npm install".');
+	process.exit(1);
 }
 
-const tsx = resolveTsxCommand();
-const child = spawn(tsx.command, [...tsx.args, entryFile], {
+const child = spawn(process.execPath, [tsxCli, entryFile], {
 	stdio: "inherit",
 	shell: false,
 	env: process.env
