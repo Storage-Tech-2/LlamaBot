@@ -30,11 +30,7 @@ export class SetArchiveChannelButton implements Button {
             return;
         }
 
-        const row = new ActionRowBuilder()
-            .addComponents(await new SetArchiveCategoryMenu().getBuilder(guildHolder))
-        await replyEphemeral(interaction, `Please select an archive category`, {
-            components: [row]
-        })
+        await SetArchiveCategoryMenu.sendArchiveCategorySelector(submission, interaction);
     }
 
 }
