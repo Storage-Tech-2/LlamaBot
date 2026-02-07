@@ -919,7 +919,8 @@ export function getAttachmentPostMessage(
         if (!attachment.youtube) {
             message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link\n`;
         } else {
-            message = `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): YouTube video by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})\n`;
+            const authorship = attachment.youtube.author_url !== '#' ? ` by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})` : ` by ${escapeDiscordString(attachment.youtube.author_name)}`;
+            message = `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): YouTube video${authorship}\n`;
         }
     } else if (attachment.contentType === 'mediafire') {
         message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): Mediafire link, ${timestamp}\n`;
@@ -954,9 +955,22 @@ export function getAttachmentPostMessage(
 export function getAttachmentSetMessage(attachment: Attachment): string {
     const timestamp = `<t:${Math.floor(attachment.timestamp / 1000)}:s>`;
     const sizeSuffix = typeof attachment.size === 'number' ? `, ${formatSize(attachment.size)}${attachment.unoptimizedSize && attachment.unoptimizedSize !== attachment.size ? ` (was ${formatSize(attachment.unoptimizedSize)})` : ''}` : '';
-    const linkOrName = attachment.canDownload
-        ? `${attachment.url} `
-        : `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`;
+    let linkOrName = `[${escapeDiscordString(escapeString(attachment.name))}](${attachment.url})`;
+    if (attachment.canDownload) {
+        // check url name
+        let urlName = '';
+        try {
+            const url = new URL(attachment.url);
+            urlName = url.pathname.split('/').pop() || '';
+        } catch (error) {
+            // not a valid url, ignore
+        }
+        if (urlName && urlName !== attachment.name) {
+            linkOrName = attachment.url + ` (${escapeDiscordString(attachment.name)})`;
+        } else {
+            linkOrName = attachment.url;
+        }
+    }
 
     let message = '';
     if (attachment.contentType === 'bilibili') {
@@ -965,7 +979,8 @@ export function getAttachmentSetMessage(attachment: Attachment): string {
         if (!attachment.youtube) {
             message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): YouTube link\n`;
         } else {
-            message = `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): YouTube video by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})\n`;
+            const authorship = attachment.youtube.author_url !== '#' ? ` by [${escapeDiscordString(attachment.youtube.author_name)}](${attachment.youtube.author_url})` : ` by ${escapeDiscordString(attachment.youtube.author_name)}`;
+            message = `- [${escapeDiscordString(attachment.youtube.title)}](${attachment.url}): YouTube video${authorship}\n`;
         }
     } else if (attachment.wdl) {
         message = `- ${linkOrName}: ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}${sizeSuffix}, ${timestamp}\n`;
