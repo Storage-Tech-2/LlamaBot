@@ -2,7 +2,7 @@ import { ActionRowBuilder, Interaction, MessageFlags, StringSelectMenuBuilder, S
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
 import { areAuthorsSame, canEditSubmission, getAuthorName, getAuthorsString, getDiscordAuthorsFromIDs, reclassifyAuthors, replyEphemeral, replyReplace, truncateStringWithEllipsis } from "../../utils/Util.js";
-import { Author, AuthorType } from "../../submissions/Author.js";
+import { Author, AuthorType, DiscordAuthor } from "../../submissions/Author.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { SetArchiveCategoryMenu } from "./SetArchiveCategoryMenu.js";
@@ -14,6 +14,10 @@ export class SetAuthorsMenu implements Menu {
         return "set-authors-menu";
     }
 
+    public static isAuthorExtra(author: Author): boolean {
+        return author.type === AuthorType.Unknown || author.type === AuthorType.DiscordDeleted;
+    }
+
     async getBuilder(guildHolder: GuildHolder, submission: Submission, isExtra: boolean): Promise<UserSelectMenuBuilder | StringSelectMenuBuilder> {
         let currentAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS);
 
@@ -23,7 +27,7 @@ export class SetAuthorsMenu implements Menu {
 
         if (isExtra) {
             const extraAuthors = currentAuthors.filter(author => {
-                return author.type === AuthorType.Unknown || author.type === AuthorType.DiscordDeleted;
+                return SetAuthorsMenu.isAuthorExtra(author);
             });
             const userSize = extraAuthors.length;
             return new StringSelectMenuBuilder()
@@ -40,8 +44,8 @@ export class SetAuthorsMenu implements Menu {
                 }))
         } else {
             const discordAuthors = currentAuthors.filter(author => {
-                return author.type !== AuthorType.Unknown && author.type !== AuthorType.DiscordDeleted;
-            });
+                return !SetAuthorsMenu.isAuthorExtra(author);
+            }) as DiscordAuthor[];
             // get list of users
             const userSize = Math.max(guildHolder.getGuild().members.cache.size, discordAuthors.length);
             return new UserSelectMenuBuilder()
@@ -92,7 +96,7 @@ export class SetAuthorsMenu implements Menu {
         }
 
         for (const author of currentAuthors) {
-            if (!newAuthors.some(a => areAuthorsSame(a, author))) {
+            if (!SetAuthorsMenu.isAuthorExtra(author) && !newAuthors.some(a => areAuthorsSame(a, author))) {
                 removed.push(author);
             }
         }
@@ -167,7 +171,7 @@ export class SetAuthorsMenu implements Menu {
         const currentAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
 
         const newAuthors = interaction.values.map((name) => {
-            const existingAuthor = currentAuthors.find(a => (a.type === AuthorType.Unknown || a.type === AuthorType.DiscordDeleted) && a.username === name);
+            const existingAuthor = currentAuthors.find(a => SetAuthorsMenu.isAuthorExtra(a) && a.username === name);
             if (existingAuthor) {
                 return existingAuthor;
             }
@@ -184,13 +188,13 @@ export class SetAuthorsMenu implements Menu {
         const removed: Author[] = [];
 
         for (const author of newAuthors) {
-            if (!currentAuthors.some(a => (a.type === AuthorType.Unknown || a.type === AuthorType.DiscordDeleted) && a.username === author.username)) {
+            if (!currentAuthors.some(a => SetAuthorsMenu.isAuthorExtra(a) && a.username === author.username)) {
                 added.push(author);
             }
         }
 
         for (const author of currentAuthors) {
-            if ((author.type === AuthorType.Unknown || author.type === AuthorType.DiscordDeleted) && !newAuthors.some(a => a.username === author.username)) {
+            if (SetAuthorsMenu.isAuthorExtra(author) && !newAuthors.some(a => a.username === author.username)) {
                 removed.push(author);
             }
         }
@@ -204,7 +208,7 @@ export class SetAuthorsMenu implements Menu {
             currentAuthors.push(author);
         });
         removed.forEach(author => {
-            const index = currentAuthors.findIndex(a => (a.type === AuthorType.Unknown || a.type === AuthorType.DiscordDeleted) && a.username === author.username);
+            const index = currentAuthors.findIndex(a => SetAuthorsMenu.isAuthorExtra(a) && a.username === author.username);
             if (index !== -1) {
                 currentAuthors.splice(index, 1);
             }
@@ -252,7 +256,7 @@ export class SetAuthorsMenu implements Menu {
         }
 
         const extraAuthors = currentAuthors.filter(author => {
-            return author.type === AuthorType.Unknown || author.type === AuthorType.DiscordDeleted;
+            return this.isAuthorExtra(author);
         });
 
         if (extraAuthors.length > 0) {
