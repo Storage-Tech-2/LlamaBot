@@ -237,9 +237,25 @@ function shouldIncludeMatch(text: string, matchedTerm: string, start: number, en
         }
     }
 
+    const getSliceAtEnd = (len: number): string => {
+        return text.slice(end, Math.min(end + len, text.length));
+    }
+    const getCharAt = (pos: number): string | undefined => {
+        pos += end;
+        return pos < text.length ? text[pos] : undefined;
+    }
 
     const isWordChar = (ch: string | undefined): boolean => {
         return ch !== undefined && /[A-Za-z]/.test(ch);
+    }
+
+    // check if code,
+    // if matched text is fully caps
+    if (isTermAllCaps) {
+        // check if next three characters are numbers (for codes like ABC123)
+        if (/\d{3}/.test(getSliceAtEnd(3))) {
+            return false; // if followed by 3 numbers, must be part of code, so don't match just the letters
+        }
     }
 
     let startSatisfied = isWordChar(before) === false;
@@ -254,13 +270,7 @@ function shouldIncludeMatch(text: string, matchedTerm: string, start: number, en
 
     if (hasNoNumbers && startSatisfied && !endingSatisfied) { // just some words
         // check if next character is possessive
-        const getSliceAtEnd = (len: number): string => {
-            return text.slice(end, Math.min(end + len, text.length));
-        }
-        const getCharAt = (pos: number): string | undefined => {
-            pos += end;
-            return pos < text.length ? text[pos] : undefined;
-        }
+
 
         if (getCharAt(0) === "s" && !isWordChar(getCharAt(1))) {
             endingSatisfied = true;
