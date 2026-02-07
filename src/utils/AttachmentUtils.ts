@@ -497,6 +497,10 @@ async function analyzeWDL(attachment: Attachment, attachmentPath: string): Promi
 
         attachment.wdls = analysis;
 
+        if (!attachment.wdl) {
+            attachment.wdl = {};
+        }
+
         let versions = new Set<string>();
         for (const world of analysis) {
             if (world.version) {
@@ -505,7 +509,7 @@ async function analyzeWDL(attachment: Attachment, attachmentPath: string): Promi
         }
 
         if (!versions.size) {
-            attachment.wdl = { error: analysis[0].error || 'No valid worlds found' };
+            attachment.wdl.error = analysis[0].error || 'No valid worlds found';
             return;
         }
 
@@ -513,7 +517,7 @@ async function analyzeWDL(attachment: Attachment, attachmentPath: string): Promi
         const versionsArray = Array.from(versions);
         versionsArray.sort(compareSemver);
 
-        attachment.wdl = { version: versionsArray.join(', ') };
+        attachment.wdl.version = versionsArray.join(', ');
     } catch (error) {
         console.error('Error processing WDL file:', error);
     }
