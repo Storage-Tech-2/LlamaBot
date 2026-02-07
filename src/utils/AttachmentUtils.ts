@@ -539,7 +539,8 @@ export function getAttachmentsFromText(text: string, attachments: BaseAttachment
     // Find all URLs in the message
     const urls = text.match(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g)
     if (urls) {
-        urls.forEach(url => {
+        urls.forEach(urlCandidate => {
+            const url = urlCandidate.endsWith(')') ? urlCandidate.slice(0, -1) : urlCandidate; // remove trailing parenthesis if exists
             // check first match location, if it is preceded by a colon + space, it has a description
             const index = text.indexOf(url);
             let description;
@@ -592,7 +593,7 @@ export function getAttachmentsFromText(text: string, attachments: BaseAttachment
                     return;
                 }
 
-                const urlCleaned = new URL(url.replace(/\)$/, '')); // remove trailing parenthesis if exists
+                const urlCleaned = new URL(url); // remove trailing parenthesis if exists
                 
                 // remove the si parameter if exists for anti-tracking
                 urlCleaned.searchParams.delete('si');
