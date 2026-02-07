@@ -942,7 +942,7 @@ export function getAttachmentPostMessage(
     } else if (attachment.contentType === 'discord') {
         message = `- ${uploadedURL}${githubMirror}: Discord attachment, ${timestamp}\n`;
     } else {
-        message = `- [${escapeDiscordString(attachment.name)}](${attachment.url}): ContentType ${attachment.contentType}, ${timestamp}\n`;
+        message = `- ${uploadedURL}${githubMirror}: ContentType ${attachment.contentType}, ${timestamp}\n`;
     }
 
     if (attachment.description) {
@@ -993,9 +993,9 @@ export function getAttachmentSetMessage(attachment: Attachment): string {
     } else if (attachment.contentType === 'mediafire') {
         message = `- [${escapeDiscordString(escapeString(attachment.name))}](${attachment.url}): Mediafire link, ${timestamp}\n`;
     } else if (attachment.contentType === 'discord') {
-        message = `- ${attachment.url} : Discord attachment${sizeSuffix}, ${timestamp}\n`;
+        message = `- ${linkOrName}: Discord attachment${sizeSuffix}, ${timestamp}\n`;
     } else {
-        message = `- [${escapeDiscordString(escapeString(attachment.name))}](${attachment.url}): ContentType ${attachment.contentType}${sizeSuffix}, ${timestamp}\n`;
+        message = `- ${linkOrName}: ContentType ${attachment.contentType}${sizeSuffix}, ${timestamp}\n`;
     }
 
     if (attachment.description) {
