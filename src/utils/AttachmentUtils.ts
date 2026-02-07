@@ -592,7 +592,8 @@ export function getAttachmentsFromText(text: string, attachments: BaseAttachment
                     return;
                 }
 
-                const urlCleaned = new URL(url);
+                const urlCleaned = new URL(url.replace(/\)$/, '')); // remove trailing parenthesis if exists
+                
                 // remove the si parameter if exists for anti-tracking
                 urlCleaned.searchParams.delete('si');
 
