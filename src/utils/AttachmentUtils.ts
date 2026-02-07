@@ -582,8 +582,12 @@ export function getAttachmentsFromText(text: string, attachments: BaseAttachment
                 })
             } else if (url.startsWith('https://youtu.be/') || url.startsWith('https://www.youtube.com/watch')) {
                 // YouTube links
-                const videoId = (new URL(url).searchParams.get('v') || url.split('/').pop() || '').substring(0, 20);
+                let videoId = (new URL(url).searchParams.get('v') || url.split('/').pop() || '').substring(0, 20);
                 if (!videoId) return;
+
+                // clean video id
+                videoId = videoId.replace(/[^a-zA-Z0-9_-]/g, '');
+
                 if (attachments.some(attachment => attachment.id === videoId)) {
                     return;
                 }
