@@ -225,7 +225,7 @@ export class PostEmbed {
 
         const submissionURL = `https://discord.com/channels/${guildHolder.getGuild().id}/${submissionThreadID}`;
 
-        const gitURL = `https://github.com/${owner}/${project}/tree/master/${entryPathPart}#readme`;
+        const gitURL = `https://github.com/${owner}/${project}/tree/${guildHolder.getRepositoryManager().getBranchName()}/${entryPathPart}#readme`;
         content.push(`\n\n[Submission Thread](${submissionURL})`);
         content.push(`\n[Github](${gitURL})`);
 
