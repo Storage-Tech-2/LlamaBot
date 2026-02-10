@@ -1,4 +1,5 @@
 import { Bot } from "./Bot.js";
+import { APIServer } from "./api/APIServer.js";
 import { ChildProcess, spawn, spawnSync } from "child_process";
 import fs from "fs/promises";
 import path from "path";
@@ -274,6 +275,8 @@ async function bootstrap() {
 	const pythonServer = startPythonServer();
 	await pythonServer?.waitUntilReady();
 	const bot = new Bot();
+	const apiServer = new APIServer(bot);
+	await apiServer.start();
 
 	let shuttingDown = false;
 	const shutdown = async (reason: string, code: number) => {
@@ -281,6 +284,7 @@ async function bootstrap() {
 		shuttingDown = true;
 		console.log(`Shutting down (${reason})...`);
 		bot.client.destroy();
+		await apiServer.stop();
 		await pythonServer?.stop();
 		process.exit(code);
 	};
@@ -303,6 +307,7 @@ async function bootstrap() {
 		await bot.start();
 	} catch (error) {
 		console.error('Failed to start bot:', error);
+		await apiServer.stop();
 		await pythonServer?.stop();
 		process.exit(1);
 	}

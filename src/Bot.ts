@@ -19,6 +19,7 @@ import { ContextMenuCommand } from "./interface/ContextMenuCommand.js";
 import { DiscordServersDictionary } from "./archive/DiscordServersDictionary.js";
 import { createOpenAI, OpenAIProvider } from "@ai-sdk/openai";
 import { GuildWhitelistManager } from "./config/GuildWhitelistManager.js";
+import { APITokenManager } from "./api/APITokenManager.js";
 
 export const SysAdmin = '239078039831445504';
 
@@ -99,6 +100,7 @@ export class Bot {
      */
     globalDiscordServersDictionary: DiscordServersDictionary;
     private guildWhitelistManager: GuildWhitelistManager;
+    private apiTokenManager: APITokenManager;
 
     
     dayTaskTimestamps: Map<string, number> = new Map();
@@ -113,6 +115,7 @@ export class Bot {
         this.tempData = new TempDataStore();
         this.globalDiscordServersDictionary = new DiscordServersDictionary(path.join(process.cwd(), 'config', 'global'));
         this.guildWhitelistManager = new GuildWhitelistManager(path.join(process.cwd(), 'config', 'global', 'guild_whitelist.json'));
+        this.apiTokenManager = new APITokenManager(path.join(process.cwd(), 'config', 'global', 'api_tokens.json'));
 
         this.client = new Client({
             intents: [
@@ -142,6 +145,7 @@ export class Bot {
             throw new Error('Missing token or clientId in secrets.json')
         }
 
+        await this.apiTokenManager.load();
         await this.guildWhitelistManager.load();
 
         this.commands = getItemsFromArray(getCommands())
@@ -513,6 +517,10 @@ export class Bot {
 
     public getTempDataStore(): TempDataStore {
         return this.tempData;
+    }
+
+    public getApiTokenManager(): APITokenManager {
+        return this.apiTokenManager;
     }
 
     /**

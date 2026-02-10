@@ -23,9 +23,11 @@ import { DefineCommand } from "./DefineCommand.js";
 import { SearchCommand } from "./SearchCommand.js";
 import { JoinDiscordCommand } from "./JoinDiscordCommand.js";
 import { AskCommand } from "./AskCommand.js";
+import { TokenCommand } from "./TokenCommand.js";
 export function getCommands() {
     const Commands = [
         new Mwa(),
+        new TokenCommand(),
         new EndorseCommand(),
         new EditorPowersCommand(),
         new AntiSpamCommand(),

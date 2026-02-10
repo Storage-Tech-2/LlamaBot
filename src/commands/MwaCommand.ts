@@ -308,7 +308,7 @@ export class Mwa implements Command {
         } else if (interaction.options.getSubcommand() === 'alias') {
             this.setAlias(guildHolder, interaction);
         } else {
-            await replyEphemeral(interaction, 'Invalid subcommand. Use `/mwa setsubmissions`, `/mwa setlogs`, `/mwa setarchives`, `/mwa setuparchives`, `/mwa setendorseroles`, `/mwa seteditorroles`, `/mwa sethelperrole` or `/mwa setrepo`.');
+            await replyEphemeral(interaction, 'Invalid subcommand. Use a valid `/mwa` setup command.');
             return;
         }
     }
