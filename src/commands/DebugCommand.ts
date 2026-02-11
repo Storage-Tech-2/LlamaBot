@@ -49,7 +49,7 @@ export class DebugCommand implements Command {
                             .setName('channel')
                             .setDescription('LRS forum channel to import from')
                             .setRequired(true)
-                            .addChannelTypes(ChannelType.GuildForum)
+                            .addChannelTypes(ChannelType.GuildText)
                     )
             )
             .addSubcommand(sub =>
