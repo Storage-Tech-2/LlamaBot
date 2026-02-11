@@ -1400,7 +1400,7 @@ export class GuildHolder {
 
         const embed = new EmbedBuilder();
 
-        const imageURL = await this.getPostThumbnailURL(newEntryData);
+        const imageURL = newEntryData.images && newEntryData.images.length > 0 ? newEntryData.images[0].url : null;
         if (imageURL) {
             embed.setThumbnail(imageURL);
         }
@@ -1922,7 +1922,7 @@ export class GuildHolder {
 
         const embed = new EmbedBuilder();
 
-        const imageURL = await this.getPostThumbnailURL(oldEntryData);
+        const imageURL = oldEntryData.images && oldEntryData.images.length > 0 ? oldEntryData.images[0].url : null;
         if (imageURL) {
             embed.setThumbnail(imageURL);
         }
