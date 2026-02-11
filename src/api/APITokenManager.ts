@@ -8,6 +8,10 @@ export type APITokenRecord = {
 	id: string;
 	label: string;
 	hash: string;
+	scopeType: "global" | "server";
+	serverId: string | null;
+	serverName: string | null;
+	usageCount: number;
 	createdAt: number;
 	createdByUserId: string;
 	createdByUserTag: string;
@@ -24,6 +28,16 @@ export type CreateAPITokenResult = {
 	token: string;
 	record: APITokenRecord;
 };
+
+export type APITokenScope =
+	| {
+		type: "global";
+	}
+	| {
+		type: "server";
+		serverId: string;
+		serverName?: string;
+	};
 
 export type RevokeAPITokenStatus = "revoked" | "already_revoked" | "not_found";
 
@@ -53,7 +67,12 @@ export class APITokenManager {
 		this.loaded = true;
 	}
 
-	public async createToken(createdByUserId: string, createdByUserTag: string, label?: string): Promise<CreateAPITokenResult> {
+	public async createToken(
+		createdByUserId: string,
+		createdByUserTag: string,
+		label?: string,
+		scope: APITokenScope = { type: "global" }
+	): Promise<CreateAPITokenResult> {
 		await this.ensureLoaded();
 
 		const token = randomBytes(32).toString("hex");
@@ -66,6 +85,10 @@ export class APITokenManager {
 			id,
 			label: (label || "").trim(),
 			hash: this.hashToken(token),
+			scopeType: scope.type,
+			serverId: scope.type === "server" ? scope.serverId : null,
+			serverName: scope.type === "server" ? (scope.serverName || "").trim() || null : null,
+			usageCount: 0,
 			createdAt: Date.now(),
 			createdByUserId,
 			createdByUserTag,
@@ -110,6 +133,13 @@ export class APITokenManager {
 		return { ...token };
 	}
 
+	public isTokenAllowedForServer(token: APITokenRecord, serverId: string): boolean {
+		if (token.scopeType === "global") {
+			return true;
+		}
+		return token.serverId === serverId;
+	}
+
 	public async markTokenUsed(tokenId: string): Promise<void> {
 		await this.ensureLoaded();
 		const token = this.tokens.find(candidate => candidate.id === tokenId);
@@ -118,11 +148,12 @@ export class APITokenManager {
 		}
 
 		const now = Date.now();
-		if (token.lastUsedAt !== null && now - token.lastUsedAt < MIN_LAST_USED_UPDATE_INTERVAL_MS) {
-			return;
+		token.usageCount += 1;
+
+		if (token.lastUsedAt === null || now - token.lastUsedAt >= MIN_LAST_USED_UPDATE_INTERVAL_MS) {
+			token.lastUsedAt = now;
 		}
 
-		token.lastUsedAt = now;
 		await this.save();
 	}
 
@@ -189,10 +220,22 @@ export class APITokenManager {
 			return null;
 		}
 
+		const isServerScoped = record.scopeType === "server" && typeof record.serverId === "string" && record.serverId.length > 0;
+		const scopeType: "global" | "server" = isServerScoped ? "server" : "global";
+		const serverId = isServerScoped ? record.serverId as string : null;
+		const serverName = isServerScoped && typeof record.serverName === "string" ? record.serverName : null;
+		const usageCount = typeof record.usageCount === "number" && Number.isFinite(record.usageCount) && record.usageCount >= 0
+			? Math.floor(record.usageCount)
+			: 0;
+
 		return {
 			id: record.id,
 			label: typeof record.label === "string" ? record.label : "",
 			hash: record.hash,
+			scopeType,
+			serverId,
+			serverName,
+			usageCount,
 			createdAt: record.createdAt,
 			createdByUserId: record.createdByUserId,
 			createdByUserTag: record.createdByUserTag,

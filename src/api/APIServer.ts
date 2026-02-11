@@ -20,6 +20,7 @@ import type {
 	APISubmissionSummary,
 	APISubmissionTimestampInfo
 } from "./APITypes.js";
+import type { APITokenRecord } from "./APITokenManager.js";
 import { getAuthorName } from "../utils/Util.js";
 
 const DEFAULT_PORT = 4938;
@@ -99,8 +100,8 @@ export class APIServer {
 			this.respondJson(res, 200, payload);
 		});
 
-		this.app.get("/servers", (_req: Request, res: Response) => {
-			this.handleGetServers(res);
+		this.app.get("/servers", (req: Request, res: Response) => {
+			this.handleGetServers(req, res);
 		});
 
 		this.app.get("/server/:serverId/submissions", async (req: Request, res: Response) => {
@@ -158,16 +159,29 @@ export class APIServer {
 			return false;
 		}
 
+		const requestedServerId = this.getRequestedServerId(req.path);
+		if (requestedServerId && !this.bot.getApiTokenManager().isTokenAllowedForServer(tokenRecord, requestedServerId)) {
+			this.respondError(res, 403, "Forbidden for this server");
+			return false;
+		}
+
+		this.setAuthenticatedToken(res, tokenRecord);
 		await this.bot.getApiTokenManager().markTokenUsed(tokenRecord.id);
 		return true;
 	}
 
-	private handleGetServers(res: Response): void {
+	private handleGetServers(_req: Request, res: Response): void {
+		const token = this.getAuthenticatedToken(res);
+
 		const servers: APIServerInfo[] = Array.from(this.bot.guilds.values())
 			.map(holder => ({
 				id: holder.getGuild().id,
 				name: holder.getGuild().name
 			}))
+			.filter(server => {
+				if (!token) return false;
+				return this.bot.getApiTokenManager().isTokenAllowedForServer(token, server.id);
+			})
 			.sort((a, b) => a.name.localeCompare(b.name));
 
 		const payload: APIServersResponse = {
@@ -362,6 +376,28 @@ export class APIServer {
 			return value[0] || "";
 		}
 		return value || "";
+	}
+
+	private getRequestedServerId(pathname: string): string | null {
+		const match = pathname.match(/^\/server\/([^/]+)(?:\/|$)/);
+		if (!match) {
+			return null;
+		}
+		try {
+			return decodeURIComponent(match[1]);
+		} catch {
+			return match[1];
+		}
+	}
+
+	private setAuthenticatedToken(res: Response, tokenRecord: APITokenRecord): void {
+		const locals = res.locals as { apiToken?: APITokenRecord };
+		locals.apiToken = tokenRecord;
+	}
+
+	private getAuthenticatedToken(res: Response): APITokenRecord | null {
+		const locals = res.locals as { apiToken?: APITokenRecord };
+		return locals.apiToken || null;
 	}
 
 	private parseIntegerQuery(value: unknown, fallback: number, min: number, max: number): number {
