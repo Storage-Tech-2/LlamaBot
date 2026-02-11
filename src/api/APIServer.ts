@@ -243,6 +243,12 @@ export class APIServer {
 		const config = submission.getConfigManager();
 		const timestamp = await this.getSubmissionTimestamps(submission);
 
+
+		const revision = submission.getRevisionsManager().getCurrentRevision();
+		const revisionData = revision ? await submission.getRevisionsManager().getRevisionById(revision.id) : null;
+
+
+
 		this.respondJson(res, 200, {
 			ok: true,
 			server: {
@@ -267,6 +273,12 @@ export class APIServer {
 				endorsers: config.getConfig(SubmissionConfigs.ENDORSERS),
 				images: config.getConfig(SubmissionConfigs.IMAGES) || [],
 				attachments: config.getConfig(SubmissionConfigs.ATTACHMENTS) || [],
+				revision: revisionData ? {
+					id: revisionData.id,
+					timestamp: revisionData.timestamp,
+					records: revisionData.records,
+					styles: revisionData.styles
+				} : null,
 				timestamp
 			}
 		});
