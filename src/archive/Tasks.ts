@@ -3,7 +3,7 @@ import { ArchiveEntry } from "./ArchiveEntry.js";
 import { areAuthorsSameStrict, deepClone, getDiscordAuthorsFromIDs, splitIntoChunks } from "../utils/Util.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { ArchiveChannelReference } from "./RepositoryConfigs.js";
-import { ChannelType, ChatInputCommandInteraction, ForumChannel, GuildForumTag, Message, MessageFlags, Snowflake } from "discord.js";
+import { ChannelType, ChatInputCommandInteraction, ForumChannel, GuildForumTag, GuildTextBasedChannel, Message, MessageFlags, Snowflake } from "discord.js";
 import { ArchiveChannel, ArchiveEntryReference } from "./ArchiveChannel.js";
 import Path from "path";
 import { hasReferencesChanged, Reference, ReferenceType, tagReferences, tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
@@ -424,6 +424,131 @@ export async function retagEverythingTask(guildHolder: GuildHolder): Promise<voi
     repositoryManager.getLock().release();
 }
 
+export async function importLRSChannelTask(
+    guildHolder: GuildHolder,
+    channel: GuildTextBasedChannel,
+    setStatus: (status: string) => Promise<void>
+) {
+// get submission channel
+    const submissionsChannelId = guildHolder.getSubmissionsChannelId();
+    if (!submissionsChannelId) {
+        throw new Error("Submissions channel not configured.");
+    }
+
+    const submissionsChannel = await guildHolder.getGuild().channels.fetch(submissionsChannelId).catch(() => null);
+    if (!submissionsChannel || submissionsChannel.type !== ChannelType.GuildForum) {
+        throw new Error("Submissions channel is not a forum channel.");
+    }
+
+    // make sure submissions channel has an import tag
+    const importTag: GuildForumTag = {
+        name: 'LRS Import',
+        moderated: false,
+        emoji: { name: '📥' }
+    } as GuildForumTag;
+
+    let existingImportTag = submissionsChannel.availableTags.find(tag => tag.name === importTag.name);
+    if (!existingImportTag) {
+        const newTags = submissionsChannel.availableTags.slice();
+        newTags.push(importTag);
+        await submissionsChannel.setAvailableTags(newTags);
+
+        await submissionsChannel.fetch();
+    }
+
+    const importTagId = submissionsChannel.availableTags.find(tag => tag.name === importTag.name)?.id;
+    if (!importTagId) {
+        throw new Error("Failed to create or find import tag in submissions channel.");
+    }
+
+   
+    let importedCount = 0;
+
+    const webhook = await submissionsChannel.createWebhook({
+        name: 'Llamabot Importer',
+        reason: 'Importing LRS submissions',
+    })
+
+
+    // get all messages
+    const messages: Message[] = [];
+    const seenSet = new Set<Snowflake>();
+    await iterateAllMessages(channel, async (message: Message) => {
+        if (seenSet.has(message.id)) {
+            return true;
+        }
+        seenSet.add(message.id);
+
+        messages.push(message);
+        return true;
+    });
+
+    // sort messages by oldest first
+    messages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+
+
+    // group messages by whether they have Title:
+    const titleGroups: { title: string; messages: Message[] }[] = [];
+    let currentGroup: { title: string; messages: Message[] } | null = null;
+    for (const message of messages) {
+        const titleMatch = message.content.match(/^Title:\s*(.+)$/m);
+        const title = titleMatch ? titleMatch[1].trim() : null;
+        if (title) {
+            currentGroup = { title, messages: [message] };
+            titleGroups.push(currentGroup);
+        } else if (currentGroup) {
+            currentGroup.messages.push(message);
+        }
+    }
+
+    for (const group of titleGroups) {
+        await setStatus(`Importing submission ${group.title}...`);
+        try {
+            // fetch all attachments in the group
+            const attachments = group.messages.flatMap(m => Array.from(m.attachments.values()));
+          
+            const content = group.messages.map(m => m.content).join('\n');
+            const splitContent = splitIntoChunks(content, 2000);
+
+            const newThreadMessage = await webhook.send({
+                threadName: group.title,
+                appliedTags: [importTagId],
+                content: splitContent[0] || "(no content)",
+                files: attachments,
+                flags: [MessageFlags.SuppressNotifications],
+                allowedMentions: { parse: [] },
+                username: group.messages[0].author.username,
+                avatarURL: group.messages[0].author.displayAvatarURL(),
+            });
+
+            const thread = await submissionsChannel.threads.fetch(newThreadMessage.id).catch(() => null);
+            if (!thread) {
+                console.error(`Failed to create thread for ${group.title}, skipping.`);
+                continue;
+            }
+
+            // send remaining content if any
+            for (let i = 1; i < splitContent.length; i++) {
+                await webhook.send({
+                    threadId: thread.id,
+                    content: splitContent[i] || "(no content)",
+                    flags: [MessageFlags.SuppressNotifications],
+                    allowedMentions: { parse: [] },
+                    username: group.messages[0].author.username,
+                    avatarURL: group.messages[0].author.displayAvatarURL(),
+                });
+            }
+
+            importedCount++;
+
+        } catch (e: any) {
+            console.error(`Error importing submission ${group.title}:`, e);
+        }
+    }
+    await webhook.delete('Import complete');
+}
+
+
 export async function importACAChannelTask(
     guildHolder: GuildHolder,
     channel: ForumChannel,
@@ -612,7 +737,7 @@ export async function deleteACAImportThreadsTask(
         throw new Error("Submissions channel is not a forum channel.");
     }
 
-    const importTag = submissionsChannel.availableTags.find(tag => tag.name === 'ACA Import');
+    const importTag = submissionsChannel.availableTags.find(tag => tag.name === 'ACA Import' || tag.name === 'LRS Import');
     if (!importTag) {
         throw new Error("Import tag not found in submissions channel.");
     }

@@ -3,7 +3,7 @@ import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { SysAdmin } from "../Bot.js";
 import { getAuthorKey, getAuthorName, replyEphemeral, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
-import { deleteACAImportThreadsTask, importACAChannelTask } from "../archive/Tasks.js";
+import { deleteACAImportThreadsTask, importACAChannelTask, importLRSChannelTask } from "../archive/Tasks.js";
 import { SetTemplateModal } from "../components/modals/SetTemplateModal.js";
 import { Reference, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
 import { RevisionEmbed } from "../embed/RevisionEmbed.js";
@@ -36,6 +36,18 @@ export class DebugCommand implements Command {
                         opt
                             .setName('channel')
                             .setDescription('ACA forum channel to import from')
+                            .setRequired(true)
+                            .addChannelTypes(ChannelType.GuildForum)
+                    )
+            )
+              .addSubcommand(sub =>
+                sub
+                    .setName('importlrs')
+                    .setDescription('Import an LRS forum channel into submissions')
+                    .addChannelOption(opt =>
+                        opt
+                            .setName('channel')
+                            .setDescription('LRS forum channel to import from')
                             .setRequired(true)
                             .addChannelTypes(ChannelType.GuildForum)
                     )
@@ -199,6 +211,9 @@ export class DebugCommand implements Command {
             case 'importaca':
                 await this.handleImportACA(guildHolder, interaction);
                 break;
+            case 'importlrs':
+                await this.handleImportLRS(guildHolder, interaction);
+                break;
             case 'deleteaca':
                 await this.handleDeleteACA(guildHolder, interaction);
                 break;
@@ -274,6 +289,44 @@ export class DebugCommand implements Command {
         try {
             await importACAChannelTask(guildHolder, channel as ForumChannel, setStatus);
             await setStatus('ACA import complete.');
+        } catch (error: any) {
+            await interaction.editReply({ content: `Import failed: ${error?.message || 'Unknown error'}` });
+        }
+    }
+
+
+
+    private async handleImportLRS(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        const channel = interaction.options.getChannel('channel', true);
+        if (channel.type !== ChannelType.GuildText) {
+            await replyEphemeral(interaction, 'Please select a text channel to import from.');
+            return;
+        }
+
+        const channelFetched = await guildHolder.getGuild().channels.fetch(channel.id).catch(() => null);
+        if (!channelFetched || channelFetched.type !== ChannelType.GuildText) {
+            await replyEphemeral(interaction, 'Failed to fetch the specified channel. Please try again.');
+            return;
+        }
+
+
+        const feedback = interaction.channel;
+        if (!feedback || !feedback.isSendable()) {
+            await replyEphemeral(interaction, 'Cannot send feedback messages in this channel.');
+            return;
+        }
+
+
+        await interaction.reply({ content: `Starting ACA import for <#${channel.id}>...` });
+
+
+        const setStatus = async (status: string) => {
+            await feedback.send(status);
+        };
+
+        try {
+            await importLRSChannelTask(guildHolder, channelFetched, setStatus);
+            await setStatus('LRS import complete.');
         } catch (error: any) {
             await interaction.editReply({ content: `Import failed: ${error?.message || 'Unknown error'}` });
         }

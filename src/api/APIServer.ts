@@ -106,7 +106,7 @@ export class APIServer {
 
 		this.app.get("/server/:serverId/submissions", async (req: Request, res: Response) => {
 			const serverId = this.getParam(req.params.serverId);
-			await this.handleGetSubmissions(serverId, res);
+			await this.handleGetSubmissions(serverId, req, res);
 		});
 
 		this.app.get("/server/:serverId/submission/:submissionId", async (req: Request, res: Response) => {
@@ -183,22 +183,31 @@ export class APIServer {
 		});
 	}
 
-	private async handleGetSubmissions(serverId: string, res: Response): Promise<void> {
+	private async handleGetSubmissions(serverId: string, req: Request, res: Response): Promise<void> {
 		const guildHolder = this.getGuildHolderOrRespond(serverId, res);
 		if (!guildHolder) return;
 
-		const submissionIds = await guildHolder.getSubmissionsManager().getSubmissionsList();
+		const page = this.parseIntegerQuery(req.query.page, 1, 1, Number.MAX_SAFE_INTEGER);
+		const pageSize = this.parseIntegerQuery(req.query.pageSize, 50, 1, 200);
+
+		const sortedIds = (await guildHolder.getSubmissionsManager().getSubmissionsList())
+			.sort((a, b) => this.compareSnowflakeIds(b, a));
+
+		const total = sortedIds.length;
+		const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
+		const currentPage = totalPages === 0 ? 1 : Math.min(page, totalPages);
+		const start = (currentPage - 1) * pageSize;
+		const pageIds = sortedIds.slice(start, start + pageSize);
+
 		const submissions = await Promise.all(
-			submissionIds.map(id => guildHolder.getSubmissionsManager().getSubmission(id))
+			pageIds.map(id => guildHolder.getSubmissionsManager().getSubmission(id))
 		);
 
-		const summaries = await Promise.all(
+		const pagedSubmissions = await Promise.all(
 			submissions
 				.filter((submission): submission is Submission => submission !== null)
 				.map(submission => this.buildSubmissionSummary(submission))
 		);
-
-		summaries.sort((a, b) => (b.timestamp.updatedMs || 0) - (a.timestamp.updatedMs || 0));
 
 		this.respondJson(res, 200, {
 			ok: true,
@@ -206,7 +215,15 @@ export class APIServer {
 				id: guildHolder.getGuild().id,
 				name: guildHolder.getGuild().name
 			},
-			submissions: summaries
+			submissions: pagedSubmissions,
+			pagination: {
+				page: currentPage,
+				pageSize,
+				total,
+				totalPages,
+				hasNext: currentPage < totalPages,
+				hasPrevious: currentPage > 1
+			}
 		});
 	}
 
@@ -366,6 +383,36 @@ export class APIServer {
 			return value[0] || "";
 		}
 		return value || "";
+	}
+
+	private parseIntegerQuery(value: unknown, fallback: number, min: number, max: number): number {
+		const raw = Array.isArray(value) ? value[0] : value;
+		if (typeof raw !== "string") {
+			return fallback;
+		}
+		const parsed = Number(raw);
+		if (!Number.isInteger(parsed)) {
+			return fallback;
+		}
+		if (parsed < min) {
+			return min;
+		}
+		if (parsed > max) {
+			return max;
+		}
+		return parsed;
+	}
+
+	private compareSnowflakeIds(left: string, right: string): number {
+		try {
+			const leftId = BigInt(left);
+			const rightId = BigInt(right);
+			if (leftId > rightId) return 1;
+			if (leftId < rightId) return -1;
+			return 0;
+		} catch {
+			return left.localeCompare(right);
+		}
 	}
 
 	private async buildSubmissionSummary(submission: Submission): Promise<SubmissionSummary> {
