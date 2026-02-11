@@ -7,26 +7,24 @@ import { Bot } from "../Bot.js";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import type { GuildHolder } from "../GuildHolder.js";
 import type { Submission } from "../submissions/Submission.js";
+import type {
+	APIErrorResponse,
+	APIHealthResponse,
+	APIJsonResponse,
+	APIPagination,
+	APIServerInfo,
+	APIServersResponse,
+	APISubmissionDetails,
+	APISubmissionResponse,
+	APISubmissionsResponse,
+	APISubmissionSummary,
+	APISubmissionTimestampInfo
+} from "./APITypes.js";
+import { getAuthorName } from "../utils/Util.js";
 
 const DEFAULT_PORT = 4938;
 const DEFAULT_HOST = "127.0.0.1";
 const DISCORD_EPOCH = 1_420_070_400_000n;
-
-type SubmissionTimestampInfo = {
-	createdMs: number | null;
-	createdISO: string | null;
-	updatedMs: number | null;
-	updatedISO: string | null;
-};
-
-type SubmissionSummary = {
-	id: string;
-	name: string;
-	status: string;
-	threadId: string;
-	threadUrl: string;
-	timestamp: SubmissionTimestampInfo;
-};
 
 function parsePort(value: string | undefined): number {
 	if (!value) return DEFAULT_PORT;
@@ -93,11 +91,12 @@ export class APIServer {
 		});
 
 		this.app.get(["/ping", "/health", "/healthz"], (_req: Request, res: Response) => {
-			this.respondJson(res, 200, {
+			const payload: APIHealthResponse = {
 				ok: true,
 				service: "storage-tech-bot-api",
 				timestamp: new Date().toISOString()
-			});
+			};
+			this.respondJson(res, 200, payload);
 		});
 
 		this.app.get("/servers", (_req: Request, res: Response) => {
@@ -130,19 +129,13 @@ export class APIServer {
 		});
 
 		this.app.use((_req: Request, res: Response) => {
-			this.respondJson(res, 404, {
-				ok: false,
-				error: "Not Found"
-			});
+			this.respondError(res, 404, "Not Found");
 		});
 
 		this.app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
 			console.error("API request failed:", error);
 			if (res.headersSent) return;
-			this.respondJson(res, 500, {
-				ok: false,
-				error: "Internal Server Error"
-			});
+			this.respondError(res, 500, "Internal Server Error");
 		});
 	}
 
@@ -170,17 +163,18 @@ export class APIServer {
 	}
 
 	private handleGetServers(res: Response): void {
-		const servers = Array.from(this.bot.guilds.values())
+		const servers: APIServerInfo[] = Array.from(this.bot.guilds.values())
 			.map(holder => ({
 				id: holder.getGuild().id,
 				name: holder.getGuild().name
 			}))
 			.sort((a, b) => a.name.localeCompare(b.name));
 
-		this.respondJson(res, 200, {
+		const payload: APIServersResponse = {
 			ok: true,
 			servers
-		});
+		};
+		this.respondJson(res, 200, payload);
 	}
 
 	private async handleGetSubmissions(serverId: string, req: Request, res: Response): Promise<void> {
@@ -209,22 +203,22 @@ export class APIServer {
 				.map(submission => this.buildSubmissionSummary(submission))
 		);
 
-		this.respondJson(res, 200, {
+		const pagination: APIPagination = {
+			page: currentPage,
+			pageSize,
+			total,
+			totalPages,
+			hasNext: currentPage < totalPages,
+			hasPrevious: currentPage > 1
+		};
+
+		const payload: APISubmissionsResponse = {
 			ok: true,
-			server: {
-				id: guildHolder.getGuild().id,
-				name: guildHolder.getGuild().name
-			},
+			server: this.toServerInfo(guildHolder),
 			submissions: pagedSubmissions,
-			pagination: {
-				page: currentPage,
-				pageSize,
-				total,
-				totalPages,
-				hasNext: currentPage < totalPages,
-				hasPrevious: currentPage > 1
-			}
-		});
+			pagination
+		};
+		this.respondJson(res, 200, payload);
 	}
 
 	private async handleGetSubmission(serverId: string, submissionId: string, res: Response): Promise<void> {
@@ -233,55 +227,49 @@ export class APIServer {
 
 		const submission = await guildHolder.getSubmissionsManager().getSubmission(submissionId);
 		if (!submission) {
-			this.respondJson(res, 404, {
-				ok: false,
-				error: `Submission not found: ${submissionId}`
-			});
+			this.respondError(res, 404, `Submission not found: ${submissionId}`);
 			return;
 		}
 
 		const config = submission.getConfigManager();
 		const timestamp = await this.getSubmissionTimestamps(submission);
 
+		const currentRevision = submission.getRevisionsManager().getCurrentRevision();
+		const revisionData = currentRevision ? await submission.getRevisionsManager().getRevisionById(currentRevision.id) : null;
 
-		const revision = submission.getRevisionsManager().getCurrentRevision();
-		const revisionData = revision ? await submission.getRevisionsManager().getRevisionById(revision.id) : null;
+		const submissionPayload: APISubmissionDetails = {
+			id: submission.getId(),
+			name: config.getConfig(SubmissionConfigs.NAME),
+			status: config.getConfig(SubmissionConfigs.STATUS),
+			threadId: config.getConfig(SubmissionConfigs.SUBMISSION_THREAD_ID) || submission.getId(),
+			threadUrl: config.getConfig(SubmissionConfigs.SUBMISSION_THREAD_URL),
+			archiveChannelId: config.getConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID) || null,
+			isLocked: config.getConfig(SubmissionConfigs.IS_LOCKED),
+			lockReason: config.getConfig(SubmissionConfigs.LOCK_REASON),
+			onHold: config.getConfig(SubmissionConfigs.ON_HOLD),
+			holdReason: config.getConfig(SubmissionConfigs.HOLD_REASON),
+			rejectionReason: config.getConfig(SubmissionConfigs.REJECTION_REASON),
+			retractionReason: config.getConfig(SubmissionConfigs.RETRACTION_REASON),
+			tags: config.getConfig(SubmissionConfigs.TAGS) || [],
+			authors: config.getConfig(SubmissionConfigs.AUTHORS) || [],
+			endorsers: config.getConfig(SubmissionConfigs.ENDORSERS),
+			images: config.getConfig(SubmissionConfigs.IMAGES) || [],
+			attachments: config.getConfig(SubmissionConfigs.ATTACHMENTS) || [],
+			revision: revisionData ? {
+				id: revisionData.id,
+				timestamp: revisionData.timestamp,
+				records: revisionData.records,
+				styles: revisionData.styles
+			} : null,
+			timestamp
+		};
 
-
-
-		this.respondJson(res, 200, {
+		const payload: APISubmissionResponse = {
 			ok: true,
-			server: {
-				id: guildHolder.getGuild().id,
-				name: guildHolder.getGuild().name
-			},
-			submission: {
-				id: submission.getId(),
-				name: config.getConfig(SubmissionConfigs.NAME),
-				status: config.getConfig(SubmissionConfigs.STATUS),
-				threadId: config.getConfig(SubmissionConfigs.SUBMISSION_THREAD_ID) || submission.getId(),
-				threadUrl: config.getConfig(SubmissionConfigs.SUBMISSION_THREAD_URL),
-				archiveChannelId: config.getConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID) || null,
-				isLocked: config.getConfig(SubmissionConfigs.IS_LOCKED),
-				lockReason: config.getConfig(SubmissionConfigs.LOCK_REASON),
-				onHold: config.getConfig(SubmissionConfigs.ON_HOLD),
-				holdReason: config.getConfig(SubmissionConfigs.HOLD_REASON),
-				rejectionReason: config.getConfig(SubmissionConfigs.REJECTION_REASON),
-				retractionReason: config.getConfig(SubmissionConfigs.RETRACTION_REASON),
-				tags: config.getConfig(SubmissionConfigs.TAGS) || [],
-				authors: config.getConfig(SubmissionConfigs.AUTHORS) || [],
-				endorsers: config.getConfig(SubmissionConfigs.ENDORSERS),
-				images: config.getConfig(SubmissionConfigs.IMAGES) || [],
-				attachments: config.getConfig(SubmissionConfigs.ATTACHMENTS) || [],
-				revision: revisionData ? {
-					id: revisionData.id,
-					timestamp: revisionData.timestamp,
-					records: revisionData.records,
-					styles: revisionData.styles
-				} : null,
-				timestamp
-			}
-		});
+			server: this.toServerInfo(guildHolder),
+			submission: submissionPayload
+		};
+		this.respondJson(res, 200, payload);
 	}
 
 	private async handleGetSubmissionAttachment(
@@ -295,19 +283,13 @@ export class APIServer {
 
 		const submission = await guildHolder.getSubmissionsManager().getSubmission(submissionId);
 		if (!submission) {
-			this.respondJson(res, 404, {
-				ok: false,
-				error: `Submission not found: ${submissionId}`
-			});
+			this.respondError(res, 404, `Submission not found: ${submissionId}`);
 			return;
 		}
 
 		const attachment = await submission.getAttachmentById(attachmentId);
 		if (!attachment) {
-			this.respondJson(res, 404, {
-				ok: false,
-				error: `Attachment not found: ${attachmentId}`
-			});
+			this.respondError(res, 404, `Attachment not found: ${attachmentId}`);
 			return;
 		}
 
@@ -325,10 +307,7 @@ export class APIServer {
 			return;
 		}
 
-		this.respondJson(res, 404, {
-			ok: false,
-			error: `Attachment content not available: ${attachmentId}`
-		});
+		this.respondError(res, 404, `Attachment content not available: ${attachmentId}`);
 	}
 
 	private async handleGetSubmissionImage(
@@ -342,20 +321,14 @@ export class APIServer {
 
 		const submission = await guildHolder.getSubmissionsManager().getSubmission(submissionId);
 		if (!submission) {
-			this.respondJson(res, 404, {
-				ok: false,
-				error: `Submission not found: ${submissionId}`
-			});
+			this.respondError(res, 404, `Submission not found: ${submissionId}`);
 			return;
 		}
 
 		const images = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) || [];
 		const image = images.find(entry => entry.id === imageId);
 		if (!image) {
-			this.respondJson(res, 404, {
-				ok: false,
-				error: `Image not found: ${imageId}`
-			});
+			this.respondError(res, 404, `Image not found: ${imageId}`);
 			return;
 		}
 
@@ -372,10 +345,7 @@ export class APIServer {
 			return;
 		}
 
-		this.respondJson(res, 404, {
-			ok: false,
-			error: `Image content not available: ${imageId}`
-		});
+		this.respondError(res, 404, `Image content not available: ${imageId}`);
 	}
 
 	private getGuildHolderOrRespond(serverId: string, res: Response): GuildHolder | null {
@@ -383,10 +353,7 @@ export class APIServer {
 		if (guildHolder) {
 			return guildHolder;
 		}
-		this.respondJson(res, 404, {
-			ok: false,
-			error: `Server not found: ${serverId}`
-		});
+		this.respondError(res, 404, `Server not found: ${serverId}`);
 		return null;
 	}
 
@@ -427,19 +394,26 @@ export class APIServer {
 		}
 	}
 
-	private async buildSubmissionSummary(submission: Submission): Promise<SubmissionSummary> {
+	private toServerInfo(guildHolder: GuildHolder): APIServerInfo {
+		return {
+			id: guildHolder.getGuild().id,
+			name: guildHolder.getGuild().name
+		};
+	}
+
+	private async buildSubmissionSummary(submission: Submission): Promise<APISubmissionSummary> {
 		const config = submission.getConfigManager();
 		return {
 			id: submission.getId(),
 			name: config.getConfig(SubmissionConfigs.NAME) || "Unnamed Submission",
 			status: config.getConfig(SubmissionConfigs.STATUS),
-			threadId: config.getConfig(SubmissionConfigs.SUBMISSION_THREAD_ID) || submission.getId(),
-			threadUrl: config.getConfig(SubmissionConfigs.SUBMISSION_THREAD_URL) || "",
-			timestamp: await this.getSubmissionTimestamps(submission)
+			timestamp: await this.getSubmissionTimestamps(submission),
+			authors: (config.getConfig(SubmissionConfigs.AUTHORS) || []).map(author => getAuthorName(author)),
+			tags: (config.getConfig(SubmissionConfigs.TAGS) || []).map(tag => tag.name)
 		};
 	}
 
-	private async getSubmissionTimestamps(submission: Submission): Promise<SubmissionTimestampInfo> {
+	private async getSubmissionTimestamps(submission: Submission): Promise<APISubmissionTimestampInfo> {
 		const config = submission.getConfigManager();
 		const threadId = config.getConfig(SubmissionConfigs.SUBMISSION_THREAD_ID) || submission.getId();
 		const createdMs = this.getSnowflakeTimestamp(threadId);
@@ -448,9 +422,7 @@ export class APIServer {
 
 		return {
 			createdMs,
-			createdISO: createdMs ? new Date(createdMs).toISOString() : null,
-			updatedMs,
-			updatedISO: updatedMs ? new Date(updatedMs).toISOString() : null
+			updatedMs
 		};
 	}
 
@@ -468,10 +440,7 @@ export class APIServer {
 	private async sendFile(res: Response, filePath: string, contentType: string, fileName: string): Promise<void> {
 		const stats = await fs.stat(filePath).catch(() => null);
 		if (!stats || !stats.isFile()) {
-			this.respondJson(res, 404, {
-				ok: false,
-				error: "File not found"
-			});
+			this.respondError(res, 404, "File not found");
 			return;
 		}
 
@@ -484,10 +453,7 @@ export class APIServer {
 		stream.once("error", (error) => {
 			console.error(`Failed to stream file ${filePath}:`, error);
 			if (!res.headersSent) {
-				this.respondJson(res, 500, {
-					ok: false,
-					error: "Failed to stream file"
-				});
+				this.respondError(res, 500, "Failed to stream file");
 				return;
 			}
 			res.destroy(error);
@@ -542,13 +508,18 @@ export class APIServer {
 
 	private respondUnauthorized(res: Response): void {
 		res.setHeader("WWW-Authenticate", 'Bearer realm="storage-tech-bot-api"');
-		this.respondJson(res, 401, {
-			ok: false,
-			error: "Unauthorized"
-		});
+		this.respondError(res, 401, "Unauthorized");
 	}
 
-	private respondJson(res: Response, statusCode: number, payload: Record<string, unknown>): void {
+	private respondError(res: Response, statusCode: number, error: string): void {
+		const payload: APIErrorResponse = {
+			ok: false,
+			error
+		};
+		this.respondJson(res, statusCode, payload);
+	}
+
+	private respondJson<TResponse extends APIJsonResponse>(res: Response, statusCode: number, payload: TResponse): void {
 		res.status(statusCode).json(payload);
 	}
 }
