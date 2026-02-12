@@ -26,6 +26,8 @@ export type BaseAttachment = {
 }
 
 export type Attachment = BaseAttachment & {
+    hash?: string, // File hash for optimizing downloads
+
     image?: { // For images
         width: number,
         height: number,

@@ -11,6 +11,7 @@ import { deepClone, escapeDiscordString, escapeString, formatSize, getMessageAut
 import { Litematic } from '../lib/litematic-reader/main.js'
 import { Author } from '../submissions/Author.js'
 import { findWorldsInZip, optimizeWorldsInZip } from './WDLUtils.js'
+import { createHash } from 'crypto'
 
 // Matches both cdn.discordapp.com and media.discordapp.net attachment URLs
 const DISCORD_ATTACHMENT_REGEX = /^https:\/\/(?:cdn\.discordapp\.com|media\.discordapp\.net)\/attachments\//;
@@ -301,6 +302,7 @@ export async function processAttachments(attachments: Attachment[], attachments_
                 try {
                     const attachmentData = await got(attachmentURLsRefreshed[index], { responseType: 'buffer' });
                     await fs.writeFile(attachmentPath, attachmentData.body);
+                    attachment.hash = createHash('sha256').update(attachmentData.body).digest('hex');
                     attachment.path = key;
                 } catch (error) {
                     throw new Error(`Failed to download attachment ${attachment.name} at ${attachmentURLsRefreshed[index]}, try reuploading the file directly to the thread.`);
@@ -433,6 +435,11 @@ export async function optimizeAttachments(
                 }
             } catch (error) {
                 console.error('Error optimizing WDL file:', error);
+            }
+
+            const finalFileData = await fs.readFile(attachmentPath).catch(() => null);
+            if (finalFileData) {
+                attachment.hash = createHash('sha256').update(finalFileData).digest('hex');
             }
         }
     }
