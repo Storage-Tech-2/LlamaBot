@@ -603,8 +603,20 @@ export class RepositoryManager {
                     throw new Error(`Old entry ${oldEntryRef.code} not found in repository`);
                 }
 
-                newEntryRef.code = channel.code + oldEntryRef.code.replace(new RegExp(`^${oldChannel.code}`), '');
-                newEntryRef.path = `${newEntryRef.code}_${escapeString(oldEntry.getData().name || '')}`;
+                const oldEntryData = oldEntry.getData();
+                const oldEntryCode = oldEntryData.code || oldEntryRef.code;
+                let remappedCode = oldEntryCode;
+                if (oldChannel.code !== channel.code) {
+                    if (oldEntryCode.startsWith(oldChannel.code)) {
+                        remappedCode = channel.code + oldEntryCode.slice(oldChannel.code.length);
+                    } else {
+                        const numberSuffix = oldEntryCode.match(/\d+$/)?.[0];
+                        remappedCode = numberSuffix ? (channel.code + numberSuffix) : (channel.code + oldEntryCode);
+                    }
+                }
+
+                newEntryRef.code = remappedCode;
+                newEntryRef.path = `${newEntryRef.code}_${escapeString(oldEntryData.name || '')}`;
 
                 const oldFolderPath = Path.join(newPath, oldEntryRef.path);
                 const newFolderPath = Path.join(newPath, newEntryRef.path);
@@ -619,23 +631,35 @@ export class RepositoryManager {
                     throw new Error(`Entry ${oldEntryRef.code} not found in repository`);
                 }
                 entry.getData().code = newEntryRef.code;
+                entry.getData().reservedCodes = mergeTwoArraysUnique(entry.getData().reservedCodes || [], [newEntryRef.code]);
 
                 // Rename attachment files
-                for (const attachment of entry.getData().attachments) {
-                    const newName = attachment.name.replace(new RegExp(`^${oldEntryRef.code}`), newEntryRef.code);
-                    attachment.name = newName;
+                if (oldEntryCode !== newEntryRef.code) {
+                    for (const attachment of entry.getData().attachments) {
+                        if (attachment.name.startsWith(oldEntryCode)) {
+                            attachment.name = newEntryRef.code + attachment.name.slice(oldEntryCode.length);
+                        }
 
-                    const oldPath = attachment.path || '';
-                    // split the path to get the file name
-                    const oldPathParts = oldPath.split('/');
-                    const oldFileName = oldPathParts.pop() || '';
-                    oldPathParts.push(oldFileName.replace(new RegExp(`^${oldEntryRef.code}`), newEntryRef.code));
-                    const newPath = oldPathParts.join("/");
-                    if (oldPath !== newPath) {
-                        const fullOldPath = Path.join(newFolderPath, oldPath);
-                        const fullNewPath = Path.join(newFolderPath, newPath);
-                        await this.git.mv(fullOldPath, fullNewPath);
-                        attachment.path = newPath;
+                        const oldAttachmentPath = attachment.path || '';
+                        if (!oldAttachmentPath) {
+                            continue;
+                        }
+
+                        // split the path to get the file name
+                        const oldPathParts = oldAttachmentPath.split('/');
+                        const oldFileName = oldPathParts.pop() || '';
+                        const newFileName = oldFileName.startsWith(oldEntryCode)
+                            ? newEntryRef.code + oldFileName.slice(oldEntryCode.length)
+                            : oldFileName;
+
+                        oldPathParts.push(newFileName);
+                        const newAttachmentPath = oldPathParts.join('/');
+                        if (oldAttachmentPath !== newAttachmentPath) {
+                            const fullOldPath = Path.join(newFolderPath, oldAttachmentPath);
+                            const fullNewPath = Path.join(newFolderPath, newAttachmentPath);
+                            await this.git.mv(fullOldPath, fullNewPath);
+                            attachment.path = newAttachmentPath;
+                        }
                     }
                 }
 
@@ -665,17 +689,14 @@ export class RepositoryManager {
                         throw new Error(`Entry ${entryRef.code} not found in repository`);
                     }
                     // republish the entry
-                    await this.addOrUpdateEntryFromData(entry.getData(), channel.id, false, false, async () => { });
+                    const result = await this.addOrUpdateEntryFromData(entry.getData(), channel.id, false, false, async () => { });
                     // update submission
                     const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entry.getData().id);
                     if (submission) {
-                        const reservedCodes = submission.getConfigManager().getConfig(SubmissionConfigs.RESERVED_CODES);
-                        // Check if the code is already reserved
-                        if (!reservedCodes.includes(entry.getData().code)) {
-                            reservedCodes.push(entry.getData().code);
-                            submission.getConfigManager().setConfig(SubmissionConfigs.RESERVED_CODES, reservedCodes);
-                        }
+                        submission.getConfigManager().setConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID, channel.id);
+                        this.updateSubmissionFromEntryData(submission, result.newEntryData);
                         await submission.save();
+                        await submission.statusUpdated();
                     }
                 }
             }
