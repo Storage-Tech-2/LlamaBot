@@ -778,7 +778,6 @@ export class DebugCommand implements Command {
                 }
 
                 if (entryChanged) {
-                    entryData.updatedAt = Date.now();
                     await entry.savePrivate();
                     await repositoryManager.add(entry.getDataPath());
                     updatedPosts++;
