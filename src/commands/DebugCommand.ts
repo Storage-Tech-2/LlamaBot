@@ -757,7 +757,7 @@ export class DebugCommand implements Command {
                 const entryData = entry.getData();
                 let entryChanged = false;
 
-                for (const attachment of entryData.attachments) {
+                for (const attachment of entryData.images) {
                     scannedPostAttachments++;
                     if (!attachment.path) {
                         continue;
@@ -794,9 +794,9 @@ export class DebugCommand implements Command {
                     continue;
                 }
 
-                const attachments = submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) || [];
+                const attachments = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) || [];
                 let submissionChanged = false;
-                const attachmentsFolder = submission.getAttachmentFolder();
+                const attachmentsFolder = submission.getProcessedImagesFolder();
 
                 for (const attachment of attachments) {
                     scannedSubmissionAttachments++;

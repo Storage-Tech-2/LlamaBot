@@ -21,13 +21,12 @@ export type BaseAttachment = {
     contentType: string,
     path?: string, // Local path if downloaded
     size?: number, // Size in bytes if known
+    hash?: string, // File hash for optimizing downloads
     unoptimizedSize?: number, // Original size in bytes if optimized
     canDownload: boolean, // Whether the file can be downloaded
 }
 
 export type Attachment = BaseAttachment & {
-    hash?: string, // File hash for optimizing downloads
-
     image?: { // For images
         width: number,
         height: number,

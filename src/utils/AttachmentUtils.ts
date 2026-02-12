@@ -126,6 +126,9 @@ export async function processImages(images: Image[], download_folder: string, pr
         image.height = metadata.height;
         image.size = metadata.size;
         image.path = processedKey;
+        const optimizedData = await fs.readFile(processedPath);
+        image.hash = createHash('sha256').update(optimizedData).digest('hex');
+                 
 
         await fs.unlink(downloadPath); // Remove the original file after processing
     }));
