@@ -16,6 +16,7 @@ import got from "got";
 import Path from "path";
 import fs from "fs/promises";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
+import { createHash } from "crypto";
 
 export class DebugCommand implements Command {
     getID(): string {
@@ -77,6 +78,11 @@ export class DebugCommand implements Command {
                 sub
                     .setName('updatesubmissionsstatus')
                     .setDescription('Update the status of all submissions based on their archive status')
+            )
+            .addSubcommand(sub =>
+                sub
+                    .setName('attachhashes')
+                    .setDescription('Compute attachment hashes for archived posts and submissions')
             )
             .addSubcommand(sub =>
                 sub
@@ -225,6 +231,9 @@ export class DebugCommand implements Command {
                 break;
             case 'updatesubmissionsstatus':
                 await this.handleUpdateSubmissionsStatus(guildHolder, interaction);
+                break;
+            case 'attachhashes':
+                await this.handleAttachHashes(guildHolder, interaction);
                 break;
             case 'reextract':
                 await this.handleReextract(guildHolder, interaction);
@@ -712,6 +721,134 @@ export class DebugCommand implements Command {
         }
 
         await interaction.followUp(`<@${interaction.user.id}> Updating status of all submissions complete!`);
+    }
+
+    private async hashAttachmentFile(filePath: string): Promise<string | null> {
+        try {
+            const data = await fs.readFile(filePath);
+            return createHash('sha256').update(data).digest('hex');
+        } catch {
+            return null;
+        }
+    }
+
+    private async handleAttachHashes(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
+        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
+        const repositoryManager = guildHolder.getRepositoryManager();
+        const submissionsManager = guildHolder.getSubmissionsManager();
+
+        let scannedPosts = 0;
+        let updatedPosts = 0;
+        let scannedPostAttachments = 0;
+        let updatedPostAttachments = 0;
+        let scannedSubmissions = 0;
+        let updatedSubmissions = 0;
+        let scannedSubmissionAttachments = 0;
+        let updatedSubmissionAttachments = 0;
+        let missingFiles = 0;
+        let errors = 0;
+        let anyRepositoryChange = false;
+
+        await repositoryManager.getLock().acquire();
+        try {
+            await repositoryManager.iterateAllEntries(async (entry) => {
+                scannedPosts++;
+                const entryData = entry.getData();
+                let entryChanged = false;
+
+                for (const attachment of entryData.attachments) {
+                    scannedPostAttachments++;
+                    if (!attachment.path) {
+                        continue;
+                    }
+
+                    const attachmentPath = Path.join(entry.getFolderPath(), attachment.path);
+                    const hash = await this.hashAttachmentFile(attachmentPath);
+                    if (!hash) {
+                        missingFiles++;
+                        continue;
+                    }
+
+                    if (attachment.hash !== hash) {
+                        attachment.hash = hash;
+                        entryChanged = true;
+                        updatedPostAttachments++;
+                    }
+                }
+
+                if (entryChanged) {
+                    entryData.updatedAt = Date.now();
+                    await entry.savePrivate();
+                    await repositoryManager.add(entry.getDataPath());
+                    updatedPosts++;
+                    anyRepositoryChange = true;
+                }
+            });
+
+            const submissionIds = await submissionsManager.getSubmissionsList();
+            for (const submissionId of submissionIds) {
+                scannedSubmissions++;
+                const submission = await submissionsManager.getSubmission(submissionId);
+                if (!submission) {
+                    errors++;
+                    continue;
+                }
+
+                const attachments = submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) || [];
+                let submissionChanged = false;
+                const attachmentsFolder = submission.getAttachmentFolder();
+
+                for (const attachment of attachments) {
+                    scannedSubmissionAttachments++;
+                    if (!attachment.path) {
+                        continue;
+                    }
+
+                    const attachmentPath = Path.join(attachmentsFolder, attachment.path);
+                    const hash = await this.hashAttachmentFile(attachmentPath);
+                    if (!hash) {
+                        missingFiles++;
+                        continue;
+                    }
+
+                    if (attachment.hash !== hash) {
+                        attachment.hash = hash;
+                        submissionChanged = true;
+                        updatedSubmissionAttachments++;
+                    }
+                }
+
+                if (submissionChanged) {
+                    submission.getConfigManager().setConfig(SubmissionConfigs.ATTACHMENTS, attachments);
+                    await submission.save();
+                    updatedSubmissions++;
+                }
+            }
+
+            if (anyRepositoryChange) {
+                await repositoryManager.commit(`Backfill attachment hashes for archived posts (${updatedPosts} updated post${updatedPosts === 1 ? '' : 's'})`);
+                await repositoryManager.push().catch((e: any) => {
+                    errors++;
+                    console.error('Failed to push attachhashes commit:', e);
+                });
+            }
+        } catch (error: any) {
+            errors++;
+            console.error('Error while attaching hashes:', error);
+            await interaction.editReply({ content: `attachHashes failed: ${error?.message || 'Unknown error'}` });
+            return;
+        } finally {
+            repositoryManager.getLock().release();
+        }
+
+        await interaction.editReply({
+            content:
+                `attachHashes complete.\n` +
+                `Archived posts: ${updatedPosts}/${scannedPosts} updated, attachments changed ${updatedPostAttachments}/${scannedPostAttachments}.\n` +
+                `Submissions: ${updatedSubmissions}/${scannedSubmissions} updated, attachments changed ${updatedSubmissionAttachments}/${scannedSubmissionAttachments}.\n` +
+                `Missing files: ${missingFiles}. Errors: ${errors}.`
+        });
     }
 
     private async handleAddThanks(guildHolder: GuildHolder, interaction: ChatInputCommandInteraction) {
