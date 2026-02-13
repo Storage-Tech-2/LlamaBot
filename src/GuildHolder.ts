@@ -400,8 +400,9 @@ export class GuildHolder {
             shouldReply = true;
         }
 
-        // check if message content has !ignore
-        if (shouldReply && /(!ignore|!i)\b/i.test(message.content)) {
+        // check if message content has !ignore or !i
+        const regex = /!(ignore|i)\b/i;
+        if (shouldReply && message.content.match(regex)) {
             shouldReply = false;
         }
 
