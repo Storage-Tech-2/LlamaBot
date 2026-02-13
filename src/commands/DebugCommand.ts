@@ -796,7 +796,7 @@ export class DebugCommand implements Command {
 
                 const attachments = submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) || [];
                 let submissionChanged = false;
-                const attachmentsFolder = submission.getProcessedImagesFolder();
+                const attachmentsFolder = submission.getAttachmentFolder();
 
                 for (const attachment of attachments) {
                     scannedSubmissionAttachments++;
