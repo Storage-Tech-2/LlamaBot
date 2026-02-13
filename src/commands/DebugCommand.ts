@@ -752,38 +752,38 @@ export class DebugCommand implements Command {
 
         await repositoryManager.getLock().acquire();
         try {
-            await repositoryManager.iterateAllEntries(async (entry) => {
-                scannedPosts++;
-                const entryData = entry.getData();
-                let entryChanged = false;
+            // await repositoryManager.iterateAllEntries(async (entry) => {
+            //     scannedPosts++;
+            //     const entryData = entry.getData();
+            //     let entryChanged = false;
 
-                for (const attachment of entryData.images) {
-                    scannedPostAttachments++;
-                    if (!attachment.path) {
-                        continue;
-                    }
+            //     for (const attachment of entryData.images) {
+            //         scannedPostAttachments++;
+            //         if (!attachment.path) {
+            //             continue;
+            //         }
 
-                    const attachmentPath = Path.join(entry.getFolderPath(), attachment.path);
-                    const hash = await this.hashAttachmentFile(attachmentPath);
-                    if (!hash) {
-                        missingFiles++;
-                        continue;
-                    }
+            //         const attachmentPath = Path.join(entry.getFolderPath(), attachment.path);
+            //         const hash = await this.hashAttachmentFile(attachmentPath);
+            //         if (!hash) {
+            //             missingFiles++;
+            //             continue;
+            //         }
 
-                    if (attachment.hash !== hash) {
-                        attachment.hash = hash;
-                        entryChanged = true;
-                        updatedPostAttachments++;
-                    }
-                }
+            //         if (attachment.hash !== hash) {
+            //             attachment.hash = hash;
+            //             entryChanged = true;
+            //             updatedPostAttachments++;
+            //         }
+            //     }
 
-                if (entryChanged) {
-                    await entry.savePrivate();
-                    await repositoryManager.add(entry.getDataPath());
-                    updatedPosts++;
-                    anyRepositoryChange = true;
-                }
-            });
+            //     if (entryChanged) {
+            //         await entry.savePrivate();
+            //         await repositoryManager.add(entry.getDataPath());
+            //         updatedPosts++;
+            //         anyRepositoryChange = true;
+            //     }
+            // });
 
             const submissionIds = await submissionsManager.getSubmissionsList();
             for (const submissionId of submissionIds) {
@@ -819,7 +819,7 @@ export class DebugCommand implements Command {
                 }
 
                 if (submissionChanged) {
-                    submission.getConfigManager().setConfig(SubmissionConfigs.ATTACHMENTS, attachments);
+                    submission.getConfigManager().setConfig(SubmissionConfigs.IMAGES, attachments);
                     await submission.save();
                     updatedSubmissions++;
                 }
