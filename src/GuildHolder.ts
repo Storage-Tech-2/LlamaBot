@@ -390,7 +390,7 @@ export class GuildHolder {
 
         // check if message content has !ignore or !i
         const regex = /!(ignore|i)\b/i;
-        if (shouldReply && message.content.match(regex)) {
+        if (shouldReply && regex.test(message.content)) {
             shouldReply = false;
         }
 
@@ -2057,6 +2057,11 @@ export class GuildHolder {
             const isBot = msg.author.id === this.getBot().client.user?.id;
             const role = isBot ? 'assistant' : 'user';
             const content = msg.content;
+
+            const regex = /!(ignore|i)\b/i;
+            if (regex.test(content)) {
+                return; // skip this message
+            }
 
             // replace hyperlinks with the link text
             const linkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
