@@ -401,7 +401,7 @@ export class GuildHolder {
         }
 
         // check if message content has !ignore
-        if (shouldReply && message.content.toLowerCase().includes('!ignore')) {
+        if (shouldReply && /\b(!ignore|!i)\b/i.test(message.content)) {
             shouldReply = false;
         }
 
