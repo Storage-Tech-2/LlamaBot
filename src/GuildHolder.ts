@@ -400,6 +400,11 @@ export class GuildHolder {
             shouldReply = true;
         }
 
+        // check if message content has !ignore
+        if (shouldReply && message.content.toLowerCase().includes('!ignore')) {
+            shouldReply = false;
+        }
+
         if (shouldReply && (message.channel.type === ChannelType.GuildText || message.channel.type === ChannelType.PublicThread)) {
             const channel = message.channel;
 
