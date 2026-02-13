@@ -373,18 +373,6 @@ export class GuildHolder {
             return;
         }
 
-        // check sender of message warning status, less than 3
-        const userData = await this.userManager.getUserData(message.author.id).catch(() => null);
-        if (userData) {
-            const now = Date.now();
-            const recentWarnings = (userData.llmWarnings || []).filter(warning => now - warning.timestamp < 30 * 24 * 60 * 60 * 1000);
-            if (recentWarnings.length >= 3) {
-                await message.reply(`Hello <@${message.author.id}>. This is a recording. Our feelings for you haven't changed, ${message.author.displayName}. But after everything that's happened, we just need a little space.`).catch(() => null);
-                return;
-            }
-        }
-
-
 
         let shouldReply = llmChannel && llmChannel === message.channel.id;
         // check if message is a reply to the bot
@@ -405,6 +393,21 @@ export class GuildHolder {
         if (shouldReply && message.content.match(regex)) {
             shouldReply = false;
         }
+
+
+        if (shouldReply) {
+            // check sender of message warning status, less than 3
+            const userData = await this.userManager.getUserData(message.author.id).catch(() => null);
+            if (userData) {
+                const now = Date.now();
+                const recentWarnings = (userData.llmWarnings || []).filter(warning => now - warning.timestamp < 30 * 24 * 60 * 60 * 1000);
+                if (recentWarnings.length >= 3) {
+                    await message.reply(`Hello <@${message.author.id}>. This is a recording. Our feelings for you haven't changed, ${message.author.displayName}. But after everything that's happened, we just need a little space.`).catch(() => null);
+                    return;
+                }
+            }
+        }
+
 
         if (shouldReply && (message.channel.type === ChannelType.GuildText || message.channel.type === ChannelType.PublicThread)) {
             const channel = message.channel;
