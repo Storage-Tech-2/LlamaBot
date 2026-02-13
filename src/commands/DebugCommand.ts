@@ -794,7 +794,7 @@ export class DebugCommand implements Command {
                     continue;
                 }
 
-                const attachments = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) || [];
+                const attachments = submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) || [];
                 let submissionChanged = false;
                 const attachmentsFolder = submission.getProcessedImagesFolder();
 
@@ -819,7 +819,7 @@ export class DebugCommand implements Command {
                 }
 
                 if (submissionChanged) {
-                    submission.getConfigManager().setConfig(SubmissionConfigs.IMAGES, attachments);
+                    submission.getConfigManager().setConfig(SubmissionConfigs.ATTACHMENTS, attachments);
                     await submission.save();
                     updatedSubmissions++;
                 }
