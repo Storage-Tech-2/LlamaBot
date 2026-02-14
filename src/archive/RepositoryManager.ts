@@ -490,290 +490,296 @@ export class RepositoryManager {
         }
         await this.lock.acquire();
 
-        this.dictionaryManager.invalidateArchiveIndex();
+        try {
 
-        const reMapped: ArchiveChannelReference[] = [];
-        const channelsArray = Array.from(channels.values());
+            this.dictionaryManager.invalidateArchiveIndex();
 
-        const embeddingsTextToGenerate: string[] = [];
-        const codeAndDescriptions: string[][] = [];
-        const posititons: number[] = [];
-        for (const channel of channelsArray) {
-            await channel.fetch();
-            const { code, description } = getCodeAndDescriptionFromTopic(channel.topic || '');
-            if (!code) {
-                this.lock.release();
-                throw new Error(`Channel ${channel.name} (${channel.id}) does not have a valid code in the topic.`);
+            const reMapped: ArchiveChannelReference[] = [];
+            const channelsArray = Array.from(channels.values());
+
+            const embeddingsTextToGenerate: string[] = [];
+            const codeAndDescriptions: string[][] = [];
+            const posititons: number[] = [];
+            for (const channel of channelsArray) {
+                await channel.fetch();
+                const { code, description } = getCodeAndDescriptionFromTopic(channel.topic || '');
+                if (!code) {
+                    this.lock.release();
+                    throw new Error(`Channel ${channel.name} (${channel.id}) does not have a valid code in the topic.`);
+                }
+
+                codeAndDescriptions.push([code, description || 'No description', channel.name, channel.parent?.name || '']);
+                posititons.push(channel.rawPosition);
+                embeddingsTextToGenerate.push(`Channel: ${channel.name}\nDesigns archived in this channel: ${description || 'No description'}`);
             }
 
-            codeAndDescriptions.push([code, description || 'No description', channel.name, channel.parent?.name || '']);
-            posititons.push(channel.rawPosition);
-            embeddingsTextToGenerate.push(`Channel: ${channel.name}\nDesigns archived in this channel: ${description || 'No description'}`);
-        }
-
-        const allEmbeddings = await generateDocumentEmbeddings(embeddingsTextToGenerate).catch(() => null);
+            const allEmbeddings = await generateDocumentEmbeddings(embeddingsTextToGenerate).catch(() => null);
 
 
-        for (let i = 0; i < channelsArray.length; i++) {
-            const channel = channelsArray[i];
-            const [code, description, name, category] = codeAndDescriptions[i];
-            const embeddings = allEmbeddings ? allEmbeddings.embeddings[i] : undefined;
-            reMapped.push({
-                id: channel.id,
-                name,
-                code,
-                embedding: embeddings,
-                category,
-                path: `Archive/${code}_${escapeString(name) || ''}`,
-                description: description || 'No description',
-                position: posititons[i]
+            for (let i = 0; i < channelsArray.length; i++) {
+                const channel = channelsArray[i];
+                const [code, description, name, category] = codeAndDescriptions[i];
+                const embeddings = allEmbeddings ? allEmbeddings.embeddings[i] : undefined;
+                reMapped.push({
+                    id: channel.id,
+                    name,
+                    code,
+                    embedding: embeddings,
+                    category,
+                    path: `Archive/${code}_${escapeString(name) || ''}`,
+                    description: description || 'No description',
+                    position: posititons[i]
+                });
+            }
+
+            // sort by position
+            reMapped.sort((a, b) => a.position - b.position);
+
+
+            const existingChannels = await this.getChannelReferences();
+            const newChannels = reMapped.filter(c => !existingChannels.some(ec => ec.id === c.id));
+            const removedChannels = existingChannels.filter(ec => !reMapped.some(c => c.id === ec.id));
+            const modifiedChannels = reMapped.filter(c => {
+                const existing = existingChannels.find(ec => ec.id === c.id);
+                return existing && (existing.name !== c.name || existing.description !== c.description || existing.code !== c.code || existing.category !== c.category);
             });
-        }
 
-        // sort by position
-        reMapped.sort((a, b) => a.position - b.position);
-
-
-        const existingChannels = await this.getChannelReferences();
-        const newChannels = reMapped.filter(c => !existingChannels.some(ec => ec.id === c.id));
-        const removedChannels = existingChannels.filter(ec => !reMapped.some(c => c.id === ec.id));
-        const modifiedChannels = reMapped.filter(c => {
-            const existing = existingChannels.find(ec => ec.id === c.id);
-            return existing && (existing.name !== c.name || existing.description !== c.description || existing.code !== c.code || existing.category !== c.category);
-        });
-
-        // First, remove any channels that no longer exist
-        for (const channel of removedChannels) {
-            const channelPath = Path.join(this.folderPath, channel.path);
-            // Commit the removal
-            for (const file of await fs.readdir(channelPath)) {
-                const filePath = Path.join(channelPath, file);
-                // recursive
-                await fs.rm(filePath, { recursive: true, force: true });
-            }
-            await this.git.rm(['-r', channelPath]);
-            await this.commit(`Removed channel ${channel.name} (${channel.code})`);
-        }
-
-        // Then, add new channels
-        for (const channel of newChannels) {
-            const channelPath = Path.join(this.folderPath, channel.path);
-
-            await fs.mkdir(channelPath, { recursive: true });
-
-            // make new channel
-            const newChannel = ArchiveChannel.newFromReference(channel, channelPath);
-            await newChannel.savePrivate();
-
-
-            // Commit the new channel
-            await this.git.add(channelPath);
-            await this.commit(`Added channel ${channel.name} (${channel.code})`);
-        }
-
-        const republishQueue: { entryData: ArchiveEntryData, archiveChannelId: Snowflake }[] = [];
-
-        // Finally, update modified channels
-        for (const channel of modifiedChannels) {
-            const oldChannel = existingChannels.find(ec => ec.id === channel.id);
-            if (!oldChannel) continue;
-            const oldPath = Path.join(this.folderPath, oldChannel.path);
-            const newPath = Path.join(this.folderPath, channel.path);
-
-            // Rename the folder if the path has changed
-            if (oldPath !== newPath) {
-                const newPathExists = await fs.access(newPath).then(() => true).catch(() => false);
-                if (newPathExists) {
-                    const newPathEntries = await fs.readdir(newPath);
-                    if (newPathEntries.length === 0) {
-                        // Clean up stale empty folder so `git mv oldPath newPath` performs a rename.
-                        await fs.rmdir(newPath);
-                    } else {
-                        throw new Error(`Cannot rename channel folder from ${oldChannel.path} to ${channel.path}: destination already exists`);
-                    }
+            // First, remove any channels that no longer exist
+            for (const channel of removedChannels) {
+                const channelPath = Path.join(this.folderPath, channel.path);
+                // Commit the removal
+                for (const file of await fs.readdir(channelPath)) {
+                    const filePath = Path.join(channelPath, file);
+                    // recursive
+                    await fs.rm(filePath, { recursive: true, force: true });
                 }
-                await this.git.mv(oldPath, newPath);
+                await this.git.rm(['-r', channelPath]);
+                await this.commit(`Removed channel ${channel.name} (${channel.code})`);
             }
 
-            // check each post. Iterate through the files in the new path
-            const channelInstance = await ArchiveChannel.fromFolder(newPath);
-            if (!channelInstance) {
-                throw new Error(`Channel ${channel.name} (${channel.id}) not found in repository`);
+            // Then, add new channels
+            for (const channel of newChannels) {
+                const channelPath = Path.join(this.folderPath, channel.path);
+
+                await fs.mkdir(channelPath, { recursive: true });
+
+                // make new channel
+                const newChannel = ArchiveChannel.newFromReference(channel, channelPath);
+                await newChannel.savePrivate();
+
+
+                // Commit the new channel
+                await this.git.add(channelPath);
+                await this.commit(`Added channel ${channel.name} (${channel.code})`);
             }
 
-            const entries = channelInstance.getData().entries;
-            const newEntries: ArchiveEntryReference[] = [];
-            for (const oldEntryRef of entries) {
-                // Check if the file is a directory
-                const newEntryRef: ArchiveEntryReference = {
-                    ...oldEntryRef
-                };
+            const republishQueue: { entryData: ArchiveEntryData, archiveChannelId: Snowflake }[] = [];
 
-                // get name and code
-                const oldEntry = await ArchiveEntry.fromFolder(Path.join(newPath, oldEntryRef.path));
-                if (!oldEntry) {
-                    throw new Error(`Old entry ${oldEntryRef.code} not found in repository`);
-                }
+            // Finally, update modified channels
+            for (const channel of modifiedChannels) {
+                const oldChannel = existingChannels.find(ec => ec.id === channel.id);
+                if (!oldChannel) continue;
+                const oldPath = Path.join(this.folderPath, oldChannel.path);
+                const newPath = Path.join(this.folderPath, channel.path);
 
-                const oldEntryData = oldEntry.getData();
-                const oldEntryCode = oldEntryData.code || oldEntryRef.code;
-                let remappedCode = oldEntryCode;
-                if (oldChannel.code !== channel.code) {
-                    if (oldEntryCode.startsWith(oldChannel.code)) {
-                        remappedCode = channel.code + oldEntryCode.slice(oldChannel.code.length);
-                    } else {
-                        const numberSuffix = oldEntryCode.match(/\d+$/)?.[0];
-                        remappedCode = numberSuffix ? (channel.code + numberSuffix) : (channel.code + oldEntryCode);
-                    }
-                }
-
-                newEntryRef.code = remappedCode;
-                newEntryRef.path = `${newEntryRef.code}_${escapeString(oldEntryData.name || '')}`;
-
-                const oldFolderPath = Path.join(newPath, oldEntryRef.path);
-                const newFolderPath = Path.join(newPath, newEntryRef.path);
-                // Rename
-                if (oldFolderPath !== newFolderPath) {
-                    await this.git.mv(oldFolderPath, newFolderPath);
-                }
-
-                // Load entry
-                const entry = await ArchiveEntry.fromFolder(newFolderPath);
-                if (!entry) {
-                    throw new Error(`Entry ${oldEntryRef.code} not found in repository`);
-                }
-                entry.getData().code = newEntryRef.code;
-                entry.getData().reservedCodes = mergeTwoArraysUnique(entry.getData().reservedCodes || [], [newEntryRef.code]);
-
-                // Rename attachment files
-                if (oldEntryCode !== newEntryRef.code) {
-                    for (const attachment of entry.getData().attachments) {
-                        if (attachment.name.startsWith(oldEntryCode)) {
-                            attachment.name = newEntryRef.code + attachment.name.slice(oldEntryCode.length);
-                        }
-
-                        const oldAttachmentPath = attachment.path || '';
-                        if (!oldAttachmentPath) {
-                            continue;
-                        }
-
-                        // split the path to get the file name
-                        const oldPathParts = oldAttachmentPath.split('/');
-                        const oldFileName = oldPathParts.pop() || '';
-                        const newFileName = oldFileName.startsWith(oldEntryCode)
-                            ? newEntryRef.code + oldFileName.slice(oldEntryCode.length)
-                            : oldFileName;
-
-                        oldPathParts.push(newFileName);
-                        const newAttachmentPath = oldPathParts.join('/');
-                        if (oldAttachmentPath !== newAttachmentPath) {
-                            const fullOldPath = Path.join(newFolderPath, oldAttachmentPath);
-                            const fullNewPath = Path.join(newFolderPath, newAttachmentPath);
-                            await this.git.mv(fullOldPath, fullNewPath);
-                            attachment.path = newAttachmentPath;
+                // Rename the folder if the path has changed
+                if (oldPath !== newPath) {
+                    const newPathExists = await fs.access(newPath).then(() => true).catch(() => false);
+                    if (newPathExists) {
+                        const newPathEntries = await fs.readdir(newPath);
+                        if (newPathEntries.length === 0) {
+                            // Clean up stale empty folder so `git mv oldPath newPath` performs a rename.
+                            await fs.rmdir(newPath);
+                        } else {
+                            throw new Error(`Cannot rename channel folder from ${oldChannel.path} to ${channel.path}: destination already exists`);
                         }
                     }
+                    await this.git.mv(oldPath, newPath);
                 }
 
-                // Save the entry
-                await this.git.add(entry.getDataPath());
-                await entry.savePrivate();
-                newEntries.push(newEntryRef);
-                //await this.git.add(await this.updateEntryReadme(entry));
+                // check each post. Iterate through the files in the new path
+                const channelInstance = await ArchiveChannel.fromFolder(newPath);
+                if (!channelInstance) {
+                    throw new Error(`Channel ${channel.name} (${channel.id}) not found in repository`);
+                }
 
-                // update submission
-                //await this.addOrUpdateEntryFromData(this.guildHolder, entry.getData(), channel.id, false, false, async () => {});
-            }
+                const entries = channelInstance.getData().entries;
+                const newEntries: ArchiveEntryReference[] = [];
+                for (const oldEntryRef of entries) {
+                    // Check if the file is a directory
+                    const newEntryRef: ArchiveEntryReference = {
+                        ...oldEntryRef
+                    };
 
-            channelInstance.getData().name = channel.name;
-            channelInstance.getData().category = channel.category;
-            channelInstance.getData().description = channel.description;
-            channelInstance.getData().code = channel.code;
-            channelInstance.getData().entries = newEntries;
-            await channelInstance.savePrivate();
+                    // get name and code
+                    const oldEntry = await ArchiveEntry.fromFolder(Path.join(newPath, oldEntryRef.path));
+                    if (!oldEntry) {
+                        throw new Error(`Old entry ${oldEntryRef.code} not found in repository`);
+                    }
 
-            if (oldPath !== newPath) {
-                // Queue entries to republish after channel references are updated.
-                for (const entryRef of newEntries) {
-                    const entryPath = Path.join(newPath, entryRef.path);
-                    const entry = await ArchiveEntry.fromFolder(entryPath);
+                    const oldEntryData = oldEntry.getData();
+                    const oldEntryCode = oldEntryData.code || oldEntryRef.code;
+                    let remappedCode = oldEntryCode;
+                    if (oldChannel.code !== channel.code) {
+                        if (oldEntryCode.startsWith(oldChannel.code)) {
+                            remappedCode = channel.code + oldEntryCode.slice(oldChannel.code.length);
+                        } else {
+                            const numberSuffix = oldEntryCode.match(/\d+$/)?.[0];
+                            remappedCode = numberSuffix ? (channel.code + numberSuffix) : (channel.code + oldEntryCode);
+                        }
+                    }
+
+                    newEntryRef.code = remappedCode;
+                    newEntryRef.path = `${newEntryRef.code}_${escapeString(oldEntryData.name || '')}`;
+
+                    const oldFolderPath = Path.join(newPath, oldEntryRef.path);
+                    const newFolderPath = Path.join(newPath, newEntryRef.path);
+                    // Rename
+                    if (oldFolderPath !== newFolderPath) {
+                        await this.git.mv(oldFolderPath, newFolderPath);
+                    }
+
+                    // Load entry
+                    const entry = await ArchiveEntry.fromFolder(newFolderPath);
                     if (!entry) {
-                        throw new Error(`Entry ${entryRef.code} not found in repository`);
+                        throw new Error(`Entry ${oldEntryRef.code} not found in repository`);
                     }
-                    republishQueue.push({
-                        entryData: deepClone(entry.getData()),
-                        archiveChannelId: channel.id
-                    });
+                    entry.getData().code = newEntryRef.code;
+                    entry.getData().reservedCodes = mergeTwoArraysUnique(entry.getData().reservedCodes || [], [newEntryRef.code]);
+
+                    // Rename attachment files
+                    if (oldEntryCode !== newEntryRef.code) {
+                        for (const attachment of entry.getData().attachments) {
+                            if (attachment.name.startsWith(oldEntryCode)) {
+                                attachment.name = newEntryRef.code + attachment.name.slice(oldEntryCode.length);
+                            }
+
+                            const oldAttachmentPath = attachment.path || '';
+                            if (!oldAttachmentPath) {
+                                continue;
+                            }
+
+                            // split the path to get the file name
+                            const oldPathParts = oldAttachmentPath.split('/');
+                            const oldFileName = oldPathParts.pop() || '';
+                            const newFileName = oldFileName.startsWith(oldEntryCode)
+                                ? newEntryRef.code + oldFileName.slice(oldEntryCode.length)
+                                : oldFileName;
+
+                            oldPathParts.push(newFileName);
+                            const newAttachmentPath = oldPathParts.join('/');
+                            if (oldAttachmentPath !== newAttachmentPath) {
+                                const fullOldPath = Path.join(newFolderPath, oldAttachmentPath);
+                                const fullNewPath = Path.join(newFolderPath, newAttachmentPath);
+                                await this.git.mv(fullOldPath, fullNewPath);
+                                attachment.path = newAttachmentPath;
+                            }
+                        }
+                    }
+
+                    // Save the entry
+                    await this.git.add(entry.getDataPath());
+                    await entry.savePrivate();
+                    newEntries.push(newEntryRef);
+                    //await this.git.add(await this.updateEntryReadme(entry));
+
+                    // update submission
+                    //await this.addOrUpdateEntryFromData(this.guildHolder, entry.getData(), channel.id, false, false, async () => {});
                 }
+
+                channelInstance.getData().name = channel.name;
+                channelInstance.getData().category = channel.category;
+                channelInstance.getData().description = channel.description;
+                channelInstance.getData().code = channel.code;
+                channelInstance.getData().entries = newEntries;
+                await channelInstance.savePrivate();
+
+                if (oldPath !== newPath) {
+                    // Queue entries to republish after channel references are updated.
+                    for (const entryRef of newEntries) {
+                        const entryPath = Path.join(newPath, entryRef.path);
+                        const entry = await ArchiveEntry.fromFolder(entryPath);
+                        if (!entry) {
+                            throw new Error(`Entry ${entryRef.code} not found in repository`);
+                        }
+                        republishQueue.push({
+                            entryData: deepClone(entry.getData()),
+                            archiveChannelId: channel.id
+                        });
+                    }
+                }
+
+                // Commit the changes
+                let msg;
+                if (oldChannel.code !== channel.code) {
+                    msg = `Changed code for channel ${oldChannel.name} from ${oldChannel.code} to ${channel.code}`;
+                } else if (oldChannel.name !== channel.name) {
+                    msg = `Renamed channel ${oldChannel.name} to ${channel.name} (${channel.code})`;
+                } else {
+                    msg = `Updated channel ${oldChannel.name} (${channel.code})`;
+                }
+                await this.git.add(newPath);
+                await this.commit(msg);
             }
 
-            // Commit the changes
-            let msg;
-            if (oldChannel.code !== channel.code) {
-                msg = `Changed code for channel ${oldChannel.name} from ${oldChannel.code} to ${channel.code}`;
-            } else if (oldChannel.name !== channel.name) {
-                msg = `Renamed channel ${oldChannel.name} to ${channel.name} (${channel.code})`;
-            } else {
-                msg = `Updated channel ${oldChannel.name} (${channel.code})`;
-            }
-            await this.git.add(newPath);
-            await this.commit(msg);
-        }
-
-        // Check tags for entries
-        for (const channel of reMapped) {
-            const channelPath = Path.join(this.folderPath, channel.path);
-            const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
-            if (!archiveChannel) {
-                console.warn(`Channel ${channel.name} (${channel.id}) not found in repository`);
-                continue;
-            }
-            const entries = archiveChannel.getData().entries;
-            let changed = false;
-            for (const entryRef of entries) {
-                const entryPath = Path.join(channelPath, entryRef.path);
-                const entry = await ArchiveEntry.fromFolder(entryPath);
-                if (!entry) {
-                    console.warn(`Entry ${entryRef.code} not found in repository`);
+            // Check tags for entries
+            for (const channel of reMapped) {
+                const channelPath = Path.join(this.folderPath, channel.path);
+                const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
+                if (!archiveChannel) {
+                    console.warn(`Channel ${channel.name} (${channel.id}) not found in repository`);
                     continue;
                 }
+                const entries = archiveChannel.getData().entries;
+                let changed = false;
+                for (const entryRef of entries) {
+                    const entryPath = Path.join(channelPath, entryRef.path);
+                    const entry = await ArchiveEntry.fromFolder(entryPath);
+                    if (!entry) {
+                        console.warn(`Entry ${entryRef.code} not found in repository`);
+                        continue;
+                    }
+                }
+                if (changed) {
+                    await archiveChannel.savePrivate();
+                    await this.git.add(archiveChannel.getDataPath());
+                }
             }
-            if (changed) {
-                await archiveChannel.savePrivate();
-                await this.git.add(archiveChannel.getDataPath());
+
+            // Finally, save the new config
+            //this.configManager.setConfig(RepositoryConfigs.ARCHIVE_CHANNELS, reMapped);
+            await this.setChannelReferences(reMapped);
+
+            for (const { entryData, archiveChannelId } of republishQueue) {
+                const result = await this.addOrUpdateEntryFromData(entryData, archiveChannelId, false, false, async () => { });
+                const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entryData.id);
+                if (submission) {
+                    submission.getConfigManager().setConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID, archiveChannelId);
+                    this.updateSubmissionFromEntryData(submission, result.newEntryData);
+                    await submission.save();
+                    await submission.statusUpdated();
+                }
             }
-        }
 
-        // Finally, save the new config
-        //this.configManager.setConfig(RepositoryConfigs.ARCHIVE_CHANNELS, reMapped);
-        await this.setChannelReferences(reMapped);
+            await this.save();
 
-        for (const { entryData, archiveChannelId } of republishQueue) {
-            const result = await this.addOrUpdateEntryFromData(entryData, archiveChannelId, false, false, async () => { });
-            const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entryData.id);
-            if (submission) {
-                submission.getConfigManager().setConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID, archiveChannelId);
-                this.updateSubmissionFromEntryData(submission, result.newEntryData);
-                await submission.save();
-                await submission.statusUpdated();
+            // Rebuild index
+            await this.buildPersistentIndexAndEmbeddings();
+            await this.dictionaryManager.rebuildIndexAndEmbeddings();
+
+            // Add config if it doesn't exist
+            await this.git.add(this.getConfigFilePath());
+            await this.commit('Updated repository configuration');
+            try {
+                await this.push().catch(() => { });
+            } catch (e: any) {
+                console.error("Error pushing to remote:", e.message);
             }
+            await this.lock.release();
+        } catch (e) {
+            this.lock.release();
+            throw e;
         }
-
-        await this.save();
-
-        // Rebuild index
-        await this.buildPersistentIndexAndEmbeddings();
-        await this.dictionaryManager.rebuildIndexAndEmbeddings();
-
-        // Add config if it doesn't exist
-        await this.git.add(this.getConfigFilePath());
-        await this.commit('Updated repository configuration');
-        try {
-            await this.push().catch(() => { });
-        } catch (e: any) {
-            console.error("Error pushing to remote:", e.message);
-        }
-        await this.lock.release();
     }
 
     public async rebuildIndexesAndEmbeddings() {
@@ -1443,7 +1449,7 @@ export class RepositoryManager {
                 for (const attachment of entryData.attachments) {
                     if (!attachment.path) continue;
                     const sourcePath = Path.join(submission.getAttachmentFolder(), attachment.path);
-                  
+
                     const { basename, ext } = splitFileName(attachment.name);
 
                     const escapedName = escapeString(basename);
@@ -1473,7 +1479,7 @@ export class RepositoryManager {
             } else {
                 commitMessage = `Added entry ${newEntryData.name} (${newEntryData.code}) to channel ${archiveChannelData.getData().name} (${archiveChannelData.getData().code})`;
             }
-            
+
             if (details) {
                 if (details.message) {
                     commitMessage = details.message;
