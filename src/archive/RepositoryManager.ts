@@ -582,6 +582,16 @@ export class RepositoryManager {
 
             // Rename the folder if the path has changed
             if (oldPath !== newPath) {
+                const newPathExists = await fs.access(newPath).then(() => true).catch(() => false);
+                if (newPathExists) {
+                    const newPathEntries = await fs.readdir(newPath);
+                    if (newPathEntries.length === 0) {
+                        // Clean up stale empty folder so `git mv oldPath newPath` performs a rename.
+                        await fs.rmdir(newPath);
+                    } else {
+                        throw new Error(`Cannot rename channel folder from ${oldChannel.path} to ${channel.path}: destination already exists`);
+                    }
+                }
                 await this.git.mv(oldPath, newPath);
             }
 
