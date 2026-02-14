@@ -16,7 +16,7 @@ export class SkipDescriptionButton implements Button {
     getBuilder(isImage: boolean, attachmentID: Snowflake, taskID: string, all: boolean): ButtonBuilder {
         return new ButtonBuilder()
             .setCustomId(this.getID() + '|' + (isImage ? 'i' : 'a') + '|' + attachmentID + '|' + taskID + '|' + (all ? '1' : '0'))
-            .setLabel(all ? 'Skip All' : 'Skip')
+            .setLabel(all ? 'Skip All' : 'Skip Adding Info')
             .setStyle(all ? ButtonStyle.Danger : ButtonStyle.Secondary);
     }
 
