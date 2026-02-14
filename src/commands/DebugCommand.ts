@@ -326,7 +326,7 @@ export class DebugCommand implements Command {
         }
 
 
-        await interaction.reply({ content: `Starting ACA import for <#${channel.id}>...` });
+        await interaction.reply({ content: `Starting LRS import for <#${channel.id}>...` });
 
 
         const setStatus = async (status: string) => {

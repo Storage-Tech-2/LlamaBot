@@ -486,6 +486,7 @@ export async function importLRSChannelTask(
     // sort messages by oldest first
     messages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
 
+    console.log(`Fetched ${messages.length} messages from channel ${channel.name}, starting import...`);
 
     // group messages by whether they have Title:
     const titleGroups: { title: string; messages: Message[] }[] = [];
