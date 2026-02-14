@@ -571,6 +571,8 @@ export class RepositoryManager {
             await this.commit(`Added channel ${channel.name} (${channel.code})`);
         }
 
+        const republishQueue: { entryData: ArchiveEntryData, archiveChannelId: Snowflake }[] = [];
+
         // Finally, update modified channels
         for (const channel of modifiedChannels) {
             const oldChannel = existingChannels.find(ec => ec.id === channel.id);
@@ -681,23 +683,17 @@ export class RepositoryManager {
             await channelInstance.savePrivate();
 
             if (oldPath !== newPath) {
-                // republish everything
+                // Queue entries to republish after channel references are updated.
                 for (const entryRef of newEntries) {
                     const entryPath = Path.join(newPath, entryRef.path);
                     const entry = await ArchiveEntry.fromFolder(entryPath);
                     if (!entry) {
                         throw new Error(`Entry ${entryRef.code} not found in repository`);
                     }
-                    // republish the entry
-                    const result = await this.addOrUpdateEntryFromData(entry.getData(), channel.id, false, false, async () => { });
-                    // update submission
-                    const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entry.getData().id);
-                    if (submission) {
-                        submission.getConfigManager().setConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID, channel.id);
-                        this.updateSubmissionFromEntryData(submission, result.newEntryData);
-                        await submission.save();
-                        await submission.statusUpdated();
-                    }
+                    republishQueue.push({
+                        entryData: deepClone(entry.getData()),
+                        archiveChannelId: channel.id
+                    });
                 }
             }
 
@@ -741,6 +737,18 @@ export class RepositoryManager {
         // Finally, save the new config
         //this.configManager.setConfig(RepositoryConfigs.ARCHIVE_CHANNELS, reMapped);
         await this.setChannelReferences(reMapped);
+
+        for (const { entryData, archiveChannelId } of republishQueue) {
+            const result = await this.addOrUpdateEntryFromData(entryData, archiveChannelId, false, false, async () => { });
+            const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entryData.id);
+            if (submission) {
+                submission.getConfigManager().setConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID, archiveChannelId);
+                this.updateSubmissionFromEntryData(submission, result.newEntryData);
+                await submission.save();
+                await submission.statusUpdated();
+            }
+        }
+
         await this.save();
 
         // Rebuild index
