@@ -8,11 +8,11 @@ import got from 'got'
 import sharp from 'sharp'
 import { MCMeta } from './MCMeta.js'
 import { deepClone, escapeDiscordString, escapeString, formatSize, getMessageAuthor, truncateStringWithEllipsis } from './Util.js'
-import { Litematic } from '../lib/litematic-reader/main.js'
 import { Author } from '../submissions/Author.js'
 import { findWorldsInZip, optimizeWorldsInZip } from './WDLUtils.js'
 import { createHash } from 'crypto'
 import nbt from 'prismarine-nbt';
+import { size } from 'zod'
 
 // Matches both cdn.discordapp.com and media.discordapp.net attachment URLs
 const DISCORD_ATTACHMENT_REGEX = /^https:\/\/(?:cdn\.discordapp\.com|media\.discordapp\.net)\/attachments\//;
@@ -371,13 +371,34 @@ async function analyzeImage(attachment: Attachment, attachmentPath: string): Pro
 async function analyzeLitematic(attachment: Attachment, attachmentPath: string, mcMeta: MCMeta): Promise<void> {
     try {
         const litematicFile = await fs.readFile(attachmentPath);
-        const litematic = new Litematic(litematicFile as any)
-        await litematic.read()
+        const parsed = await nbt.parse(litematicFile);
+        const data = parsed.parsed as any;
+        const minecraftDataVersion = data?.value?.MinecraftDataVersion?.value;
+        if (minecraftDataVersion === undefined) {
+            throw new Error('Invalid litematic file: Missing MinecraftDataVersion');
+        }
 
-        const dataVersion = litematic.litematic?.nbtData.MinecraftDataVersion ?? 0;
-        const version = mcMeta.getByDataVersion(dataVersion);
-        const size = litematic.litematic?.blocks ?? { minx: 0, miny: 0, minz: 0, maxx: 0, maxy: 0, maxz: 0 };
-        const sizeString = `${size.maxx - size.minx + 1}x${size.maxy - size.miny + 1}x${size.maxz - size.minz + 1}`
+        const version = mcMeta.getByDataVersion(minecraftDataVersion);
+
+        const metaDataTag = data?.value?.Metadata?.value;
+        if (!metaDataTag) {
+            throw new Error('Invalid litematic file: Missing Metadata tag');
+        }
+
+        const enclosingSizeTag = metaDataTag.EnclosingSize?.value;
+        if (!enclosingSizeTag) {
+            throw new Error('Invalid litematic file: Missing EnclosingSize tag');
+        }
+
+        const x = enclosingSizeTag.x?.value;
+        const y = enclosingSizeTag.y?.value;
+        const z = enclosingSizeTag.z?.value;
+        if (x === undefined || y === undefined || z === undefined) {
+            throw new Error('Invalid litematic file: Missing EnclosingSize dimensions');
+        }
+
+        const sizeString = `${x}x${y}x${z}`;
+
         attachment.litematic = {
             size: sizeString,
             version: version ? version.id : 'Unknown',
@@ -396,7 +417,7 @@ async function analyzeSchematic(attachment: Attachment, attachmentPath: string, 
         const schematicFile = await fs.readFile(attachmentPath);
         const parsed = await nbt.parse(schematicFile);
         const data = parsed.parsed as any;
-        const schematicTag = data?.value?.Schematic?.value;
+        const schematicTag = data?.value?.Schematic?.value ?? data?.value;
         if (!schematicTag) {
             throw new Error('Invalid schematic file: Missing Schematic tag');
         }
@@ -407,11 +428,20 @@ async function analyzeSchematic(attachment: Attachment, attachmentPath: string, 
         }
 
         const version = mcMeta.getByDataVersion(dataVersion);
-       
 
-        const width = schematicTag.Width?.value;
-        const height = schematicTag.Height?.value;
-        const length = schematicTag.Length?.value;
+        const sizeTag = schematicTag.size?.value;
+
+        let width, height, length;
+
+        if (sizeTag) {
+            width = sizeTag[0]?.value;
+            height = sizeTag[1]?.value;
+            length = sizeTag[2]?.value;
+        } else {
+            width = schematicTag.Width?.value;
+            height = schematicTag.Height?.value;
+            length = schematicTag.Length?.value;
+        }
 
         if (width === undefined || height === undefined || length === undefined) {
             throw new Error('Invalid schematic file: Missing dimensions');
@@ -792,7 +822,7 @@ export function isAttachmentLitematic(attachment: BaseAttachment): boolean {
 
 export function isAttachmentSchematic(attachment: BaseAttachment): boolean {
     const ext = getFileExtension(attachment.name);
-    return ext === 'schematic' || ext === 'schem';
+    return ext === 'schematic' || ext === 'schem' || ext === 'nbt';
 }
 
 export function isAttachmentZip(attachment: BaseAttachment): boolean {
