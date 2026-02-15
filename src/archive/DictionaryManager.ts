@@ -492,7 +492,8 @@ export class DictionaryManager {
         const websiteURL = this.guildHolder.getConfigManager().getConfig(GuildConfigs.WEBSITE_URL);
         if (websiteURL && entry.status === DictionaryEntryStatus.APPROVED) {
             const postURLObj = new URL(websiteURL);
-            postURLObj.pathname = `/dictionary/${buildDictionarySlug(entry.id, entry.terms)}`;
+            const pathToAdd = `/dictionary/${buildDictionarySlug(entry.id, entry.terms)}`;
+            postURLObj.pathname = postURLObj.pathname.endsWith('/') ? postURLObj.pathname.slice(0, -1) + pathToAdd : postURLObj.pathname + pathToAdd;
             const viewButton = new ButtonBuilder()
                 .setLabel('View on Website')
                 .setStyle(ButtonStyle.Link) // Link button
