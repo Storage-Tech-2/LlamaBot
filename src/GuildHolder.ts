@@ -2110,10 +2110,30 @@ export class GuildHolder {
                         return { results: [], error: 'Error generating query embeddings' };
                     }
 
+                    const postCodesInQuery = getPostCodesInText(input.query);
+
                     try {
                         const queryEmbeddingVector = base64ToInt8Array(queryEmbeddings.embeddings[0]);
-                        const closest = await this.repositoryManager.getClosest(queryEmbeddingVector, 5);
                         const results = [];
+
+                        for (const code of postCodesInQuery) {
+                            const entry = await this.repositoryManager.getEntryByPostCode(code);
+                            if (entry) {
+                                const data = entry.entry.getData();
+                                const text = transformOutputWithReferencesForEmbeddings(postToMarkdown(data.records, data.styles, this.getSchemaStyles()), data.references);
+                                results.push({
+                                    title: data.name,
+                                    code: data.code,
+                                    tags: data.tags.map(t => t.name),
+                                    authors: data.authors.map(a => getAuthorName(a)),
+                                    description: truncateStringWithEllipsis(text, 2000)
+                                });
+                            }
+                        }
+
+                        const toFetch = Math.max(0, 5 - results.length);
+                        const closest = toFetch > 0 ? await this.repositoryManager.getClosest(queryEmbeddingVector, toFetch) : [];
+                       
                         for (const result of closest) {
                             const entry = await this.repositoryManager.getEntryByPostCode(result.identifier);
                             if (entry) {
