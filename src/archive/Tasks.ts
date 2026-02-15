@@ -54,14 +54,6 @@ export async function republishAllEntries(
                     }
                 }
 
-                if (optimize) {
-                    // check if there are WDLs
-                    const hasWDL = entryData.attachments.some(att => att.wdl);
-                    if (!hasWDL) {
-                        continue;
-                    }
-                }
-
                 const submission = await guildHolder.getSubmissionsManager().getSubmission(entryData.id);
                 // Get channel
                 const submissionChannel = submission ? await submission.getSubmissionChannel(true) : null;
