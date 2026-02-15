@@ -12,7 +12,7 @@ import { iterateAllMessages } from "../utils/AttachmentUtils.js";
 export async function republishAllEntries(
     guildHolder: GuildHolder,
     doChannel: ForumChannel | null,
-    replace: boolean, silent: boolean, references: boolean, optimize: boolean,
+    replace: boolean, silent: boolean, references: boolean, reanalyze: boolean,
     interaction: ChatInputCommandInteraction
 ): Promise<void> {
     const repositoryManager = guildHolder.getRepositoryManager();
@@ -68,7 +68,7 @@ export async function republishAllEntries(
                     await channel.send({ content: `Entry ${entryData.code} does not have a post, skipping.` });
                 } else {
                     try {
-                        result = await repositoryManager.addOrUpdateEntryFromData(entryData, entryData.post.forumId, replace, optimize, async () => { });
+                        result = await repositoryManager.addOrUpdateEntryFromData(entryData, entryData.post.forumId, replace, reanalyze, async () => { });
                         await channel.send({ content: `Entry ${entryData.code} republished: ${result.newEntryData.post?.threadURL}` });
                     } catch (e: any) {
                         console.error(e);

@@ -1516,7 +1516,7 @@ export class RepositoryManager {
         newEntryData: ArchiveEntryData,
         archiveChannelId: Snowflake,
         forceNew: boolean,
-        reanalyzeAndOptimizeAttachments: boolean,
+        reanalyzeAttachments: boolean,
         moveAttachments: (entryData: ArchiveEntryData, imageFolder: string, attachmentFolder: string) => Promise<void>,
         statusCallback: (status: string) => Promise<void> | void = () => { }
     ): Promise<{ oldEntryData?: ArchiveEntryData, newEntryData: ArchiveEntryData }> {
@@ -1668,7 +1668,7 @@ export class RepositoryManager {
 
         await moveAttachments(newEntryData, imageFolder, attachmentFolder);
 
-        if (reanalyzeAndOptimizeAttachments) {
+        if (reanalyzeAttachments) {
             await reportStatus('Reanalyzing attachments');
             await analyzeAttachments(newEntryData.attachments, entryFolderPath);
         }
