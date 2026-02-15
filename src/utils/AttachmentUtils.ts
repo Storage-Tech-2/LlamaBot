@@ -1091,6 +1091,7 @@ export function getAttachmentsSetMessage(attachments: Attachment[]): string {
         return 'No attachments set.';
     }
     const litematics: Attachment[] = []
+    const schematics: Attachment[] = []
     const wdls: Attachment[] = []
     const videos: Attachment[] = []
     const images: Attachment[] = []
@@ -1099,6 +1100,9 @@ export function getAttachmentsSetMessage(attachments: Attachment[]): string {
         switch (getAttachmentCategory(attachment)) {
             case 'litematic':
                 litematics.push(attachment);
+                break;
+            case 'schematic':
+                schematics.push(attachment);
                 break;
             case 'wdl':
                 wdls.push(attachment);
@@ -1119,6 +1123,13 @@ export function getAttachmentsSetMessage(attachments: Attachment[]): string {
     if (litematics.length) {
         description += '**Litematics:**\n'
         litematics.forEach(attachment => {
+            description += getAttachmentSetMessage(attachment);
+        })
+    }
+
+    if (schematics.length) {
+        description += '**Schematics:**\n'
+        schematics.forEach(attachment => {
             description += getAttachmentSetMessage(attachment);
         })
     }

@@ -65,6 +65,7 @@ export class PostEmbed {
         }
 
         const litematics: Attachment[] = []
+        const schematics: Attachment[] = []
         const wdls: Attachment[] = []
         const videos: Attachment[] = []
         const images: Attachment[] = []
@@ -78,6 +79,9 @@ export class PostEmbed {
                     break;
                 case 'litematic':
                     litematics.push(attachment);
+                    break;
+                case 'schematic':
+                    schematics.push(attachment);
                     break;
                 case 'wdl':
                     wdls.push(attachment);
@@ -111,6 +115,17 @@ export class PostEmbed {
         if (litematics.length) {
             description += '### Litematics\n'
             litematics.forEach(attachment => {
+                const githubLink = getAttachmentGithubURL(attachment);
+                description += getAttachmentPostMessage(attachment, {
+                    uploadedURL: attachmentURLs.get(attachment.name) || attachment.url,
+                    githubLink
+                });
+            })
+        }
+
+        if (schematics.length) {
+            description += '### Schematics\n'
+            schematics.forEach(attachment => {
                 const githubLink = getAttachmentGithubURL(attachment);
                 description += getAttachmentPostMessage(attachment, {
                     uploadedURL: attachmentURLs.get(attachment.name) || attachment.url,
