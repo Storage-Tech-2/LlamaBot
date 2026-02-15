@@ -1669,34 +1669,8 @@ export class RepositoryManager {
         await moveAttachments(newEntryData, imageFolder, attachmentFolder);
 
         if (reanalyzeAndOptimizeAttachments) {
-            await reportStatus('Reanalyzing and optimizing attachments');
+            await reportStatus('Reanalyzing attachments');
             await analyzeAttachments(newEntryData.attachments, entryFolderPath);
-
-            const tempFolder = Path.join(this.folderPath, 'temp_attachments');
-            await fs.mkdir(tempFolder, { recursive: true });
-
-            const optimizedFolder = Path.join(this.folderPath, 'optimized_attachments');
-            await fs.mkdir(optimizedFolder, { recursive: true });
-
-            await optimizeAttachments(newEntryData.attachments, entryFolderPath, tempFolder, reportStatus);
-
-            // remove temp folder
-            await fs.rm(tempFolder, { recursive: true, force: true });
-
-            // move optimized files back to attachment folder
-            for (const attachment of newEntryData.attachments) {
-                if (!attachment.canDownload || !attachment.path) continue;
-                const optimizedPath = Path.join(optimizedFolder, attachment.path);
-                const destPath = Path.join(entryFolderPath, attachment.path);
-                if (await fs.access(optimizedPath).then(() => true).catch(() => false)) {
-                    await fs.copyFile(optimizedPath, destPath);
-                }
-            }
-
-            // remove optimized folder
-            await fs.rm(optimizedFolder, { recursive: true, force: true });
-
-            newEntryData.post.uploadMessageId = '';
         }
 
         if (existing && isSameChannel) {

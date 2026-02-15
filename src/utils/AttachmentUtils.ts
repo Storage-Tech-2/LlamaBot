@@ -12,6 +12,7 @@ import { Litematic } from '../lib/litematic-reader/main.js'
 import { Author } from '../submissions/Author.js'
 import { findWorldsInZip, optimizeWorldsInZip } from './WDLUtils.js'
 import { createHash } from 'crypto'
+import nbt from 'prismarine-nbt';
 
 // Matches both cdn.discordapp.com and media.discordapp.net attachment URLs
 const DISCORD_ATTACHMENT_REGEX = /^https:\/\/(?:cdn\.discordapp\.com|media\.discordapp\.net)\/attachments\//;
@@ -128,7 +129,7 @@ export async function processImages(images: Image[], download_folder: string, pr
         image.path = processedKey;
         const optimizedData = await fs.readFile(processedPath);
         image.hash = createHash('sha256').update(optimizedData).digest('hex');
-                 
+
 
         await fs.unlink(downloadPath); // Remove the original file after processing
     }));
@@ -299,7 +300,7 @@ export async function processAttachments(attachments: Attachment[], attachments_
         const key = getFileKey(attachment);
         if (attachment.canDownload && !attachment.path) {
             const attachmentPath = Path.join(attachments_folder, key);
-            
+
             // If the attachment already exists, skip download
             if (!await fs.access(attachmentPath).then(() => true).catch(() => false)) {
                 try {
@@ -334,6 +335,9 @@ export async function analyzeAttachments(attachments: Attachment[], attachments_
             if (isAttachmentLitematic(attachment)) {
                 // Process litematic files
                 await analyzeLitematic(attachment, attachmentPath, mcMeta);
+            } else if (isAttachmentSchematic(attachment)) {
+                // Process schematic files
+                await analyzeSchematic(attachment, attachmentPath, mcMeta);
             } else if (isAttachmentZip(attachment)) {
                 // Process zip files
                 await analyzeWDL(attachment, attachmentPath);
@@ -382,6 +386,46 @@ async function analyzeLitematic(attachment: Attachment, attachmentPath: string, 
         console.error('Error processing litematic file:', error)
         attachment.litematic = {
             error: 'Error processing litematic file'
+        }
+    }
+}
+
+
+async function analyzeSchematic(attachment: Attachment, attachmentPath: string, mcMeta: MCMeta): Promise<void> {
+    try {
+        const schematicFile = await fs.readFile(attachmentPath);
+        const parsed = await nbt.parse(schematicFile);
+        const data = parsed.parsed as any;
+        const schematicTag = data?.value?.Schematic?.value;
+        if (!schematicTag) {
+            throw new Error('Invalid schematic file: Missing Schematic tag');
+        }
+
+        const dataVersion = schematicTag.DataVersion?.value;
+        if (dataVersion === undefined) {
+            throw new Error('Invalid schematic file: Missing DataVersion');
+        }
+
+        const version = mcMeta.getByDataVersion(dataVersion);
+       
+
+        const width = schematicTag.Width?.value;
+        const height = schematicTag.Height?.value;
+        const length = schematicTag.Length?.value;
+
+        if (width === undefined || height === undefined || length === undefined) {
+            throw new Error('Invalid schematic file: Missing dimensions');
+        }
+
+        const sizeString = `${width}x${height}x${length}`;
+        attachment.schematic = {
+            size: sizeString,
+            version: version ? version.id : 'Unknown',
+        }
+    } catch (error) {
+        console.error('Error processing schematic file:', error)
+        attachment.schematic = {
+            error: 'Error processing schematic file'
         }
     }
 }
@@ -604,7 +648,7 @@ export function getAttachmentsFromText(text: string, attachments: BaseAttachment
                 }
 
                 const urlCleaned = new URL(url); // remove trailing parenthesis if exists
-                
+
                 // remove the si parameter if exists for anti-tracking
                 urlCleaned.searchParams.delete('si');
 
@@ -744,6 +788,11 @@ export function isAttachmentImage(attachment: BaseAttachment): boolean {
 export function isAttachmentLitematic(attachment: BaseAttachment): boolean {
     const ext = getFileExtension(attachment.name);
     return ext === 'litematic';
+}
+
+export function isAttachmentSchematic(attachment: BaseAttachment): boolean {
+    const ext = getFileExtension(attachment.name);
+    return ext === 'schematic' || ext === 'schem';
 }
 
 export function isAttachmentZip(attachment: BaseAttachment): boolean {
@@ -897,7 +946,7 @@ export function getAttachmentDescriptionForMenus(attachment: BaseAttachment): st
     return `${dateTime} - No description`;
 }
 
-export type AttachmentCategory = 'video' | 'image' | 'wdl' | 'litematic' | 'other';
+export type AttachmentCategory = 'video' | 'image' | 'wdl' | 'litematic' | 'schematic' | 'other';
 
 export function getAttachmentCategory(attachment: Attachment): AttachmentCategory {
     if (
@@ -916,6 +965,11 @@ export function getAttachmentCategory(attachment: Attachment): AttachmentCategor
     if (attachment.litematic || isAttachmentLitematic(attachment)) {
         return 'litematic';
     }
+
+    if (attachment.schematic || isAttachmentSchematic(attachment)) {
+        return 'schematic';
+    }
+
     return 'other';
 }
 
@@ -949,6 +1003,11 @@ export function getAttachmentPostMessage(
             ? ` [[View Schematic]](https://llamamc.org/renderer?url=${options.githubLink})`
             : '';
         message = `- ${uploadedURL}${viewerLink}: MC ${attachment.litematic?.version || "Version Unknown"}, Size ${attachment.litematic?.size || "Unknown"}, ${timestamp}\n`;
+    } else if (attachment.schematic) {
+        const viewerLink = options.githubLink
+            ? ` [[View Schematic]](https://llamamc.org/renderer?url=${options.githubLink})`
+            : '';
+        message = `- ${uploadedURL}${viewerLink}: MC ${attachment.schematic?.version || "Version Unknown"}, Size ${attachment.schematic?.size || "Unknown"}, ${timestamp}\n`;
     } else if (attachment.wdl) {
         message = `- ${uploadedURL}${githubMirror}: MC ${attachment.wdl?.version || "Version Unknown"}, ${timestamp}\n`;
     } else if (attachment.image) {
@@ -1006,6 +1065,8 @@ export function getAttachmentSetMessage(attachment: Attachment): string {
         message = `- ${linkOrName}: ${attachment.wdl?.error || `MC ${attachment.wdl?.version}`}${sizeSuffix}, ${timestamp}\n`;
     } else if (attachment.litematic) {
         message = `- ${linkOrName}: ${attachment.litematic?.error || `MC ${attachment.litematic?.version}, ${attachment.litematic?.size}`}${sizeSuffix}, ${timestamp}\n`;
+    } else if (attachment.schematic) {
+        message = `- ${linkOrName}: ${attachment.schematic?.error || `MC ${attachment.schematic?.version}, ${attachment.schematic?.size}`}${sizeSuffix}, ${timestamp}\n`;
     } else if (attachment.image) {
         message = `- ${linkOrName}: Image ${attachment.image.width}x${attachment.image.height}${sizeSuffix}, ${timestamp}\n`;
     } else if (isAttachmentVideo(attachment)) {

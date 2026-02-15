@@ -39,6 +39,13 @@ export type Attachment = BaseAttachment & {
         error?: string,
     },
 
+    // For WorldEdit schematics
+    schematic?: {
+        version?: string,
+        size?: string,
+        error?: string,
+    },
+
     // For wdl files, legacy
     wdl?: {
         version?: string, // Minecraft version
