@@ -247,7 +247,8 @@ export class PostEmbed {
         const websiteURL = guildHolder.getConfigManager().getConfig(GuildConfigs.WEBSITE_URL);
         if (websiteURL) {
             const postURLObj = new URL(websiteURL);
-            postURLObj.pathname = `/archives/${buildEntrySlug(entryData.code, entryData.name)}`;
+            const pathAdded = `/archives/${buildEntrySlug(entryData.code, entryData.name)}`;
+            postURLObj.pathname = postURLObj.pathname.endsWith('/') ? postURLObj.pathname.slice(0, -1) + pathAdded : postURLObj.pathname + pathAdded;
             content.push(` | [Website](${postURLObj.href})`);
         }
         content.push(`\nArchived on <t:${Math.floor(entryData.archivedAt / 1000)}:F>`);
