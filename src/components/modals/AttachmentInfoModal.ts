@@ -224,10 +224,13 @@ export class AttachmentInfoModal implements Modal {
             if (oldFile.description !== description) {
                 message.push(`- Description ${description.length > 0 ? `set to: ${description}` : 'removed'}`);
             }
+            if (ordinalClamped !== foundAttachmentIndex + 1) {
+                message.push(`- Moved from position ${foundAttachmentIndex + 1} to ${ordinalClamped}`);
+            }
 
             if (interaction.channel && interaction.channel.isSendable()) {
                 await interaction.channel.send({
-                    content: message.join('\n'),
+                    content: truncateStringWithEllipsis(message.join('\n'), 2000),
                     flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds],
                     allowedMentions: { parse: [] }
                 });
