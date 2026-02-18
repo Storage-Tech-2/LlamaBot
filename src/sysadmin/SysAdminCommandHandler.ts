@@ -1,4 +1,7 @@
 import { Message } from "discord.js";
+import { DeopSysAdminCommand } from "./commands/DeopSysAdminCommand.js";
+import { ListSysAdminCommand } from "./commands/ListSysAdminCommand.js";
+import { OpSysAdminCommand } from "./commands/OpSysAdminCommand.js";
 import { PullSysAdminCommand } from "./commands/PullSysAdminCommand.js";
 import { WhitelistSysAdminCommand } from "./commands/WhitelistSysAdminCommand.js";
 import { SysAdminCommand } from "./SysAdminCommand.js";
@@ -12,6 +15,9 @@ export class SysAdminCommandHandler {
         private readonly context: SysAdminCommandContext,
     ) {
         this.commands = this.createCommandMap([
+            new ListSysAdminCommand(),
+            new OpSysAdminCommand(),
+            new DeopSysAdminCommand(),
             new PullSysAdminCommand(),
             new WhitelistSysAdminCommand(),
         ]);
