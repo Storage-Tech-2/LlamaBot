@@ -142,7 +142,7 @@ export class RepositoryManager {
         }
 
         await this.dictionaryManager.init();
-        await this.dictionaryManager.migrateLegacyStorageAndUpdateGit();
+        // await this.dictionaryManager.migrateLegacyStorageAndUpdateGit();
 
         await this.lock.release();
 
