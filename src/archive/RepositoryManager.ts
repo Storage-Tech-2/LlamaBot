@@ -49,7 +49,12 @@ export class RepositoryManager {
         this.guildHolder = guildHolder;
         this.folderPath = folderPath;
         this.configManager = new ConfigManager(this.getConfigFilePath());
-        this.dictionaryManager = new DictionaryManager(this.guildHolder, Path.join(this.folderPath, 'dictionary'), this);
+        this.dictionaryManager = new DictionaryManager(
+            this.guildHolder,
+            Path.join(this.folderPath, 'dictionary'),
+            Path.join(this.guildHolder.getGuildFolder(), 'dictionary_submissions'),
+            this
+        );
         this.indexManager = new IndexManager(this.dictionaryManager, this, this.folderPath);
         this.dictionaryManager.setIndexManager(this.indexManager);
         this.discordServersDictionary = new DiscordServersDictionary(this.folderPath, this, globalDiscordServersDictionary);
@@ -136,10 +141,12 @@ export class RepositoryManager {
             console.error("Error pushing to remote:", e.message);
         }
 
+        await this.dictionaryManager.init();
+        await this.dictionaryManager.migrateLegacyStorageAndUpdateGit();
+
         await this.lock.release();
 
         await this.indexManager.getPostToSubmissionIndex();
-        await this.dictionaryManager.init();
     }
 
     public async add(paths: string | string[]) {

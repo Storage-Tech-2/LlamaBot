@@ -13,6 +13,7 @@ import { buildDictionarySlug } from "../utils/SlugUtils.js";
 import { base64ToInt8Array, EmbeddingsEntry, EmbeddingsSearchResult, generateDocumentEmbeddings, getClosestWithIndex, loadHNSWIndex, makeHNSWIndex } from "../llm/EmbeddingUtils.js";
 import { type HierarchicalNSW } from 'hnswlib-node';
 import { TemporaryCache } from "./TemporaryCache.js";
+import { runDictionaryStorageMigration } from "./DictionaryStorageMigration.js";
 
 export enum DictionaryEntryStatus {
     PENDING = "PENDING",
@@ -45,6 +46,7 @@ export class DictionaryManager {
     constructor(
         private guildHolder: GuildHolder,
         private folderPath: string,
+        private submissionsFolderPath: string,
         private repositoryManager: RepositoryManager,
     ) {
         this.hnswIndexCache = new TemporaryCache<HierarchicalNSW | null>(5 * 60 * 1000, async () => {
@@ -53,11 +55,41 @@ export class DictionaryManager {
     }
 
     async init() {
-        await fs.mkdir(this.getEntriesPath(), { recursive: true });
+        await Promise.all([
+            fs.mkdir(this.getEntriesPath(), { recursive: true }),
+            fs.mkdir(this.getSubmissionEntriesPath(), { recursive: true }),
+        ]);
+    }
+
+    async migrateLegacyStorageAndUpdateGit(): Promise<void> {
+        const migration = await runDictionaryStorageMigration(
+            this.getEntriesPath(),
+            this.getSubmissionEntriesPath(),
+            this.repositoryManager
+        );
+
+        if (migration.movedToRepository > 0 || migration.movedToSubmissions > 0 || migration.duplicatesResolved > 0) {
+            console.log(
+                `[DictionaryMigration] moved to repository: ${migration.movedToRepository}, moved to submissions: ${migration.movedToSubmissions}, duplicates resolved: ${migration.duplicatesResolved}`
+            );
+        }
+
+        if (!migration.repositoryChanged) {
+            return;
+        }
+
+        await this.repositoryManager.commit(
+            `Migrated dictionary storage (to repo: ${migration.movedToRepository}, to submissions: ${migration.movedToSubmissions})`
+        ).catch(() => { });
+        await this.repositoryManager.push().catch(() => { });
     }
 
     getEntriesPath(): string {
         return Path.join(this.folderPath, 'entries');
+    }
+
+    getSubmissionEntriesPath(): string {
+        return Path.join(this.submissionsFolderPath, 'entries');
     }
 
     getConfigPath(): string {
@@ -65,10 +97,84 @@ export class DictionaryManager {
     }
 
     async getEntry(id: Snowflake): Promise<DictionaryEntry | null> {
-        const entryPath = Path.join(this.getEntriesPath(), `${id}.json`);
+        const repositoryEntry = await this.readEntryFromPath(this.getRepositoryEntryPath(id));
+        if (repositoryEntry) {
+            return repositoryEntry;
+        }
+        return this.readEntryFromPath(this.getSubmissionEntryPath(id));
+    }
+
+    private getRepositoryEntryPath(id: Snowflake): string {
+        return Path.join(this.getEntriesPath(), `${id}.json`);
+    }
+
+    private getSubmissionEntryPath(id: Snowflake): string {
+        return Path.join(this.getSubmissionEntriesPath(), `${id}.json`);
+    }
+
+    private async readEntryFromPath(entryPath: string): Promise<DictionaryEntry | null> {
         return fs.readFile(entryPath, 'utf-8')
             .then(data => this.hydrateEntry(JSON.parse(data) as DictionaryEntry))
             .catch(() => null);
+    }
+
+    private async fileExists(filePath: string): Promise<boolean> {
+        return fs.access(filePath).then(() => true).catch(() => false);
+    }
+
+    private async writeEntryIfChanged(entryPath: string, entry: DictionaryEntry): Promise<boolean> {
+        await fs.mkdir(Path.dirname(entryPath), { recursive: true });
+        const content = JSON.stringify(entry, null, 2);
+        const existing = await fs.readFile(entryPath, 'utf-8').catch(() => null);
+        if (existing === content) {
+            return false;
+        }
+        await fs.writeFile(entryPath, content, 'utf-8');
+        return true;
+    }
+
+    private isApproved(entry: DictionaryEntry | null | undefined): boolean {
+        return !!entry && entry.status === DictionaryEntryStatus.APPROVED;
+    }
+
+    private shouldRebuildIndex(oldEntry: DictionaryEntry | null, entry: DictionaryEntry): boolean {
+        const oldApproved = this.isApproved(oldEntry);
+        const newApproved = this.isApproved(entry);
+
+        if (!oldEntry) {
+            return newApproved;
+        }
+
+        if (oldApproved !== newApproved) {
+            return true;
+        }
+
+        if (!newApproved) {
+            return false;
+        }
+
+        return this.haveTermsChanged(oldEntry.terms, entry.terms)
+            || oldEntry.definition !== entry.definition
+            || oldEntry.updatedAt !== entry.updatedAt;
+    }
+
+    private shouldRequestRetagging(oldEntry: DictionaryEntry | null, entry: DictionaryEntry): boolean {
+        const oldApproved = this.isApproved(oldEntry);
+        const newApproved = this.isApproved(entry);
+
+        if (!oldEntry) {
+            return newApproved;
+        }
+
+        if (oldApproved !== newApproved) {
+            return true;
+        }
+
+        if (!newApproved) {
+            return false;
+        }
+
+        return this.haveTermsChanged(oldEntry.terms, entry.terms);
     }
 
     public haveTermsChanged(oldTerms: string[], newTerms: string[]): boolean {
@@ -99,8 +205,10 @@ export class DictionaryManager {
     async rebuildIndexAndEmbeddings(): Promise<void> {
         const configPath = this.getConfigPath();
         const entries = await this.listEntries();
+        const approvedEntries = entries.filter(entry => entry.status === DictionaryEntryStatus.APPROVED);
+        const approvedEntriesMap = new Map<Snowflake, DictionaryEntry>(approvedEntries.map(entry => [entry.id, entry]));
         const configData = {
-            entries: entries.filter(entry => entry.status === DictionaryEntryStatus.APPROVED).map(entry => {
+            entries: approvedEntries.map(entry => {
                 return {
                     id: entry.id,
                     terms: entry.terms,
@@ -119,7 +227,7 @@ export class DictionaryManager {
 
 
         for (const entry of configData.entries) {
-            const data = await this.getEntry(entry.id);
+            const data = approvedEntriesMap.get(entry.id);
             if (!data) {
                 continue;
             }
@@ -144,10 +252,9 @@ export class DictionaryManager {
 
         const toRefreshEmbeddingsChunked = chunkArray(Array.from(toRefreshEmbeddings), 100);
         for (const chunk of toRefreshEmbeddingsChunked) {
-            const entries = (await Promise.all(chunk.map(async entryPath => {
-                const entryData = await this.getEntry(entryPath);
-                return entryData;
-            }))).filter((e): e is DictionaryEntry => e !== null);
+            const entries = chunk
+                .map(id => approvedEntriesMap.get(id))
+                .filter((entry): entry is DictionaryEntry => entry !== undefined);
 
 
             // get text
@@ -234,72 +341,137 @@ export class DictionaryManager {
         return this.repositoryManager.getLock();
     }
 
-    async saveEntry(entry: DictionaryEntry): Promise<void> {
+    async saveEntry(entry: DictionaryEntry): Promise<boolean> {
         const oldEntry = await this.getEntry(entry.id);
-        const entryPath = Path.join(this.getEntriesPath(), `${entry.id}.json`);
-        await fs.mkdir(this.getEntriesPath(), { recursive: true });
-        await fs.writeFile(entryPath, JSON.stringify(entry, null, 2), 'utf-8');
-        await this.repositoryManager.add(entryPath).catch(() => { });
-        const rebuildNeeded = !oldEntry || oldEntry.status !== entry.status || this.haveTermsChanged(oldEntry.terms, entry.terms);
-        this.invalidateDictionaryTermIndex();
-        this.requestIndexRebuild();
+        const repositoryEntryPath = this.getRepositoryEntryPath(entry.id);
+        const submissionEntryPath = this.getSubmissionEntryPath(entry.id);
+        const shouldStoreInRepository = entry.status === DictionaryEntryStatus.APPROVED;
+
+        let repositoryChanged = false;
+
+        if (shouldStoreInRepository) {
+            const wroteRepositoryEntry = await this.writeEntryIfChanged(repositoryEntryPath, entry);
+            if (wroteRepositoryEntry) {
+                await this.repositoryManager.add(repositoryEntryPath).catch(() => { });
+                repositoryChanged = true;
+            }
+
+            if (await this.fileExists(submissionEntryPath)) {
+                await fs.unlink(submissionEntryPath).catch(() => { });
+            }
+        } else {
+            await this.writeEntryIfChanged(submissionEntryPath, entry);
+
+            if (await this.fileExists(repositoryEntryPath)) {
+                await this.repositoryManager.rm(repositoryEntryPath).catch(() => { });
+                await fs.unlink(repositoryEntryPath).catch(() => { });
+                repositoryChanged = true;
+            }
+        }
+
+        const rebuildNeeded = this.shouldRebuildIndex(oldEntry, entry);
         if (rebuildNeeded) {
+            this.invalidateDictionaryTermIndex();
+        }
+        if (repositoryChanged || rebuildNeeded) {
+            this.requestIndexRebuild();
+        }
+
+        if (this.shouldRequestRetagging(oldEntry, entry)) {
             this.repositoryManager.getGuildHolder().requestRetagging();
         }
+
+        return repositoryChanged;
     }
 
     async saveEntryAndPush(entry: DictionaryEntry): Promise<void> {
         await this.repositoryManager.getLock().acquire();
-        await this.saveEntry(entry);
-        await this.repositoryManager.commit(`Updated dictionary entry ${entry.terms[0]}`).catch(() => { });
-        await this.repositoryManager.push().catch(() => { });
-        this.repositoryManager.getLock().release();
+        try {
+            const repositoryChanged = await this.saveEntry(entry);
+            if (!repositoryChanged) {
+                return;
+            }
+
+            await this.repositoryManager.commit(`Updated dictionary entry ${entry.terms[0]}`).catch(() => { });
+            await this.repositoryManager.push().catch(() => { });
+        } finally {
+            this.repositoryManager.getLock().release();
+        }
     }
 
     async deleteEntry(entry: DictionaryEntry): Promise<void> {
         await this.repositoryManager.getLock().acquire();
-        const entryPath = Path.join(this.getEntriesPath(), `${entry.id}.json`);
-        await this.repositoryManager.rm(entryPath).catch(() => { });
-        await fs.unlink(entryPath).catch(() => { });
-        await fs.mkdir(this.getEntriesPath(), { recursive: true });
-        await this.rebuildIndexAndEmbeddings();
-        this.invalidateDictionaryTermIndex();
+        try {
+            const repositoryEntryPath = this.getRepositoryEntryPath(entry.id);
+            const submissionEntryPath = this.getSubmissionEntryPath(entry.id);
+            const repositoryEntryExists = await this.fileExists(repositoryEntryPath);
+            const submissionEntryExists = await this.fileExists(submissionEntryPath);
 
-        await this.repositoryManager.add(this.getConfigPath()).catch(() => { });
+            if (repositoryEntryExists) {
+                await this.repositoryManager.rm(repositoryEntryPath).catch(() => { });
+                await fs.unlink(repositoryEntryPath).catch(() => { });
+            }
 
-        await this.repositoryManager.commit(`Deleted dictionary entry ${entry.terms[0]}`).catch(() => { });
-        await this.repositoryManager.push().catch(() => { });
+            if (submissionEntryExists) {
+                await fs.unlink(submissionEntryPath).catch(() => { });
+            }
 
-        this.repositoryManager.getLock().release();
+            if (!repositoryEntryExists) {
+                return;
+            }
 
-        this.repositoryManager.getGuildHolder().requestRetagging();
+            await fs.mkdir(this.getEntriesPath(), { recursive: true });
+            await this.rebuildIndexAndEmbeddings();
+            this.invalidateDictionaryTermIndex();
+
+            await this.repositoryManager.add(this.getConfigPath()).catch(() => { });
+            await this.repositoryManager.commit(`Deleted dictionary entry ${entry.terms[0]}`).catch(() => { });
+            await this.repositoryManager.push().catch(() => { });
+
+            this.repositoryManager.getGuildHolder().requestRetagging();
+        } finally {
+            this.repositoryManager.getLock().release();
+        }
     }
 
     async listEntries(): Promise<DictionaryEntry[]> {
-        const entriesPath = this.getEntriesPath();
-        await fs.mkdir(entriesPath, { recursive: true });
-        const files = await fs.readdir(entriesPath);
-        const entries: DictionaryEntry[] = [];
-        for (const file of files) {
-            if (file.endsWith('.json')) {
-                const data = await fs.readFile(Path.join(entriesPath, file), 'utf-8');
-                entries.push(this.hydrateEntry(JSON.parse(data) as DictionaryEntry));
-            }
+        const [repositoryEntries, submissionEntries] = await Promise.all([
+            this.listEntriesInPath(this.getEntriesPath()),
+            this.listEntriesInPath(this.getSubmissionEntriesPath()),
+        ]);
+
+        const merged = new Map<Snowflake, DictionaryEntry>();
+        for (const entry of submissionEntries) {
+            merged.set(entry.id, entry);
         }
-        return entries;
+        for (const entry of repositoryEntries) {
+            merged.set(entry.id, entry);
+        }
+
+        return Array.from(merged.values());
     }
 
     async iterateEntries(callback: (entry: DictionaryEntry) => Promise<void>): Promise<void> {
-        const entriesPath = this.getEntriesPath();
+        const entries = await this.listEntries();
+        for (const entry of entries) {
+            await callback(entry);
+        }
+    }
+
+    private async listEntriesInPath(entriesPath: string): Promise<DictionaryEntry[]> {
         await fs.mkdir(entriesPath, { recursive: true });
-        const files = await fs.readdir(entriesPath);
+        const files = await fs.readdir(entriesPath).catch(() => []);
+        const entries: DictionaryEntry[] = [];
         for (const file of files) {
-            if (file.endsWith('.json')) {
-                const data = await fs.readFile(Path.join(entriesPath, file), 'utf-8');
-                const entry = this.hydrateEntry(JSON.parse(data) as DictionaryEntry);
-                await callback(entry);
+            if (!file.endsWith('.json')) {
+                continue;
+            }
+            const entry = await this.readEntryFromPath(Path.join(entriesPath, file));
+            if (entry) {
+                entries.push(entry);
             }
         }
+        return entries;
     }
 
     async handleDictionaryMessage(message: Message) {
@@ -322,47 +494,50 @@ export class DictionaryManager {
         }
 
         await this.entryLock.acquire();
+        let entry: DictionaryEntry | null = null;
+        try {
+            entry = await this.getEntry(thread.id);
+            if (entry) {
+                await this.ensureStatusMessage(entry, thread);
+                return entry;
+            }
 
-        let entry = await this.getEntry(thread.id);
-        if (entry) {
-            await this.ensureStatusMessage(entry, thread);
+            const starterMessage = await thread.fetchStarterMessage().catch(() => null);
+            const definition = starterMessage?.content.trim() ?? '';
+
+            const terms = thread.name.replace(MarkdownCharacterRegex, '').split(',').map(t => t.trim()).filter(t => t.length > 0);
+            entry = {
+                id: thread.id,
+                terms: terms,
+                definition,
+                threadURL: thread.url,
+                statusURL: '',
+                status: DictionaryEntryStatus.PENDING,
+                updatedAt: Date.now(),
+                references: await tagReferences(definition, [], this.guildHolder, thread.id).catch(() => []),
+                referencedBy: [],
+            };
+
+            const statusMessage = await this.sendStatusMessage(thread, entry).catch((e) => {
+                console.error("Error sending status message for new dictionary entry:", e);
+                return null;
+            });
+
+            if (statusMessage) {
+                entry.statusMessageID = statusMessage.id;
+                entry.statusURL = statusMessage.url;
+            }
+
+            await this.saveEntry(entry).catch((e) => {
+                console.error("Error saving new dictionary entry:", e);
+            });
+        } finally {
             this.entryLock.release();
-            return entry;
         }
 
-
-        const starterMessage = await thread.fetchStarterMessage().catch(() => null);
-        const definition = starterMessage?.content.trim() ?? '';
-
-        const terms = thread.name.replace(MarkdownCharacterRegex, '').split(',').map(t => t.trim()).filter(t => t.length > 0);
-        entry = {
-            id: thread.id,
-            terms: terms,
-            definition,
-            threadURL: thread.url,
-            statusURL: '',
-            status: DictionaryEntryStatus.PENDING,
-            updatedAt: Date.now(),
-            references: await tagReferences(definition, [], this.guildHolder, thread.id).catch(() => []),
-            referencedBy: [],
-        };
-
-        const statusMessage = await this.sendStatusMessage(thread, entry).catch((e) => {
-            console.error("Error sending status message for new dictionary entry:", e);
+        if (!entry) {
             return null;
-        });
-
-
-        if (statusMessage) {
-            entry.statusMessageID = statusMessage.id;
-            entry.statusURL = statusMessage.url;
         }
-
-        await this.saveEntry(entry).catch((e) => {
-            console.error("Error saving new dictionary entry:", e);
-        });
-
-        this.entryLock.release();
 
         await this.warnIfDuplicate(entry, thread);
         await this.applyStatusTag(entry, thread);
