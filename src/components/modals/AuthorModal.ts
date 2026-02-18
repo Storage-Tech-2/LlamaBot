@@ -122,7 +122,7 @@ export class AuthorModal implements Modal {
         let authors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
         const existingAuthorIndex = authors.findIndex(a => getAuthorKey(a).substring(0, 50) === key);
         const existingAuthor = existingAuthorIndex !== -1 ? authors[existingAuthorIndex] : null;
-        if (key.length && existingAuthor) {
+        if (key.length && !existingAuthor) {
             replyEphemeral(interaction, 'Author not found');
             return;
         }
