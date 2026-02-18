@@ -258,7 +258,6 @@ export class AuthorModal implements Modal {
             channel.send({
                 content: `<@${interaction.user.id}> added author: ${getAuthorsString([newAuthor])}${newAuthor.reason ? ` with reason: ${newAuthor.reason}` : ''}`,
                 flags: MessageFlags.SuppressNotifications,
-                allowedMentions: { parse: [] },
             });
             await SetAuthorsMenu.sendAuthorsMenuAndButton(submission, interaction, true);
         }

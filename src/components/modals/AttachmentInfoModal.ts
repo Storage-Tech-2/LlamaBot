@@ -225,11 +225,13 @@ export class AttachmentInfoModal implements Modal {
                 message.push(`- Description ${description.length > 0 ? `set to: ${description}` : 'removed'}`);
             }
 
-            await interaction.reply({
-                content: message.join('\n'),
-                flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds],
-                allowedMentions: { parse: [] }
-            });
+            if (interaction.channel && interaction.channel.isSendable()) {
+                await interaction.channel.send({
+                    content: message.join('\n'),
+                    flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds],
+                    allowedMentions: { parse: [] }
+                });
+            }
 
         }
 
