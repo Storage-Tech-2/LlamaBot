@@ -122,6 +122,7 @@ export class AttachmentInfoModal implements Modal {
         const name = interaction.fields.getTextInputValue('nameInput');
         const description = (interaction.fields.getTextInputValue('descriptionInput') || '').replace(/\n/g, ' ').trim();
         const ordinal = parseInt(interaction.fields.getTextInputValue('orderInput')) || 0;
+        const ordinalClamped = Math.min(Math.max(1, ordinal), currentAttachments.length);
         if (description.length > 300) {
             replyEphemeral(interaction, 'Description cannot exceed 300 characters!');
             return;
@@ -135,7 +136,7 @@ export class AttachmentInfoModal implements Modal {
         const oldFileNameWithoutExt = getFileNameWithoutExtension(foundAttachment.name);
         const oldFileExtension = getFileExtension(foundAttachment.name);
 
-        if (oldFileNameWithoutExt === name && foundAttachment.description === description) {
+        if (oldFileNameWithoutExt === name && foundAttachment.description === description && ordinalClamped === foundAttachmentIndex + 1) {
             replyEphemeral(interaction, 'No changes were made to the attachment info.');
             return;
         }
@@ -145,7 +146,6 @@ export class AttachmentInfoModal implements Modal {
         foundAttachment.description = description;
 
         // update ordinal
-        const ordinalClamped = Math.min(Math.max(1, ordinal), currentAttachments.length);
         if (ordinalClamped !== foundAttachmentIndex + 1) {
             // move the attachment in the array
             const arrayToModify = attachmentSetTaskData ? attachmentSetTaskData.toSet : currentAttachments;
