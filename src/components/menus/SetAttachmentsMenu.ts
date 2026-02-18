@@ -241,18 +241,24 @@ export class SetAttachmentsMenu implements Menu {
 
     public static async sendAttachmentsMenuAndButton(submission: Submission, interaction: Interaction, useUpdate: boolean = false) {
         const menu = await new SetAttachmentsMenu().getBuilderOrNull(submission);
+        const attachments = submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS);
         if (menu) {
             const rows = [new ActionRowBuilder().addComponents(menu)];
             const secondRow = new ActionRowBuilder().addComponents(new RefreshListButton().getBuilder(false), new AddAttachmentButton().getBuilder());
-            if (submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) === null) {
+            if (attachments === null) {
                 secondRow.addComponents(new SkipAttachmentsButton().getBuilder())
+            } else if ( attachments.length > 0) {
+                secondRow.addComponents(new EditInfoMultipleButton().getBuilder(false));
             }
+
             rows.push(secondRow);
             await replyReplace(useUpdate, interaction, `Please choose other attachments (eg: Schematics/WDLs) for the submission`, rows);
         } else {
             const row = new ActionRowBuilder().addComponents(new RefreshListButton().getBuilder(false), new AddAttachmentButton().getBuilder());
-            if (submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) === null) {
+            if (attachments === null) {
                 row.addComponents(new SkipAttachmentsButton().getBuilder())
+            } else if ( attachments.length > 0) {
+                row.addComponents(new EditInfoMultipleButton().getBuilder(false));
             }
 
             await replyReplace(useUpdate, interaction, `No attachments found! Try uploading attachments first and then press the button below.`, [

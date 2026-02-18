@@ -15,7 +15,7 @@ export class EditInfoMultipleButton implements Button {
     getBuilder(isImage: boolean): ButtonBuilder {
         return new ButtonBuilder()
             .setCustomId(this.getID() + '|' + (isImage ? 'i' : 'a'))
-            .setLabel('Edit Names/Descriptions')
+            .setLabel('Edit Info')
             .setStyle(ButtonStyle.Secondary);
     }
 

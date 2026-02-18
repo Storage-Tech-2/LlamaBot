@@ -242,18 +242,23 @@ export class SetImagesMenu implements Menu {
 
     public static async sendImagesMenuAndButton(submission: Submission, interaction: Interaction, useUpdate: boolean = false) {
         const menu = await new SetImagesMenu().getBuilderOrNull(submission);
+        const images = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES);
         if (menu) {
             const rows = [new ActionRowBuilder().addComponents(menu)];
             const secondRow = new ActionRowBuilder().addComponents(new RefreshListButton().getBuilder(true), new AddImageButton().getBuilder());
-            if (submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null) {
+            if (images === null) {
                 secondRow.addComponents(new SkipImagesButton().getBuilder());
+            } else if (images.length > 0) {
+                secondRow.addComponents(new EditInfoMultipleButton().getBuilder(true));
             }
             rows.push(secondRow);
             await replyReplace(useUpdate, interaction, `Please choose images for the submission`, rows as any)
         } else {
             const row = new ActionRowBuilder().addComponents(new RefreshListButton().getBuilder(true), new AddImageButton().getBuilder());
-            if (submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null) {
+            if (images === null) {
                 row.addComponents(new SkipImagesButton().getBuilder())
+            } else if (images.length > 0) {
+                row.addComponents(new EditInfoMultipleButton().getBuilder(true));
             }
             await replyReplace(useUpdate, interaction, `No images found! Try uploading images first and then press the button below.`, [
                 row as any
