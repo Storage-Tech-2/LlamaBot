@@ -87,7 +87,7 @@ export class SetArchiveCategoryMenu implements Menu {
         const row2 = new ActionRowBuilder()
             .addComponents(new BackToCategoryButton().getBuilder())
         await interaction.update({
-            content: `Please select an archive channel`,
+            content: `Please select an archive channel in the <#${newCategory}> category for your submission`,
             components: [row as any, row2 as any]
         })
 

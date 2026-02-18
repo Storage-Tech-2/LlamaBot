@@ -12,7 +12,6 @@ import { Author } from '../submissions/Author.js'
 import { findWorldsInZip, optimizeWorldsInZip } from './WDLUtils.js'
 import { createHash } from 'crypto'
 import nbt from 'prismarine-nbt';
-import { size } from 'zod'
 
 // Matches both cdn.discordapp.com and media.discordapp.net attachment URLs
 const DISCORD_ATTACHMENT_REGEX = /^https:\/\/(?:cdn\.discordapp\.com|media\.discordapp\.net)\/attachments\//;

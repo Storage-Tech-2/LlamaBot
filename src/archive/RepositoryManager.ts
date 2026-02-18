@@ -17,7 +17,7 @@ import { ArchiveComment } from "./ArchiveComments.js";
 import { Author, AuthorType } from "../submissions/Author.js";
 import { SubmissionStatus } from "../submissions/SubmissionStatus.js";
 import { makeEntryReadMe } from "./ReadMeMaker.js";
-import { analyzeAttachments, deduplicateAttachmentNames, filterAttachmentsForViewer, getAttachmentsFromMessage, getFileKey, optimizeAttachments, processAttachments, splitFileName } from "../utils/AttachmentUtils.js";
+import { analyzeAttachments, deduplicateAttachmentNames, filterAttachmentsForViewer, getAttachmentsFromMessage, getFileKey, processAttachments, splitFileName } from "../utils/AttachmentUtils.js";
 import { DictionaryManager } from "./DictionaryManager.js";
 import { IndexManager } from "./IndexManager.js";
 import { DiscordServersDictionary } from "./DiscordServersDictionary.js";

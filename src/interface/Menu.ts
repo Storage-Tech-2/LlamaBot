@@ -1,4 +1,4 @@
-import { BaseSelectMenuBuilder, RoleSelectMenuInteraction, StringSelectMenuInteraction, UserSelectMenuInteraction } from "discord.js";
+import { AnySelectMenuInteraction, BaseSelectMenuBuilder } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 
 /**
@@ -19,5 +19,5 @@ export interface Menu {
     /**
      * Executes the menu action.
      */
-    execute(guildHolder: GuildHolder, interaction: StringSelectMenuInteraction | UserSelectMenuInteraction | RoleSelectMenuInteraction,...args: string[]): Promise<void>;
+    execute(guildHolder: GuildHolder, interaction: AnySelectMenuInteraction,...args: string[]): Promise<void>;
 }

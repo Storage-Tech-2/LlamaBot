@@ -1,4 +1,4 @@
-import got from "got";
+// import got from "got";
 import { LLMRequest } from "./LLMRequest.js";
 import { LLMResponseFuture as LLMResponseFuture } from "./LLMResponseFuture.js";
 import { LLMRequestAndPromise } from "./LLMRequestAndPromise.js";
@@ -8,7 +8,7 @@ import { generateText, jsonSchema, Output } from "ai";
 import { SubmissionRecords } from "../utils/MarkdownUtils.js";
 
 
-const URL = 'http://localhost:8000/generate'
+// const URL = 'http://localhost:8000/generate'
 
 /**
  * Manages a queue of LLM requests.
