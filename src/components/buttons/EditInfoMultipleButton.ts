@@ -72,13 +72,13 @@ export class EditInfoMultipleButton implements Button {
         });
 
         if (!interaction.isModalSubmit()) {
-            interaction.reply({
+            await interaction.reply({
                 content: `Select the ${isImage ? 'images' : 'attachments'} you want to edit:`,
                 components: rows,
                 flags: [MessageFlags.Ephemeral],
             });
         } else {
-            interaction.update({
+            await interaction.update({
                 content: `Select the ${isImage ? 'images' : 'attachments'} you want to edit:`,
                 components: rows,
             });
