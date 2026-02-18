@@ -1,4 +1,4 @@
-import { AttachmentBuilder, ChatInputCommandInteraction, ChannelType, Collection, ForumChannel, GuildForumTag, GuildMember, InteractionContextType, MessageFlags, SlashCommandBuilder, Snowflake } from "discord.js";
+import { AttachmentBuilder, ChatInputCommandInteraction, ChannelType, Collection, ForumChannel, GuildForumTag, GuildMember, InteractionContextType, MessageFlags, SlashCommandBuilder, Snowflake, PermissionFlagsBits } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { Command } from "../interface/Command.js";
 import { SysAdmin } from "../Bot.js";
@@ -27,7 +27,8 @@ export class DebugCommand implements Command {
         const data = new SlashCommandBuilder()
             .setName(this.getID())
             .setDescription('Debug utilities (SysAdmin only)')
-            .setContexts(InteractionContextType.Guild);
+            .setContexts(InteractionContextType.Guild)
+            .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
         data
             .addSubcommand(sub =>
                 sub
