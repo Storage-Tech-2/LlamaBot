@@ -88,11 +88,6 @@ export const DEFAULT_GLOBAL_TAGS: GlobalTag[] = [
 
 export const RepositoryConfigs = {
     /**
-     * Old channel categories for the archive.
-     */
-    ARCHIVE_CHANNELS_LEGACY: new Config<ArchiveChannelReference[]>("archiveChannels", []),
-
-    /**
      * Schema for the posts
      */
     POST_SCHEMA: new Config<JSONSchema7>("postSchema", DEFAULT_SCHEMA),

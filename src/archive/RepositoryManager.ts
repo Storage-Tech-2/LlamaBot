@@ -130,16 +130,6 @@ export class RepositoryManager {
             console.error("Error pulling from remote:", e.message);
         }
 
-        // check legacy
-        const legacyChannels = this.configManager.getConfig(RepositoryConfigs.ARCHIVE_CHANNELS_LEGACY);
-        if (legacyChannels.length > 0) {
-            await this.setChannelReferences(legacyChannels);
-            this.configManager.deleteConfig(RepositoryConfigs.ARCHIVE_CHANNELS_LEGACY);
-            await this.configManager.saveConfig();
-            await this.add(this.getConfigFilePath());
-            await this.commit('Migrated archive channels from legacy config');
-        }
-
         try {
             await this.push();
         } catch (e: any) {
@@ -761,6 +751,10 @@ export class RepositoryManager {
                 }
             }
 
+            // if config file path doesnt exist, create it  
+            if (!await fs.access(this.getConfigFilePath()).then(() => true).catch(() => false)) {
+                await fs.writeFile(this.getConfigFilePath(), JSON.stringify({}, null, 2), 'utf-8');
+            }
             await this.save();
 
             // Rebuild index
