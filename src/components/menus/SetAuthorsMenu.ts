@@ -8,6 +8,7 @@ import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { SetArchiveCategoryMenu } from "./SetArchiveCategoryMenu.js";
 import { ConfirmAuthorsButton } from "../buttons/ConfirmAuthorsButton.js";
 import { AddAuthorButton } from "../buttons/AddAuthorButton.js";
+import { EditAuthorsButton } from "../buttons/EditAuthorsButton.js";
 
 export class SetAuthorsMenu implements Menu {
     getID(): string {
@@ -270,6 +271,9 @@ export class SetAuthorsMenu implements Menu {
             row2.addComponents(new ConfirmAuthorsButton().getBuilder());
         }
         row2.addComponents(new AddAuthorButton().getBuilder());
+        if (currentAuthors.length > 0) {
+            row2.addComponents(new EditAuthorsButton().getBuilder());
+        }
         components.push(row2);
         replyReplace(replace, interaction, `Please select author(s) for the submission. They will also be able to edit this submission.`,
             components

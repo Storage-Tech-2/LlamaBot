@@ -1,10 +1,11 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, MessageFlags } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonInteraction, ButtonStyle, MessageFlags, ModalMessageModalSubmitInteraction } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Button } from "../../interface/Button.js";
 import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
 import { BaseAttachment } from "../../submissions/Attachment.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { SetDescriptionButton } from "./SetDescriptionButton.js";
+import { Submission } from "../../submissions/Submission.js";
 
 export class EditInfoMultipleButton implements Button {
     getID(): string {
@@ -40,10 +41,16 @@ export class EditInfoMultipleButton implements Button {
             return;
         }
 
+        await this.sendAttachmentEditButtons(submission, isImage, interaction);
+    }
+
+    public async sendAttachmentEditButtons(submission: Submission, isImage: boolean, interaction: ButtonInteraction | ModalMessageModalSubmitInteraction): Promise<void> {
         const currentAttachments: BaseAttachment[] = submission.getConfigManager().getConfig(isImage ? SubmissionConfigs.IMAGES : SubmissionConfigs.ATTACHMENTS) || [];
 
         if (currentAttachments.length === 0) {
-            replyEphemeral(interaction, `There are no ${isImage ? 'images' : 'attachments'} set for this submission.`);
+            if (!interaction.isModalSubmit()) {
+                replyEphemeral(interaction, `There are no ${isImage ? 'images' : 'attachments'} set for this submission.`);
+            }
             return;
         }
 
@@ -64,12 +71,18 @@ export class EditInfoMultipleButton implements Button {
             }
         });
 
-        interaction.reply({
-            content: `Select the ${isImage ? 'images' : 'attachments'} you want to edit:`,
-            components: rows,
-            flags: [MessageFlags.Ephemeral],
-        });
-
-
+        if (!interaction.isModalSubmit()) {
+            interaction.reply({
+                content: `Select the ${isImage ? 'images' : 'attachments'} you want to edit:`,
+                components: rows,
+                flags: [MessageFlags.Ephemeral],
+            });
+        } else {
+            interaction.update({
+                content: `Select the ${isImage ? 'images' : 'attachments'} you want to edit:`,
+                components: rows,
+            });
+        }
     }
+
 }

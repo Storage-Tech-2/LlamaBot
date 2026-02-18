@@ -9,13 +9,14 @@ import { SkipDescriptionButton } from "../buttons/SkipDescriptionButton.js";
 import { SetAttachmentsMenu } from "../menus/SetAttachmentsMenu.js";
 import { SetImagesMenu } from "../menus/SetImagesMenu.js";
 import { changeAttachmentName, changeImageName, getAttachmentDescriptionForMenus, getFileExtension, getFileNameWithoutExtension, isAttachmentImage } from "../../utils/AttachmentUtils.js";
+import { EditInfoMultipleButton } from "../buttons/EditInfoMultipleButton.js";
 
-export class SetDescriptionModal implements Modal {
+export class AttachmentInfoModal implements Modal {
     getID(): string {
-        return "set-desc-mdl";
+        return "att-info-mdl";
     }
 
-    getBuilder(attachmentName: string, attachmentDescription: string, isImage: boolean, id: Snowflake, taskID: string): ModalBuilder {
+    getBuilder(ordinal: number, attachmentName: string, attachmentDescription: string, isImage: boolean, id: Snowflake, taskID: string): ModalBuilder {
 
         const modal = new ModalBuilder()
             .setCustomId(this.getID() + '|' + (isImage ? 'i' : 'a') + '|' + id + '|' + taskID)
@@ -45,9 +46,22 @@ export class SetDescriptionModal implements Modal {
             .setLabel('Attachment Description:')
             .setTextInputComponent(descriptionInput);
 
+        const orderInput = new TextInputBuilder()
+            .setCustomId('orderInput')
+            .setPlaceholder('Lower numbers are displayed first.')
+            .setStyle(TextInputStyle.Short)
+            .setValue(ordinal.toString())
+            .setRequired(true)
+
+        const orderLabel = new LabelBuilder()
+            .setLabel('Ordinal:')
+            .setTextInputComponent(orderInput);
+
+
         modal.addLabelComponents(
             nameLabel,
-            descriptionLabel
+            descriptionLabel,
+            orderLabel
         );
 
         return modal
@@ -85,11 +99,19 @@ export class SetDescriptionModal implements Modal {
         const attachmentSetTaskData = taskData ? taskData.data as AttachmentAskDescriptionData : null;
         const currentAttachments: BaseAttachment[] = submission.getConfigManager().getConfig(isImage ? SubmissionConfigs.IMAGES : SubmissionConfigs.ATTACHMENTS) || [];
 
+        let foundAttachmentIndex: number = -1;
         let foundAttachment = null;
+
         if (attachmentSetTaskData) {
-            foundAttachment = attachmentSetTaskData.toSet.find(att => att.id === id);
+            foundAttachmentIndex = attachmentSetTaskData.toSet.findIndex(att => att.id === id);
+            if (foundAttachmentIndex !== -1) {
+                foundAttachment = attachmentSetTaskData.toSet[foundAttachmentIndex];
+            }
         } else {
-            foundAttachment = currentAttachments.find(att => att.id === id);
+            foundAttachmentIndex = currentAttachments.findIndex(att => att.id === id);
+            if (foundAttachmentIndex !== -1) {
+                foundAttachment = currentAttachments[foundAttachmentIndex];
+            }
         }
 
         if (!foundAttachment) {
@@ -99,7 +121,7 @@ export class SetDescriptionModal implements Modal {
 
         const name = interaction.fields.getTextInputValue('nameInput');
         const description = (interaction.fields.getTextInputValue('descriptionInput') || '').replace(/\n/g, ' ').trim();
-
+        const ordinal = parseInt(interaction.fields.getTextInputValue('orderInput')) || 0;
         if (description.length > 300) {
             replyEphemeral(interaction, 'Description cannot exceed 300 characters!');
             return;
@@ -122,6 +144,14 @@ export class SetDescriptionModal implements Modal {
         foundAttachment.name = oldFileExtension ? `${name}.${oldFileExtension}` : name;
         foundAttachment.description = description;
 
+        // update ordinal
+        const ordinalClamped = Math.min(Math.max(1, ordinal), currentAttachments.length);
+        if (ordinalClamped !== foundAttachmentIndex + 1) {
+            // move the attachment in the array
+            const arrayToModify = attachmentSetTaskData ? attachmentSetTaskData.toSet : currentAttachments;
+            arrayToModify.splice(foundAttachmentIndex, 1);
+            arrayToModify.splice(ordinalClamped - 1, 0, foundAttachment);
+        }
 
         if (attachmentSetTaskData) {
             // update the task data as well
@@ -139,7 +169,7 @@ export class SetDescriptionModal implements Modal {
 
 
                 const embed = new EmbedBuilder();
-                
+
                 embed.setTitle(truncateFileName(escapeDiscordString(nextAttachment.name), 256))
                     .setDescription(getAttachmentDescriptionForMenus(nextAttachment) || 'No description');
 
@@ -180,13 +210,12 @@ export class SetDescriptionModal implements Modal {
                     await changeAttachmentName(submission.getAttachmentFolder(), oldFile, foundAttachment);
                 }
             }
-            
+
             await submission.save();
-            // await interaction.reply({
-            //     content: `<@${interaction.user.id}> set description for ${isImage ? 'image' : 'attachment'} **${escapeDiscordString(foundAttachment.name)}**:\n${foundAttachment.description ? `${foundAttachment.description}` : 'No description set.'}`,
-            //     flags: [MessageFlags.SuppressNotifications, MessageFlags.SuppressEmbeds],
-            //     allowedMentions: { parse: [] }
-            // });
+
+            if (interaction.isFromMessage()) {
+                await (new EditInfoMultipleButton()).sendAttachmentEditButtons(submission, isImage, interaction);
+            }
 
             const message = [`<@${interaction.user.id}> updated info for ${isImage ? 'image' : 'attachment'} **${escapeDiscordString(foundAttachment.name)}**:`];
             if (oldFileNameWithoutExt !== name) {

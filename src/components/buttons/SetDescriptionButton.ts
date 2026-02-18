@@ -2,7 +2,7 @@ import { ButtonBuilder, ButtonInteraction, ButtonStyle, Snowflake } from "discor
 import { GuildHolder } from "../../GuildHolder.js";
 import { Button } from "../../interface/Button.js";
 import { canEditSubmission, replyEphemeral, truncateStringWithEllipsis } from "../../utils/Util.js";
-import { SetDescriptionModal } from "../modals/SetDescriptionModal.js";
+import { AttachmentInfoModal } from "../modals/AttachmentInfoModal.js";
 import { AttachmentAskDescriptionData, BaseAttachment } from "../../submissions/Attachment.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 
@@ -44,14 +44,27 @@ export class SetDescriptionButton implements Button {
         const attachmentSetTaskData = data ? data.data as AttachmentAskDescriptionData : null;
         const currentAttachments: BaseAttachment[] = submission.getConfigManager().getConfig(isImage ? SubmissionConfigs.IMAGES : SubmissionConfigs.ATTACHMENTS) || [];
 
+        let attachmentIndex: number = -1;
         let attachment: BaseAttachment | null = null;
         if (attachmentSetTaskData) {
-            attachment = attachmentSetTaskData.toSet.find(att => att.id === id) as (BaseAttachment | null);
+            attachmentIndex = attachmentSetTaskData.toSet.findIndex(att => att.id === id);
+            if (attachmentIndex !== -1) {
+                attachment = attachmentSetTaskData.toSet[attachmentIndex];
+            }
         } else {
-            attachment = currentAttachments.find(att => att.id === id) || null;
+            attachmentIndex = currentAttachments.findIndex(att => att.id === id);
+            if (attachmentIndex !== -1) {
+                attachment = currentAttachments[attachmentIndex];
+            }
         }
 
-        const modal = new SetDescriptionModal().getBuilder(attachment?.name || "Unknown", attachment?.description || "", isImage, id, taskID);
+        if (attachmentIndex === -1) {
+            replyEphemeral(interaction, 'Attachment not found');
+            return;
+        }
+
+
+        const modal = new AttachmentInfoModal().getBuilder(attachmentIndex + 1, attachment?.name || "Unknown", attachment?.description || "", isImage, id, taskID);
         await interaction.showModal(modal);
     }
 }

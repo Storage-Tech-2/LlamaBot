@@ -24,6 +24,8 @@ import { SkipDescriptionButton } from "./SkipDescriptionButton.js";
 import { EditInfoMultipleButton } from "./EditInfoMultipleButton.js";
 import { LiftTimeoutButton } from "./LiftTimeoutButton.js";
 import { BanUserButton } from "./BanUserButton.js";
+import { EditAuthorButton } from "./EditAuthorButton.js";
+import { EditAuthorsButton } from "./EditAuthorsButton.js";
 
 export function getButtons() {
     const Buttons = [
@@ -53,6 +55,8 @@ export function getButtons() {
         new EditInfoMultipleButton(),
         new LiftTimeoutButton(),
         new BanUserButton(),
+        new EditAuthorButton(),
+        new EditAuthorsButton()
     ];
     return Buttons;
 }

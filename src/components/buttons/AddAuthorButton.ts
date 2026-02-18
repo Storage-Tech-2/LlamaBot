@@ -2,7 +2,8 @@ import { ButtonBuilder, ButtonInteraction, ButtonStyle } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Button } from "../../interface/Button.js";
 import { canEditSubmission, replyEphemeral } from "../../utils/Util.js";
-import { AddAuthorModal } from "../modals/AddAuthorModal.js";
+import { AuthorModal } from "../modals/AuthorModal.js";
+import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 
 export class AddAuthorButton implements Button {
     getID(): string {
@@ -30,8 +31,13 @@ export class AddAuthorButton implements Button {
             return;
         }
 
+        const authors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS) || [];
+        if (authors.length >= 25) {
+            replyEphemeral(interaction, 'You cannot have more than 25 authors for a submission.');
+            return;
+        }
 
-        const modal = new AddAuthorModal().getBuilder()
+        const modal = new AuthorModal().getBuilder(authors.length + 1);
         await interaction.showModal(modal);
     }
 }
