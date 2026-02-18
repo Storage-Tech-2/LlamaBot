@@ -327,9 +327,11 @@ export async function analyzeAttachments(attachments: Attachment[], attachments_
     await Promise.all(attachments.map(async (attachment) => {
         if (attachment.canDownload && attachment.path) {
             const attachmentPath = Path.join(attachments_folder, attachment.path);
-            const fileMetadata = await fs.stat(attachmentPath).catch(() => null);
-            if (fileMetadata) {
-                attachment.size = fileMetadata.size;
+            if (!attachment.size) {
+                const fileMetadata = await fs.stat(attachmentPath).catch(() => null);
+                if (fileMetadata) {
+                    attachment.size = fileMetadata.size;
+                }
             }
             if (isAttachmentLitematic(attachment)) {
                 // Process litematic files
