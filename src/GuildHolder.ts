@@ -223,7 +223,7 @@ export class GuildHolder {
     public async handleMessage(message: Message) {
 
 
-        if (message.author.bot) return; // skip bot messages
+        if (message.author.bot || message.system) return; // skip bot messages
 
         // const match = message.content.match(/\b(isn'?t |not |never )?unload (?:safe|proof)\??\b/i);
         // if (match) {
@@ -801,7 +801,7 @@ export class GuildHolder {
             return false;
         }
 
-        if (message.author.bot) {
+        if (message.author.bot || message.system) {
             return false;
         }
 
@@ -879,7 +879,7 @@ export class GuildHolder {
     public async handleMessageUpdate(_oldMessage: Message | PartialMessage, newMessage: Message) {
         this.antiNukeManager.handleMessageUpdate(_oldMessage, newMessage).catch(e => console.error('Error handling message update:', e));
 
-        if (newMessage.author.bot) return
+        if (newMessage.author.bot || newMessage.system) return
 
         // Handle message inside archived post
         if (newMessage.channel.isThread() && this.isArchiveChannel(newMessage.channel.parentId)) {
@@ -1007,7 +1007,7 @@ export class GuildHolder {
             receiverUsername = originalMessage.author.username;
 
             // Check if the receiver is a bot
-            if (originalMessage.author.bot) {
+            if (originalMessage.author.bot || originalMessage.system) {
                 if (originalMessage.author.id === botId) {
                     const embed = new EmbedBuilder()
                         .setColor(0x00FF00) // Green color for thank you message
@@ -1222,7 +1222,7 @@ export class GuildHolder {
         }
 
         const candidateMessage = sortedMessages.find(msg => msg.author.id === candidateId);
-        if (candidateMessage?.author.bot) {
+        if (candidateMessage?.author.bot || candidateMessage?.system) {
             return { userId: null };
         }
 

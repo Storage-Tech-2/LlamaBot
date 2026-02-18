@@ -696,7 +696,7 @@ export class Submission {
 
     async handleReplies(message: Message): Promise<boolean> {
         // Make sure it isn't bot
-        if (message.author.bot || message.reference?.messageId === undefined) {
+        if (message.author.bot || message.system || message.reference?.messageId === undefined) {
             return false;
         }
 
