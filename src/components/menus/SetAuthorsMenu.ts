@@ -80,6 +80,8 @@ export class SetAuthorsMenu implements Menu {
             return;
         }
 
+        await interaction.deferUpdate();
+
         const configAuthors = submission.getConfigManager().getConfig(SubmissionConfigs.AUTHORS);
         const isFirstTime = configAuthors === null;
         let currentAuthors = configAuthors || [];
@@ -133,17 +135,21 @@ export class SetAuthorsMenu implements Menu {
             str.push('removed ' + getAuthorsString(removed));
         }
 
-        if (str.length) {
-            await interaction.reply({
-                content: `<@${interaction.user.id}> ${str.join(' and ')} to authors`,
-                flags: [MessageFlags.SuppressNotifications]
-            });
-            await submission.statusUpdated()
-        } else {
-            await interaction.reply({
-                content: `<@${interaction.user.id}> did not change authors`,
-                flags: [MessageFlags.SuppressNotifications]
-            });
+        await SetAuthorsMenu.sendAuthorsMenuAndButton(submission, interaction, true);
+
+        if (interaction.channel && interaction.channel.isSendable()) {
+            if (str.length) {
+                await interaction.channel.send({
+                    content: `<@${interaction.user.id}> ${str.join(' and ')} to authors`,
+                    flags: [MessageFlags.SuppressNotifications]
+                });
+                await submission.statusUpdated()
+            } else {
+                await interaction.channel.send({
+                    content: `<@${interaction.user.id}> did not change authors`,
+                    flags: [MessageFlags.SuppressNotifications]
+                });
+            }
         }
 
         if (isFirstTime) {
@@ -225,12 +231,16 @@ export class SetAuthorsMenu implements Menu {
             str.push('removed ' + removed.map(a => a.username).join(', '));
         }
 
-        if (str.length) {
-            await interaction.reply({
-                content: `<@${interaction.user.id}> ${str.join(' and ')} to authors`,
-                flags: [MessageFlags.SuppressNotifications]
-            });
-            await submission.statusUpdated()
+        await SetAuthorsMenu.sendAuthorsMenuAndButton(submission, interaction, true);
+
+        if (interaction.channel && interaction.channel.isSendable()) {
+            if (str.length) {
+                await interaction.channel.send({
+                    content: `<@${interaction.user.id}> ${str.join(' and ')} to authors`,
+                    flags: [MessageFlags.SuppressNotifications]
+                });
+                await submission.statusUpdated()
+            }
         }
 
         if (isFirstTime) {
