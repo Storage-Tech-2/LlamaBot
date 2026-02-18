@@ -16,7 +16,7 @@ export class AddImageModal implements Modal {
         return "add-image-modal";
     }
 
-    getBuilder(): ModalBuilder {
+    getBuilder(ordinal: number): ModalBuilder {
         const modal = new ModalBuilder()
             .setCustomId(this.getID())
             .setTitle('Add Image')
@@ -42,9 +42,21 @@ export class AddImageModal implements Modal {
             .setLabel('Image Description:')
             .setTextInputComponent(descriptionInput);
 
+        const orderInput = new TextInputBuilder()
+            .setCustomId('orderInput')
+            .setPlaceholder('Lower numbers are displayed first.')
+            .setStyle(TextInputStyle.Short)
+            .setValue(ordinal.toString())
+            .setRequired(true)
+
+        const orderLabel = new LabelBuilder()
+            .setLabel('Ordinal:')
+            .setTextInputComponent(orderInput);
+
         modal.addLabelComponents(
             uploadLabel,
-            descriptionLabel
+            descriptionLabel,
+            orderLabel
         );
 
         return modal
@@ -83,7 +95,7 @@ export class AddImageModal implements Modal {
 
         const uploadedAttachment = interaction.fields.getUploadedFiles('attachmentInput', true).first();
         const description = (interaction.fields.getTextInputValue('descriptionInput') || '').replace(/\n/g, ' ').trim();
-
+        const ordinal = parseInt(interaction.fields.getTextInputValue('orderInput')) || 0;
         if (!uploadedAttachment) {
             replyEphemeral(interaction, 'No attachment uploaded. Please try again.');
             return;
@@ -165,7 +177,8 @@ export class AddImageModal implements Modal {
 
         const isFirstTime = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) === null;
         const currentImages = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) ?? [];
-        currentImages.push(imageObj);
+        const ordinalClamped = Math.min(Math.max(1, ordinal), currentImages.length + 1);
+        currentImages.splice(ordinalClamped - 1, 0, imageObj);
         submission.getConfigManager().setConfig(SubmissionConfigs.IMAGES, currentImages);
 
         try {

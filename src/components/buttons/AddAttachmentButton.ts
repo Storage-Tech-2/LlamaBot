@@ -37,7 +37,9 @@ export class AddAttachmentButton implements Button {
             return;
         }
 
-        const modal = new AddAttachmentModal().getBuilder()
+        const attachmentCount = (submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) || []).length;
+
+        const modal = new AddAttachmentModal().getBuilder(attachmentCount + 1);
         await interaction.showModal(modal);
     }
 }

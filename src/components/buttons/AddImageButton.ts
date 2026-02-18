@@ -37,7 +37,8 @@ export class AddImageButton implements Button {
             return;
         }
 
-        const modal = new AddImageModal().getBuilder()
+        const imagesCount = (submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) || []).length;
+        const modal = new AddImageModal().getBuilder(imagesCount + 1);
         await interaction.showModal(modal);
     }
 }

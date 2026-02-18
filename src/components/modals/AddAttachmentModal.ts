@@ -15,7 +15,7 @@ export class AddAttachmentModal implements Modal {
         return "add-attachment-modal";
     }
 
-    getBuilder(): ModalBuilder {
+    getBuilder(ordinal: number): ModalBuilder {
         const modal = new ModalBuilder()
             .setCustomId(this.getID())
             .setTitle('Add Attachment')
@@ -50,10 +50,22 @@ export class AddAttachmentModal implements Modal {
             .setLabel('Attachment Description:')
             .setTextInputComponent(descriptionInput);
 
+        const orderInput = new TextInputBuilder()
+            .setCustomId('orderInput')
+            .setPlaceholder('Lower numbers are displayed first.')
+            .setStyle(TextInputStyle.Short)
+            .setValue(ordinal.toString())
+            .setRequired(true)
+
+        const orderLabel = new LabelBuilder()
+            .setLabel('Ordinal:')
+            .setTextInputComponent(orderInput);
+
         modal.addLabelComponents(
             uploadLabel,
             urlLabel,
-            descriptionLabel
+            descriptionLabel,
+            orderLabel
         );
 
         return modal
@@ -93,6 +105,7 @@ export class AddAttachmentModal implements Modal {
         const uploadedAttachment = interaction.fields.getUploadedFiles('attachmentInput')?.first();
         const url = interaction.fields.getTextInputValue('urlInput');
         const description = (interaction.fields.getTextInputValue('descriptionInput') || '').replace(/\n/g, ' ').trim();
+        const ordinal = parseInt(interaction.fields.getTextInputValue('orderInput')) || 0;
 
         if (!uploadedAttachment && !url) {
             replyEphemeral(interaction, 'No attachment uploaded or URL provided. Please try again.');
@@ -200,7 +213,10 @@ export class AddAttachmentModal implements Modal {
         }
 
         const currentAttachments = submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) ?? [];
-        currentAttachments.push(attachmentObj);
+        const ordinalClamped = Math.min(Math.max(1, ordinal), currentAttachments.length + 1);
+        currentAttachments.splice(ordinalClamped - 1, 0, attachmentObj);
+
+
         submission.getConfigManager().setConfig(SubmissionConfigs.ATTACHMENTS, currentAttachments);
 
         try {
