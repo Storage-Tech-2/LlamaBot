@@ -18,12 +18,12 @@ export class AuthorModal implements Modal {
             .setCustomId(this.getID() + '|' + (author ? getAuthorKey(author).substring(0, 50) : '')) // In case something goes wrong with the author name, we don't want it to exceed Discord's limits
             .setTitle(truncateStringWithEllipsis(author ? `Edit Author: ${getAuthorName(author)}` : `Add Author`, 80))
 
-        const authorAllFields = author as AllAuthorPropertiesAccessor;
+        const authorAllFields = author as (AllAuthorPropertiesAccessor | undefined);
         const userIDInput = new TextInputBuilder()
             .setCustomId('idInput')
             .setPlaceholder('Discord User ID is preferred')
             .setStyle(TextInputStyle.Short)
-            .setValue(author?.type === AuthorType.Unknown ? authorAllFields.username || '' : authorAllFields.id || '')
+            .setValue(author?.type === AuthorType.Unknown ? authorAllFields?.username || '' : authorAllFields?.id || '')
             .setRequired(true)
 
         const userIDLabel = new LabelBuilder()
