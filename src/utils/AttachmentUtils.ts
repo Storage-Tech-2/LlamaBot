@@ -402,7 +402,7 @@ async function analyzeLitematic(attachment: Attachment, attachmentPath: string, 
 
         attachment.litematic = {
             size: sizeString,
-            version: version ? version.id : 'Unknown',
+            version: version ? version.minecraftVersion : 'Unknown',
         }
     } catch (error) {
         console.error('Error processing litematic file:', error)
@@ -451,7 +451,7 @@ async function analyzeSchematic(attachment: Attachment, attachmentPath: string, 
         const sizeString = `${width}x${height}x${length}`;
         attachment.schematic = {
             size: sizeString,
-            version: version ? version.id : 'Unknown',
+            version: version ? version.minecraftVersion : 'Unknown',
         }
     } catch (error) {
         console.error('Error processing schematic file:', error)

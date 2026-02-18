@@ -1,16 +1,9 @@
 export type VersionData = {
-    id: string;
-    name: string;
-    release_target: string | null;
-    type: string;
-    stable: boolean;
-    data_version: number;
-    protocol_version: number;
-    data_pack_version: number;
-    resource_pack_version: number;
-    build_time: string;
-    release_time: string;
-    sha1: string;
+    minecraftVersion: string,
+    dataVersion: number,
+    usesNetty: boolean,
+    majorVersion: string,
+    releaseType: string,
 }
 
 export class MCMeta {
@@ -22,8 +15,7 @@ export class MCMeta {
     }
 
     public async fetchVersionData() {
-        // https://raw.githubusercontent.com/misode/mcmeta/refs/heads/summary/versions/data.json
-        const response = await fetch('https://raw.githubusercontent.com/misode/mcmeta/refs/heads/summary/versions/data.json');
+        const response = await fetch('https://raw.githubusercontent.com/PrismarineJS/minecraft-data/refs/heads/master/data/pc/common/protocolVersions.json');
         if (!response.ok) {
             throw new Error(`Failed to fetch version data: ${response.statusText}`);
         }
@@ -38,7 +30,7 @@ export class MCMeta {
             throw new Error('Version data not fetched. Call fetchVersionData() first.');
         }
 
-        const foundVersion = this.chachedVersionData.find(version => version.data_version === dataVersion);
+        const foundVersion = this.chachedVersionData.find(version => version.dataVersion === dataVersion);
 
         if (foundVersion) {
             return foundVersion;
