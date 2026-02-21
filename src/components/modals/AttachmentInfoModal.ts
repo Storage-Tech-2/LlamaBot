@@ -122,7 +122,7 @@ export class AttachmentInfoModal implements Modal {
         const name = interaction.fields.getTextInputValue('nameInput');
         const description = (interaction.fields.getTextInputValue('descriptionInput') || '').replace(/\n/g, ' ').trim();
         const ordinal = parseInt(interaction.fields.getTextInputValue('orderInput')) || 0;
-        const ordinalClamped = Math.min(Math.max(1, ordinal), currentAttachments.length);
+        const ordinalClamped = Math.min(Math.max(1, ordinal), currentAttachments.length + 1);
         if (description.length > 300) {
             replyEphemeral(interaction, 'Description cannot exceed 300 characters!');
             return;
