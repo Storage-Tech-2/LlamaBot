@@ -8,7 +8,7 @@ import { recordsToRawTextNoHeaders, stripHyperlinkNames, SubmissionRecords } fro
 import { GuildHolder } from "../GuildHolder.js";
 import { Author, AuthorType, DiscordAuthor } from "../submissions/Author.js";
 import { areAuthorsSameStrict, getAuthorName, getAuthorsString, reclassifyAuthors } from "./Util.js";
-import { ArchiveIndex } from "../archive/IndexManager.js";
+import { ArchiveIndex, ArchiveIndexEntry } from "../archive/IndexManager.js";
 
 // Convenience patterns for dynamic reference extraction
 export const PostCodePattern = /\b([A-Za-z]+\s?[0-9]{3})\b/g;
@@ -500,6 +500,17 @@ export function deduplicateReferences(references: Reference[]): Reference[] {
     return newList;
 }
 
+export function getIndexEntryFromChannel(channelID: Snowflake, archiveIndex: ArchiveIndex): {id: Snowflake, entry: ArchiveIndexEntry} | undefined {
+    const idFromPostThread = archiveIndex.threadToId.get(channelID);
+    const id = idFromPostThread !== undefined ? idFromPostThread : channelID;
+    const entry = id !== undefined ? archiveIndex.idToData.get(id) : undefined;
+    if (!entry) {
+        return undefined;
+    }
+    return { id, entry };
+}
+
+
 export async function tagReferences(string: string, prevReferences: Reference[], guildHolder: GuildHolder, selfID: Snowflake, skipTerms: boolean = false) {
     if (!string) {
         return [];
@@ -547,20 +558,15 @@ export async function tagReferences(string: string, prevReferences: Reference[],
         }
 
         if (ref.server === currentServerID) {
-            const id = archiveIndex.threadToId.get(ref.channel);
-            if (!id) {
+            const indexEntryResult = getIndexEntryFromChannel(ref.channel, archiveIndex);
+            if (!indexEntryResult) {
                 return ref;
             }
-
-
-            const indexEntry = archiveIndex.idToData.get(id);
-            if (!indexEntry) {
-                return ref;
-            }
+            const indexEntry = indexEntryResult.entry;
 
             const newRef: ArchivedPostReference = {
                 type: ReferenceType.ARCHIVED_POST,
-                id,
+                id: indexEntryResult.id,
                 code: indexEntry.code,
                 name: indexEntry.name,
                 url: indexEntry.url,

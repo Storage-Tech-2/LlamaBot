@@ -21,7 +21,7 @@ import { ChannelSubscriptionManager } from "./config/ChannelSubscriptionManager.
 import { AntiNukeManager } from "./support/AntiNukeManager.js";
 import { DictionaryManager } from "./archive/DictionaryManager.js";
 import { DiscordServersDictionary } from "./archive/DiscordServersDictionary.js";
-import { getDiscordLinksInText, getDiscordServersFromReferences, getPostCodesInText, populateDiscordServerInfoInReferences, Reference, ReferenceType, tagReferences, transformOutputWithReferencesForDiscord, transformOutputWithReferencesForEmbeddings } from "./utils/ReferenceUtils.js";
+import { getDiscordLinksInText, getDiscordServersFromReferences, getIndexEntryFromChannel, getPostCodesInText, populateDiscordServerInfoInReferences, Reference, ReferenceType, tagReferences, transformOutputWithReferencesForDiscord, transformOutputWithReferencesForEmbeddings } from "./utils/ReferenceUtils.js";
 import { retagEverythingTask, updateMetadataTask } from "./archive/Tasks.js";
 import { GlobalTag, RepositoryConfigs } from "./archive/RepositoryConfigs.js";
 import z from "zod";
@@ -560,27 +560,22 @@ export class GuildHolder {
                 }[] = [];
 
                 for (const discordLink of internalDiscordLinks) {
-                    const channelId = discordLink.channel;
-                    const id = index.threadToId.get(channelId);
-                    if (!id) {
+                    const indexResults = getIndexEntryFromChannel(discordLink.channel, index);
+                  
+                    if (!indexResults) {
                         continue;
                     }
 
-                    const data = index.idToData.get(id);
-                    if (!data) {
+                    if (discordLink.channel === indexResults.entry.thread) {
                         continue;
                     }
 
-                    if (channelId === data.thread) {
-                        continue;
-                    }
-
-                    if (toSend.find(item => item.code === data.code)) {
+                    if (toSend.find(item => item.code === indexResults.entry.code)) {
                         continue;
                     }
 
                     toSend.push({
-                        code: data.code,
+                        code: indexResults.entry.code,
                         oldCode: null,
                         moved: true,
                     });
