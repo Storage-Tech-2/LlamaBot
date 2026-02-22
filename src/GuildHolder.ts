@@ -21,7 +21,7 @@ import { ChannelSubscriptionManager } from "./config/ChannelSubscriptionManager.
 import { AntiNukeManager } from "./support/AntiNukeManager.js";
 import { DictionaryManager } from "./archive/DictionaryManager.js";
 import { DiscordServersDictionary } from "./archive/DiscordServersDictionary.js";
-import { getDiscordLinksInText, getDiscordServersFromReferences, getIndexEntryFromChannel, getPostCodesInText, populateDiscordServerInfoInReferences, Reference, ReferenceType, tagReferences, transformOutputWithReferencesForDiscord, transformOutputWithReferencesForEmbeddings } from "./utils/ReferenceUtils.js";
+import { getDiscordLinksInText, getDiscordServersFromReferences, getIndexEntryFromDiscordLinkReference, getPostCodesInText, populateDiscordServerInfoInReferences, Reference, ReferenceType, tagReferences, transformOutputWithReferencesForDiscord, transformOutputWithReferencesForEmbeddings } from "./utils/ReferenceUtils.js";
 import { retagEverythingTask, updateMetadataTask } from "./archive/Tasks.js";
 import { GlobalTag, RepositoryConfigs } from "./archive/RepositoryConfigs.js";
 import z from "zod";
@@ -560,7 +560,7 @@ export class GuildHolder {
                 }[] = [];
 
                 for (const discordLink of internalDiscordLinks) {
-                    const indexResults = getIndexEntryFromChannel(discordLink.channel, index);
+                    const indexResults = getIndexEntryFromDiscordLinkReference(discordLink, index);
                   
                     if (!indexResults) {
                         continue;

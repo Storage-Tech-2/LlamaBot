@@ -500,10 +500,23 @@ export function deduplicateReferences(references: Reference[]): Reference[] {
     return newList;
 }
 
-export function getIndexEntryFromChannel(channelID: Snowflake, archiveIndex: ArchiveIndex): {id: Snowflake, entry: ArchiveIndexEntry} | undefined {
+export function getIndexEntryFromDiscordLinkReference(ref: DiscordLinkReference, archiveIndex: ArchiveIndex): {id: Snowflake, entry: ArchiveIndexEntry} | undefined {
+    const channelID = ref.channel;
     const idFromPostThread = archiveIndex.threadToId.get(channelID);
-    const id = idFromPostThread !== undefined ? idFromPostThread : channelID;
-    const entry = id !== undefined ? archiveIndex.idToData.get(id) : undefined;
+
+    let id = idFromPostThread;
+    if (id === undefined) {
+        // check if its link to top submission
+        if (ref.message === undefined || ref.message === channelID) {
+            id = channelID
+        }
+    }
+    
+    if (id === undefined) {
+        return undefined;
+    }
+
+    const entry = archiveIndex.idToData.get(id);
     if (!entry) {
         return undefined;
     }
@@ -558,7 +571,7 @@ export async function tagReferences(string: string, prevReferences: Reference[],
         }
 
         if (ref.server === currentServerID) {
-            const indexEntryResult = getIndexEntryFromChannel(ref.channel, archiveIndex);
+            const indexEntryResult = getIndexEntryFromDiscordLinkReference(ref, archiveIndex);
             if (!indexEntryResult) {
                 return ref;
             }
