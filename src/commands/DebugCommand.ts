@@ -42,7 +42,7 @@ export class DebugCommand implements Command {
                             .addChannelTypes(ChannelType.GuildForum)
                     )
             )
-              .addSubcommand(sub =>
+            .addSubcommand(sub =>
                 sub
                     .setName('importlrs')
                     .setDescription('Import an LRS forum channel into submissions')
@@ -753,38 +753,65 @@ export class DebugCommand implements Command {
 
         await repositoryManager.getLock().acquire();
         try {
-            // await repositoryManager.iterateAllEntries(async (entry) => {
-            //     scannedPosts++;
-            //     const entryData = entry.getData();
-            //     let entryChanged = false;
+            await repositoryManager.iterateAllEntries(async (entry) => {
+                scannedPosts++;
+                const entryData = entry.getData();
+                let entryChanged = false;
 
-            //     for (const attachment of entryData.images) {
-            //         scannedPostAttachments++;
-            //         if (!attachment.path) {
-            //             continue;
-            //         }
+                for (const attachment of entryData.images) {
+                    scannedPostAttachments++;
+                    if (!attachment.path) {
+                        continue;
+                    }
 
-            //         const attachmentPath = Path.join(entry.getFolderPath(), attachment.path);
-            //         const hash = await this.hashAttachmentFile(attachmentPath);
-            //         if (!hash) {
-            //             missingFiles++;
-            //             continue;
-            //         }
+                    const attachmentPath = Path.join(entry.getFolderPath(), attachment.path);
+                    const hash = await this.hashAttachmentFile(attachmentPath);
+                    if (!hash) {
+                        missingFiles++;
+                        continue;
+                    }
 
-            //         if (attachment.hash !== hash) {
-            //             attachment.hash = hash;
-            //             entryChanged = true;
-            //             updatedPostAttachments++;
-            //         }
-            //     }
+                    if (attachment.hash !== hash) {
+                        attachment.hash = hash;
+                        entryChanged = true;
+                        updatedPostAttachments++;
+                    }
+                }
 
-            //     if (entryChanged) {
-            //         await entry.savePrivate();
-            //         await repositoryManager.add(entry.getDataPath());
-            //         updatedPosts++;
-            //         anyRepositoryChange = true;
-            //     }
-            // });
+                for (const attachment of entryData.attachments) {
+                    scannedPostAttachments++;
+                    if (!attachment.path) {
+                        continue;
+                    }
+
+                    const attachmentPath = Path.join(entry.getFolderPath(), attachment.path);
+                    // git lfs is being used, check if file is a pointer file
+                    const fileStats = await fs.stat(attachmentPath).catch(() => null);
+                    if (fileStats && fileStats.size < 200) {
+                        missingFiles++;
+                        continue;
+                    }
+
+                    const hash = await this.hashAttachmentFile(attachmentPath);
+                    if (!hash) {
+                        missingFiles++;
+                        continue;
+                    }
+
+                    if (attachment.hash !== hash) {
+                        attachment.hash = hash;
+                        entryChanged = true;
+                        updatedPostAttachments++;
+                    }
+                }
+
+                if (entryChanged) {
+                    await entry.savePrivate();
+                    await repositoryManager.add(entry.getDataPath());
+                    updatedPosts++;
+                    anyRepositoryChange = true;
+                }
+            });
 
             const submissionIds = await submissionsManager.getSubmissionsList();
             for (const submissionId of submissionIds) {
@@ -819,8 +846,32 @@ export class DebugCommand implements Command {
                     }
                 }
 
+
+                const images = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) || [];
+                for (const image of images) {
+                    scannedSubmissionAttachments++;
+                    if (!image.path) {
+                        continue;
+                    }
+
+                    const attachmentPath = Path.join(attachmentsFolder, image.path);
+                    const hash = await this.hashAttachmentFile(attachmentPath);
+                    if (!hash) {
+                        missingFiles++;
+                        continue;
+                    }
+
+                    if (image.hash !== hash) {
+                        image.hash = hash;
+                        submissionChanged = true;
+                        updatedSubmissionAttachments++;
+                    }
+                }
+
+
                 if (submissionChanged) {
                     submission.getConfigManager().setConfig(SubmissionConfigs.ATTACHMENTS, attachments);
+                    submission.getConfigManager().setConfig(SubmissionConfigs.IMAGES, images);
                     await submission.save();
                     updatedSubmissions++;
                 }
