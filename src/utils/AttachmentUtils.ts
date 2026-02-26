@@ -173,8 +173,8 @@ export function filterImages<T extends BaseAttachment>(attachments: T[]): T[] {
 
 export async function processImageForDiscord(file_path: string, temp_dir: string, num_images: number, image_idx: number, isGalleryView: boolean): Promise<string> {
     const output_path = Path.join(temp_dir, `processed_${image_idx}.png`);
-    let newWidth = 273 * 2;
-    let newHeight = 173 * 2;
+    let newWidth = 386 * 2;
+    let newHeight = 258 * 2;
     let padding = 0;
 
     if (isGalleryView) {
@@ -194,14 +194,21 @@ export async function processImageForDiscord(file_path: string, temp_dir: string
                 newHeight = Math.floor(newHeight / 2) - 15;
             }
             padding = 0;
-        } else if (num_images === 4) { // Four images, all are small
-            padding = 0;
-        } else { // More than four images, all are tiny
+        } else { // More than or equal to four images, all are tiny
+            if (image_idx > 3) {
+                newWidth = 546; // discord quad image size
+                newHeight = 346;
+            }
             padding = 0;
         }
-    } else { // not gallery view, use 1:1 aspect ratio
-        newWidth = 800;
-        newHeight = 800;
+    } else { // not gallery view, use 1:1 aspect ratio for first image
+        if (image_idx === 0 || num_images < 4) {
+            newWidth = 800;
+            newHeight = 800;
+        } else {
+            newWidth = 546; // discord quad image size
+            newHeight = 346;
+        }
     }
 
     // Scale so that largest dimension is 1200px
