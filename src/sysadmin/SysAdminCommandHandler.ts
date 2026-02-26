@@ -1,5 +1,6 @@
 import { Message } from "discord.js";
 import { DeopSysAdminCommand } from "./commands/DeopSysAdminCommand.js";
+import { JoinSysAdminCommand } from "./commands/JoinSysAdminCommand.js";
 import { ListSysAdminCommand } from "./commands/ListSysAdminCommand.js";
 import { OpSysAdminCommand } from "./commands/OpSysAdminCommand.js";
 import { PullSysAdminCommand } from "./commands/PullSysAdminCommand.js";
@@ -20,6 +21,7 @@ export class SysAdminCommandHandler {
             new DeopSysAdminCommand(),
             new PullSysAdminCommand(),
             new WhitelistSysAdminCommand(),
+            new JoinSysAdminCommand(),
         ]);
     }
 
