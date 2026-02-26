@@ -98,20 +98,13 @@ export class AttachmentInfoModal implements Modal {
         const taskData = taskID.length > 0 ? await guildHolder.getBot().getTempDataStore().getEntry(taskID) : null;
         const attachmentSetTaskData = taskData ? taskData.data as AttachmentAskDescriptionData : null;
         const currentAttachments: BaseAttachment[] = submission.getConfigManager().getConfig(isImage ? SubmissionConfigs.IMAGES : SubmissionConfigs.ATTACHMENTS) || [];
-
+        const toSetAttachments = attachmentSetTaskData ? attachmentSetTaskData.toSet : currentAttachments;
         let foundAttachmentIndex: number = -1;
         let foundAttachment = null;
 
-        if (attachmentSetTaskData) {
-            foundAttachmentIndex = attachmentSetTaskData.toSet.findIndex(att => att.id === id);
-            if (foundAttachmentIndex !== -1) {
-                foundAttachment = attachmentSetTaskData.toSet[foundAttachmentIndex];
-            }
-        } else {
-            foundAttachmentIndex = currentAttachments.findIndex(att => att.id === id);
-            if (foundAttachmentIndex !== -1) {
-                foundAttachment = currentAttachments[foundAttachmentIndex];
-            }
+        foundAttachmentIndex = toSetAttachments.findIndex(att => att.id === id);
+        if (foundAttachmentIndex !== -1) {
+            foundAttachment = toSetAttachments[foundAttachmentIndex];
         }
 
         if (!foundAttachment) {
@@ -122,7 +115,7 @@ export class AttachmentInfoModal implements Modal {
         const name = interaction.fields.getTextInputValue('nameInput');
         const description = (interaction.fields.getTextInputValue('descriptionInput') || '').replace(/\n/g, ' ').trim();
         const ordinal = parseInt(interaction.fields.getTextInputValue('orderInput')) || 0;
-        const ordinalClamped = Math.min(Math.max(1, ordinal), currentAttachments.length + 1);
+        const ordinalClamped = Math.min(Math.max(1, ordinal), toSetAttachments.length + 1);
         if (description.length > 300) {
             replyEphemeral(interaction, 'Description cannot exceed 300 characters!');
             return;
