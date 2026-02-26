@@ -258,7 +258,7 @@ export class PostEmbed {
         return content.join('');
     }
 
-    public static async createImageFiles(entryData: ArchiveEntryData, archivePath: string, entryPathPart: string, isGalleryView: boolean): Promise<{ files: AttachmentBuilder[], paths: string[] }> {
+    public static async createImageFiles(entryData: ArchiveEntryData, archivePath: string, temp_dir: string, entryPathPart: string, isGalleryView: boolean): Promise<{ files: AttachmentBuilder[], paths: string[] }> {
         //   try {
         //             const images = this.config.getConfig(SubmissionConfigs.IMAGES) || [];
         //             const processedFolder = this.getProcessedImagesFolder();
@@ -280,7 +280,7 @@ export class PostEmbed {
             const path = Path.join(archivePath, entryPathPart, image.path);
             let newPath = null;
             try {
-                newPath = await processImageForDiscord(path, images.length, i, isGalleryView);
+                newPath = await processImageForDiscord(path, temp_dir, images.length, i, isGalleryView);
                 paths.push(newPath);
             } catch (error: any) {
                 console.error('Error processing image for discord:', error.message);

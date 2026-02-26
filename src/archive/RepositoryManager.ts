@@ -1805,7 +1805,9 @@ export class RepositoryManager {
             newEntryData.post.threadURL = '';
             newEntryData.post.continuingMessageIds = [];
             const isGalleryView = archiveChannelDiscord.defaultForumLayout === ForumLayoutType.GalleryView;
-            const files = await PostEmbed.createImageFiles(newEntryData, this.folderPath, entryPathPart, isGalleryView);
+            const temp_dir = Path.join(this.guildHolder.getGuildFolder(), 'discord-image-temp', newEntryData.id);
+            await fs.mkdir(temp_dir, { recursive: true });
+            const files = await PostEmbed.createImageFiles(newEntryData, this.folderPath, temp_dir, entryPathPart, isGalleryView);
             thread = await archiveChannelDiscord.threads.create({
                 message: {
                     content: `Pending...`,
@@ -1817,9 +1819,7 @@ export class RepositoryManager {
             })
 
             // delete old files
-            for (const file of files.paths) {
-                await fs.unlink(file).catch(() => { });
-            }
+            await fs.rm(temp_dir, { recursive: true, force: true }).catch(() => { });
             wasThreadCreated = true;
         } else {
             // check if images changed
@@ -1841,7 +1841,10 @@ export class RepositoryManager {
 
                 if (imagesChanged) {
                     await reportStatus('Updating thread images...');
-                    const files = await PostEmbed.createImageFiles(newEntryData, this.folderPath, entryPathPart, archiveChannelDiscord.defaultForumLayout === ForumLayoutType.GalleryView);
+                    const temp_dir = Path.join(this.guildHolder.getGuildFolder(), 'discord-image-temp', newEntryData.id);
+                    await fs.mkdir(temp_dir, { recursive: true });
+
+                    const files = await PostEmbed.createImageFiles(newEntryData, this.folderPath, temp_dir, entryPathPart, archiveChannelDiscord.defaultForumLayout === ForumLayoutType.GalleryView);
                     const initialMessage = await thread.fetchStarterMessage().catch(() => null);
                     if (initialMessage) {
                         await initialMessage.edit({
@@ -1851,10 +1854,8 @@ export class RepositoryManager {
                         });
                     }
 
-                    // delete old files
-                    for (const file of files.paths) {
-                        await fs.unlink(file).catch(() => { });
-                    }
+                    // delete temp files
+                    await fs.rm(temp_dir, { recursive: true, force: true }).catch(() => { });
                 }
             }
 
