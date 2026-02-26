@@ -435,7 +435,7 @@ export async function importLRSChannelTask(
     // make sure submissions channel has an import tag
     const importTag: GuildForumTag = {
         name: 'LRS Import',
-        moderated: false,
+        moderated: true,
         emoji: { name: '📥' }
     } as GuildForumTag;
 
@@ -561,7 +561,7 @@ export async function importACAChannelTask(
     // make sure submissions channel has an import tag
     const importTag: GuildForumTag = {
         name: 'ACA Import',
-        moderated: false,
+        moderated: true,
         emoji: { name: '📥' }
     } as GuildForumTag;
 
