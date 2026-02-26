@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ChatInputCommandInteraction, EmbedBuilder, InteractionContextType, MessageFlags, SlashCommandBuilder } from "discord.js";
+import { ActionRowBuilder, ChatInputCommandInteraction, EmbedBuilder, InteractionContextType, MessageFlags, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import { Command } from "../interface/Command.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { getAuthorsString, isAdmin, replyEphemeral, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
@@ -18,6 +18,7 @@ export class AskCommand implements Command {
             .setName(this.getID())
             .setDescription("Ask a question to the archive")
             .setContexts(InteractionContextType.Guild)
+            .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 
 
         data.addStringOption(opt =>
