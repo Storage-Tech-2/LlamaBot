@@ -1823,8 +1823,8 @@ export class RepositoryManager {
         let imagesChanged = wasThreadCreated || reprocessImages;
 
         if (!imagesChanged && existingData) {
-            const existingImages = existingData.images.map(i => getFileKey(i));
-            const newImages = newEntryData.images.map(i => getFileKey(i));
+            const existingImages = existingData.images.map(i => getFileKey(i) + "|" + i.description);
+            const newImages = newEntryData.images.map(i => getFileKey(i) + "|" + i.description);
             if (existingImages.length !== newImages.length) {
                 imagesChanged = true;
             } else {
