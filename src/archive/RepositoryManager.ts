@@ -1619,16 +1619,13 @@ export class RepositoryManager {
                     }
                 }
             } else {
-                // Check if images are the same
-                const existingImages = existing.entry.getData().images;
-                const newImages = newEntryData.images;
-                if (!hasAttachmentNameChanged(existingImages, newImages) && !forceNew) { // no problem
+                if (!forceNew) { // no problem
                     const post = existing.entry.getData().post;
                     if (post) {
                         newEntryData.post = deepClone(post);
                     }
                 } else {
-                    // If images are different, we need to delete the thread
+                    // If requested to force new post, remove old post if it exists
                     const post = existing.entry.getData().post;
                     if (post) {
                         const publishForumId = post.forumId;
@@ -1639,7 +1636,7 @@ export class RepositoryManager {
                                 if (thread.archived) {
                                     wasArchived = true;
                                 }
-                                await thread.delete('Entry images updated');
+                                await thread.delete('Entry updated with forceNew, creating a new post');
                             }
                         }
                     }
@@ -1825,6 +1822,37 @@ export class RepositoryManager {
             }
             wasThreadCreated = true;
         } else {
+            // check if images changed
+            const existingData = existing ? existing.entry.getData() : null;
+            if (existingData) {
+                const existingImages = existingData.images.map(i => getFileKey(i));
+                const newImages = newEntryData.images.map(i => getFileKey(i));
+                let imagesChanged = false;
+                if (existingImages.length !== newImages.length) {
+                    imagesChanged = true;
+                } else {
+                    for (let i = 0; i < existingImages.length; i++) {
+                        if (existingImages[i] !== newImages[i]) {
+                            imagesChanged = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (imagesChanged) {
+                    await reportStatus('Updating thread images...');
+                    const files = await PostEmbed.createImageFiles(newEntryData, this.folderPath, entryPathPart, archiveChannelDiscord.defaultForumLayout === ForumLayoutType.GalleryView);
+                    const initialMessage = await thread.fetchStarterMessage().catch(() => null);
+                    if (initialMessage) {
+                        await initialMessage.edit({
+                            content: messageChunks[0].content,
+                            files: files.files,
+                            allowedMentions: { parse: [] }
+                        });
+                    }
+                }
+            }
+
             await thread.setAppliedTags(newEntryData.tags.map(tag => tag.id).filter(tagId => archiveChannelDiscord.availableTags.some(t => t.id === tagId)).slice(0, 5));
         }
 
