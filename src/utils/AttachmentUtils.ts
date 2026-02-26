@@ -173,8 +173,8 @@ export function filterImages<T extends BaseAttachment>(attachments: T[]): T[] {
 
 export async function processImageForDiscord(file_path: string, temp_dir: string, num_images: number, image_idx: number, isGalleryView: boolean): Promise<string> {
     const output_path = Path.join(temp_dir, `processed_${image_idx}.png`);
-    let newWidth = 386 * 2;
-    let newHeight = 258 * 2;
+    let newWidth = 273 * 2;
+    let newHeight = 173 * 2;
     let padding = 0;
 
     if (isGalleryView) {
