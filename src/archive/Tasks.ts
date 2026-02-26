@@ -5,9 +5,9 @@ import { GuildHolder } from "../GuildHolder.js";
 import { ArchiveChannelReference } from "./RepositoryConfigs.js";
 import { ChannelType, ChatInputCommandInteraction, ForumChannel, GuildForumTag, GuildTextBasedChannel, Message, MessageFlags, Snowflake } from "discord.js";
 import { ArchiveChannel, ArchiveEntryReference } from "./ArchiveChannel.js";
-import Path from "path";
 import { hasReferencesChanged, Reference, ReferenceType, tagReferences, tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
 import { iterateAllMessages } from "../utils/AttachmentUtils.js";
+import { safeJoinPath } from "../utils/SafePath.js";
 
 export async function republishAllEntries(
     guildHolder: GuildHolder,
@@ -30,13 +30,13 @@ export async function republishAllEntries(
     try {
         const channelRefs = await repositoryManager.getChannelReferences();
         for (const channelRef of channelRefs) {
-            const channelPath = Path.join(repositoryManager.folderPath, channelRef.path);
+            const channelPath = safeJoinPath(repositoryManager.folderPath, channelRef.path);
             const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
             if (doChannel && archiveChannel.getData().id !== doChannel.id) {
                 continue;
             }
             for (const entryRef of archiveChannel.getData().entries) {
-                const entryPath = Path.join(channelPath, entryRef.path);
+                const entryPath = safeJoinPath(channelPath, entryRef.path);
                 const entry = await ArchiveEntry.fromFolder(entryPath);
 
                 if (!entry) {

@@ -4,9 +4,9 @@ import { Author } from "../submissions/Author.js";
 import { Image } from "../submissions/Image.js";
 import { Tag } from "../submissions/Tag.js";
 import fs from "fs/promises";
-import Path from "path";
 import { StyleInfo, SubmissionRecords } from "../utils/MarkdownUtils.js";
 import { Reference } from "../utils/ReferenceUtils.js";
+import { safeJoinPath } from "../utils/SafePath.js";
 
 export type DiscordPostReference = {
     forumId: Snowflake;
@@ -69,7 +69,7 @@ export class ArchiveEntry {
     }
 
     public getDataPath(): string {
-        return Path.join(this.folderPath, 'data.json');
+        return safeJoinPath(this.folderPath, 'data.json');
     }
 
     public async savePrivate(): Promise<void> {
@@ -105,7 +105,7 @@ export class ArchiveEntry {
     }
 
     public static async fromFolder(folder: string): Promise<ArchiveEntry | null> {
-        const dataPath = Path.join(folder, 'data.json');
+        const dataPath = safeJoinPath(folder, 'data.json');
         try {
             const data: ArchiveEntryData = JSON.parse(await fs.readFile(dataPath, 'utf-8'));
             const entry = new ArchiveEntry(data, folder);

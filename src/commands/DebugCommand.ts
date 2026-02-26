@@ -17,6 +17,7 @@ import Path from "path";
 import fs from "fs/promises";
 import { SubmissionConfigs } from "../submissions/SubmissionConfigs.js";
 import { createHash } from "crypto";
+import { safeJoinPath } from "../utils/SafePath.js";
 
 export class DebugCommand implements Command {
     getID(): string {
@@ -764,7 +765,7 @@ export class DebugCommand implements Command {
                         continue;
                     }
 
-                    const attachmentPath = Path.join(entry.getFolderPath(), attachment.path);
+                    const attachmentPath = safeJoinPath(entry.getFolderPath(), attachment.path);
                     const hash = await this.hashAttachmentFile(attachmentPath);
                     if (!hash) {
                         missingFiles++;
@@ -784,7 +785,7 @@ export class DebugCommand implements Command {
                         continue;
                     }
 
-                    const attachmentPath = Path.join(entry.getFolderPath(), attachment.path);
+                    const attachmentPath = safeJoinPath(entry.getFolderPath(), attachment.path);
                     // git lfs is being used, check if file is a pointer file
                     const fileStats = await fs.stat(attachmentPath).catch(() => null);
                     if (fileStats && fileStats.size < 200) {
@@ -833,7 +834,7 @@ export class DebugCommand implements Command {
                         continue;
                     }
 
-                    const attachmentPath = Path.join(attachmentsFolder, attachment.path);
+                    const attachmentPath = safeJoinPath(attachmentsFolder, attachment.path);
                     const hash = await this.hashAttachmentFile(attachmentPath);
                     if (!hash) {
                         missingFiles++;
@@ -855,7 +856,7 @@ export class DebugCommand implements Command {
                         continue;
                     }
 
-                    const attachmentPath = Path.join(imagesFolder, image.path);
+                    const attachmentPath = safeJoinPath(imagesFolder, image.path);
                     const hash = await this.hashAttachmentFile(attachmentPath);
                     if (!hash) {
                         missingFiles++;
@@ -1097,8 +1098,8 @@ export class DebugCommand implements Command {
         await interaction.deferReply();
 
         const workRoot = process.cwd();
-        const session = Path.join(workRoot, 'debug', `${Date.now().toString(36)}-${attachment.id}`);
-        const inputPath = Path.join(session, 'input.zip');
+        const session = safeJoinPath(workRoot, 'debug', `${Date.now().toString(36)}-${attachment.id}`);
+        const inputPath = safeJoinPath(session, 'input.zip');
 
         try {
             await fs.mkdir(session, { recursive: true });
@@ -1107,7 +1108,7 @@ export class DebugCommand implements Command {
             await fs.writeFile(inputPath, res.body);
             const inputStats = await fs.stat(inputPath).catch(() => null);
 
-            const outputTarget = Path.join(session, 'optimized.zip');
+            const outputTarget = safeJoinPath(session, 'optimized.zip');
             const { zipPath, worlds } = await optimizeWorldsInZip(inputPath, session, outputTarget);
             const optimizedBuffer = await fs.readFile(zipPath);
             const outName = Path.basename(zipPath);
@@ -1151,8 +1152,8 @@ export class DebugCommand implements Command {
 
         await interaction.deferReply();
         const workRoot = process.cwd();
-        const session = Path.join(workRoot, 'debug', `${Date.now().toString(36)}-${attachment.id}`);
-        const inputPath = Path.join(session, 'input.zip');
+        const session = safeJoinPath(workRoot, 'debug', `${Date.now().toString(36)}-${attachment.id}`);
+        const inputPath = safeJoinPath(session, 'input.zip');
 
 
         try {
@@ -1210,12 +1211,12 @@ export class DebugCommand implements Command {
         await interaction.deferReply();
 
         const workRoot = process.cwd();
-        const session = Path.join(workRoot, 'debug', `${Date.now().toString(36)}-${attachment.id}`);
+        const session = safeJoinPath(workRoot, 'debug', `${Date.now().toString(36)}-${attachment.id}`);
         const safeName = Path.basename(attachment.name || `image-${attachment.id}`);
         const ext = Path.extname(safeName);
-        const inputPath = Path.join(session, `input${ext || ''}`);
+        const inputPath = safeJoinPath(session, `input${ext || ''}`);
         const outputName = `${Path.parse(safeName).name || 'image'}-optimized.png`;
-        const outputPath = Path.join(session, outputName);
+        const outputPath = safeJoinPath(session, outputName);
 
         try {
             await fs.mkdir(session, { recursive: true });

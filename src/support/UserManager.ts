@@ -1,7 +1,7 @@
-import Path from 'path';
 import fs from 'fs/promises';
 import { AttachmentsState, UserData } from './UserData.js';
 import { Snowflake } from 'discord.js';
+import { safeJoinPath } from '../utils/SafePath.js';
 
 export class UserManager {
     private folderPath: string;
@@ -15,7 +15,7 @@ export class UserManager {
     }
 
     public async getUserData(userId: string): Promise<UserData | null> {
-        const userPath = Path.join(this.folderPath, `${userId}.json`);
+        const userPath = safeJoinPath(this.folderPath, `${userId}.json`);
         try {
             const data = JSON.parse(await fs.readFile(userPath, 'utf-8')) as UserData;
             if (!data.attachmentsAllowedState) {
@@ -63,7 +63,7 @@ export class UserManager {
     }
 
     public async saveUserData(userData: UserData): Promise<void> {
-        const userPath = Path.join(this.folderPath, `${userData.id}.json`);
+        const userPath = safeJoinPath(this.folderPath, `${userData.id}.json`);
         await fs.writeFile(userPath, JSON.stringify(userData, null, 2), 'utf-8');
     }
 

@@ -1,7 +1,6 @@
 import { ActionRowBuilder, AnyThreadChannel, ChannelType, EmbedBuilder, Message, Snowflake, TextThreadChannel } from "discord.js";
 import { GuildHolder } from "../GuildHolder.js";
 import { ConfigManager } from "../config/ConfigManager.js";
-import Path from "path";
 import { SubmissionConfigs } from "./SubmissionConfigs.js";
 import { StarterEmbed } from "../embed/StarterEmbed.js";
 import { LLMResponseFuture } from "../llm/LLMResponseFuture.js";
@@ -24,6 +23,7 @@ import { processImages, processAttachments, getAllAttachments, optimizeAttachmen
 import { RuleMatcher } from "../utils/RuleMatcher.js";
 import { tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
 import { PublishCommitMessage } from "./Publish.js";
+import { safeJoinPath } from "../utils/SafePath.js";
 
 export class Submission {
     private guildHolder: GuildHolder;
@@ -50,8 +50,8 @@ export class Submission {
         this.guildHolder = guildHolder;
         this.id = id;
         this.folderPath = folderPath;
-        this.config = new ConfigManager(Path.join(folderPath, 'submission.json'));
-        this.revisions = new RevisionManager(this, Path.join(folderPath, 'revisions'));
+        this.config = new ConfigManager(safeJoinPath(folderPath, 'submission.json'));
+        this.revisions = new RevisionManager(this, safeJoinPath(folderPath, 'revisions'));
     }
 
     /**
@@ -394,7 +394,7 @@ export class Submission {
         try {
             const images = this.config.getConfig(SubmissionConfigs.IMAGES) || [];
             const processedFolder = this.getProcessedImagesFolder();
-            const downloadFolder = Path.join(this.folderPath, 'downloaded_images');
+            const downloadFolder = safeJoinPath(this.folderPath, 'downloaded_images');
             await processImages(images, downloadFolder, processedFolder, this.guildHolder.getBot());
             this.config.setConfig(SubmissionConfigs.IMAGES, images);
             this.imagesProcessing = false;
@@ -447,15 +447,15 @@ export class Submission {
     }
 
     public getProcessedImagesFolder(): string {
-        return Path.join(this.folderPath, 'processed_images');
+        return safeJoinPath(this.folderPath, 'processed_images');
     }
 
     public getAttachmentFolder(): string {
-        return Path.join(this.folderPath, 'attachments');
+        return safeJoinPath(this.folderPath, 'attachments');
     }
 
     public getTempFolder(): string {
-        return Path.join(this.folderPath, 'temp');
+        return safeJoinPath(this.folderPath, 'temp');
     }
 
     public async sendNotificationsToSubscribers(channel: TextThreadChannel) {

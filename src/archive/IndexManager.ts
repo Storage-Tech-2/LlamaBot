@@ -1,5 +1,4 @@
 import fs from "fs/promises";
-import Path from "path";
 import { ChannelType, Snowflake } from "discord.js";
 import { buildDictionaryIndex, DictionaryAhoIndexEntry, DictionaryIndexEntry, DictionaryTermIndex, MarkdownCharacterRegex } from "../utils/ReferenceUtils.js";
 import { ArchiveChannel, ArchiveEntryReference } from "./ArchiveChannel.js";
@@ -9,6 +8,7 @@ import type { RepositoryManager } from "./RepositoryManager.js";
 import { ArchiveChannelReference } from "./RepositoryConfigs.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { TemporaryCache } from "./TemporaryCache.js";
+import { safeJoinPath } from "../utils/SafePath.js";
 
 const INDEX_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -62,7 +62,7 @@ export class IndexManager {
     }
 
     private getPostToSubmissionIndexPath() {
-        return Path.join(this.archiveFolderPath, 'post_to_submission_index.json');
+        return safeJoinPath(this.archiveFolderPath, 'post_to_submission_index.json');
     }
 
     public async getPostToSubmissionIndex(): Promise<Record<string, Snowflake>> {
@@ -93,11 +93,11 @@ export class IndexManager {
         } else {
             const channelReferences = await this.repositoryManager.getChannelReferences();
             for (const channelRef of channelReferences) {
-                const channelPath = Path.join(this.archiveFolderPath, channelRef.path);
+                const channelPath = safeJoinPath(this.archiveFolderPath, channelRef.path);
                 const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
                 const entries = archiveChannel.getData().entries;
                 for (const entryRef of entries) {
-                    const entryPath = Path.join(channelPath, entryRef.path);
+                    const entryPath = safeJoinPath(channelPath, entryRef.path);
                     const entry = await ArchiveEntry.fromFolder(entryPath);
                     if (entry) {
                         const post = entry.getData().post;

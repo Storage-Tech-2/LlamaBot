@@ -1,9 +1,9 @@
-import Path from "path";
 import fs from "fs/promises";
 import { EmbeddingsEntry, base64ToInt8Array, makeHNSWIndex, EmbeddingsSearchResult, loadHNSWIndex, generateDocumentEmbeddings } from "../llm/EmbeddingUtils.js";
 import { TemporaryCache } from "./TemporaryCache.js";
 import { HierarchicalNSW } from "hnswlib-node";
 import { Snowflake } from "discord.js";
+import { safeJoinPath } from "../utils/SafePath.js";
 
 export type QAFactSheet = {
     question: string;
@@ -57,11 +57,11 @@ export class PrivateFactBase {
     }
 
     getEmbeddingsPath(): string {
-        return Path.join(this.folderPath, 'embeddings.json');
+        return safeJoinPath(this.folderPath, 'embeddings.json');
     }
 
     getEmbeddingsIndexPath(): string {
-        return Path.join(this.folderPath, 'hnsw.idx');
+        return safeJoinPath(this.folderPath, 'hnsw.idx');
     }
 
     async getEmbeddings(): Promise<EmbeddingsEntry[]> {
@@ -80,7 +80,7 @@ export class PrivateFactBase {
         const factsForEmbedding: Array<{ identifier: string; text: string; }> = [];
 
         for (const category of factCategories) {
-            const categoryPath = Path.join(this.folderPath, `${category}.json`);
+            const categoryPath = safeJoinPath(this.folderPath, `${category}.json`);
             const fileContents = await fs.readFile(categoryPath, 'utf-8').catch(() => null);
             if (!fileContents) {
                 continue;
@@ -103,7 +103,7 @@ export class PrivateFactBase {
 
         if (factsForEmbedding.length === 0) {
             await fs.writeFile(this.getEmbeddingsPath(), JSON.stringify([], null, 2), 'utf-8').catch(() => null);
-            await fs.writeFile(Path.join(this.folderPath, 'embeddings_lookup.json'), JSON.stringify([], null, 2), 'utf-8').catch(() => null);
+            await fs.writeFile(safeJoinPath(this.folderPath, 'embeddings_lookup.json'), JSON.stringify([], null, 2), 'utf-8').catch(() => null);
             await fs.unlink(this.getEmbeddingsIndexPath()).catch(() => null);
             this.hnswIndexCache.clear();
             return;
@@ -149,7 +149,7 @@ export class PrivateFactBase {
         await fs.writeFile(this.getEmbeddingsPath(), JSON.stringify(orderedEmbeddings, null, 2), 'utf-8');
 
         if (orderedEmbeddings.length === 0) {
-            await fs.writeFile(Path.join(this.folderPath, 'embeddings_lookup.json'), JSON.stringify([], null, 2), 'utf-8');
+            await fs.writeFile(safeJoinPath(this.folderPath, 'embeddings_lookup.json'), JSON.stringify([], null, 2), 'utf-8');
             await fs.unlink(this.getEmbeddingsIndexPath()).catch(() => null);
             this.hnswIndexCache.clear();
             return;
@@ -157,13 +157,13 @@ export class PrivateFactBase {
 
         const embeddingVectors: Int8Array[] = orderedEmbeddings.map(entry => base64ToInt8Array(entry.embedding));
         const lookupFile = orderedEmbeddings.map(entry => entry.identifier);
-        await fs.writeFile(Path.join(this.folderPath, 'embeddings_lookup.json'), JSON.stringify(lookupFile, null, 2), 'utf-8');
+        await fs.writeFile(safeJoinPath(this.folderPath, 'embeddings_lookup.json'), JSON.stringify(lookupFile, null, 2), 'utf-8');
         await makeHNSWIndex(embeddingVectors, this.getEmbeddingsIndexPath());
         this.hnswIndexCache.clear();
     }
 
     async getLookupList(): Promise<string[]> {
-        const lookupPath = Path.join(this.folderPath, 'embeddings_lookup.json');
+        const lookupPath = safeJoinPath(this.folderPath, 'embeddings_lookup.json');
         try {
             const data = await fs.readFile(lookupPath, 'utf-8');
             const lookupList: string[] = JSON.parse(data);
@@ -213,7 +213,7 @@ export class PrivateFactBase {
             return null;
         }
 
-        const path = Path.join(this.folderPath, `${category}.json`);
+        const path = safeJoinPath(this.folderPath, `${category}.json`);
 
         const data = await fs.readFile(path, 'utf-8').then(content => JSON.parse(content) as QAFactSheet[]).catch(() => null);
         if (!data) {
@@ -233,7 +233,7 @@ export class PrivateFactBase {
             return;
         }
 
-        const path = Path.join(this.folderPath, `${category}.json`);
+        const path = safeJoinPath(this.folderPath, `${category}.json`);
 
         // read existing file
         const data = await fs.readFile(path, 'utf-8').then(content => JSON.parse(content) as QAFactSheet[]).catch(() => null);

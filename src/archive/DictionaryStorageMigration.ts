@@ -1,6 +1,7 @@
 import fs from "fs/promises";
 import Path from "path";
 import type { Snowflake } from "discord.js";
+import { safeJoinPath } from "../utils/SafePath.js";
 
 type DictionaryEntryStatusValue = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -180,8 +181,8 @@ export async function runDictionaryStorageMigration(
     };
 
     for (const id of allIds) {
-        const repositoryPath = Path.join(repositoryEntriesPath, `${id}.json`);
-        const submissionPath = Path.join(submissionsEntriesPath, `${id}.json`);
+        const repositoryPath = safeJoinPath(repositoryEntriesPath, `${id}.json`);
+        const submissionPath = safeJoinPath(submissionsEntriesPath, `${id}.json`);
 
         const [repositoryEntry, submissionEntry] = await Promise.all([
             readEntry(repositoryPath, id),

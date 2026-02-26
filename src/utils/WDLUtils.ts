@@ -5,6 +5,7 @@ import { pipeline } from 'stream/promises';
 import { spawn } from 'child_process';
 import yauzl from 'yauzl';
 import nbt from 'prismarine-nbt';
+import { safeJoinPath } from './SafePath.js';
 
 const MAX_ENTRY_UNCOMPRESSED_BYTES = 1 * 1024 * 1024 * 1024; // 1 GB per entry
 const MAX_TOTAL_UNCOMPRESSED_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB overall
@@ -155,7 +156,7 @@ const ARTIFICIAL_BLOCKS = [
 
 const RADIUS = 2;
 const MC_SELECTOR_QUERY = `InhabitedTime = 0 AND !(Palette intersects "${ARTIFICIAL_BLOCKS.join(',')}")`;
-const MC_SELECTOR_JAR = Path.join(process.cwd(), 'java', 'mcaselector-2.6.1.jar');
+const MC_SELECTOR_JAR = safeJoinPath(process.cwd(), 'java', 'mcaselector-2.6.1.jar');
 
 export type WorldMetadata = {
     path: string; // always relative to root zip; nested zips separated by '/'
@@ -186,10 +187,10 @@ export async function optimizeWorldsInZip(zipPath: string, tempDir: string, outp
     await fs.mkdir(tempRoot, { recursive: true });
 
     const sessionRoot = tempRoot;
-    const rootExtractDir = Path.join(sessionRoot, 'root');
+    const rootExtractDir = safeJoinPath(sessionRoot, 'root');
     await fs.mkdir(rootExtractDir, { recursive: true });
 
-    const outputZipPath = outputFile ? Path.resolve(outputFile) : Path.join(
+    const outputZipPath = outputFile ? Path.resolve(outputFile) : safeJoinPath(
         tempRoot,
         `${Path.basename(zipPath, Path.extname(zipPath)) || 'world'}-optimized-${Date.now().toString(36)}.zip`
     );
@@ -210,7 +211,7 @@ export async function optimizeWorldsInZip(zipPath: string, tempDir: string, outp
         source: { zipPath: Path.resolve(zipPath) },
         relPath: '',
         extractDir: rootExtractDir,
-        getNextExtractDir: (suffix: string) => Path.join(sessionRoot, `nested-${nestedCounter++}-${suffix}`),
+        getNextExtractDir: (suffix: string) => safeJoinPath(sessionRoot, `nested-${nestedCounter++}-${suffix}`),
         budget,
         contexts
     });
@@ -305,7 +306,7 @@ async function extractArchiveContents(params: {
                 const base = Path.basename(desired);
                 const ext = isDir ? '' : Path.extname(base);
                 const name = isDir ? base : Path.basename(base, ext);
-                candidate = Path.join(dir, `${name}__dup${counter}${ext}`);
+                candidate = safeJoinPath(dir, `${name}__dup${counter}${ext}`);
                 counter += 1;
             }
             return candidate;
@@ -327,7 +328,7 @@ async function extractArchiveContents(params: {
                 return;
             }
 
-            const targetPath = Path.join(extractDir, normalized);
+            const targetPath = safeJoinPath(extractDir, normalized);
             const resolvedTarget = Path.resolve(targetPath);
             if (resolvedTarget !== extractDir && !resolvedTarget.startsWith(rootWithSep)) {
                 throw new Error(`Entry resolves outside extraction root: ${entry.fileName}`);
@@ -425,7 +426,7 @@ async function analyzeExtractedWorlds(contexts: ArchiveContext[]): Promise<World
 
 async function parseWorldMetadataFromDisk(worldDir: string, relativePath: string): Promise<WorldMetadata> {
     const meta: WorldMetadata = { path: relativePath };
-    const levelDatPath = Path.join(worldDir, 'level.dat');
+    const levelDatPath = safeJoinPath(worldDir, 'level.dat');
     try {
         const stats = await fs.stat(levelDatPath);
         if (stats.size > MAX_LEVEL_DAT_BYTES) {
@@ -500,7 +501,7 @@ async function optimizeWorld(worldDir: string): Promise<void> {
 
     // if there is a DIM-1 or DIM1 folder, run runMcSelector on those as well
     for (const dim of ['DIM-1', 'DIM1']) {
-        const dimPath = Path.join(worldDir, dim);
+        const dimPath = safeJoinPath(worldDir, dim);
         const stat = await fs.stat(dimPath).catch(() => null);
         if (stat && stat.isDirectory()) {
             await runMcSelector(dimPath);
@@ -518,7 +519,7 @@ async function optimizeWorld(worldDir: string): Promise<void> {
     // ]
 
     // for (const relPath of pathsToDelete) {
-    //     const targetPath = Path.join(worldDir, relPath);
+    //     const targetPath = safeJoinPath(worldDir, relPath);
     //     await fs.rm(targetPath, { recursive: true, force: true }).catch(() => null);
     // }
 
@@ -534,18 +535,18 @@ async function optimizeWorld(worldDir: string): Promise<void> {
     const entries = await fs.readdir(worldDir, { withFileTypes: true });
     for (const entry of entries) {
         if (!pathsToKeep.includes(entry.name)) {
-            const targetPath = Path.join(worldDir, entry.name);
+            const targetPath = safeJoinPath(worldDir, entry.name);
             await fs.rm(targetPath, { recursive: true, force: true }).catch(() => null);
         }
     }
 
     // in the DIM-1 and DIM1 folders, only keep region/ and entities/
     for (const dim of ['DIM-1', 'DIM1']) {
-        const dimPath = Path.join(worldDir, dim);
+        const dimPath = safeJoinPath(worldDir, dim);
         const dimEntries = await fs.readdir(dimPath, { withFileTypes: true }).catch(() => []);
         for (const entry of dimEntries) {
             if (entry.name !== 'region' && entry.name !== 'entities') {
-                const targetPath = Path.join(dimPath, entry.name);
+                const targetPath = safeJoinPath(dimPath, entry.name);
                 await fs.rm(targetPath, { recursive: true, force: true }).catch(() => null);
             }
         }
@@ -826,7 +827,7 @@ async function findWorldFolders(root: string): Promise<string[]> {
 
         for (const entry of entries) {
             if (entry.isDirectory()) {
-                pending.push(Path.join(dir, entry.name));
+                pending.push(safeJoinPath(dir, entry.name));
             }
         }
     }

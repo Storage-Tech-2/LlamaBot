@@ -1,7 +1,6 @@
 import { AutocompleteInteraction, ChatInputCommandInteraction, Client, ContextMenuCommandInteraction, Events, GatewayIntentBits, Partials } from "discord.js";
 import { GuildHolder } from "./GuildHolder.js";
 import { LLMQueue } from "./llm/LLMQueue.js";
-import path from "path";
 import fs from "fs/promises";
 import { Command } from "./interface/Command.js";
 import { Button } from "./interface/Button.js";
@@ -21,6 +20,7 @@ import { createOpenAI, OpenAIProvider } from "@ai-sdk/openai";
 import { GuildWhitelistManager } from "./config/GuildWhitelistManager.js";
 import { APITokenManager } from "./api/APITokenManager.js";
 import { SysAdminCommandHandler } from "./sysadmin/SysAdminCommandHandler.js";
+import { safeJoinPath } from "./utils/SafePath.js";
 
 export const SysAdmin = '239078039831445504';
 
@@ -115,9 +115,9 @@ export class Bot {
         this.menus = new Map()
         this.modals = new Map()
         this.tempData = new TempDataStore();
-        this.globalDiscordServersDictionary = new DiscordServersDictionary(path.join(process.cwd(), 'config', 'global'));
-        this.guildWhitelistManager = new GuildWhitelistManager(path.join(process.cwd(), 'config', 'global', 'guild_whitelist.json'));
-        this.apiTokenManager = new APITokenManager(path.join(process.cwd(), 'config', 'global', 'api_tokens.json'));
+        this.globalDiscordServersDictionary = new DiscordServersDictionary(safeJoinPath(process.cwd(), 'config', 'global'));
+        this.guildWhitelistManager = new GuildWhitelistManager(safeJoinPath(process.cwd(), 'config', 'global', 'guild_whitelist.json'));
+        this.apiTokenManager = new APITokenManager(safeJoinPath(process.cwd(), 'config', 'global', 'api_tokens.json'));
 
         this.client = new Client({
             intents: [
@@ -148,7 +148,7 @@ export class Bot {
     }
 
     async start() {
-        const secretsPath = path.join(process.cwd(), 'secrets.json')
+        const secretsPath = safeJoinPath(process.cwd(), 'secrets.json')
         const secrets = JSON.parse(await fs.readFile(secretsPath, 'utf-8')) as Secrets
         if (!secrets.token || !secrets.clientId) {
             throw new Error('Missing token or clientId in secrets.json')
@@ -168,7 +168,7 @@ export class Bot {
 
         this.githubClient = new App({
             appId: secrets.githubAppId,
-            privateKey: await fs.readFile(path.join(process.cwd(), 'key.pem'), 'utf-8'),
+            privateKey: await fs.readFile(safeJoinPath(process.cwd(), 'key.pem'), 'utf-8'),
         });
 
         if (secrets.xaiApiKey) {

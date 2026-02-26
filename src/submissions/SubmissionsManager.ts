@@ -1,8 +1,8 @@
 import { Snowflake } from "discord.js";
 import { Submission } from "./Submission.js";
 import fs from "fs/promises";
-import Path from "path";
 import { GuildHolder } from "../GuildHolder.js";
+import { safeJoinPath } from "../utils/SafePath.js";
 
 export class SubmissionsManager {
     private submissions: Map<Snowflake, Submission>;
@@ -23,7 +23,7 @@ export class SubmissionsManager {
      * @returns 
      */
     async makeSubmission(id: Snowflake) {
-        const folderPath = Path.join(this.storagePath, id)
+        const folderPath = safeJoinPath(this.storagePath, id)
         await fs.mkdir(folderPath, { recursive: true })
 
         const submission = new Submission(this.guildHolder, id, folderPath)
@@ -52,7 +52,7 @@ export class SubmissionsManager {
         }
 
         // Check file system
-        const folderPath = Path.join(this.storagePath, id)
+        const folderPath = safeJoinPath(this.storagePath, id)
         // check if folder exists
         try {
             await fs.access(folderPath)

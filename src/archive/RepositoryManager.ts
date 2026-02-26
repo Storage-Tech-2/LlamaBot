@@ -1,7 +1,6 @@
 import { GuildHolder } from "../GuildHolder.js";
 import fs from "fs/promises";
 import { ConfigManager } from "../config/ConfigManager.js";
-import Path from "path";
 import { AnyThreadChannel, AttachmentBuilder, ChannelType, EmbedBuilder, ForumChannel, ForumLayoutType, GuildForumTag, GuildTextBasedChannel, Message, MessageFlags, PartialMessage, Snowflake } from "discord.js";
 import { ArchiveChannelReference, RepositoryConfigs } from "./RepositoryConfigs.js";
 import { areAuthorsSame, chunkArray, deepClone, escapeString, generateCommitMessage, getAuthorIconURL, getAuthorName, hasAttachmentNameChanged, getCodeAndDescriptionFromTopic, getGithubOwnerAndProject, mergeTwoArraysUnique, reclassifyAuthors, splitCode, splitIntoChunks, truncateStringWithEllipsis } from "../utils/Util.js";
@@ -31,6 +30,7 @@ import { AttachmentSource } from "../submissions/Attachment.js";
 import { GlobalTag } from "./RepositoryConfigs.js";
 import { Tag } from "../submissions/Tag.js";
 import { PublishCommitMessage } from "../submissions/Publish.js";
+import { safeJoinPath } from "../utils/SafePath.js";
 
 export class RepositoryManager {
     public folderPath: string;
@@ -51,8 +51,8 @@ export class RepositoryManager {
         this.configManager = new ConfigManager(this.getConfigFilePath());
         this.dictionaryManager = new DictionaryManager(
             this.guildHolder,
-            Path.join(this.folderPath, 'dictionary'),
-            Path.join(this.guildHolder.getGuildFolder(), 'dictionary_submissions'),
+            safeJoinPath(this.folderPath, 'dictionary'),
+            safeJoinPath(this.guildHolder.getGuildFolder(), 'dictionary_submissions'),
             this
         );
         this.indexManager = new IndexManager(this.dictionaryManager, this, this.folderPath);
@@ -68,7 +68,7 @@ export class RepositoryManager {
     }
 
     getConfigFilePath(): string {
-        return Path.join(this.folderPath, 'config.json');
+        return safeJoinPath(this.folderPath, 'config.json');
     }
 
     public async configChanged() {
@@ -85,7 +85,7 @@ export class RepositoryManager {
     }
 
     getChannelsFilePath(): string {
-        return Path.join(this.folderPath, 'channels.json');
+        return safeJoinPath(this.folderPath, 'channels.json');
     }
 
     async init() {
@@ -103,7 +103,7 @@ export class RepositoryManager {
         await this.git;
 
         // check if gitignore exists, create it if it doesn't
-        const gitignorePath = Path.join(this.folderPath, '.gitignore');
+        const gitignorePath = safeJoinPath(this.folderPath, '.gitignore');
         if (!await fs.access(gitignorePath).then(() => true).catch(() =>
             false)) {
             await fs.writeFile(gitignorePath, '.DS_Store\n', 'utf-8');
@@ -112,7 +112,7 @@ export class RepositoryManager {
         }
 
         // check if gitattributes exists, create it if it doesn't
-        const gitattributesPath = Path.join(this.folderPath, '.gitattributes');
+        const gitattributesPath = safeJoinPath(this.folderPath, '.gitattributes');
         if (!await fs.access(gitattributesPath).then(() => true).catch(() =>
             false)) {
             const lfsExtensions = this.configManager.getConfig(RepositoryConfigs.LFS_EXTENSIONS);
@@ -177,7 +177,7 @@ export class RepositoryManager {
     }
 
     public getHNSWIndexPath(): string {
-        return Path.join(this.folderPath, 'hnsw.idx');
+        return safeJoinPath(this.folderPath, 'hnsw.idx');
     }
 
     public async getEmbeddingsIndex(): Promise<HierarchicalNSW | null> {
@@ -211,7 +211,7 @@ export class RepositoryManager {
         let latestUpdate = 0;
 
         for (const channelRef of channelReferences) {
-            const channelPath = Path.join(this.folderPath, channelRef.path);
+            const channelPath = safeJoinPath(this.folderPath, channelRef.path);
             const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
             const entryRefs = archiveChannel.getData().entries;
 
@@ -221,7 +221,7 @@ export class RepositoryManager {
             const channelTags = new Set<number>();
 
             for (const entryRef of entryRefs) {
-                const entryPath = Path.join(channelPath, entryRef.path);
+                const entryPath = safeJoinPath(channelPath, entryRef.path);
                 const archiveEntry = await ArchiveEntry.fromFolder(entryPath);
                 if (!archiveEntry) {
                     continue;
@@ -379,17 +379,17 @@ export class RepositoryManager {
 
 
     public getPersistentIndexPath(): string {
-        return Path.join(this.folderPath, 'persistent.idx');
+        return safeJoinPath(this.folderPath, 'persistent.idx');
     }
 
     public getEmbeddingPath(): string {
-        return Path.join(this.folderPath, 'embeddings.json');
+        return safeJoinPath(this.folderPath, 'embeddings.json');
     }
 
     public async iterateAllEntries(callback: (entry: ArchiveEntry, entryRef: ArchiveEntryReference, channelRef: ArchiveChannelReference, channel: ArchiveChannel) => Promise<void>) {
         const channelReferences = await this.getChannelReferences();
         for (const channelRef of channelReferences) {
-            const channelPath = Path.join(this.folderPath, channelRef.path);
+            const channelPath = safeJoinPath(this.folderPath, channelRef.path);
             const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
             if (!archiveChannel) {
                 console.warn(`Channel ${channelRef.name} (${channelRef.id}) not found in repository`);
@@ -397,7 +397,7 @@ export class RepositoryManager {
             }
             const entries = archiveChannel.getData().entries;
             for (const entryRef of entries) {
-                const entryPath = Path.join(channelPath, entryRef.path);
+                const entryPath = safeJoinPath(channelPath, entryRef.path);
                 const entry = await ArchiveEntry.fromFolder(entryPath);
                 if (!entry) {
                     console.warn(`Entry ${entryRef.code} not found in repository`);
@@ -411,7 +411,7 @@ export class RepositoryManager {
     public async iterateAllEntryRefs(callback: (entryRef: ArchiveEntryReference, channelRef: ArchiveChannelReference, channel: ArchiveChannel) => Promise<void>) {
         const channelReferences = await this.getChannelReferences();
         for (const channelRef of channelReferences) {
-            const channelPath = Path.join(this.folderPath, channelRef.path);
+            const channelPath = safeJoinPath(this.folderPath, channelRef.path);
             const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
             if (!archiveChannel) {
                 console.warn(`Channel ${channelRef.name} (${channelRef.id}) not found in repository`);
@@ -528,10 +528,10 @@ export class RepositoryManager {
 
             // First, remove any channels that no longer exist
             for (const channel of removedChannels) {
-                const channelPath = Path.join(this.folderPath, channel.path);
+                const channelPath = safeJoinPath(this.folderPath, channel.path);
                 // Commit the removal
                 for (const file of await fs.readdir(channelPath)) {
-                    const filePath = Path.join(channelPath, file);
+                    const filePath = safeJoinPath(channelPath, file);
                     // recursive
                     await fs.rm(filePath, { recursive: true, force: true });
                 }
@@ -541,7 +541,7 @@ export class RepositoryManager {
 
             // Then, add new channels
             for (const channel of newChannels) {
-                const channelPath = Path.join(this.folderPath, channel.path);
+                const channelPath = safeJoinPath(this.folderPath, channel.path);
 
                 await fs.mkdir(channelPath, { recursive: true });
 
@@ -561,8 +561,8 @@ export class RepositoryManager {
             for (const channel of modifiedChannels) {
                 const oldChannel = existingChannels.find(ec => ec.id === channel.id);
                 if (!oldChannel) continue;
-                const oldPath = Path.join(this.folderPath, oldChannel.path);
-                const newPath = Path.join(this.folderPath, channel.path);
+                const oldPath = safeJoinPath(this.folderPath, oldChannel.path);
+                const newPath = safeJoinPath(this.folderPath, channel.path);
 
                 // Rename the folder if the path has changed
                 if (oldPath !== newPath) {
@@ -594,7 +594,7 @@ export class RepositoryManager {
                     };
 
                     // get name and code
-                    const oldEntry = await ArchiveEntry.fromFolder(Path.join(newPath, oldEntryRef.path));
+                    const oldEntry = await ArchiveEntry.fromFolder(safeJoinPath(newPath, oldEntryRef.path));
                     if (!oldEntry) {
                         throw new Error(`Old entry ${oldEntryRef.code} not found in repository`);
                     }
@@ -614,8 +614,8 @@ export class RepositoryManager {
                     newEntryRef.code = remappedCode;
                     newEntryRef.path = `${newEntryRef.code}_${escapeString(oldEntryData.name || '')}`;
 
-                    const oldFolderPath = Path.join(newPath, oldEntryRef.path);
-                    const newFolderPath = Path.join(newPath, newEntryRef.path);
+                    const oldFolderPath = safeJoinPath(newPath, oldEntryRef.path);
+                    const newFolderPath = safeJoinPath(newPath, newEntryRef.path);
                     // Rename
                     if (oldFolderPath !== newFolderPath) {
                         await this.git.mv(oldFolderPath, newFolderPath);
@@ -651,8 +651,8 @@ export class RepositoryManager {
                             oldPathParts.push(newFileName);
                             const newAttachmentPath = oldPathParts.join('/');
                             if (oldAttachmentPath !== newAttachmentPath) {
-                                const fullOldPath = Path.join(newFolderPath, oldAttachmentPath);
-                                const fullNewPath = Path.join(newFolderPath, newAttachmentPath);
+                                const fullOldPath = safeJoinPath(newFolderPath, oldAttachmentPath);
+                                const fullNewPath = safeJoinPath(newFolderPath, newAttachmentPath);
                                 await this.git.mv(fullOldPath, fullNewPath);
                                 attachment.path = newAttachmentPath;
                             }
@@ -679,7 +679,7 @@ export class RepositoryManager {
                 if (oldPath !== newPath) {
                     // Queue entries to republish after channel references are updated.
                     for (const entryRef of newEntries) {
-                        const entryPath = Path.join(newPath, entryRef.path);
+                        const entryPath = safeJoinPath(newPath, entryRef.path);
                         const entry = await ArchiveEntry.fromFolder(entryPath);
                         if (!entry) {
                             throw new Error(`Entry ${entryRef.code} not found in repository`);
@@ -706,7 +706,7 @@ export class RepositoryManager {
 
             // Check tags for entries
             for (const channel of reMapped) {
-                const channelPath = Path.join(this.folderPath, channel.path);
+                const channelPath = safeJoinPath(this.folderPath, channel.path);
                 const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
                 if (!archiveChannel) {
                     console.warn(`Channel ${channel.name} (${channel.id}) not found in repository`);
@@ -715,7 +715,7 @@ export class RepositoryManager {
                 const entries = archiveChannel.getData().entries;
                 let changed = false;
                 for (const entryRef of entries) {
-                    const entryPath = Path.join(channelPath, entryRef.path);
+                    const entryPath = safeJoinPath(channelPath, entryRef.path);
                     const entry = await ArchiveEntry.fromFolder(entryPath);
                     if (!entry) {
                         console.warn(`Entry ${entryRef.code} not found in repository`);
@@ -797,7 +797,7 @@ export class RepositoryManager {
                 const channelRef = channelRefs.find(r => r.id === forum.id);
                 if (!channelRef) continue;
 
-                const channelPath = Path.join(this.folderPath, channelRef.path);
+                const channelPath = safeJoinPath(this.folderPath, channelRef.path);
                 const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
                 if (!archiveChannel) continue;
 
@@ -807,7 +807,7 @@ export class RepositoryManager {
                 const entries = archiveChannel.getData().entries;
 
                 for (const entryRef of entries) {
-                    const entryPath = Path.join(channelPath, entryRef.path);
+                    const entryPath = safeJoinPath(channelPath, entryRef.path);
                     const entry = await ArchiveEntry.fromFolder(entryPath);
                     if (!entry) continue;
 
@@ -894,7 +894,7 @@ export class RepositoryManager {
                 let channelChanged = false;
 
                 for (const entryRef of entries) {
-                    const entryPath = Path.join(channelPath, entryRef.path);
+                    const entryPath = safeJoinPath(channelPath, entryRef.path);
                     const entry = await ArchiveEntry.fromFolder(entryPath);
                     if (!entry) continue;
                     const entryData = entry.getData();
@@ -1120,14 +1120,14 @@ export class RepositoryManager {
                 newTags = forum.availableTags;
 
                 // Update stored entries for this channel based on tag IDs
-                const channelPath = Path.join(this.folderPath, channelRef.path);
+                const channelPath = safeJoinPath(this.folderPath, channelRef.path);
                 const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
                 if (!archiveChannel) continue;
                 const entries = archiveChannel.getData().entries;
                 let channelChanged = false;
 
                 for (const entryRef of entries) {
-                    const entryPath = Path.join(channelPath, entryRef.path);
+                    const entryPath = safeJoinPath(channelPath, entryRef.path);
                     const entry = await ArchiveEntry.fromFolder(entryPath);
                     if (!entry) continue;
                     const entryData = entry.getData();
@@ -1187,13 +1187,13 @@ export class RepositoryManager {
     }> {
         const channelReferences = await this.getChannelReferences();
         for (const channelRef of channelReferences) {
-            const channelPath = Path.join(this.folderPath, channelRef.path);
+            const channelPath = safeJoinPath(this.folderPath, channelRef.path);
             const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
             const entries = archiveChannel.getData().entries;
             const entryIndex = entries.findIndex(e => e.id === submissionId);
             if (entryIndex !== -1) {
                 const entryRef = entries[entryIndex];
-                const entryPath = Path.join(channelPath, entryRef.path);
+                const entryPath = safeJoinPath(channelPath, entryRef.path);
                 const entry = await ArchiveEntry.fromFolder(entryPath);
                 if (!entry) {
                     continue; // Skip if entry could not be loaded
@@ -1230,13 +1230,13 @@ export class RepositoryManager {
             return null;
         }
 
-        const channelPath = Path.join(this.folderPath, channelRef.path);
+        const channelPath = safeJoinPath(this.folderPath, channelRef.path);
         const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
         const entries = archiveChannel.getData().entries;
         const entryIndex = entries.findIndex(e => e.code === submissionCode);
         if (entryIndex !== -1) {
             const entryRef = entries[entryIndex];
-            const entryPath = Path.join(channelPath, entryRef.path);
+            const entryPath = safeJoinPath(channelPath, entryRef.path);
             const entry = await ArchiveEntry.fromFolder(entryPath);
             if (!entry) {
                 return null; // Skip if entry could not be loaded
@@ -1284,7 +1284,7 @@ export class RepositoryManager {
         let submissionChannel: GuildTextBasedChannel | null = null;
         let entryData: ArchiveEntryData | null = null;
         try {
-            const channelPath = Path.join(this.folderPath, archiveChannelRef.path);
+            const channelPath = safeJoinPath(this.folderPath, archiveChannelRef.path);
             const archiveChannelData = await ArchiveChannel.fromFolder(channelPath);
 
 
@@ -1426,16 +1426,16 @@ export class RepositoryManager {
                 // Copy over all attachments and images
                 for (const image of entryData.images) {
                     if (!image.path) continue;
-                    const sourcePath = Path.join(submission.getProcessedImagesFolder(), image.path);
+                    const sourcePath = safeJoinPath(submission.getProcessedImagesFolder(), image.path);
                     const newBaseName = escapeString(splitFileName(image.name).basename);
-                    const destPath = Path.join(imageFolder, `${newBaseName}.png`);
+                    const destPath = safeJoinPath(imageFolder, `${newBaseName}.png`);
                     await fs.copyFile(sourcePath, destPath);
                     image.path = `images/${newBaseName}.png`;
                 }
 
                 for (const attachment of entryData.attachments) {
                     if (!attachment.path) continue;
-                    const sourcePath = Path.join(submission.getAttachmentFolder(), attachment.path);
+                    const sourcePath = safeJoinPath(submission.getAttachmentFolder(), attachment.path);
 
                     const { basename, ext } = splitFileName(attachment.name);
 
@@ -1443,7 +1443,7 @@ export class RepositoryManager {
                     const escapedExt = ext ? `.${escapeString(ext)}` : '';
                     const newKey = `${escapedName}${escapedExt}`;
 
-                    const destPath = Path.join(attachmentFolder, newKey);
+                    const destPath = safeJoinPath(attachmentFolder, newKey);
                     attachment.path = `attachments/${newKey}`;
 
                     if (!attachment.canDownload) {
@@ -1548,7 +1548,7 @@ export class RepositoryManager {
             throw new Error('Upload channel not found or is not text based');
         }
 
-        const channelPath = Path.join(this.folderPath, archiveChannelRef.path);
+        const channelPath = safeJoinPath(this.folderPath, archiveChannelRef.path);
         const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
 
         const existing = await this.findEntryBySubmissionId(newEntryData.id);
@@ -1564,7 +1564,7 @@ export class RepositoryManager {
             newEntryData.archivedAt = existing.entry.getData().archivedAt;
         }
 
-        const entryFolderPath = Path.join(channelPath, entryRef.path);
+        const entryFolderPath = safeJoinPath(channelPath, entryRef.path);
 
         if (!newEntryData.post) {
             newEntryData.post = {
@@ -1578,7 +1578,7 @@ export class RepositoryManager {
 
         let wasArchived = false;
         if (existing) {
-            const existingFolder = Path.join(existing.channel.getFolderPath(), existing.entryRef.path);
+            const existingFolder = safeJoinPath(existing.channel.getFolderPath(), existing.entryRef.path);
             if (existingFolder !== entryFolderPath) {
                 // If the folder is different, we need to rename the old folder
                 await this.git.mv(existingFolder, entryFolderPath);
@@ -1648,8 +1648,8 @@ export class RepositoryManager {
 
         const entry = new ArchiveEntry(newEntryData, entryFolderPath);
 
-        const imageFolder = Path.join(entryFolderPath, 'images');
-        const attachmentFolder = Path.join(entryFolderPath, 'attachments');
+        const imageFolder = safeJoinPath(entryFolderPath, 'images');
+        const attachmentFolder = safeJoinPath(entryFolderPath, 'attachments');
 
         await moveAttachments(newEntryData, imageFolder, attachmentFolder);
 
@@ -1714,7 +1714,7 @@ export class RepositoryManager {
         }
 
         // get comments
-        const commentsFile = Path.join(entryFolderPath, 'comments.json');
+        const commentsFile = safeJoinPath(entryFolderPath, 'comments.json');
         let comments: ArchiveComment[] = [];
         try {
             comments = JSON.parse(await fs.readFile(commentsFile, 'utf-8')) as ArchiveComment[];
@@ -1824,7 +1824,7 @@ export class RepositoryManager {
 
         if (imagesChanged) {
             await reportStatus('Setting thread images...');
-            const temp_dir = Path.join(this.guildHolder.getGuildFolder(), 'discord-image-temp', newEntryData.id);
+            const temp_dir = safeJoinPath(this.guildHolder.getGuildFolder(), 'discord-image-temp', newEntryData.id);
             await fs.mkdir(temp_dir, { recursive: true });
 
             const files = await PostEmbed.createImageFiles(newEntryData, this.folderPath, temp_dir, entryPathPart, archiveChannelDiscord.defaultForumLayout === ForumLayoutType.GalleryView);
@@ -1970,7 +1970,7 @@ export class RepositoryManager {
                                 continue; // Skip attachments that are already in the text
                             }
 
-                            const attachmentPath = Path.join(entryFolderPath, attachment.path);
+                            const attachmentPath = safeJoinPath(entryFolderPath, attachment.path);
                             if (await fs.access(attachmentPath).then(() => true).catch(() => false)) {
                                 const file = new AttachmentBuilder(attachmentPath);
                                 file.setName(attachment.name);
@@ -2148,10 +2148,10 @@ export class RepositoryManager {
                 for (const entry of entries) {
                     if (entry.name === '.DS_Store') {
                         // delete .DS_Store files
-                        await fs.unlink(Path.join(currentPath, entry.name));
+                        await fs.unlink(safeJoinPath(currentPath, entry.name));
                         continue; // Skip .DS_Store files
                     }
-                    const fullPath = Path.join(currentPath, entry.name);
+                    const fullPath = safeJoinPath(currentPath, entry.name);
                     if (entry.isDirectory()) {
                         stack.push(fullPath);
                     } else {
@@ -2302,7 +2302,7 @@ export class RepositoryManager {
 
             const entryPath = found.entry.getFolderPath();
 
-            const commentsFile = Path.join(entryPath, 'comments.json');
+            const commentsFile = safeJoinPath(entryPath, 'comments.json');
             let comments: ArchiveComment[] = [];
 
             try {
@@ -2327,10 +2327,10 @@ export class RepositoryManager {
                 return;
             }
 
-            const commentsAttachmentFolder = Path.join(entryPath, 'comments_attachments');
+            const commentsAttachmentFolder = safeJoinPath(entryPath, 'comments_attachments');
             if (existingComment && existingComment.attachments.length > 0) {
                 for (const attachment of existingComment.attachments) {
-                    const attachmentPath = Path.join(commentsAttachmentFolder, getFileKey(attachment));
+                    const attachmentPath = safeJoinPath(commentsAttachmentFolder, getFileKey(attachment));
                     if (attachment.canDownload && !attachments.some(a => a.id === attachment.id)) {
                         await this.git.rm(attachmentPath);
                     }
@@ -2342,7 +2342,7 @@ export class RepositoryManager {
                     await fs.mkdir(commentsAttachmentFolder, { recursive: true });
                     await processAttachments(attachments, commentsAttachmentFolder, this.guildHolder.getBot(), false);
                     for (const attachment of attachments) {
-                        const attachmentPath = Path.join(commentsAttachmentFolder, getFileKey(attachment));
+                        const attachmentPath = safeJoinPath(commentsAttachmentFolder, getFileKey(attachment));
                         if (attachment.canDownload) {
                             attachment.path = `comments_attachments/${getFileKey(attachment)}`;
                             await this.git.add(attachmentPath);
@@ -2458,7 +2458,7 @@ export class RepositoryManager {
 
             const entryPath = found.entry.getFolderPath();
 
-            const commentsFile = Path.join(entryPath, 'comments.json');
+            const commentsFile = safeJoinPath(entryPath, 'comments.json');
 
             let comments: ArchiveComment[] = [];
             try {
@@ -2475,10 +2475,10 @@ export class RepositoryManager {
 
 
             if (deletedComment.attachments.length > 0) {
-                const commentsAttachmentFolder = Path.join(entryPath, 'comments_attachments');
+                const commentsAttachmentFolder = safeJoinPath(entryPath, 'comments_attachments');
 
                 for (const attachment of deletedComment.attachments) {
-                    const attachmentPath = Path.join(commentsAttachmentFolder, getFileKey(attachment));
+                    const attachmentPath = safeJoinPath(commentsAttachmentFolder, getFileKey(attachment));
                     if (attachment.canDownload) {
                         try {
                             await this.git.rm(attachmentPath);
@@ -2493,12 +2493,12 @@ export class RepositoryManager {
             const hasAnyAttachmentsLeft = comments.some(c => c.attachments.filter(a => a.canDownload).length > 0);
             if (!hasAnyAttachmentsLeft) {
                 // If no attachments left, delete the comments attachments folder
-                const commentsAttachmentFolder = Path.join(entryPath, 'comments_attachments');
+                const commentsAttachmentFolder = safeJoinPath(entryPath, 'comments_attachments');
                 // check if folder exists
                 if (await fs.access(commentsAttachmentFolder).then(() => true).catch(() => false)) {
 
                     for (const file of await fs.readdir(commentsAttachmentFolder)) {
-                        const filePath = Path.join(commentsAttachmentFolder, file);
+                        const filePath = safeJoinPath(commentsAttachmentFolder, file);
                         const stat = await fs.lstat(filePath);
                         if (stat.isFile()) {
                             await fs.unlink(filePath);
@@ -2603,10 +2603,10 @@ export class RepositoryManager {
                 for (const entry of entries) {
                     if (entry.name === '.DS_Store') {
                         // delete .DS_Store files
-                        await fs.unlink(Path.join(currentPath, entry.name));
+                        await fs.unlink(safeJoinPath(currentPath, entry.name));
                         continue; // Skip .DS_Store files
                     }
-                    const fullPath = Path.join(currentPath, entry.name);
+                    const fullPath = safeJoinPath(currentPath, entry.name);
                     if (entry.isDirectory()) {
                         stack.push(fullPath);
                     } else {
@@ -2810,10 +2810,10 @@ export class RepositoryManager {
         const entries: ArchiveEntryData[] = [];
         const channelRefs = await this.getChannelReferences();
         for (const channelRef of channelRefs) {
-            const channelPath = Path.join(this.folderPath, channelRef.path);
+            const channelPath = safeJoinPath(this.folderPath, channelRef.path);
             const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
             for (const entryRef of archiveChannel.getData().entries) {
-                const entryPath = Path.join(channelPath, entryRef.path);
+                const entryPath = safeJoinPath(channelPath, entryRef.path);
                 const entry = await ArchiveEntry.fromFolder(entryPath);
                 if (!entry) {
                     continue; // Skip if entry cannot be loaded
@@ -2832,11 +2832,11 @@ export class RepositoryManager {
 
     async updateEntryReadme(entry: ArchiveEntry): Promise<string> {
         const entryData = entry.getData();
-        const readmePath = Path.join(entry.getFolderPath(), 'README.md');
+        const readmePath = safeJoinPath(entry.getFolderPath(), 'README.md');
 
         // Generate the README content
         let comments: ArchiveComment[] = [];
-        const commentsFile = Path.join(entry.getFolderPath(), 'comments.json');
+        const commentsFile = safeJoinPath(entry.getFolderPath(), 'comments.json');
         try {
             comments = JSON.parse(await fs.readFile(commentsFile, 'utf-8')) as
                 ArchiveComment[];
@@ -2857,7 +2857,7 @@ export class RepositoryManager {
 
         const channelRefs = await this.getChannelReferences();
         for (const channelRef of channelRefs) {
-            const channelPath = Path.join(this.folderPath, channelRef.path);
+            const channelPath = safeJoinPath(this.folderPath, channelRef.path);
             const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
             numPosts += archiveChannel.getData().entries.length;
         }
@@ -2876,10 +2876,10 @@ export class RepositoryManager {
 
         const channelRefs = await this.getChannelReferences();
         for (const channelRef of channelRefs) {
-            const channelPath = Path.join(this.folderPath, channelRef.path);
+            const channelPath = safeJoinPath(this.folderPath, channelRef.path);
             const archiveChannel = await ArchiveChannel.fromFolder(channelPath);
             for (const entryRef of archiveChannel.getData().entries) {
-                const entryPath = Path.join(channelPath, entryRef.path);
+                const entryPath = safeJoinPath(channelPath, entryRef.path);
                 const entry = await ArchiveEntry.fromFolder(entryPath);
                 if (!entry) {
                     continue; // Skip if entry cannot be loaded

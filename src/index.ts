@@ -2,7 +2,7 @@ import { Bot } from "./Bot.js";
 import { APIServer } from "./api/APIServer.js";
 import { ChildProcess, spawn, spawnSync } from "child_process";
 import fs from "fs/promises";
-import path from "path";
+import { safeJoinPath } from "./utils/SafePath.js";
 
 type ManagedPythonServer = {
 	stop: () => Promise<void>;
@@ -10,7 +10,7 @@ type ManagedPythonServer = {
 };
 
 const SHUTDOWN_TIMEOUT_MS = 5_000;
-const PYTHON_DIR = path.join(process.cwd(), 'python');
+const PYTHON_DIR = safeJoinPath(process.cwd(), 'python');
 const READY_POLL_INTERVAL_MS = 1_000;
 
 function sleep(ms: number): Promise<void> {
@@ -58,11 +58,11 @@ function runCommandWithEnv(command: string, args: string[], cwd: string, env: No
 }
 
 function buildInstallPaths() {
-	const cacheRoot = process.env.PYTHON_INSTALL_CACHE_ROOT?.trim() || path.join(process.cwd(), '.python-install-cache');
+	const cacheRoot = process.env.PYTHON_INSTALL_CACHE_ROOT?.trim() || safeJoinPath(process.cwd(), '.python-install-cache');
 	return {
-		tmpDir: process.env.PYTHON_TMPDIR?.trim() || path.join(cacheRoot, 'tmp'),
-		pipCacheDir: process.env.PIP_CACHE_DIR?.trim() || path.join(cacheRoot, 'pip-cache'),
-		uvCacheDir: process.env.UV_CACHE_DIR?.trim() || path.join(cacheRoot, 'uv-cache')
+		tmpDir: process.env.PYTHON_TMPDIR?.trim() || safeJoinPath(cacheRoot, 'tmp'),
+		pipCacheDir: process.env.PIP_CACHE_DIR?.trim() || safeJoinPath(cacheRoot, 'pip-cache'),
+		uvCacheDir: process.env.UV_CACHE_DIR?.trim() || safeJoinPath(cacheRoot, 'uv-cache')
 	};
 }
 

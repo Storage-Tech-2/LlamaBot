@@ -3,8 +3,8 @@ import { Submission } from "./Submission.js";
 import { SubmissionConfigs } from "./SubmissionConfigs.js";
 import { Revision, RevisionReference } from "./Revision.js";
 import fs from "fs/promises";
-import path from "path";
 import { RevisionEmbed } from "../embed/RevisionEmbed.js";
+import { safeJoinPath } from "../utils/SafePath.js";
 
 export class RevisionManager {
     submission: Submission;
@@ -21,7 +21,7 @@ export class RevisionManager {
 
     public async getRevisionById(id: Snowflake): Promise<Revision | null> {
         try {
-            const filePath = path.join(this.revisionsFolder, `${id}.json`);
+            const filePath = safeJoinPath(this.revisionsFolder, `${id}.json`);
             const data = await fs.readFile(filePath, 'utf-8');
             const revision: Revision = JSON.parse(data);
             if (!revision.references) revision.references = []; // legacy
@@ -34,7 +34,7 @@ export class RevisionManager {
 
     public async createRevision(revision: Revision): Promise<Revision> {
 
-        const filePath = path.join(this.revisionsFolder, `${revision.id}.json`);
+        const filePath = safeJoinPath(this.revisionsFolder, `${revision.id}.json`);
 
         // if the folder doesn't exist, create it
         if (!await fs.access(this.revisionsFolder).then(() => true).catch(() => false)) {
@@ -56,7 +56,7 @@ export class RevisionManager {
     }
 
     public async updateRevision(revision: Revision) {
-        const filePath = path.join(this.revisionsFolder, `${revision.id}.json`);
+        const filePath = safeJoinPath(this.revisionsFolder, `${revision.id}.json`);
         // if the folder doesn't exist, create it
         if (!await fs.access(this.revisionsFolder).then(() => true).catch(() =>
             false)) {

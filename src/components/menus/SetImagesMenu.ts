@@ -4,7 +4,6 @@ import { Menu } from "../../interface/Menu.js";
 import { canEditSubmission, escapeDiscordString, replyEphemeral, replyReplace, truncateFileName, truncateStringWithEllipsis } from "../../utils/Util.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
-import path from "path";
 import { SetAttachmentsMenu } from "./SetAttachmentsMenu.js";
 import { SkipImagesButton } from "../buttons/SkipImagesButton.js";
 import { filterImages, getAttachmentDescriptionForMenus, getFileKey } from "../../utils/AttachmentUtils.js";
@@ -14,6 +13,7 @@ import { AttachmentAskDescriptionData, BaseAttachment } from "../../submissions/
 import { SetDescriptionButton } from "../buttons/SetDescriptionButton.js";
 import { SkipDescriptionButton } from "../buttons/SkipDescriptionButton.js";
 import { EditInfoMultipleButton } from "../buttons/EditInfoMultipleButton.js";
+import { safeJoinPath } from "../../utils/SafePath.js";
 
 export class SetImagesMenu implements Menu {
     getID(): string {
@@ -205,7 +205,7 @@ export class SetImagesMenu implements Menu {
         const processedFolder = submission.getProcessedImagesFolder();
         for (const attachment of newImages) {
             const key = getFileKey(attachment, 'png');
-            const processedPath = path.join(processedFolder, key)
+            const processedPath = safeJoinPath(processedFolder, key)
             const file = new AttachmentBuilder(processedPath)
             files.push(file);
 

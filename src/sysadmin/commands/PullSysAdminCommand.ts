@@ -1,9 +1,9 @@
 import { exec } from "child_process";
 import fs from "fs/promises";
-import path from "path";
 import { Message } from "discord.js";
 import { SysAdminCommand } from "../SysAdminCommand.js";
 import { SysAdminCommandContext } from "../SysAdminCommandContext.js";
+import { safeJoinPath } from "../../utils/SafePath.js";
 
 export class PullSysAdminCommand implements SysAdminCommand {
     public aliases = ["pull"];
@@ -12,7 +12,7 @@ export class PullSysAdminCommand implements SysAdminCommand {
         await message.reply("Running git pull...");
 
         try {
-            await fs.access(path.join(process.cwd(), ".git"));
+            await fs.access(safeJoinPath(process.cwd(), ".git"));
         } catch (error) {
             console.error("Not a git repository:", error);
             await message.reply("Not a git repository. Cannot refresh.");

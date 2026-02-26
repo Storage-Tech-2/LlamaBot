@@ -14,6 +14,7 @@ import { base64ToInt8Array, EmbeddingsEntry, EmbeddingsSearchResult, generateDoc
 import { type HierarchicalNSW } from 'hnswlib-node';
 import { TemporaryCache } from "./TemporaryCache.js";
 import { runDictionaryStorageMigration } from "./DictionaryStorageMigration.js";
+import { safeJoinPath } from "../utils/SafePath.js";
 
 export enum DictionaryEntryStatus {
     PENDING = "PENDING",
@@ -85,15 +86,15 @@ export class DictionaryManager {
     }
 
     getEntriesPath(): string {
-        return Path.join(this.folderPath, 'entries');
+        return safeJoinPath(this.folderPath, 'entries');
     }
 
     getSubmissionEntriesPath(): string {
-        return Path.join(this.submissionsFolderPath, 'entries');
+        return safeJoinPath(this.submissionsFolderPath, 'entries');
     }
 
     getConfigPath(): string {
-        return Path.join(this.folderPath, 'config.json');
+        return safeJoinPath(this.folderPath, 'config.json');
     }
 
     async getEntry(id: Snowflake): Promise<DictionaryEntry | null> {
@@ -105,11 +106,11 @@ export class DictionaryManager {
     }
 
     private getRepositoryEntryPath(id: Snowflake): string {
-        return Path.join(this.getEntriesPath(), `${id}.json`);
+        return safeJoinPath(this.getEntriesPath(), `${id}.json`);
     }
 
     private getSubmissionEntryPath(id: Snowflake): string {
-        return Path.join(this.getSubmissionEntriesPath(), `${id}.json`);
+        return safeJoinPath(this.getSubmissionEntriesPath(), `${id}.json`);
     }
 
     private async readEntryFromPath(entryPath: string): Promise<DictionaryEntry | null> {
@@ -195,11 +196,11 @@ export class DictionaryManager {
     }
 
     public getDictionaryEmbeddingPath(): string {
-        return Path.join(this.folderPath, 'embeddings.json');
+        return safeJoinPath(this.folderPath, 'embeddings.json');
     }
 
     public getHNSWIndexPath(): string {
-        return Path.join(this.folderPath, 'hnsw.idx');
+        return safeJoinPath(this.folderPath, 'hnsw.idx');
     }
 
     async rebuildIndexAndEmbeddings(): Promise<void> {
@@ -466,7 +467,7 @@ export class DictionaryManager {
             if (!file.endsWith('.json')) {
                 continue;
             }
-            const entry = await this.readEntryFromPath(Path.join(entriesPath, file));
+            const entry = await this.readEntryFromPath(safeJoinPath(entriesPath, file));
             if (entry) {
                 entries.push(entry);
             }

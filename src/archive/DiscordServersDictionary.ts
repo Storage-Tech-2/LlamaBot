@@ -1,11 +1,11 @@
 import { Snowflake } from "discord.js"
 import fs from "fs/promises";
-import Path from "path";
 import { RepositoryManager } from "./RepositoryManager.js";
 import { ReferenceType } from "../utils/ReferenceUtils.js";
 import { ArchiveEntry } from "./ArchiveEntry.js";
 import { ArchiveEntryReference } from "./ArchiveChannel.js";
 import { ArchiveChannelReference } from "./RepositoryConfigs.js";
+import { safeJoinPath } from "../utils/SafePath.js";
 
 export type DiscordServerEntry = {
     id: Snowflake,
@@ -26,7 +26,7 @@ export class DiscordServersDictionary {
     }
 
     getConfigPath(): string {
-        return Path.join(this.folderPath, `discords.json`);
+        return safeJoinPath(this.folderPath, `discords.json`);
     }
 
     async getCachedServers(): Promise<DiscordServerEntry[]> {

@@ -4,12 +4,12 @@ import { Modal } from "../../interface/Modal.js";
 import { canEditSubmission, escapeDiscordString, replyEphemeral } from "../../utils/Util.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { filterImages, getFileKey } from "../../utils/AttachmentUtils.js";
-import path from "path";
 import { SetAttachmentsMenu } from "../menus/SetAttachmentsMenu.js";
 import { AttachmentSource, BaseAttachment } from "../../submissions/Attachment.js";
 import { AuthorType } from "../../submissions/Author.js";
 import { SetImagesMenu } from "../menus/SetImagesMenu.js";
 import { EditInfoMultipleButton } from "../buttons/EditInfoMultipleButton.js";
+import { safeJoinPath } from "../../utils/SafePath.js";
 
 export class AddImageModal implements Modal {
     getID(): string {
@@ -201,7 +201,7 @@ export class AddImageModal implements Modal {
 
         const processedFolder = submission.getProcessedImagesFolder();
         const key = getFileKey(imageObj, 'png');
-        const processedPath = path.join(processedFolder, key)
+        const processedPath = safeJoinPath(processedFolder, key)
         const file = new AttachmentBuilder(processedPath);
         const embed = new EmbedBuilder()
             .setTitle(escapeDiscordString(imageObj.name))

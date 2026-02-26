@@ -10,6 +10,7 @@ import { MCMeta } from './MCMeta.js'
 import { deepClone, escapeDiscordString, escapeString, formatSize, getMessageAuthor, truncateStringWithEllipsis } from './Util.js'
 import { Author } from '../submissions/Author.js'
 import { findWorldsInZip, optimizeWorldsInZip } from './WDLUtils.js'
+import { safeJoinPath } from './SafePath.js'
 import { createHash } from 'crypto'
 import nbt from 'prismarine-nbt';
 
@@ -18,8 +19,8 @@ const DISCORD_ATTACHMENT_REGEX = /^https:\/\/(?:cdn\.discordapp\.com|media\.disc
 
 export async function changeImageName(processed_folder: string, oldImage: BaseAttachment, newImage: BaseAttachment): Promise<void> {
 
-    const oldPath = Path.join(processed_folder, getFileKey(oldImage, 'png'));
-    const newPath = Path.join(processed_folder, getFileKey(newImage, 'png'));
+    const oldPath = safeJoinPath(processed_folder, getFileKey(oldImage, 'png'));
+    const newPath = safeJoinPath(processed_folder, getFileKey(newImage, 'png'));
     try {
         await fs.rename(oldPath, newPath);
         newImage.path = getFileKey(newImage, 'png');
@@ -32,8 +33,8 @@ export async function changeAttachmentName(attachments_folder: string, oldAttach
     if (!newAttachment.canDownload || !newAttachment.path) {
         return;
     }
-    const oldPath = Path.join(attachments_folder, getFileKey(oldAttachment));
-    const newPath = Path.join(attachments_folder, getFileKey(newAttachment));
+    const oldPath = safeJoinPath(attachments_folder, getFileKey(oldAttachment));
+    const newPath = safeJoinPath(attachments_folder, getFileKey(newAttachment));
 
     try {
         await fs.rename(oldPath, newPath);
@@ -91,7 +92,7 @@ export async function processImages(images: Image[], download_folder: string, pr
         // check if the file is in the images list
         const fileKey = file.toLowerCase();
         if (!images.some(image => getFileKey(image, 'png') === fileKey)) {
-            const filePath = Path.join(processed_folder, file);
+            const filePath = safeJoinPath(processed_folder, file);
             try {
                 await fs.unlink(filePath);
             } catch (err) {
@@ -105,7 +106,7 @@ export async function processImages(images: Image[], download_folder: string, pr
 
     await Promise.all(images.map(async (image, i) => {
         const processedKey = getFileKey(image, 'png');
-        const processedPath = Path.join(processed_folder, processedKey);
+        const processedPath = safeJoinPath(processed_folder, processedKey);
         // If the processed image already exists, skip processing
         if (await fs.access(processedPath).then(() => true).catch(() => false)) {
             // set path though
@@ -113,7 +114,7 @@ export async function processImages(images: Image[], download_folder: string, pr
             return;
         }
 
-        const downloadPath = Path.join(download_folder, getFileKey(image));
+        const downloadPath = safeJoinPath(download_folder, getFileKey(image));
         let imageData;
         try {
             imageData = await got(refreshedURLs[i], { responseType: 'buffer' });
@@ -172,7 +173,7 @@ export function filterImages<T extends BaseAttachment>(attachments: T[]): T[] {
 
 
 export async function processImageForDiscord(file_path: string, temp_dir: string, num_images: number, image_idx: number, isGalleryView: boolean): Promise<string> {
-    const output_path = Path.join(temp_dir, `processed_${image_idx}.png`);
+    const output_path = safeJoinPath(temp_dir, `processed_${image_idx}.png`);
     let newWidth = 386 * 2;
     let newHeight = 258 * 2;
     let padding = 0;
@@ -288,7 +289,7 @@ export async function processAttachments(attachments: Attachment[], attachments_
             // check if the file is in the attachments list
             const fileKey = file.toLowerCase();
             if (!attachments.some(attachment => getFileKey(attachment) === fileKey)) {
-                const filePath = Path.join(attachments_folder, file);
+                const filePath = safeJoinPath(attachments_folder, file);
                 try {
                     await fs.unlink(filePath);
                 } catch (err) {
@@ -305,7 +306,7 @@ export async function processAttachments(attachments: Attachment[], attachments_
     await Promise.all(attachments.map(async (attachment, index) => {
         const key = getFileKey(attachment);
         if (attachment.canDownload && !attachment.path) {
-            const attachmentPath = Path.join(attachments_folder, key);
+            const attachmentPath = safeJoinPath(attachments_folder, key);
 
             // If the attachment already exists, skip download
             if (!await fs.access(attachmentPath).then(() => true).catch(() => false)) {
@@ -333,7 +334,7 @@ export async function analyzeAttachments(attachments: Attachment[], attachments_
 
     await Promise.all(attachments.map(async (attachment) => {
         if (attachment.canDownload && attachment.path) {
-            const attachmentPath = Path.join(attachments_folder, attachment.path);
+            const attachmentPath = safeJoinPath(attachments_folder, attachment.path);
             if (!attachment.size) {
                 const fileMetadata = await fs.stat(attachmentPath).catch(() => null);
                 if (fileMetadata) {
@@ -477,13 +478,13 @@ export async function optimizeAttachments(
     let tempIndex = 0;
     await fs.mkdir(temp_folder, { recursive: true });
 
-    const optimized_folder = Path.join(temp_folder, 'optimized');
+    const optimized_folder = safeJoinPath(temp_folder, 'optimized');
     await fs.mkdir(optimized_folder, { recursive: true });
 
     for (const attachment of attachments) {
         if (attachment.wdl && attachment.path) {
-            const attachmentPath = Path.join(attachments_folder, attachment.path);
-            const optimizedPath = Path.join(optimized_folder, attachment.path);
+            const attachmentPath = safeJoinPath(attachments_folder, attachment.path);
+            const optimizedPath = safeJoinPath(optimized_folder, attachment.path);
 
             const existsInOptimized = await fs.access(optimizedPath).then(() => true).catch(() => false);
             if (existsInOptimized) { // do nothing if already optimized
@@ -500,7 +501,7 @@ export async function optimizeAttachments(
             await progressCallback(`Optimizing attachment ${attachment.name}...`);
             // make temp folder
 
-            const tempAttachmentPath = Path.join(temp_folder, `temp_${tempIndex++}`);
+            const tempAttachmentPath = safeJoinPath(temp_folder, `temp_${tempIndex++}`);
 
             await fs.mkdir(tempAttachmentPath);
             try {

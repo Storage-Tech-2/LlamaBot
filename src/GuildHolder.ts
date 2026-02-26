@@ -1,7 +1,6 @@
 import { ActionRowBuilder, AnyThreadChannel, ButtonBuilder, ChannelType, EmbedBuilder, Guild, GuildAuditLogsEntry, GuildMember, Message, MessageFlags, Role, PartialGuildMember, Snowflake, Attachment, GuildChannel, PartialMessage, TextChannel, TextThreadChannel, PermissionFlagsBits } from "discord.js";
 import { Bot, SysAdmin } from "./Bot.js";
 import { ConfigManager } from "./config/ConfigManager.js";
-import Path from "path";
 import { GuildConfigs } from "./config/GuildConfigs.js";
 import { SubmissionsManager } from "./submissions/SubmissionsManager.js";
 import { RepositoryManager } from "./archive/RepositoryManager.js";
@@ -31,6 +30,7 @@ import { AliasManager } from "./support/AliasManager.js";
 import { LiftTimeoutButton } from "./components/buttons/LiftTimeoutButton.js";
 import { BanUserButton } from "./components/buttons/BanUserButton.js";
 import { PublishCommitMessage } from "./submissions/Publish.js";
+import { safeJoinPath } from "./utils/SafePath.js";
 /**
  * GuildHolder is a class that manages guild-related data.
  */
@@ -101,16 +101,16 @@ export class GuildHolder {
         this.guild = guild;
         this.globalDiscordServersDictionary = globalDiscordServersDictionary;
         this.antiNukeManager = new AntiNukeManager(this);
-        this.config = new ConfigManager(Path.join(this.getGuildFolder(), 'config.json'));
-        this.submissions = new SubmissionsManager(this, Path.join(this.getGuildFolder(), 'submissions'));
-        this.repositoryManager = new RepositoryManager(this, Path.join(this.getGuildFolder(), 'archive'), this.globalDiscordServersDictionary);
+        this.config = new ConfigManager(safeJoinPath(this.getGuildFolder(), 'config.json'));
+        this.submissions = new SubmissionsManager(this, safeJoinPath(this.getGuildFolder(), 'submissions'));
+        this.repositoryManager = new RepositoryManager(this, safeJoinPath(this.getGuildFolder(), 'archive'), this.globalDiscordServersDictionary);
         this.dictionaryManager = this.repositoryManager.getDictionaryManager();
         this.discordServersDictionary = this.repositoryManager.getDiscordServersDictionary();
-        this.userManager = new UserManager(Path.join(this.getGuildFolder(), 'users'));
-        this.userSubscriptionManager = new UserSubscriptionManager(Path.join(this.getGuildFolder(), 'subscriptions.json'));
-        this.channelSubscriptionManager = new ChannelSubscriptionManager(Path.join(this.getGuildFolder(), 'channel_subscriptions.json'));
-        this.privateFactBase = new PrivateFactBase(Path.join(this.getGuildFolder(), 'facts'));
-        this.aliasManager = new AliasManager(Path.join(this.getGuildFolder(), 'aliases.json'));
+        this.userManager = new UserManager(safeJoinPath(this.getGuildFolder(), 'users'));
+        this.userSubscriptionManager = new UserSubscriptionManager(safeJoinPath(this.getGuildFolder(), 'subscriptions.json'));
+        this.channelSubscriptionManager = new ChannelSubscriptionManager(safeJoinPath(this.getGuildFolder(), 'channel_subscriptions.json'));
+        this.privateFactBase = new PrivateFactBase(safeJoinPath(this.getGuildFolder(), 'facts'));
+        this.aliasManager = new AliasManager(safeJoinPath(this.getGuildFolder(), 'aliases.json'));
         this.config.loadConfig().then(async () => {
             // Set guild name and ID in the config
             this.config.setConfig(GuildConfigs.GUILD_NAME, guild.name);
@@ -150,7 +150,7 @@ export class GuildHolder {
      * @returns The path to the guild's configuration folder.
      */
     public getGuildFolder(): string {
-        return Path.join(process.cwd(), 'config', this.getGuildId());
+        return safeJoinPath(process.cwd(), 'config', this.getGuildId());
     }
 
     public getSubmissionsChannelId(): Snowflake {

@@ -1,6 +1,5 @@
 import { ActionRowBuilder, AttachmentBuilder, EmbedBuilder, Message } from "discord.js";
 import { areObjectsIdentical, buildGithubMediaContentURL, buildGithubRawContentURL, escapeString, getAuthorsString, getGithubOwnerAndProject, splitIntoChunks } from "../utils/Util.js";
-import Path from "path";
 import { Attachment } from "../submissions/Attachment.js";
 import { ArchiveEntryData } from "../archive/ArchiveEntry.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
@@ -11,6 +10,7 @@ import { postToMarkdown } from "../utils/MarkdownUtils.js";
 import { transformOutputWithReferencesForDiscord } from "../utils/ReferenceUtils.js";
 import { buildEntrySlug } from "../utils/SlugUtils.js";
 import { RepositoryConfigs } from "../archive/RepositoryConfigs.js";
+import { safeJoinPath } from "../utils/SafePath.js";
 
 export class PostEmbed {
     private embed: EmbedBuilder;
@@ -37,7 +37,7 @@ export class PostEmbed {
             }
 
             const key = escapeString(attachment.name);
-            const filePath = Path.join(entryFolderPath, attachment.path);
+            const filePath = safeJoinPath(entryFolderPath, attachment.path);
 
             // Check file size is less than 8MB
             const stats = await fs.stat(filePath);
@@ -262,7 +262,7 @@ export class PostEmbed {
         //   try {
         //             const images = this.config.getConfig(SubmissionConfigs.IMAGES) || [];
         //             const processedFolder = this.getProcessedImagesFolder();
-        //             const downloadFolder = Path.join(this.folderPath, 'downloaded_images');
+        //             const downloadFolder = safeJoinPath(this.folderPath, 'downloaded_images');
         //             await processImages(images, downloadFolder, processedFolder, false);
         //             this.imagesProcessing = false;
         //         } catch (error: any) {
@@ -277,7 +277,7 @@ export class PostEmbed {
             if (!image.path) {
                 return null
             }
-            const path = Path.join(archivePath, entryPathPart, image.path);
+            const path = safeJoinPath(archivePath, entryPathPart, image.path);
             let newPath = null;
             try {
                 newPath = await processImageForDiscord(path, temp_dir, images.length, i, isGalleryView);
