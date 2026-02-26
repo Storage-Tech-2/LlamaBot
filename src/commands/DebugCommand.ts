@@ -825,6 +825,7 @@ export class DebugCommand implements Command {
                 const attachments = submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) || [];
                 let submissionChanged = false;
                 const attachmentsFolder = submission.getAttachmentFolder();
+                const imagesFolder = submission.getProcessedImagesFolder();
 
                 for (const attachment of attachments) {
                     scannedSubmissionAttachments++;
@@ -854,7 +855,7 @@ export class DebugCommand implements Command {
                         continue;
                     }
 
-                    const attachmentPath = Path.join(attachmentsFolder, image.path);
+                    const attachmentPath = Path.join(imagesFolder, image.path);
                     const hash = await this.hashAttachmentFile(attachmentPath);
                     if (!hash) {
                         missingFiles++;
