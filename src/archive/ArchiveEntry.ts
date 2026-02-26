@@ -6,7 +6,7 @@ import { Tag } from "../submissions/Tag.js";
 import fs from "fs/promises";
 import { StyleInfo, SubmissionRecords } from "../utils/MarkdownUtils.js";
 import { Reference } from "../utils/ReferenceUtils.js";
-import { safeJoinPath } from "../utils/SafePath.js";
+import { safeJoinPath, safeWorkspacePath } from "../utils/SafePath.js";
 
 export type DiscordPostReference = {
     forumId: Snowflake;
@@ -53,7 +53,7 @@ export class ArchiveEntry {
 
     constructor(data: ArchiveEntryData, folderPath: string) {
         this.data = data;
-        this.folderPath = folderPath;
+        this.folderPath = safeWorkspacePath(folderPath);
     }
 
     public getData(): ArchiveEntryData {
@@ -105,10 +105,11 @@ export class ArchiveEntry {
     }
 
     public static async fromFolder(folder: string): Promise<ArchiveEntry | null> {
-        const dataPath = safeJoinPath(folder, 'data.json');
+        const safeFolder = safeWorkspacePath(folder);
+        const dataPath = safeJoinPath(safeFolder, 'data.json');
         try {
             const data: ArchiveEntryData = JSON.parse(await fs.readFile(dataPath, 'utf-8'));
-            const entry = new ArchiveEntry(data, folder);
+            const entry = new ArchiveEntry(data, safeFolder);
             return entry;
         } catch (error) {
             return null;

@@ -2,7 +2,7 @@ import { Bot } from "./Bot.js";
 import { APIServer } from "./api/APIServer.js";
 import { ChildProcess, spawn, spawnSync } from "child_process";
 import fs from "fs/promises";
-import { safeJoinPath } from "./utils/SafePath.js";
+import { safeJoinPath, safeWorkspacePathOrNull } from "./utils/SafePath.js";
 
 type ManagedPythonServer = {
 	stop: () => Promise<void>;
@@ -58,11 +58,20 @@ function runCommandWithEnv(command: string, args: string[], cwd: string, env: No
 }
 
 function buildInstallPaths() {
-	const cacheRoot = process.env.PYTHON_INSTALL_CACHE_ROOT?.trim() || safeJoinPath(process.cwd(), '.python-install-cache');
+	const defaultCacheRoot = safeJoinPath(process.cwd(), '.python-install-cache');
+	const cacheRootEnv = process.env.PYTHON_INSTALL_CACHE_ROOT?.trim();
+	const cacheRoot = cacheRootEnv ? (safeWorkspacePathOrNull(cacheRootEnv) || defaultCacheRoot) : defaultCacheRoot;
+
+	const resolveWorkspaceEnvPath = (value: string | undefined, fallbackPath: string): string => {
+		const trimmed = value?.trim();
+		if (!trimmed) return fallbackPath;
+		return safeWorkspacePathOrNull(trimmed) || fallbackPath;
+	};
+
 	return {
-		tmpDir: process.env.PYTHON_TMPDIR?.trim() || safeJoinPath(cacheRoot, 'tmp'),
-		pipCacheDir: process.env.PIP_CACHE_DIR?.trim() || safeJoinPath(cacheRoot, 'pip-cache'),
-		uvCacheDir: process.env.UV_CACHE_DIR?.trim() || safeJoinPath(cacheRoot, 'uv-cache')
+		tmpDir: resolveWorkspaceEnvPath(process.env.PYTHON_TMPDIR, safeJoinPath(cacheRoot, 'tmp')),
+		pipCacheDir: resolveWorkspaceEnvPath(process.env.PIP_CACHE_DIR, safeJoinPath(cacheRoot, 'pip-cache')),
+		uvCacheDir: resolveWorkspaceEnvPath(process.env.UV_CACHE_DIR, safeJoinPath(cacheRoot, 'uv-cache'))
 	};
 }
 

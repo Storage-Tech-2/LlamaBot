@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import Path from "path";
 import type { Snowflake } from "discord.js";
-import { safeJoinPath } from "../utils/SafePath.js";
+import { safeJoinPath, safeWorkspacePath } from "../utils/SafePath.js";
 
 type DictionaryEntryStatusValue = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -158,6 +158,9 @@ export async function runDictionaryStorageMigration(
     submissionsEntriesPath: string,
     repositoryStaging: RepositoryStaging
 ): Promise<DictionaryStorageMigrationResult> {
+    repositoryEntriesPath = safeWorkspacePath(repositoryEntriesPath);
+    submissionsEntriesPath = safeWorkspacePath(submissionsEntriesPath);
+
     await Promise.all([
         fs.mkdir(repositoryEntriesPath, { recursive: true }),
         fs.mkdir(submissionsEntriesPath, { recursive: true }),

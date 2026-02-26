@@ -4,7 +4,7 @@ import { SubmissionConfigs } from "./SubmissionConfigs.js";
 import { Revision, RevisionReference } from "./Revision.js";
 import fs from "fs/promises";
 import { RevisionEmbed } from "../embed/RevisionEmbed.js";
-import { safeJoinPath } from "../utils/SafePath.js";
+import { safeJoinPath, safeWorkspacePath } from "../utils/SafePath.js";
 
 export class RevisionManager {
     submission: Submission;
@@ -12,7 +12,7 @@ export class RevisionManager {
 
     constructor(submission: Submission, revisionsFolder: string) {
         this.submission = submission;
-        this.revisionsFolder = revisionsFolder;
+        this.revisionsFolder = safeWorkspacePath(revisionsFolder);
     }
 
     public getRevisionsList(): RevisionReference[] {

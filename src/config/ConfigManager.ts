@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { safeWorkspacePath } from '../utils/SafePath.js';
 
 /**
  * Config type defines the structure for the configuration settings.
@@ -29,7 +30,7 @@ export class ConfigManager {
     private configChanged = false;
 
     constructor(filePath: string) {
-        this.configFilePath = filePath;
+        this.configFilePath = safeWorkspacePath(filePath);
     }
 
     public setChangeListener(listener: () => void): void {

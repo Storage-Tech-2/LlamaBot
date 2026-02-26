@@ -1,10 +1,11 @@
 import { Snowflake } from 'discord.js';
 import fs from 'fs/promises';
+import { safeWorkspacePath } from '../utils/SafePath.js';
 export type UserSubscriptions = Record<Snowflake, Snowflake[]>;
 
 export class UserSubscriptionManager {
     constructor(private filePath: string) {
-
+        this.filePath = safeWorkspacePath(filePath);
     }
 
     async getSubscriptions(): Promise<UserSubscriptions> {

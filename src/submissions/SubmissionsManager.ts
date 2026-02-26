@@ -2,7 +2,7 @@ import { Snowflake } from "discord.js";
 import { Submission } from "./Submission.js";
 import fs from "fs/promises";
 import { GuildHolder } from "../GuildHolder.js";
-import { safeJoinPath } from "../utils/SafePath.js";
+import { safeJoinPath, safeWorkspacePath } from "../utils/SafePath.js";
 
 export class SubmissionsManager {
     private submissions: Map<Snowflake, Submission>;
@@ -14,7 +14,7 @@ export class SubmissionsManager {
         this.submissions = new Map();
         this.submissionPromises = new Map();
         this.guildHolder = guildHolder;
-        this.storagePath = storagePath;
+        this.storagePath = safeWorkspacePath(storagePath);
     }
 
     /**

@@ -30,7 +30,7 @@ import { AttachmentSource } from "../submissions/Attachment.js";
 import { GlobalTag } from "./RepositoryConfigs.js";
 import { Tag } from "../submissions/Tag.js";
 import { PublishCommitMessage } from "../submissions/Publish.js";
-import { safeJoinPath } from "../utils/SafePath.js";
+import { safeJoinPath, safeWorkspacePath } from "../utils/SafePath.js";
 
 export class RepositoryManager {
     public folderPath: string;
@@ -47,7 +47,7 @@ export class RepositoryManager {
     private channelsCache: TemporaryCache<ArchiveChannelReference[]>;
     constructor(guildHolder: GuildHolder, folderPath: string, globalDiscordServersDictionary?: DiscordServersDictionary) {
         this.guildHolder = guildHolder;
-        this.folderPath = folderPath;
+        this.folderPath = safeWorkspacePath(folderPath);
         this.configManager = new ConfigManager(this.getConfigFilePath());
         this.dictionaryManager = new DictionaryManager(
             this.guildHolder,

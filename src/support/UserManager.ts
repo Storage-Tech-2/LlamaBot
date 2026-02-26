@@ -1,16 +1,16 @@
 import fs from 'fs/promises';
 import { AttachmentsState, UserData } from './UserData.js';
 import { Snowflake } from 'discord.js';
-import { safeJoinPath } from '../utils/SafePath.js';
+import { safeJoinPath, safeWorkspacePath } from '../utils/SafePath.js';
 
 export class UserManager {
     private folderPath: string;
 
     constructor(folderPath: string) {
-        this.folderPath = folderPath;
-        fs.mkdir(folderPath, { recursive: true })
+        this.folderPath = safeWorkspacePath(folderPath);
+        fs.mkdir(this.folderPath, { recursive: true })
             .catch(error => {
-                console.error(`Failed to create user data folder at ${folderPath}:`, error);
+                console.error(`Failed to create user data folder at ${this.folderPath}:`, error);
             });
     }
 

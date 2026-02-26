@@ -1,6 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { Snowflake } from "discord.js";
+import { safeWorkspacePath } from "../utils/SafePath.js";
 
 type GuildWhitelistData = {
     guildIds: Snowflake[];
@@ -9,7 +10,9 @@ type GuildWhitelistData = {
 export class GuildWhitelistManager {
     private guildIds: Set<Snowflake> = new Set();
 
-    constructor(private readonly filePath: string) { }
+    constructor(private readonly filePath: string) {
+        this.filePath = safeWorkspacePath(filePath);
+    }
 
     public async load(): Promise<void> {
         try {

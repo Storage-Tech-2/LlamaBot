@@ -1,10 +1,12 @@
 import { TemporaryCache } from "../archive/TemporaryCache.js";
 import fs from "fs/promises";
+import { safeWorkspacePath } from "../utils/SafePath.js";
 
 export class AliasManager {
 
     private aliasesCache: TemporaryCache<Map<string, string>>;
     constructor(private filePath: string) {
+        this.filePath = safeWorkspacePath(filePath);
         this.aliasesCache = new TemporaryCache<Map<string, string>>(
             10 * 60 * 1000,
             () => this.loadAliasesFromFile()

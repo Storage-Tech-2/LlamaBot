@@ -5,7 +5,7 @@ import { pipeline } from 'stream/promises';
 import { spawn } from 'child_process';
 import yauzl from 'yauzl';
 import nbt from 'prismarine-nbt';
-import { safeJoinPath } from './SafePath.js';
+import { safeJoinPath, safeResolvePath, safeWorkspacePath } from './SafePath.js';
 
 const MAX_ENTRY_UNCOMPRESSED_BYTES = 1 * 1024 * 1024 * 1024; // 1 GB per entry
 const MAX_TOTAL_UNCOMPRESSED_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB overall
@@ -183,14 +183,15 @@ type ArchiveContext = {
  * Returns metadata for all worlds with paths relative to the input zip.
  */
 export async function optimizeWorldsInZip(zipPath: string, tempDir: string, outputFile?: string): Promise<{ zipPath: string; worlds: WorldMetadata[] }> {
-    const tempRoot = Path.resolve(tempDir);
+    const tempRoot = safeWorkspacePath(tempDir);
+    const sourceZipPath = safeWorkspacePath(zipPath);
     await fs.mkdir(tempRoot, { recursive: true });
 
     const sessionRoot = tempRoot;
     const rootExtractDir = safeJoinPath(sessionRoot, 'root');
     await fs.mkdir(rootExtractDir, { recursive: true });
 
-    const outputZipPath = outputFile ? Path.resolve(outputFile) : safeJoinPath(
+    const outputZipPath = outputFile ? safeResolvePath(tempRoot, outputFile) : safeJoinPath(
         tempRoot,
         `${Path.basename(zipPath, Path.extname(zipPath)) || 'world'}-optimized-${Date.now().toString(36)}.zip`
     );
@@ -208,7 +209,7 @@ export async function optimizeWorldsInZip(zipPath: string, tempDir: string, outp
     const contexts: ArchiveContext[] = [];
     let nestedCounter = 0;
     await extractArchiveRecursive({
-        source: { zipPath: Path.resolve(zipPath) },
+        source: { zipPath: sourceZipPath },
         relPath: '',
         extractDir: rootExtractDir,
         getNextExtractDir: (suffix: string) => safeJoinPath(sessionRoot, `nested-${nestedCounter++}-${suffix}`),
@@ -236,7 +237,7 @@ export async function findWorldsInZip(zipSource: string | Buffer, budget?: Extra
         remainingBytes: MAX_TOTAL_UNCOMPRESSED_BYTES,
         perEntryLimit: MAX_ENTRY_UNCOMPRESSED_BYTES
     };
-    const source: ZipSource = typeof zipSource === 'string' ? { zipPath: Path.resolve(zipSource) } : { buffer: zipSource };
+    const source: ZipSource = typeof zipSource === 'string' ? { zipPath: safeWorkspacePath(zipSource) } : { buffer: zipSource };
     const worlds = await analyzeZipRecursive(source, '', sessionBudget);
     return orderWorlds(worlds);
 }

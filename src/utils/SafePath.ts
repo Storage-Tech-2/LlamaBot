@@ -11,26 +11,48 @@ function isPathContainedIn(parentResolved: string, childResolved: string): boole
 
 export function safeJoinPath(basePath: string, ...parts: string[]): string {
     let currentPath = Path.normalize(basePath);
-    let currentResolved = Path.resolve(currentPath);
 
     for (const part of parts) {
-        const nextPath = Path.join(currentPath, part);
-        const nextResolved = Path.resolve(nextPath);
-
-        if (!isPathContainedIn(currentResolved, nextResolved)) {
-            throw new Error(`Path traversal detected while joining "${part}" to "${currentPath}"`);
-        }
-
-        currentPath = nextPath;
-        currentResolved = nextResolved;
+        currentPath = safeResolvePath(currentPath, part);
     }
 
     return currentPath;
 }
 
+export function safeResolvePath(basePath: string, targetPath: string): string {
+    const resolvedBase = Path.resolve(basePath);
+    const resolvedTarget = Path.resolve(basePath, targetPath);
+
+    if (!isPathContainedIn(resolvedBase, resolvedTarget)) {
+        throw new Error(`Path traversal detected while resolving "${targetPath}" from "${basePath}"`);
+    }
+
+    return resolvedTarget;
+}
+
 export function safeJoinPathOrNull(basePath: string, ...parts: string[]): string | null {
     try {
         return safeJoinPath(basePath, ...parts);
+    } catch {
+        return null;
+    }
+}
+
+export function safeResolvePathOrNull(basePath: string, targetPath: string): string | null {
+    try {
+        return safeResolvePath(basePath, targetPath);
+    } catch {
+        return null;
+    }
+}
+
+export function safeWorkspacePath(pathValue: string): string {
+    return safeResolvePath(process.cwd(), pathValue);
+}
+
+export function safeWorkspacePathOrNull(pathValue: string): string | null {
+    try {
+        return safeWorkspacePath(pathValue);
     } catch {
         return null;
     }

@@ -5,7 +5,7 @@ import { ReferenceType } from "../utils/ReferenceUtils.js";
 import { ArchiveEntry } from "./ArchiveEntry.js";
 import { ArchiveEntryReference } from "./ArchiveChannel.js";
 import { ArchiveChannelReference } from "./RepositoryConfigs.js";
-import { safeJoinPath } from "../utils/SafePath.js";
+import { safeJoinPath, safeWorkspacePath } from "../utils/SafePath.js";
 
 export type DiscordServerEntry = {
     id: Snowflake,
@@ -22,7 +22,7 @@ export class DiscordServersDictionary {
         private repositoryManager?: RepositoryManager,
         private fallbackDictionary?: DiscordServersDictionary
     ) {
-
+        this.folderPath = safeWorkspacePath(folderPath);
     }
 
     getConfigPath(): string {

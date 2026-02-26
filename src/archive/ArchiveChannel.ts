@@ -1,7 +1,7 @@
 import { Snowflake } from "discord.js";
 import fs from "fs/promises";
 import { ArchiveChannelReference } from "./RepositoryConfigs.js";
-import { safeJoinPath } from "../utils/SafePath.js";
+import { safeJoinPath, safeWorkspacePath } from "../utils/SafePath.js";
 
 export type ArchiveEntryReference = {
     id: Snowflake;
@@ -25,7 +25,7 @@ export class ArchiveChannel {
 
     constructor(data: ArchiveChannelData, folderPath: string) {
         this.data = data;
-        this.folderPath = folderPath;
+        this.folderPath = safeWorkspacePath(folderPath);
     }
 
     public getData(): ArchiveChannelData {
@@ -80,9 +80,10 @@ export class ArchiveChannel {
     }
 
     public static async fromFolder(folder: string): Promise<ArchiveChannel> {
-        const dataPath = safeJoinPath(folder, 'data.json');
+        const safeFolder = safeWorkspacePath(folder);
+        const dataPath = safeJoinPath(safeFolder, 'data.json');
         const data: ArchiveChannelData = JSON.parse(await fs.readFile(dataPath, 'utf-8'));
-        const entry = new ArchiveChannel(data, folder);
+        const entry = new ArchiveChannel(data, safeFolder);
         return entry;
     }
 

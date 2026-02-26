@@ -23,7 +23,7 @@ import { processImages, processAttachments, getAllAttachments, optimizeAttachmen
 import { RuleMatcher } from "../utils/RuleMatcher.js";
 import { tagReferencesInAcknowledgements, tagReferencesInSubmissionRecords } from "../utils/ReferenceUtils.js";
 import { PublishCommitMessage } from "./Publish.js";
-import { safeJoinPath } from "../utils/SafePath.js";
+import { safeJoinPath, safeWorkspacePath } from "../utils/SafePath.js";
 
 export class Submission {
     private guildHolder: GuildHolder;
@@ -49,9 +49,9 @@ export class Submission {
     ) {
         this.guildHolder = guildHolder;
         this.id = id;
-        this.folderPath = folderPath;
-        this.config = new ConfigManager(safeJoinPath(folderPath, 'submission.json'));
-        this.revisions = new RevisionManager(this, safeJoinPath(folderPath, 'revisions'));
+        this.folderPath = safeWorkspacePath(folderPath);
+        this.config = new ConfigManager(safeJoinPath(this.folderPath, 'submission.json'));
+        this.revisions = new RevisionManager(this, safeJoinPath(this.folderPath, 'revisions'));
     }
 
     /**

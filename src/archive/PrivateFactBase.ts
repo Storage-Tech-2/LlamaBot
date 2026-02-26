@@ -3,7 +3,7 @@ import { EmbeddingsEntry, base64ToInt8Array, makeHNSWIndex, EmbeddingsSearchResu
 import { TemporaryCache } from "./TemporaryCache.js";
 import { HierarchicalNSW } from "hnswlib-node";
 import { Snowflake } from "discord.js";
-import { safeJoinPath } from "../utils/SafePath.js";
+import { safeJoinPath, safeWorkspacePath } from "../utils/SafePath.js";
 
 export type QAFactSheet = {
     question: string;
@@ -18,6 +18,7 @@ export class PrivateFactBase {
     private hnswIndexCache: TemporaryCache<HierarchicalNSW | null>;
 
     constructor(private folderPath: string) {
+        this.folderPath = safeWorkspacePath(folderPath);
         this.hnswIndexCache = new TemporaryCache<HierarchicalNSW | null>(5 * 60 * 1000, async () => {
             return await loadHNSWIndex(this.getEmbeddingsIndexPath()).catch(() => null);
         });

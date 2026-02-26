@@ -14,7 +14,7 @@ import { base64ToInt8Array, EmbeddingsEntry, EmbeddingsSearchResult, generateDoc
 import { type HierarchicalNSW } from 'hnswlib-node';
 import { TemporaryCache } from "./TemporaryCache.js";
 import { runDictionaryStorageMigration } from "./DictionaryStorageMigration.js";
-import { safeJoinPath } from "../utils/SafePath.js";
+import { safeJoinPath, safeWorkspacePath } from "../utils/SafePath.js";
 
 export enum DictionaryEntryStatus {
     PENDING = "PENDING",
@@ -50,6 +50,8 @@ export class DictionaryManager {
         private submissionsFolderPath: string,
         private repositoryManager: RepositoryManager,
     ) {
+        this.folderPath = safeWorkspacePath(folderPath);
+        this.submissionsFolderPath = safeWorkspacePath(submissionsFolderPath);
         this.hnswIndexCache = new TemporaryCache<HierarchicalNSW | null>(5 * 60 * 1000, async () => {
             return await loadHNSWIndex(this.getHNSWIndexPath()).catch(() => null);
         });

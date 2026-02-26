@@ -8,7 +8,7 @@ import type { RepositoryManager } from "./RepositoryManager.js";
 import { ArchiveChannelReference } from "./RepositoryConfigs.js";
 import { GuildConfigs } from "../config/GuildConfigs.js";
 import { TemporaryCache } from "./TemporaryCache.js";
-import { safeJoinPath } from "../utils/SafePath.js";
+import { safeJoinPath, safeWorkspacePath } from "../utils/SafePath.js";
 
 const INDEX_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -47,6 +47,7 @@ export class IndexManager {
         private repositoryManager: RepositoryManager,
         private archiveFolderPath: string,
     ) { 
+        this.archiveFolderPath = safeWorkspacePath(archiveFolderPath);
         this.cachedDictionaryIndex = new TemporaryCache<DictionaryTermIndex>(
             INDEX_TIMEOUT_MS,
             () => this.buildDictionaryTermIndex()

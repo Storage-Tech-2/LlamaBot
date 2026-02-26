@@ -1,6 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from "crypto";
 import fs from "fs/promises";
 import path from "path";
+import { safeWorkspacePath } from "../utils/SafePath.js";
 
 const MIN_LAST_USED_UPDATE_INTERVAL_MS = 30_000;
 
@@ -45,7 +46,9 @@ export class APITokenManager {
 	private loaded = false;
 	private tokens: APITokenRecord[] = [];
 
-	constructor(private readonly filePath: string) { }
+	constructor(private readonly filePath: string) {
+		this.filePath = safeWorkspacePath(filePath);
+	}
 
 	public async load(): Promise<void> {
 		try {

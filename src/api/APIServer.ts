@@ -22,7 +22,7 @@ import type {
 } from "./APITypes.js";
 import type { APITokenRecord } from "./APITokenManager.js";
 import { getAuthorName } from "../utils/Util.js";
-import { safeJoinPathOrNull } from "../utils/SafePath.js";
+import { safeResolvePathOrNull } from "../utils/SafePath.js";
 
 const DEFAULT_PORT = 4938;
 const DEFAULT_HOST = "127.0.0.1";
@@ -522,7 +522,7 @@ export class APIServer {
 	}
 
 	private resolveSafePath(basePath: string, relativePath: string): string | null {
-		return safeJoinPathOrNull(basePath, relativePath);
+		return safeResolvePathOrNull(basePath, relativePath);
 	}
 
 	private async fileExists(filePath: string): Promise<boolean> {
