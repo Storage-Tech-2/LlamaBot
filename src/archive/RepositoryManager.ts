@@ -128,13 +128,6 @@ export class RepositoryManager {
         // set branch name
         this.branchName = await this.fetchBranchName().catch(() => 'main');
 
-        // try pull
-        try {
-            await this.pull();
-        } catch (e: any) {
-            console.error("Error pulling from remote:", e.message);
-        }
-
         try {
             await this.push();
         } catch (e: any) {
@@ -433,14 +426,6 @@ export class RepositoryManager {
 
     shouldIgnoreUpdates(id: Snowflake): boolean {
         return this.ignoreUpdatesFrom.includes(id);
-    }
-
-    async pull() {
-        if (!this.git) {
-            throw new Error("Git not initialized");
-        }
-        await this.updateRemote();
-        await this.git.pull('origin', this.branchName);
     }
 
     async updateRemote() {
