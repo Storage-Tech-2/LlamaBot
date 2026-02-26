@@ -1850,6 +1850,11 @@ export class RepositoryManager {
                             allowedMentions: { parse: [] }
                         });
                     }
+
+                    // delete old files
+                    for (const file of files.paths) {
+                        await fs.unlink(file).catch(() => { });
+                    }
                 }
             }
 
