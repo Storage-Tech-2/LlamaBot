@@ -874,7 +874,7 @@ export class Submission {
         return found || null;
     }
 
-    public async publish(silent: boolean = false, force: boolean = false, details?: PublishCommitMessage, statusCallback?: (status: string) => Promise<void>) {
+    public async publish(silent: boolean = false, force: boolean = false, reprocessImages: boolean = false, details?: PublishCommitMessage, statusCallback?: (status: string) => Promise<void>) {
         if (this.publishLock) {
             throw new Error('Publish is already in progress');
         }
@@ -889,7 +889,7 @@ export class Submission {
         }
 
         try {
-            const dt = await this.guildHolder.getRepositoryManager().addOrUpdateEntryFromSubmission(this, force, details, statusCallback);
+            const dt = await this.guildHolder.getRepositoryManager().addOrUpdateEntryFromSubmission(this, force, reprocessImages, details, statusCallback);
             oldEntryData = dt.oldEntryData;
             newEntryData = dt.newEntryData;
         } catch (error) {

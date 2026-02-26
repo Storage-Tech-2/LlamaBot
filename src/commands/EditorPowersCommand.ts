@@ -87,6 +87,10 @@ export class EditorPowersCommand implements Command {
                             .setDescription('Optional detailed description of changes made')
                     )
                     .addBooleanOption(option =>
+                         option.setName('images')
+                            .setDescription('Reprocess images during publishing')
+                    )
+                    .addBooleanOption(option =>
                         option.setName('refresh')
                             .setDescription('Force remaking the post thread entirely')
                     )
@@ -293,6 +297,7 @@ export class EditorPowersCommand implements Command {
                 const detailedMessageRaw = interaction.options.getString('details') || undefined;
                 const silent = interaction.options.getBoolean('silent') || false;
                 const refresh = interaction.options.getBoolean('refresh') || false;
+                const reprocessImages = interaction.options.getBoolean('images') || false;
 
                 const messageDetails: PublishCommitMessage = {
                     message: commitMessageRaw,
@@ -304,7 +309,7 @@ export class EditorPowersCommand implements Command {
                 });
 
                 try {
-                    await submission.publish(silent, refresh, messageDetails, async (status: string) => {
+                    await submission.publish(silent, refresh, reprocessImages, messageDetails, async (status: string) => {
                         await interaction.editReply(status).catch(() => { });
                     });
                 } catch (e: any) {

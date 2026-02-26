@@ -86,7 +86,7 @@ export class PublishAddSummaryModal implements Modal {
         });
 
         try {
-            await submission.publish(false, false, publishMessage, async (status: string) => {
+            await submission.publish(false, false, false, publishMessage, async (status: string) => {
                 await msg.edit({ content: `<@${interaction.user.id}> initiated publishing!\nStatus: ${status}` });
             });
         } catch (e: any) {

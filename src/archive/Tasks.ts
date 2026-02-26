@@ -12,7 +12,7 @@ import { iterateAllMessages } from "../utils/AttachmentUtils.js";
 export async function republishAllEntries(
     guildHolder: GuildHolder,
     doChannel: ForumChannel | null,
-    replace: boolean, silent: boolean, references: boolean, reanalyze: boolean,
+    replace: boolean, silent: boolean, reanalyze: boolean, reprocessImages: boolean,
     interaction: ChatInputCommandInteraction
 ): Promise<void> {
     const repositoryManager = guildHolder.getRepositoryManager();
@@ -45,15 +45,6 @@ export async function republishAllEntries(
                 }
                 const entryData = entry.getData();
 
-                if (references) {
-                    if (
-                        !entryData.references.some(ref => ref.type === ReferenceType.DISCORD_LINK)
-                        && !entryData.author_references.some(ref => ref.type === ReferenceType.DISCORD_LINK)
-                    ) {
-                        continue;
-                    }
-                }
-
                 const submission = await guildHolder.getSubmissionsManager().getSubmission(entryData.id);
                 // Get channel
                 const submissionChannel = submission ? await submission.getSubmissionChannel(true) : null;
@@ -68,7 +59,7 @@ export async function republishAllEntries(
                     await channel.send({ content: `Entry ${entryData.code} does not have a post, skipping.` });
                 } else {
                     try {
-                        result = await repositoryManager.addOrUpdateEntryFromData(entryData, entryData.post.forumId, replace, reanalyze, async () => { });
+                        result = await repositoryManager.addOrUpdateEntryFromData(entryData, entryData.post.forumId, replace, reprocessImages, reanalyze, async () => { });
                         await channel.send({ content: `Entry ${entryData.code} republished: ${result.newEntryData.post?.threadURL}` });
                     } catch (e: any) {
                         console.error(e);
@@ -274,7 +265,7 @@ export async function updateMetadataTask(guildHolder: GuildHolder): Promise<numb
                 data.endorsers = newEndorsers;
             }
 
-            await repositoryManager.addOrUpdateEntryFromData(data, channelRef.id, false, false, async () => { }).catch((e) => {
+            await repositoryManager.addOrUpdateEntryFromData(data, channelRef.id, false, false, false, async () => { }).catch((e) => {
                 console.error(`Error updating references for entry ${data.name} in channel ${channelRef.name}:`, e.message);
             });
 
@@ -360,7 +351,7 @@ export async function retagEverythingTask(guildHolder: GuildHolder): Promise<voi
 
             data.author_references = newAuthorReferences;
 
-            await repositoryManager.addOrUpdateEntryFromData(data, channelRef.id, false, false, async () => { }).catch((e) => {
+            await repositoryManager.addOrUpdateEntryFromData(data, channelRef.id, false, false, false, async () => { }).catch((e) => {
                 console.error(`Error updating references for entry ${data.name} in channel ${channelRef.name}:`, e.message);
             });
             modifiedCount++;

@@ -748,7 +748,7 @@ export class RepositoryManager {
             await this.setChannelReferences(reMapped);
 
             for (const { entryData, archiveChannelId } of republishQueue) {
-                const result = await this.addOrUpdateEntryFromData(entryData, archiveChannelId, false, false, async () => { });
+                const result = await this.addOrUpdateEntryFromData(entryData, archiveChannelId, false, false, false, async () => { });
                 const submission = await this.guildHolder.getSubmissionsManager().getSubmission(entryData.id);
                 if (submission) {
                     submission.getConfigManager().setConfig(SubmissionConfigs.ARCHIVE_CHANNEL_ID, archiveChannelId);
@@ -1270,6 +1270,7 @@ export class RepositoryManager {
     async addOrUpdateEntryFromSubmission(
         submission: Submission,
         forceNew: boolean,
+        reprocessImages: boolean,
         details?: PublishCommitMessage,
         statusCallback?: (status: string) => Promise<void>
     ): Promise<{ oldEntryData?: ArchiveEntryData, newEntryData: ArchiveEntryData }> {
@@ -1427,7 +1428,7 @@ export class RepositoryManager {
             if (!submissionChannel || !entryData) {
                 throw new Error("Failed to get submission channel or entry data");
             }
-            const result = await this.addOrUpdateEntryFromData(entryData, archiveChannelId, forceNew, false, async (entryData, imageFolder, attachmentFolder) => {
+            const result = await this.addOrUpdateEntryFromData(entryData, archiveChannelId, forceNew, reprocessImages, false, async (entryData, imageFolder, attachmentFolder) => {
                 // remove all images and attachments that exist in the folder.
 
                 // remove existing files
@@ -1517,6 +1518,7 @@ export class RepositoryManager {
         newEntryData: ArchiveEntryData,
         archiveChannelId: Snowflake,
         forceNew: boolean,
+        reprocessImages: boolean,
         reanalyzeAttachments: boolean,
         moveAttachments: (entryData: ArchiveEntryData, imageFolder: string, attachmentFolder: string) => Promise<void>,
         statusCallback: (status: string) => Promise<void> | void = () => { }
@@ -1799,67 +1801,59 @@ export class RepositoryManager {
 
         let wasThreadCreated = false;
         if (!thread) {
-
             await reportStatus('Creating thread...');
             newEntryData.post.threadId = '';
             newEntryData.post.threadURL = '';
             newEntryData.post.continuingMessageIds = [];
-            const isGalleryView = archiveChannelDiscord.defaultForumLayout === ForumLayoutType.GalleryView;
-            const temp_dir = Path.join(this.guildHolder.getGuildFolder(), 'discord-image-temp', newEntryData.id);
-            await fs.mkdir(temp_dir, { recursive: true });
-            const files = await PostEmbed.createImageFiles(newEntryData, this.folderPath, temp_dir, entryPathPart, isGalleryView);
             thread = await archiveChannelDiscord.threads.create({
                 message: {
                     content: `Pending...`,
-                    files: files.files,
                     flags: [MessageFlags.SuppressEmbeds, MessageFlags.SuppressNotifications]
                 },
                 name: newEntryData.code + ' ' + newEntryData.name,
                 appliedTags: newEntryData.tags.map(tag => tag.id).filter(tagId => archiveChannelDiscord.availableTags.some(t => t.id === tagId)).slice(0, 5),
             })
-
-            // delete old files
-            await fs.rm(temp_dir, { recursive: true, force: true }).catch(() => { });
             wasThreadCreated = true;
         } else {
-            // check if images changed
-            const existingData = existing ? existing.entry.getData() : null;
-            if (existingData) {
-                const existingImages = existingData.images.map(i => getFileKey(i));
-                const newImages = newEntryData.images.map(i => getFileKey(i));
-                let imagesChanged = false;
-                if (existingImages.length !== newImages.length) {
-                    imagesChanged = true;
-                } else {
-                    for (let i = 0; i < existingImages.length; i++) {
-                        if (existingImages[i] !== newImages[i]) {
-                            imagesChanged = true;
-                            break;
-                        }
+            await thread.setAppliedTags(newEntryData.tags.map(tag => tag.id).filter(tagId => archiveChannelDiscord.availableTags.some(t => t.id === tagId)).slice(0, 5));
+        }
+
+        // check if images changed
+        const existingData = existing ? existing.entry.getData() : null;
+        let imagesChanged = wasThreadCreated || reprocessImages;
+
+        if (!imagesChanged && existingData) {
+            const existingImages = existingData.images.map(i => getFileKey(i));
+            const newImages = newEntryData.images.map(i => getFileKey(i));
+            if (existingImages.length !== newImages.length) {
+                imagesChanged = true;
+            } else {
+                for (let i = 0; i < existingImages.length; i++) {
+                    if (existingImages[i] !== newImages[i]) {
+                        imagesChanged = true;
+                        break;
                     }
-                }
-
-                if (imagesChanged) {
-                    await reportStatus('Updating thread images...');
-                    const temp_dir = Path.join(this.guildHolder.getGuildFolder(), 'discord-image-temp', newEntryData.id);
-                    await fs.mkdir(temp_dir, { recursive: true });
-
-                    const files = await PostEmbed.createImageFiles(newEntryData, this.folderPath, temp_dir, entryPathPart, archiveChannelDiscord.defaultForumLayout === ForumLayoutType.GalleryView);
-                    const initialMessage = await thread.fetchStarterMessage().catch(() => null);
-                    if (initialMessage) {
-                        await initialMessage.edit({
-                            content: messageChunks[0].content,
-                            files: files.files,
-                            allowedMentions: { parse: [] }
-                        });
-                    }
-
-                    // delete temp files
-                    await fs.rm(temp_dir, { recursive: true, force: true }).catch(() => { });
                 }
             }
+        }
 
-            await thread.setAppliedTags(newEntryData.tags.map(tag => tag.id).filter(tagId => archiveChannelDiscord.availableTags.some(t => t.id === tagId)).slice(0, 5));
+        if (imagesChanged) {
+            await reportStatus('Setting thread images...');
+            const temp_dir = Path.join(this.guildHolder.getGuildFolder(), 'discord-image-temp', newEntryData.id);
+            await fs.mkdir(temp_dir, { recursive: true });
+
+            const files = await PostEmbed.createImageFiles(newEntryData, this.folderPath, temp_dir, entryPathPart, archiveChannelDiscord.defaultForumLayout === ForumLayoutType.GalleryView);
+            const initialMessage = await thread.fetchStarterMessage().catch(() => null);
+            if (initialMessage) {
+                await initialMessage.edit({
+                    content: messageChunks[0].content,
+                    files: files.files,
+                    allowedMentions: { parse: [] }
+                });
+            }
+
+            // delete temp files
+            await fs.rm(temp_dir, { recursive: true, force: true }).catch(() => { });
         }
 
         newEntryData.post.threadId = thread.id;
@@ -2083,7 +2077,7 @@ export class RepositoryManager {
                     }
 
                     if (updated && otherData.post) {
-                        await this.addOrUpdateEntryFromData(otherData, otherData.post.forumId, false, false, async () => {
+                        await this.addOrUpdateEntryFromData(otherData, otherData.post.forumId, false, false, false, async () => {
                             // do nothing
                         }).catch(e => {
                             console.error("Error updating entry for URL update:", e);

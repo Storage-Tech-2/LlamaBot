@@ -116,6 +116,7 @@ export class DiscordServersDictionary {
                     channelRef.id,
                     false,
                     false,
+                    false,
                     async () => { }
                 ).catch((e) => {
                     console.error(`Error updating Discord server references for entry ${data.name} in channel ${channelRef.name}:`, e.message);

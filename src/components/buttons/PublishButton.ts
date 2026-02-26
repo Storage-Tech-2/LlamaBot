@@ -47,7 +47,7 @@ export class PublishButton implements Button {
         });
 
         try {
-            await submission.publish(false, false,undefined, async (status: string) => {
+            await submission.publish(false, false, false, undefined, async (status: string) => {
                 await msg.edit({ content: `<@${interaction.user.id}> initiated publishing!\nStatus: ${status}` });
             });
         } catch(e: any) {
