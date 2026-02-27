@@ -1,7 +1,7 @@
 import { ActionRowBuilder, ButtonInteraction, EmbedBuilder, Interaction, MessageFlags, ModalSubmitInteraction, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { canEditSubmission, escapeDiscordString, formatSize, replyEphemeral, replyReplace, splitIntoChunks, truncateFileName, truncateStringWithEllipsis } from "../../utils/Util.js";
+import { canEditSubmission, escapeDiscordString, formatSize, reorderToPreserveOldOrder, replyEphemeral, replyReplace, splitIntoChunks, truncateFileName, truncateStringWithEllipsis } from "../../utils/Util.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { Attachment, AttachmentAskDescriptionData } from "../../submissions/Attachment.js";
@@ -100,12 +100,12 @@ export class SetAttachmentsMenu implements Menu {
         await interaction.deferUpdate()
         const attachments = await submission.getAttachments()
         const currentAttachments = submission.getConfigManager().getConfig(SubmissionConfigs.ATTACHMENTS) ?? [];
-        const newAttachments = interaction.values.map(id => {
+        const newAttachments = reorderToPreserveOldOrder(currentAttachments, interaction.values.map(id => {
             return currentAttachments.find(attachment => attachment.id === id) ?? attachments.find(attachment => attachment.id === id);
-        }).filter(o => !!o);
+        }).filter(o => !!o));
 
         const addedAttachmentsWithoutDescriptions = newAttachments.filter(newAtt => {
-            return !newAtt.description && !currentAttachments.some(currAtt => currAtt.id === newAtt.id);
+            return (!newAtt.description || newAtt.description === "(no content)") && !currentAttachments.some(currAtt => currAtt.id === newAtt.id);
         });
 
         if (addedAttachmentsWithoutDescriptions.length > 0) {

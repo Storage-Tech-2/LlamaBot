@@ -1,7 +1,7 @@
 import { ActionRowBuilder, AttachmentBuilder, ButtonInteraction, EmbedBuilder, Interaction, MessageFlags, ModalSubmitInteraction, StringSelectMenuBuilder, StringSelectMenuInteraction, StringSelectMenuOptionBuilder } from "discord.js";
 import { GuildHolder } from "../../GuildHolder.js";
 import { Menu } from "../../interface/Menu.js";
-import { canEditSubmission, escapeDiscordString, replyEphemeral, replyReplace, truncateFileName, truncateStringWithEllipsis } from "../../utils/Util.js";
+import { canEditSubmission, escapeDiscordString, reorderToPreserveOldOrder, replyEphemeral, replyReplace, truncateFileName, truncateStringWithEllipsis } from "../../utils/Util.js";
 import { Submission } from "../../submissions/Submission.js";
 import { SubmissionConfigs } from "../../submissions/SubmissionConfigs.js";
 import { SetAttachmentsMenu } from "./SetAttachmentsMenu.js";
@@ -105,7 +105,7 @@ export class SetImagesMenu implements Menu {
         const attachments = await submission.getAttachments()
 
         const currentImages = submission.getConfigManager().getConfig(SubmissionConfigs.IMAGES) ?? [];
-        const newImages: BaseAttachment[] = interaction.values.map((value) => {
+        const newImages: BaseAttachment[] = reorderToPreserveOldOrder(currentImages, interaction.values.map((value) => {
             const imageFound = currentImages.find(img => img.id === value);
             if (imageFound) {
                 return imageFound;
@@ -116,7 +116,7 @@ export class SetImagesMenu implements Menu {
                 return found;
             }
             return null;
-        }).filter(o => !!o);
+        }).filter(o => !!o));
 
         const added: BaseAttachment[] = [];
         const removed: BaseAttachment[] = [];

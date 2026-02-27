@@ -910,3 +910,19 @@ export function getMessageAuthor(message: Message): DiscordAuthor {
         };
     }
 }
+
+export function reorderToPreserveOldOrder<T>(oldList: T[], newList: T[]): T[] {
+    const newListWithOrder = newList.map(item => ({ item, index: oldList.findIndex(oldItem => oldItem === item) }));
+    newListWithOrder.sort((a, b) => {
+        if (a.index === -1 && b.index === -1) {
+            return 0; // Both are new, keep original order
+        } else if (a.index === -1) {
+            return 1; // a is new, put after b
+        } else if (b.index === -1) {
+            return -1; // b is new, put after a
+        } else {
+            return a.index - b.index; // Both exist, preserve original order
+        }
+    });
+    return newListWithOrder.map(entry => entry.item);
+}
