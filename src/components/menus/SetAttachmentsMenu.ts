@@ -28,7 +28,7 @@ export class SetAttachmentsMenu implements Menu {
             .addOptions(
                 fileAttachments.map(file => {
                     const matching = currentFiles.find(att => att.id === file.id);
-                    return new StringSelectMenuOptionBuilder().setLabel(truncateFileName(file.name, 50))
+                    return new StringSelectMenuOptionBuilder().setLabel(truncateFileName(matching ? matching.name : file.name, 50))
                         .setValue(file.id)
                         .setDescription(truncateStringWithEllipsis(getAttachmentDescriptionForMenus(matching ?? file), 100) || "No description")
                         .setDefault(!!matching);

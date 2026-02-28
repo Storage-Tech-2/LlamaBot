@@ -29,7 +29,7 @@ export class SetImagesMenu implements Menu {
             .addOptions(
                 imageAttachments.map(image => {
                     const matching = currentImages.find(img => img.id === image.id);
-                    return new StringSelectMenuOptionBuilder().setLabel(truncateFileName(image.name, 50))
+                    return new StringSelectMenuOptionBuilder().setLabel(truncateFileName(matching ? matching.name : image.name, 50))
                         .setValue(image.id)
                         .setDescription(truncateStringWithEllipsis(getAttachmentDescriptionForMenus(matching ?? image), 100) || "No description")
                         .setDefault(!!matching);
