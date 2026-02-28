@@ -19,7 +19,7 @@ http://storagetech2.org/debug/colorpicker/
 
 ## Setup
 1. Clone the repository
-2. Put your Discord bot token, xAI, and OpenAI keys in `secrets.json`
+2. Put your Discord bot token and xAI keys in `secrets.json`
 3. Put the GitHub app private key in `key.pem`
 4. Run `npm install` to install dependencies
 5. Run `npm run dev` to start the bot in development mode, or `npm run start` for production mode.
