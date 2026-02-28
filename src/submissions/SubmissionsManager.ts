@@ -47,7 +47,10 @@ export class SubmissionsManager {
 
         if (this.submissionPromises.has(id)) {
             // If a promise is already in progress, wait for it
-            await this.submissionPromises.get(id);
+            const existingPromise = this.submissionPromises.get(id);
+            if (existingPromise) {
+                await existingPromise.catch(() => { });
+            }
             return this.submissions.get(id) || null;
         }
 
@@ -61,23 +64,32 @@ export class SubmissionsManager {
         }
 
         // Load submission from path
-        try {
-            const submission = new Submission(this.guildHolder, id, folderPath)
-            const promise = submission.load();
-            this.submissionPromises.set(id, promise)
-            await promise;
-            this.submissions.set(id, submission)
-            this.submissionPromises.delete(id);
+        const submission = new Submission(this.guildHolder, id, folderPath)
+        const promise = (async () => {
+            try {
+                await submission.load();
+                this.submissions.set(id, submission);
 
-            if (this.submissions.size > 10) {
-                // Remove the oldest submission
-                const oldestSubmission = Array.from(this.submissions.values()).filter(v => v.canJunk()).reduce((oldest, current) => {
-                    return current.lastAccessed < oldest.lastAccessed ? current : oldest
-                })
-                await oldestSubmission.save()
-                this.submissions.delete(oldestSubmission.getId())
+                if (this.submissions.size > 10) {
+                    const junkableSubmissions = Array.from(this.submissions.values()).filter(v => v.canJunk());
+                    if (junkableSubmissions.length > 0) {
+                        const oldestSubmission = junkableSubmissions.reduce((oldest, current) => {
+                            return current.lastAccessed < oldest.lastAccessed ? current : oldest
+                        });
+                        await oldestSubmission.save();
+                        this.submissions.delete(oldestSubmission.getId());
+                    }
+                }
+            } finally {
+                // Always clear pending-load state to avoid permanently stuck IDs.
+                this.submissionPromises.delete(id);
             }
-            return submission
+        })();
+
+        this.submissionPromises.set(id, promise);
+        try {
+            await promise;
+            return this.submissions.get(id) || null;
         } catch (e) {
             console.error('Error loading submission:', e)
             return null
