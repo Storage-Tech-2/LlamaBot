@@ -54,8 +54,9 @@ export class MoveConvoConfirmButton implements Button {
 
         removeMoveConvoData(guildHolder.getBot(), interaction.user.id, interaction.channelId);
 
-        await original.edit({
-            content: 'Conversation moved successfully!'
-        });
+        // await original.edit({
+        //     content: 'Conversation moved successfully!'
+        // });
+        await original.delete();
     }
 }
