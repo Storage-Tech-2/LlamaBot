@@ -754,6 +754,12 @@ export class GuildHolder {
                                 content: msg ? msg.content : '',
                                 files: msg ? Array.from(msg.attachments.values()) : [],
                             };
+
+                            // forward message to mod log channel
+                            const modChannel = this.getConfigManager().getConfig(GuildConfigs.MOD_LOG_CHANNEL_ID);
+                            if (modChannel && msg.forward) {
+                                await msg.forward(modChannel).catch(() => null);
+                            }
                         }
 
                         await msg.delete().catch(() => null);
