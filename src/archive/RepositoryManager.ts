@@ -1869,7 +1869,7 @@ export class RepositoryManager {
 
         // Detect if thread needs to be refreshed
         let continuingMessageIds = newEntryData.post.continuingMessageIds || [];
-        const shouldRefreshThread = (messageChunks.length > 1 + continuingMessageIds.length) && comments && comments.length > 0;
+        const shouldRefreshThread = (messageChunks.length > 1 + continuingMessageIds.length);
         if (shouldRefreshThread) {
             await reportStatus('Clearing old thread messages...');
             // Delete all previous messages in the thread that are not part of the continuing messages
