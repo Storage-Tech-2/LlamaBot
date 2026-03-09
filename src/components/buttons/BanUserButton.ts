@@ -28,8 +28,10 @@ export class BanUserButton implements Button {
             return;
         }
 
+        const interactionUser = interaction.user;
+
         await interaction.reply({
-            content: `Banned <@${userId}>.`,
+            content: `<@${interactionUser.id}> banned <@${userId}>.`,
         });
     }
 }
