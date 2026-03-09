@@ -34,8 +34,10 @@ export class LiftTimeoutButton implements Button {
             return;
         }
 
+        const interactionUser = interaction.user;
+
         await interaction.reply({
-            content: `Removed timeout for <@${userId}>.`,
+            content: `<@${interactionUser.id}> removed timeout for <@${userId}>.`,
         });
     }
 }
