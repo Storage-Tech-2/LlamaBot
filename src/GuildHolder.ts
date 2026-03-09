@@ -487,33 +487,16 @@ export class GuildHolder {
         }
     }
 
-    public async getPostThumbnailURL(entryData: ArchiveEntryData): Promise<string | null> {
+    public getPostThumbnailURL(entryData: ArchiveEntryData): string | null {
+        if (entryData.post?.thumbnailURL) {
+            return entryData.post.thumbnailURL;
+        }
+
         if (entryData.images.length === 0) {
             return null;
         }
 
-        if (!entryData.post) {
-            // retracted post
-            const image = entryData.images[0];
-            return image.url;
-        }
-
-        // get path
-        const found = await this.repositoryManager.getEntryByPostCode(entryData.code);
-        if (!found) {
-            return null;
-        }
-
-        const githubURL = this.getConfigManager().getConfig(GuildConfigs.GITHUB_REPO_URL);
-        if (!githubURL) {
-            return null;
-        }
-
-        const { owner, project } = getGithubOwnerAndProject(githubURL);
-        const branchName = this.repositoryManager.getBranchName();
-        const imagePath = entryData.images[0].path;
-        const rawURL = buildGithubRawContentURL(owner, project, branchName, `${found.channelRef.path}/${found.entryRef.path}/${imagePath}`);
-        return rawURL;
+        return entryData.images[0].url;
     }
 
     public async getReferenceEmbedsFromMessage(content: string, autoLookupEnabled: boolean, autoJoinEnabled: boolean, maxEmbeds: number = 3) {
@@ -640,7 +623,7 @@ export class GuildHolder {
                     const authors = getAuthorsString(entryData.authors);
                     const tags = entryData.tags.map(tag => tag.name).join(', ');
                     const description = entryData.records.description as string || '';
-                    const imageURL = await this.getPostThumbnailURL(entryData);
+                    const imageURL = this.getPostThumbnailURL(entryData);
 
 
                     const textArr = [
@@ -1410,7 +1393,7 @@ export class GuildHolder {
 
         const embed = new EmbedBuilder();
 
-        const imageURL = newEntryData.images && newEntryData.images.length > 0 ? newEntryData.images[0].url : null;
+        const imageURL = this.getPostThumbnailURL(newEntryData);
         if (imageURL) {
             embed.setThumbnail(imageURL);
         }
@@ -1932,7 +1915,7 @@ export class GuildHolder {
 
         const embed = new EmbedBuilder();
 
-        const imageURL = oldEntryData.images && oldEntryData.images.length > 0 ? oldEntryData.images[0].url : null;
+        const imageURL = this.getPostThumbnailURL(oldEntryData);
         if (imageURL) {
             embed.setThumbnail(imageURL);
         }

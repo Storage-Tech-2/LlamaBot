@@ -225,7 +225,7 @@ export class AskCommand implements Command {
                 const authors = getAuthorsString(entryData.authors);
                 const tags = entryData.tags.map(tag => tag.name).join(', ');
                 const description = entryData.records.description as string || '';
-                const image = await guildHolder.getPostThumbnailURL(entryData);
+                const image = guildHolder.getPostThumbnailURL(entryData);
 
                 const textArr = [
                     `**Authors:** ${authors}`,

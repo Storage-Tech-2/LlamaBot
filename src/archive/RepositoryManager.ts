@@ -1830,11 +1830,16 @@ export class RepositoryManager {
             const files = await PostEmbed.createImageFiles(newEntryData, this.folderPath, temp_dir, entryPathPart, archiveChannelDiscord.defaultForumLayout === ForumLayoutType.GalleryView);
             const initialMessage = await thread.fetchStarterMessage().catch(() => null);
             if (initialMessage) {
-                await initialMessage.edit({
+                const resultMessage = await initialMessage.edit({
                     content: messageChunks[0].content,
                     files: files.files,
                     allowedMentions: { parse: [] }
                 });
+
+                const thumbnailURL = resultMessage.attachments.first()?.url;
+                if (thumbnailURL) {
+                    newEntryData.post.thumbnailURL = thumbnailURL;
+                }
             }
 
             // delete temp files
