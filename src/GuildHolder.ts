@@ -791,10 +791,7 @@ export class GuildHolder {
 
         const urlRegex = /(?:https?:\/\/|www\.)[^\s<]+/gi;
         const urls = Array.from(message.content.matchAll(urlRegex)).map(match => match[0]);
-        const hasUrl = urls.some(url => {
-            const lowered = url.toLowerCase();
-            return !(lowered.includes('discord.com/channels/') || lowered.includes('discordapp.com/channels/'));
-        });
+        const hasUrl = urls.length > 0 || message.content.match(/discord\.gg\/\w+/i) || message.content.match(/discordapp\.com\/invite\/\w+/i);
         const hasAttachment = message.attachments.size > 0;
 
         if (!hasAttachment && !hasUrl) {
